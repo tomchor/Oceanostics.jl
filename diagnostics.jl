@@ -1,7 +1,7 @@
 using KernelAbstractions: @index, @kernel
+using Oceananigans.Operators
 
 
-using Oceananigans.Operators: ℑxᶜᵃᵃ, ℑyᵃᶜᵃ, ℑzᵃᵃᶜ
 @inline ψ′²(i, j, k, grid, ψ, Ψ) = @inbounds (ψ[i, j, k] - Ψ[i, j, k])^2
 @kernel function turbulent_kinetic_energy_ccc!(tke, grid, u, v, w, U, V, W)
     i, j, k = @index(Global, NTuple)
@@ -15,7 +15,6 @@ end
 
 
 
-using Oceananigans.Operators: ∂xᶜᵃᵃ, ∂yᵃᶜᵃ, ∂zᵃᵃᶜ, ℑxyᶜᶜᵃ, ℑxzᶜᵃᶜ, ℑyzᵃᶜᶜ
 @kernel function isotropic_viscous_dissipation_ccc!(ϵ, grid, ν, u, v, w)
     i, j, k = @index(Global, NTuple)
 
@@ -32,7 +31,6 @@ end
 
 
 
-using Oceananigans.Operators: ∂xᶜᵃᵃ, ∂yᵃᶜᵃ, ∂zᵃᵃᶜ, ℑxyᶜᶜᵃ, ℑxzᶜᵃᶜ, ℑyzᵃᶜᶜ
 @kernel function anisotropic_viscous_dissipation_ccc!(ϵ, grid, νx, νy, νz, u, v, w)
     i, j, k = @index(Global, NTuple)
 
@@ -47,7 +45,6 @@ end
 
 
 
-using Oceananigans.Operators: ℑxᶜᵃᵃ, ℑyᵃᶜᵃ, ∂zᵃᵃᶠ
 @kernel function richardson_number_ccf!(Ri, grid, u, v, b, dUdz_bg, dVdz_bg, N2)
     i, j, k = @index(Global, NTuple)
 
@@ -62,7 +59,6 @@ end
 
 
 
-using Oceananigans.Operators: ∂xᶠᵃᵃ, ∂yᵃᶠᵃ
 @kernel function rossby_number_ffc!(Ro, grid, u, v, dUdy_bg, dVdx_bg, f₀)
     i, j, k = @index(Global, NTuple)
 
@@ -74,7 +70,6 @@ end
 
 
 
-using Oceananigans.Operators: ℑxyzᶜᶜᶠ
 @kernel function compute_pv_from_Ro_Ri!(PV, grid, Ri, Ro, N², f₀)
     i, j, k = @index(Global, NTuple)
 
@@ -85,7 +80,6 @@ using Oceananigans.Operators: ℑxyzᶜᶜᶠ
 end
 
 
-using Oceananigans.Operators: ℑzᵃᵃᶠ, ℑxyᶠᶠᵃ, ℑyᵃᶠᵃ, ℑxᶠᵃᵃ
 @kernel function potential_vorticity_in_thermal_wind_fff!(PV, grid, u, v, b, f₀)
     i, j, k = @index(Global, NTuple)
 
@@ -105,7 +99,6 @@ end
 
 
 
-using Oceananigans.Operators: ℑyzᵃᶠᶠ, ℑxzᶠᵃᶠ
 @kernel function ertel_potential_vorticity_fff!(PV, grid, u, v, w, b, f₀)
     i, j, k = @index(Global, NTuple)
 
@@ -138,7 +131,6 @@ end
 end
 
 
-using Oceananigans.Operators: ∂zᵃᵃᶠ, ℑzᵃᵃᶠ
 @kernel function compute_vertical_pressure_term!(dwpdz, grid, w, p, ρ₀)
     i, j, k = @index(Global, NTuple)
 
@@ -146,4 +138,47 @@ using Oceananigans.Operators: ∂zᵃᵃᶠ, ℑzᵃᵃᶠ
 
     @inbounds dwpdz[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wp)
 end
+
+
+@inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
+@kernel function shear_production_y_ccc!(shear_production, grid, u, v, w, U, V, W)
+    i, j, k = @index(Global, NTuple)
+    v_int = ℑyᵃᶜᵃ(i, j, k, grid, v) # C, F, C  → C, C, C
+
+    ∂yU = ℑxyᶜᶜᵃ(i, j, k, grid, ∂yᵃᶠᵃ, U) # F, C, C  → F, F, C  → C, C, C
+    uv = ℑxᶜᵃᵃ(i, j, k, grid, u) * v_int
+    uv∂yU = uv * ∂yU
+
+    ∂yV = ∂yᵃᶜᵃ(i, j, k, grid, V)
+    vv = ℑyᵃᶜᵃ(i, j, k, grid, ψ², v) # C, F, C  → C, C, C
+    vv∂yV = vv * ∂yV
+
+    ∂yW = ℑyzᵃᶜᶜ(i, j, k, grid, ∂yᵃᶠᵃ, W) # C, C, F  → C, F, F  → C, C, C
+    wv = ℑzᵃᵃᶜ(i, j, k, grid, w) * v_int
+    wv∂yW = wv * ∂yW
+
+    @inbounds shear_production[i, j, k] = -(uv∂yU + vv∂yV + wv∂yW)
+end
+
+
+
+@kernel function shear_production_z_ccc!(shear_production, grid, u, v, w, U, V, W)
+    i, j, k = @index(Global, NTuple)
+    w_int = ℑyᵃᶜᵃ(i, j, k, grid, w) # C, F, C  → C, C, C
+
+    ∂zU = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᵃᵃᶠ, U) # F, C, C  → F, C, F  → C, C, C
+    uw = ℑxᶜᵃᵃ(i, j, k, grid, u) * w_int
+    uw∂zU = uw * ∂zU
+
+    ∂zV = ℑyzᵃᶜᶜ(i, j, k, grid, ∂zᵃᵃᶠ, V) # C, F, C  → C, F, F  → C, C, C
+    vw = ℑyᵃᶜᵃ(i, j, k, grid, v) * w_int
+    vw∂zV = vw * ∂zV
+
+    ∂zW = ∂zᵃᵃᶜ(i, j, k, grid, W)
+    ww = ℑzᵃᵃᶜ(i, j, k, grid, ψ², w) # C, C, F  → C, C, C
+    ww∂zW = ww * ∂zW
+
+    @inbounds shear_production[i, j, k] = - (uw∂zU + vw∂zV + ww∂zW)
+end
+
 
