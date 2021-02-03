@@ -32,9 +32,7 @@ end
     i, j, k = @index(Global, NTuple)
 
     Ro_int = ℑxyzᶜᶜᶠ(i, j, k, grid, Ro)
-
     @inbounds PV[i, j, k] = N²[i, j, k]*f₀ * (1 + Ro[i, j, k] - 1/Ri[i, j, k])
-    #@inbounds PV[i, j, k] = N²[i, j, k]*f₀ * (1 + Ro_int - 1/Ri[i, j, k])
 end
 
 
@@ -82,9 +80,8 @@ end
 
 
 
-@kernel function compute_pressure_correlation!(wp, grid, w, p)
+@kernel function wp_ccc!(wp, grid, w, p)
     i, j, k = @index(Global, NTuple)
-
     @inbounds wp[i, j, k] = ℑzᵃᵃᶜ(i, j, k, grid, w) * p[i, j, k]
 end
 

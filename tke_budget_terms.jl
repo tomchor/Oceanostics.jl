@@ -44,13 +44,12 @@ end
 end
 
 
-
-@kernel function compute_vertical_pressure_term!(dwpdz, grid, w, p, ρ₀)
+@kernel function vertical_pressure_distribution_ccc!(dwpdz, grid, w, p, ρ₀)
     i, j, k = @index(Global, NTuple)
 
-    wp = ℑzᵃᵃᶠ(i, j, k, grid, p) * w[i, j, k]
+    wp = ℑzᵃᵃᶠ(i, j, k, grid, p) * w[i, j, k] # C, C, F
 
-    @inbounds dwpdz[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wp)
+    @inbounds dwpdz[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wp) # C, C, F  → C, C, C
 end
 
 
@@ -78,7 +77,7 @@ end
 
 @kernel function shear_production_z_ccc!(shear_production, grid, u, v, w, U, V, W)
     i, j, k = @index(Global, NTuple)
-    w_int = ℑyᵃᶜᵃ(i, j, k, grid, w) # C, F, C  → C, C, C
+    w_int = ℑzᵃᵃᶜ(i, j, k, grid, w) # C, C, F  → C, C, C
 
     ∂zU = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᵃᵃᶠ, U) # F, C, C  → F, C, F  → C, C, C
     uw = ℑxᶜᵃᵃ(i, j, k, grid, u) * w_int
