@@ -28,13 +28,6 @@ end
 
 
 
-@kernel function compute_pv_from_Ro_Ri!(PV, grid, Ri, Ro, N², f₀)
-    i, j, k = @index(Global, NTuple)
-
-    Ro_int = ℑxyzᶜᶜᶠ(i, j, k, grid, Ro)
-    @inbounds PV[i, j, k] = N²[i, j, k]*f₀ * (1 + Ro[i, j, k] - 1/Ri[i, j, k])
-end
-
 
 @kernel function potential_vorticity_in_thermal_wind_fff!(PV, grid, u, v, b, f₀)
     i, j, k = @index(Global, NTuple)

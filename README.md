@@ -4,9 +4,10 @@
 
 ## Caveats
 
-- Not every kernel has been tested.
+- Not every kernel has been thoroughly tested.
 - Kernels are written very generally since most uses of averages, etc. do not assume any
-  specific kind of averaging procedure. Chances are it "wastes" computations.
+  specific kind of averaging procedure. Chances are it "wastes" computations for a given
+specific application.
 - For now this isn't meant to be a module, but simply a collection of Kernels that can be
   adapted for specific uses.
 
