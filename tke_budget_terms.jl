@@ -1,15 +1,17 @@
 using KernelAbstractions: @index, @kernel
 using Oceananigans.Operators
 
-
+@inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
 @inline ψ′²(i, j, k, grid, ψ, Ψ) = @inbounds (ψ[i, j, k] - Ψ[i, j, k])^2
-@kernel function turbulent_kinetic_energy_ccc!(tke, grid, u, v, w, U, V, W)
+
+
+@kernel function kinetic_energy_ccc!(tke, grid, u, v, w)
     i, j, k = @index(Global, NTuple)
 
     @inbounds tke[i, j, k] = (
-                              ℑxᶜᵃᵃ(i, j, k, grid, ψ′², u, U) +
-                              ℑyᵃᶜᵃ(i, j, k, grid, ψ′², v, V) +
-                              ℑzᵃᵃᶜ(i, j, k, grid, ψ′², w, W)
+                              ℑxᶜᵃᵃ(i, j, k, grid, ψ², u) +
+                              ℑyᵃᶜᵃ(i, j, k, grid, ψ², v) +
+                              ℑzᵃᵃᶜ(i, j, k, grid, ψ², w)
                              ) / 2
 end
 
@@ -53,7 +55,6 @@ end
 end
 
 
-@inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
 @kernel function shear_production_y_ccc!(shear_production, grid, u, v, w, U, V, W)
     i, j, k = @index(Global, NTuple)
     v_int = ℑyᵃᶜᵃ(i, j, k, grid, v) # C, F, C  → C, C, C
