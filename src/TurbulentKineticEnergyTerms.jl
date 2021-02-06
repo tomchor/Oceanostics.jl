@@ -1,5 +1,8 @@
-using KernelAbstractions: @index, @kernel
+module TurbulentKineticEnergyTerms
+
+
 using Oceananigans.Operators
+using KernelAbstractions: @index, @kernel
 
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
 @inline ψ′²(i, j, k, grid, ψ, Ψ) = @inbounds (ψ[i, j, k] - Ψ[i, j, k])^2
@@ -96,3 +99,4 @@ end
 end
 
 
+end # module

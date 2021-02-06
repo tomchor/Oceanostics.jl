@@ -1,6 +1,15 @@
-# KCF_diagnostics
+# Oceanostics
 
-`KernelComputedField`s diagnostics for use with Oceananigans.
+Useful diagnostics for use with Oceananigans. Mostly `KernelComputedField`s .
+
+To add from github:
+
+```julia
+julia> using Pkg
+
+julia> Pkg.add(url="https://github.com/tomchor/Oceanostics.jl.git")
+```
+
 
 ## Caveats
 
@@ -8,8 +17,6 @@
 - Kernels are written very generally since most uses of averages, etc. do not assume any
   specific kind of averaging procedure. Chances are it "wastes" computations for a given
 specific application.
-- For now this isn't meant to be a module, but simply a collection of Kernels that can be
-  adapted for specific uses.
 
 
 ## Notes on notation and usage
