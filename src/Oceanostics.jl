@@ -1,5 +1,6 @@
 module Oceanostics
 
-greet() = print("Hello World!")
+include("TurbulentKineticEnergyTerms.jl")
+include("FlowDiagnostics.jl")
 
 end # module

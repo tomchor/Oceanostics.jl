@@ -1,6 +1,7 @@
-using KernelAbstractions: @index, @kernel
-using Oceananigans.Operators
+module FlowDiagnostics
 
+using Oceananigans.Operators
+using KernelAbstractions: @index, @kernel
 
 
 @kernel function richardson_number_ccf!(Ri, grid, u, v, b, dUdz_bg, dVdz_bg, N2)
@@ -87,3 +88,4 @@ end
 
 
 
+end # module
