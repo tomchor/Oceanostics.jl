@@ -20,6 +20,7 @@ end
 
 
 
+#++++ TKE dissipation
 @kernel function isotropic_viscous_dissipation_ccc!(ϵ, grid, ν, u, v, w)
     i, j, k = @index(Global, NTuple)
 
@@ -47,6 +48,7 @@ end
 
     @inbounds ϵ[i, j, k] = νx[i,j,k]*ddx² + νy[i,j,k]*ddy² + νz[i,j,k]*ddz²
 end
+#-----
 
 
 @kernel function vertical_pressure_distribution_ccc!(dwpdz, grid, w, p, ρ₀)
@@ -56,6 +58,29 @@ end
 
     @inbounds dwpdz[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wp) # C, C, F  → C, C, C
 end
+
+
+
+#++++ Shear production terms
+@kernel function shear_production_x_ccc!(shear_production, grid, u, v, w, U, V, W)
+    i, j, k = @index(Global, NTuple)
+    u_int = ℑxᶜᵃᵃ(i, j, k, grid, u) # F, C, C  → C, C, C
+
+    ∂xU = ∂x(i, j, k, grid, U) # F, C, C  → C, C, C
+    uu = ℑxᶜᵃᵃ(i, j, k, grid, ψ², u)
+    uu∂xU = uu * ∂xU
+
+    ∂xV = ℑxyᶜᶜᵃ(i, j, k, grid, ∂xᶠᵃᵃ, V) # C, F, C  → F, F, C  → C, C, C
+    vu = ℑyᵃᶜᵃ(i, j, k, grid, v) * u_int
+    vu∂xV = vu * ∂xV
+
+    ∂xW = ℑxzᶜᵃᶜ(i, j, k, grid, ∂xᶠᵃᵃ, W) # C, C, F  → F, C, F  → C, C, C
+    wu = ℑzᵃᵃᶜ(i, j, k, grid, w) * u_int
+    wu∂xW = wu * ∂xW
+
+    @inbounds shear_production[i, j, k] = -(uu∂xU + vu∂xV + wu∂xW)
+end
+
 
 
 @kernel function shear_production_y_ccc!(shear_production, grid, u, v, w, U, V, W)
@@ -97,6 +122,6 @@ end
 
     @inbounds shear_production[i, j, k] = - (uw∂zU + vw∂zV + ww∂zW)
 end
-
+#----
 
 end # module
