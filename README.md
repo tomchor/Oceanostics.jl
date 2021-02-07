@@ -1,6 +1,6 @@
 # Oceanostics
 
-Useful diagnostics for use with Oceananigans. Mostly `KernelComputedField`s .
+Useful diagnostics for use with [Oceananigans](https://github.com/CliMA/Oceananigans.jl). Mostly `KernelComputedField`s .
 
 To add from github:
 
