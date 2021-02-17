@@ -4,27 +4,26 @@ using Oceananigans.Operators
 using KernelAbstractions: @index, @kernel
 
 
-@kernel function richardson_number_ccf!(Ri, grid, u, v, b, dUdz_bg, dVdz_bg, N2)
+@kernel function richardson_number_ccf!(Ri, grid, u, v, b, params)
     i, j, k = @index(Global, NTuple)
 
-    dBdz = ∂zᵃᵃᶠ(i, j, k, grid, b) + N2 # dbdz(c, c, f)
-    dUdz_tot = ℑxᶜᵃᵃ(i, j, k, grid, ∂zᵃᵃᶠ, u) + dUdz_bg # dudz(f, c, f) → dudz(c, c, f)
-    dVdz_tot = ℑyᵃᶜᵃ(i, j, k, grid, ∂zᵃᵃᶠ, v) + dVdz_bg # dvdz(c, f, f) → dvdz(c, c, f)
+    dBdz_tot = ∂zᵃᵃᶠ(i, j, k, grid, b) + params.N2_bg # dbdz(c, c, f)
+    dUdz_tot = ℑxᶜᵃᵃ(i, j, k, grid, ∂zᵃᵃᶠ, u) + params.dUdz_bg # dudz(f, c, f) → dudz(c, c, f)
+    dVdz_tot = ℑyᵃᶜᵃ(i, j, k, grid, ∂zᵃᵃᶠ, v) + params.dVdz_bg # dvdz(c, f, f) → dvdz(c, c, f)
 
-    @inbounds Ri[i, j, k] = dBdz / (dUdz_tot^2 + dVdz_tot^2)
+    @inbounds Ri[i, j, k] = dBdz_tot / (dUdz_tot^2 + dVdz_tot^2)
 end
 
 
 
 
-
-@kernel function rossby_number_ffc!(Ro, grid, u, v, dUdy_bg, dVdx_bg, f₀)
+@kernel function rossby_number_ffc!(Ro, grid, u, v, params)
     i, j, k = @index(Global, NTuple)
 
-    dUdy_tot = ∂yᵃᶠᵃ(i, j, k, grid, u) + dUdy_bg
-    dVdx_tot = ∂xᶠᵃᵃ(i, j, k, grid, v) + dVdx_bg
+    dUdy_tot = ∂yᵃᶠᵃ(i, j, k, grid, u) + params.dUdy_bg
+    dVdx_tot = ∂xᶠᵃᵃ(i, j, k, grid, v) + params.dVdx_bg
 
-    @inbounds Ro[i, j, k] = (dVdx_tot - dUdy_tot) / f₀
+    @inbounds Ro[i, j, k] = (dVdx_tot - dUdy_tot) / params.f₀
 end
 
 
