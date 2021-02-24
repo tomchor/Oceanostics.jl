@@ -51,14 +51,33 @@ end
 #-----
 
 
-@kernel function vertical_pressure_distribution_ccc!(dwpdz, grid, w, p, ρ₀)
+#++++ Pressure distribution terms
+@kernel function pressure_distribution_x_ccc!(dupdx_ρ, grid, u, p, ρ₀)
     i, j, k = @index(Global, NTuple)
 
-    wp = ℑzᵃᵃᶠ(i, j, k, grid, p) * w[i, j, k] # C, C, F
+    up = ℑxᶠᵃᵃ(i, j, k, grid, p) * u[i, j, k] # C, C, C  → F, C, C
 
-    @inbounds dwpdz[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wp) # C, C, F  → C, C, C
+    @inbounds dupdx_ρ[i, j, k] = (1/ρ₀) * ∂xᶜᵃᵃ(i, j, k, grid, up) # F, C, C  → C, C, C
 end
 
+
+@kernel function pressure_distribution_y_ccc!(dvpdy_ρ, grid, v, p, ρ₀)
+    i, j, k = @index(Global, NTuple)
+
+    vp = ℑyᵃᶠᵃ(i, j, k, grid, p) * v[i, j, k] # C, C, C  → C, F, C
+
+    @inbounds dvpdy_ρ[i, j, k] = (1/ρ₀) * ∂yᵃᶜᵃ(i, j, k, grid, vp) # C, F, C  → C, C, C
+end
+
+
+@kernel function pressure_distribution_z_ccc!(dwpdz_ρ, grid, w, p, ρ₀)
+    i, j, k = @index(Global, NTuple)
+
+    wp = ℑzᵃᵃᶠ(i, j, k, grid, p) * w[i, j, k] # C, C, C  → C, C, F
+
+    @inbounds dwpdz_ρ[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wp) # C, C, F  → C, C, C
+end
+#----
 
 
 #++++ Shear production terms
