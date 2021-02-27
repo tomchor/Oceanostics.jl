@@ -1,7 +1,7 @@
 name = "Oceanostics"
 uuid = "d0ccf422-c8fb-49b5-a76d-74acdde946ac"
 authors = ["tomchor <tomaschor@gmail.com>"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"

@@ -51,32 +51,24 @@ end
 #-----
 
 
-#++++ Pressure distribution terms
-@kernel function pressure_distribution_x_ccc!(dupdx_ρ, grid, u, p, ρ₀)
+#++++ Pressure redistribution terms
+@inline upᶠᵃᵃ(i, j, k, grid, u, p) = @inbounds u[i, j, k] * ℑxᶠᵃᵃ(i, j, k, grid, p)
+@kernel function pressure_redistribution_x_ccc!(dupdx_ρ, grid, u, p, ρ₀)
     i, j, k = @index(Global, NTuple)
-
-    up = ℑxᶠᵃᵃ(i, j, k, grid, p) * u[i, j, k] # C, C, C  → F, C, C
-
-    @inbounds dupdx_ρ[i, j, k] = (1/ρ₀) * ∂xᶜᵃᵃ(i, j, k, grid, up) # F, C, C  → C, C, C
+    @inbounds dupdx_ρ[i, j, k] = (1/ρ₀) * ∂xᶜᵃᵃ(i, j, k, grid, upᶠᵃᵃ, u, p) # C, C, F  → C, C, C
 end
 
-
-@kernel function pressure_distribution_y_ccc!(dvpdy_ρ, grid, v, p, ρ₀)
+@inline vpᵃᶠᵃ(i, j, k, grid, v, p) = @inbounds v[i, j, k] * ℑyᵃᶠᵃ(i, j, k, grid, p)
+@kernel function pressure_redistribution_y_ccc!(dvpdy_ρ, grid, v, p, ρ₀)
     i, j, k = @index(Global, NTuple)
+    @inbounds dvpdy_ρ[i, j, k] = (1/ρ₀) * ∂yᵃᶜᵃ(i, j, k, grid, vpᵃᶠᵃ, v, p) # C, C, F  → C, C, C
+end 
 
-    vp = ℑyᵃᶠᵃ(i, j, k, grid, p) * v[i, j, k] # C, C, C  → C, F, C
-
-    @inbounds dvpdy_ρ[i, j, k] = (1/ρ₀) * ∂yᵃᶜᵃ(i, j, k, grid, vp) # C, F, C  → C, C, C
-end
-
-
-@kernel function pressure_distribution_z_ccc!(dwpdz_ρ, grid, w, p, ρ₀)
+@inline wpᵃᵃᶠ(i, j, k, grid, w, p) = @inbounds w[i, j, k] * ℑzᵃᵃᶠ(i, j, k, grid, p)
+@kernel function pressure_redistribution_z_ccc!(dwpdz_ρ, grid, w, p, ρ₀)
     i, j, k = @index(Global, NTuple)
-
-    wp = ℑzᵃᵃᶠ(i, j, k, grid, p) * w[i, j, k] # C, C, C  → C, C, F
-
-    @inbounds dwpdz_ρ[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wp) # C, C, F  → C, C, C
-end
+    @inbounds dwpdz_ρ[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wpᵃᵃᶠ, w, p) # C, C, F  → C, C, C
+end 
 #----
 
 
