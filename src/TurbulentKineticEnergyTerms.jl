@@ -3,6 +3,8 @@ module TurbulentKineticEnergyTerms
 
 using Oceananigans.Operators
 using KernelAbstractions: @index, @kernel
+using Oceananigans.Grids: Center, Face
+using Oceananigans.Fields: KernelComputedField
 
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
 @inline ψ′²(i, j, k, grid, ψ, Ψ) = @inbounds (ψ[i, j, k] - Ψ[i, j, k])^2
@@ -17,6 +19,16 @@ using KernelAbstractions: @index, @kernel
                               ℑzᵃᵃᶜ(i, j, k, grid, ψ², w)
                              ) / 2
 end
+
+function KineticEnergy(model, u, v, w, location = (Center, Center, Center), kwargs...)
+    if location == (Center, Center, Center)
+        return KernelComputedField(Center, Center, Center, kinetic_energy_ccc!, model;
+                                   computed_dependencies=(u, v, w), kwargs...)
+    else
+        throw(Exception)
+    end
+end
+
 
 
 
@@ -35,6 +47,16 @@ end
     @inbounds ϵ[i, j, k] = ν[i, j, k] * 2 * (Σˣˣ^2 + Σʸʸ^2 + Σᶻᶻ^2 + 2 * (Σˣʸ^2 + Σˣᶻ^2 + Σʸᶻ^2))
 end
 
+function IsotropicViscousDissipation(model, ν, u, v, w, location = (Center, Center, Center), kwargs...)
+    if location == (Center, Center, Center)
+        return KernelComputedField(Center, Center, Center, isotropic_viscous_dissipation_ccc!, model;
+                                   computed_dependencies=(ν, u, v, w), kwargs...)
+    else
+        throw(Exception)
+    end
+end
+
+
 
 
 @kernel function anisotropic_viscous_dissipation_ccc!(ϵ, grid, νx, νy, νz, u, v, w)
@@ -47,6 +69,15 @@ end
     ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᵃᵃᶠ, u)^2 + ℑyzᵃᶜᶜ(i, j, k, grid, ∂zᵃᵃᶠ, v)^2 + ∂zᵃᵃᶜ(i, j, k, grid, w)^2
 
     @inbounds ϵ[i, j, k] = νx[i,j,k]*ddx² + νy[i,j,k]*ddy² + νz[i,j,k]*ddz²
+end
+
+function AnisotropicViscousDissipation(model, νx, νy, νz, u, v, w, location = (Center, Center, Center), kwargs...)
+    if location == (Center, Center, Center)
+        return KernelComputedField(Center, Center, Center, anisotropic_viscous_dissipation_ccc!, model;
+                                   computed_dependencies=(νx, νy, νz, u, v, w), kwargs...)
+    else
+        throw(Exception)
+    end
 end
 #-----
 
@@ -92,6 +123,16 @@ end
     @inbounds shear_production[i, j, k] = -(uu∂xU + vu∂xV + wu∂xW)
 end
 
+function ShearProduction_x(model, u, v, w, U, V, W, location = (Center, Center, Center), kwargs...)
+    if location == (Center, Center, Center)
+        return KernelComputedField(Center, Center, Center, shear_production_x_ccc!, model;
+                                   computed_dependencies=(u, v, w, U, V, W), kwargs...)
+    else
+        throw(Exception)
+    end
+end
+
+
 
 
 @kernel function shear_production_y_ccc!(shear_production, grid, u, v, w, U, V, W)
@@ -113,6 +154,16 @@ end
     @inbounds shear_production[i, j, k] = -(uv∂yU + vv∂yV + wv∂yW)
 end
 
+function ShearProduction_y(model, u, v, w, U, V, W, location = (Center, Center, Center), kwargs...)
+    if location == (Center, Center, Center)
+        return KernelComputedField(Center, Center, Center, shear_production_y_ccc!, model;
+                                   computed_dependencies=(u, v, w, U, V, W), kwargs...)
+    else
+        throw(Exception)
+    end
+end
+
+
 
 
 @kernel function shear_production_z_ccc!(shear_production, grid, u, v, w, U, V, W)
@@ -132,6 +183,15 @@ end
     ww∂zW = ww * ∂zW
 
     @inbounds shear_production[i, j, k] = - (uw∂zU + vw∂zV + ww∂zW)
+end
+
+function ShearProduction_z(model, u, v, w, U, V, W, location = (Center, Center, Center), kwargs...)
+    if location == (Center, Center, Center)
+        return KernelComputedField(Center, Center, Center, shear_production_z_ccc!, model;
+                                   computed_dependencies=(u, v, w, U, V, W), kwargs...)
+    else
+        throw(Exception)
+    end
 end
 #----
 
