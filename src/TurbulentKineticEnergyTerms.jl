@@ -1,4 +1,4 @@
-module TurbulentKineticEnergyTerms
+module TurbulentKineticEnergyTerm
 
 
 using Oceananigans.Operators
@@ -89,7 +89,7 @@ end
     @inbounds dupdx_ρ[i, j, k] = (1/ρ₀) * ∂xᶜᵃᵃ(i, j, k, grid, upᶠᵃᵃ, u, p) # C, C, F  → C, C, C
 end
 
-function PressureRedistribution_x(model, u, p, ρ₀, location = (Center, Center, Center), kwargs...)
+function PressureRedistribution_x(model, u, p, ρ₀; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, pressure_redistribution_x_ccc!, model;
                                    computed_dependencies=(u, p), parameters=ρ₀, kwargs...)
@@ -106,7 +106,7 @@ end
     @inbounds dvpdy_ρ[i, j, k] = (1/ρ₀) * ∂yᵃᶜᵃ(i, j, k, grid, vpᵃᶠᵃ, v, p) # C, C, F  → C, C, C
 end 
 
-function PressureRedistribution_y(model, v, p, ρ₀, location = (Center, Center, Center), kwargs...)
+function PressureRedistribution_y(model, v, p, ρ₀; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, pressure_redistribution_y_ccc!, model;
                                    computed_dependencies=(v, p), parameters=ρ₀, kwargs...)
@@ -122,7 +122,7 @@ end
     @inbounds dwpdz_ρ[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wpᵃᵃᶠ, w, p) # C, C, F  → C, C, C
 end 
 
-function PressureRedistribution_z(model, w, p, ρ₀, location = (Center, Center, Center), kwargs...)
+function PressureRedistribution_z(model, w, p, ρ₀; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, pressure_redistribution_z_ccc!, model;
                                    computed_dependencies=(w, p), parameters=ρ₀, kwargs...)
@@ -153,7 +153,7 @@ end
     @inbounds shear_production[i, j, k] = -(uu∂xU + vu∂xV + wu∂xW)
 end
 
-function ShearProduction_x(model, u, v, w, U, V, W, location = (Center, Center, Center), kwargs...)
+function ShearProduction_x(model, u, v, w, U, V, W; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, shear_production_x_ccc!, model;
                                    computed_dependencies=(u, v, w, U, V, W), kwargs...)
@@ -184,7 +184,7 @@ end
     @inbounds shear_production[i, j, k] = -(uv∂yU + vv∂yV + wv∂yW)
 end
 
-function ShearProduction_y(model, u, v, w, U, V, W, location = (Center, Center, Center), kwargs...)
+function ShearProduction_y(model, u, v, w, U, V, W; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, shear_production_y_ccc!, model;
                                    computed_dependencies=(u, v, w, U, V, W), kwargs...)
@@ -215,7 +215,7 @@ end
     @inbounds shear_production[i, j, k] = - (uw∂zU + vw∂zV + ww∂zW)
 end
 
-function ShearProduction_z(model, u, v, w, U, V, W, location = (Center, Center, Center), kwargs...)
+function ShearProduction_z(model, u, v, w, U, V, W; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, shear_production_z_ccc!, model;
                                    computed_dependencies=(u, v, w, U, V, W), kwargs...)
