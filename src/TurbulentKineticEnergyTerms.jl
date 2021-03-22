@@ -20,7 +20,7 @@ using Oceananigans.Fields: KernelComputedField
                              ) / 2
 end
 
-function KineticEnergy(model, u, v, w, location = (Center, Center, Center), kwargs...)
+function KineticEnergy(model, u, v, w; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, kinetic_energy_ccc!, model;
                                    computed_dependencies=(u, v, w), kwargs...)
@@ -47,7 +47,7 @@ end
     @inbounds ϵ[i, j, k] = ν[i, j, k] * 2 * (Σˣˣ^2 + Σʸʸ^2 + Σᶻᶻ^2 + 2 * (Σˣʸ^2 + Σˣᶻ^2 + Σʸᶻ^2))
 end
 
-function IsotropicViscousDissipation(model, ν, u, v, w, location = (Center, Center, Center), kwargs...)
+function IsotropicViscousDissipation(model, ν, u, v, w; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, isotropic_viscous_dissipation_ccc!, model;
                                    computed_dependencies=(ν, u, v, w), kwargs...)
@@ -71,7 +71,7 @@ end
     @inbounds ϵ[i, j, k] = νx[i,j,k]*ddx² + νy[i,j,k]*ddy² + νz[i,j,k]*ddz²
 end
 
-function AnisotropicViscousDissipation(model, νx, νy, νz, u, v, w, location = (Center, Center, Center), kwargs...)
+function AnisotropicViscousDissipation(model, νx, νy, νz, u, v, w; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, anisotropic_viscous_dissipation_ccc!, model;
                                    computed_dependencies=(νx, νy, νz, u, v, w), kwargs...)
