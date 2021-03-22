@@ -1,4 +1,4 @@
-module TurbulentKineticEnergyTerm
+module TurbulentKineticEnergyTerms
 
 
 using Oceananigans.Operators
