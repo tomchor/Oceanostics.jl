@@ -80,4 +80,46 @@ end
 
 
 
+#+++++ Mixing of buoyancy
+@inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
+
+@kernel function isotropic_buoyancy_mixing_rate_ccc!(mixing_rate, grid, b, κᵇ, N²₀)
+    i, j, k = @index(Global, NTuple)
+    dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, b) # C, C, C  → F, C, C  → C, C, C
+    dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, b) # C, C, C  → C, F, C  → C, C, C
+    dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, b) # C, C, C  → C, C, F  → C, C, C
+
+    @inbounds mixing_rate[i, j, k] = κᵇ[i,j,k]*(dbdx² + dbdy² + dbdz²)/N²₀
+end
+function IsotropicBuoyancyMixingRate(model, b, κᵇ, N²₀; location = (Center, Center, Center), kwargs...)
+    if location == (Center, Center, Center)
+        return KernelComputedField(Center, Center, Center, isotropic_buoyancy_mixing_rate_ccc!, model;
+                                   computed_dependencies=(b, κᵇ), parameters=N²₀, kwargs...)
+    else
+        throw(Exception)
+    end
+end
+
+
+@kernel function anisotropic_buoyancy_mixing_rate_ccc!(mixing_rate, grid, b, params)
+    i, j, k = @index(Global, NTuple)
+    dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, b) # C, C, C  → F, C, C  → C, C, C
+    dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, b) # C, C, C  → C, F, C  → C, C, C
+    dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, b) # C, C, C  → C, C, F  → C, C, C
+
+    @inbounds mixing_rate[i, j, k] = (params.κx*dbdx² + params.κy*dbdy² + params.κz*dbdz²)/params.N²₀
+end
+function AnisotropicBuoyancyMixingRate(model, b, κx, κy, κz, N²₀; location = (Center, Center, Center), kwargs...)
+    if location == (Center, Center, Center)
+        return KernelComputedField(Center, Center, Center, anisotropic_buoyancy_mixing_rate_ccc!, model;
+                                   computed_dependencies=(b,), 
+                                   parameters=(κx=κx, κy=κy, κz=κz, N²₀=N²₀), kwargs...)
+    else
+        throw(Exception)
+    end
+end
+#-----
+
+
+
 end # module
