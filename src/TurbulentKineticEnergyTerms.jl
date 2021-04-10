@@ -58,9 +58,27 @@ end
 
 
 
-
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
-@kernel function anisotropic_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, params)
+@kernel function isotropic_pseudo_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, ν)
+    i, j, k = @index(Global, NTuple)
+
+    ddx² = ∂xᶜᵃᵃ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, w)
+    ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, u) + ∂yᵃᶜᵃ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, w)
+    ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, v) + ∂zᵃᵃᶜ(i, j, k, grid, ψ², w)
+
+    @inbounds ϵ[i, j, k] = ν[i,j,k] * (ddx² + ddy² + ddz²)
+end
+function IsotropicPseudoViscousDissipationRate(model, u, v, w, ν; location = (Center, Center, Center), kwargs...)
+    if location == (Center, Center, Center)
+        return KernelComputedField(Center, Center, Center, isotropic_pseudo_viscous_dissipation_rate_ccc!, model;
+                                   computed_dependencies=(u, v, w, ν), kwargs...)
+    else
+        throw(Exception)
+    end
+end
+
+
+@kernel function anisotropic_pseudo_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, params)
     i, j, k = @index(Global, NTuple)
 
     ddx² = ∂xᶜᵃᵃ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, w)
@@ -69,9 +87,9 @@ end
 
     @inbounds ϵ[i, j, k] = params.νx*ddx² + params.νy*ddy² + params.νz*ddz²
 end
-function AnisotropicViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center), kwargs...)
+function AnisotropicPseudoViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, anisotropic_viscous_dissipation_rate_ccc!, model;
+        return KernelComputedField(Center, Center, Center, anisotropic_pseudo_viscous_dissipation_rate_ccc!, model;
                                    computed_dependencies=(u, v, w), 
                                    parameters=(νx=νx, νy=νy, νz=νz,), kwargs...)
     else
