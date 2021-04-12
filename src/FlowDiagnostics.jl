@@ -1,8 +1,10 @@
 module FlowDiagnostics
 
+
 using Oceananigans.Operators
 using KernelAbstractions: @index, @kernel
 using Oceananigans.Grids: Center, Face
+using Oceananigans.Fields: KernelComputedField
 
 
 @kernel function richardson_number_ccf!(Ri, grid, u, v, b, params)
