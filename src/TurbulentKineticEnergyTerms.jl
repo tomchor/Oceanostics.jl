@@ -33,28 +33,31 @@ end
 
 
 #++++ TKE dissipation rate
-@kernel function isotropic_viscous_dissipation_ccc!(ϵ, grid, ν, u, v, w)
+@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
+@kernel function isotropic_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, νₜₒₜ)
     i, j, k = @index(Global, NTuple)
 
-    Σˣˣ = ∂xᶜᵃᵃ(i, j, k, grid, u)
-    Σʸʸ = ∂yᵃᶜᵃ(i, j, k, grid, v)
-    Σᶻᶻ = ∂zᵃᵃᶜ(i, j, k, grid, w)
+    Σˣˣ² = ∂xᶜᵃᵃ(i, j, k, grid, u)
+    Σʸʸ² = ∂yᵃᶜᵃ(i, j, k, grid, v)
+    Σᶻᶻ² = ∂zᵃᵃᶜ(i, j, k, grid, w)
 
-    Σˣʸ = (ℑxyᶜᶜᵃ(i, j, k, grid, ∂yᵃᶠᵃ, u) + ℑxyᶜᶜᵃ(i, j, k, grid, ∂xᶠᵃᵃ, v)) / 2
-    Σˣᶻ = (ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᵃᵃᶠ, u) + ℑxzᶜᵃᶜ(i, j, k, grid, ∂xᶠᵃᵃ, w)) / 2
-    Σʸᶻ = (ℑyzᵃᶜᶜ(i, j, k, grid, ∂zᵃᵃᶠ, v) + ℑyzᵃᶜᶜ(i, j, k, grid, ∂yᵃᶠᵃ, w)) / 2
+    Σˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_plus_gφ², ∂yᵃᶠᵃ, u, ∂xᶠᵃᵃ, v) / 4
+    Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᵃᵃᶠ, u, ∂xᶠᵃᵃ, w) / 4
+    Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᵃᵃᶠ, v, ∂yᵃᶠᵃ, w) / 4
 
-    @inbounds ϵ[i, j, k] = ν[i, j, k] * 2 * (Σˣˣ^2 + Σʸʸ^2 + Σᶻᶻ^2 + 2 * (Σˣʸ^2 + Σˣᶻ^2 + Σʸᶻ^2))
+    @inbounds ϵ[i, j, k] = νₜₒₜ[i, j, k] * 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
-
-function IsotropicViscousDissipation(model, ν, u, v, w; location = (Center, Center, Center), kwargs...)
+function IsotropicViscousDissipationRate(model, u, v, w, νₜₒₜ; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, isotropic_viscous_dissipation_ccc!, model;
-                                   computed_dependencies=(ν, u, v, w), kwargs...)
+        return KernelComputedField(Center, Center, Center, isotropic_viscous_dissipation_rate_ccc!, model;
+                                   computed_dependencies=(u, v, w, νₜₒₜ), kwargs...)
     else
         throw(Exception)
     end
 end
+
+
+
 
 
 
