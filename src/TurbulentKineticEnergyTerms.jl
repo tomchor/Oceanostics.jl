@@ -37,9 +37,9 @@ end
 @kernel function isotropic_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, νₜₒₜ)
     i, j, k = @index(Global, NTuple)
 
-    Σˣˣ² = ∂xᶜᵃᵃ(i, j, k, grid, u)
-    Σʸʸ² = ∂yᵃᶜᵃ(i, j, k, grid, v)
-    Σᶻᶻ² = ∂zᵃᵃᶜ(i, j, k, grid, w)
+    Σˣˣ² = ∂xᶜᵃᵃ(i, j, k, grid, u)^2
+    Σʸʸ² = ∂yᵃᶜᵃ(i, j, k, grid, v)^2
+    Σᶻᶻ² = ∂zᵃᵃᶜ(i, j, k, grid, w)^2
 
     Σˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_plus_gφ², ∂yᵃᶠᵃ, u, ∂xᶠᵃᵃ, v) / 4
     Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᵃᵃᶠ, u, ∂xᶠᵃᵃ, w) / 4
