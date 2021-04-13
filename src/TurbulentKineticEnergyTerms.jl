@@ -32,7 +32,7 @@ end
 
 
 
-#++++ TKE dissipation rate
+#++++ Energy dissipation rate for a fluid with constant isotropic viscosity
 @inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 @kernel function isotropic_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, ν)
     i, j, k = @index(Global, NTuple)
@@ -79,6 +79,37 @@ function IsotropicPseudoViscousDissipationRate(model, u, v, w, ν; location = (C
         throw(Exception)
     end
 end
+#------
+
+
+#+++++ Energy dissipation rate for a fluid with constant anisotropic viscosity (closure)
+@inline function νfψ_plus_κgφ_times_fψ_plus_gφ(i, j, k, grid, ν, f, ψ, κ, g, φ)
+    @inbounds (ν*f(i, j, k, grid, ψ) + κ*g(i, j, k, grid, φ)) * (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))
+end
+@kernel function anisotropic_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, params)
+    i, j, k = @index(Global, NTuple)
+    νx=params.νx; νy=params.νy; νz=params.νz; 
+
+    Σˣˣ² = νx * ∂xᶜᵃᵃ(i, j, k, grid, u)^2
+    Σʸʸ² = νy * ∂yᵃᶜᵃ(i, j, k, grid, v)^2
+    Σᶻᶻ² = νz * ∂zᵃᵃᶜ(i, j, k, grid, w)^2
+
+    Σˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, νfψ_plus_κgφ_times_fψ_plus_gφ, νy, ∂yᵃᶠᵃ, u, νx, ∂xᶠᵃᵃ, v) / 4
+    Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, νfψ_plus_κgφ_times_fψ_plus_gφ, νz, ∂zᵃᵃᶠ, u, νx, ∂xᶠᵃᵃ, w) / 4
+    Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, νfψ_plus_κgφ_times_fψ_plus_gφ, νz, ∂zᵃᵃᶠ, v, νy, ∂yᵃᶠᵃ, w) / 4
+
+    @inbounds ϵ[i, j, k] = 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2*(Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
+end
+function AnisotropicViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center), kwargs...)
+    if location == (Center, Center, Center)
+        return KernelComputedField(Center, Center, Center, anisotropic_viscous_dissipation_rate_ccc!, model;
+                                   computed_dependencies=(u, v, w), 
+                                   parameters=(νx=νx, νy=νy, νz=νz), kwargs...)
+    else
+        throw(Exception)
+    end
+end
+
 
 
 @kernel function anisotropic_pseudo_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, params)
