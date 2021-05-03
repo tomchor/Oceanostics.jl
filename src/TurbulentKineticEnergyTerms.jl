@@ -189,7 +189,7 @@ end
     i, j, k = @index(Global, NTuple)
     u_int = ℑxᶜᵃᵃ(i, j, k, grid, u) # F, C, C  → C, C, C
 
-    ∂xU = ∂x(i, j, k, grid, U) # F, C, C  → C, C, C
+    ∂xU = ∂xᶜᵃᵃ(i, j, k, grid, U) # F, C, C  → C, C, C
     uu = ℑxᶜᵃᵃ(i, j, k, grid, ψ², u)
     uu∂xU = uu * ∂xU
 
