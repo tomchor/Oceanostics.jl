@@ -101,7 +101,7 @@ end
 function AnisotropicBuoyancyMixingRate(model, b, κx, κy, κz, N²₀; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, anisotropic_buoyancy_mixing_rate_ccc!, model;
-                                   computed_dependencies=(b,), 
+                                   computed_dependencies=(b,),
                                    parameters=(κx=κx, κy=κy, κz=κz, N²₀=N²₀), kwargs...)
     else
         error("AnisotropicBuoyancyMixingRate only supports location = (Center, Center, Center) for now.")

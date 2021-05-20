@@ -1,9 +1,11 @@
 module TurbulentKineticEnergyTerms
 
+export TurbulentKineticEnergy, KineticEnergy
+
 using Oceananigans.Operators
 using KernelAbstractions: @index, @kernel
 using Oceananigans.Grids: Center, Face
-using Oceananigans.Fields: KernelComputedField
+using Oceananigans.Fields: KernelComputedField, ZeroField
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -49,6 +51,9 @@ end
 
 KineticEnergy(model, u, v, w; location = (Center, Center, Center), kwargs...) =
     TurbulentKineticEnergy(model, u, v, w; location, kwargs...)
+
+TurbulentKineticEnergy(model; kwargs...) = TurbulentKineticEnergy(model, model.velocities...; kwargs...)
+KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwargs...)
 #------
 
 
@@ -101,7 +106,7 @@ end
 #+++++ Energy dissipation rate for a fluid with constant anisotropic viscosity (closure)
 @kernel function anisotropic_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, params)
     i, j, k = @index(Global, NTuple)
-    νx=params.νx; νy=params.νy; νz=params.νz; 
+    νx=params.νx; νy=params.νy; νz=params.νz;
 
     Σˣˣ² = νx * ∂xᶜᵃᵃ(i, j, k, grid, u)^2
     Σʸʸ² = νy * ∂yᵃᶜᵃ(i, j, k, grid, v)^2
@@ -117,7 +122,7 @@ end
 function AnisotropicViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, anisotropic_viscous_dissipation_rate_ccc!, model;
-                                   computed_dependencies=(u, v, w), 
+                                   computed_dependencies=(u, v, w),
                                    parameters=(νx=νx, νy=νy, νz=νz), kwargs...)
     else
         error("AnisotropicViscousDissipationRate only supports location = (Center, Center, Center) for now.")
@@ -138,7 +143,7 @@ end
 function AnisotropicPseudoViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, anisotropic_pseudo_viscous_dissipation_rate_ccc!, model;
-                                   computed_dependencies=(u, v, w), 
+                                   computed_dependencies=(u, v, w),
                                    parameters=(νx=νx, νy=νy, νz=νz,), kwargs...)
     else
         error("AnisotropicPseudoViscousDissipationRate only supports location = (Center, Center, Center) for now.")
@@ -166,7 +171,7 @@ end
 @kernel function pressure_redistribution_y_ccc!(dvpdy_ρ, grid, v, p, ρ₀)
     i, j, k = @index(Global, NTuple)
     @inbounds dvpdy_ρ[i, j, k] = (1/ρ₀) * ∂yᵃᶜᵃ(i, j, k, grid, vpᵃᶠᵃ, v, p) # C, C, F  → C, C, C
-end 
+end
 
 function PressureRedistribution_y(model, v, p, ρ₀; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
@@ -181,7 +186,7 @@ end
 @kernel function pressure_redistribution_z_ccc!(dwpdz_ρ, grid, w, p, ρ₀)
     i, j, k = @index(Global, NTuple)
     @inbounds dwpdz_ρ[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wpᵃᵃᶠ, w, p) # C, C, F  → C, C, C
-end 
+end
 
 function PressureRedistribution_z(model, w, p, ρ₀; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
