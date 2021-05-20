@@ -1,6 +1,10 @@
 module TurbulentKineticEnergyTerms
 
 export TurbulentKineticEnergy, KineticEnergy
+export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
+export AnisotropicViscousDissipationRate, AnisotropicPseudoViscousDissipationRate
+export PressureRedistribution_x, PressureRedistribution_y, PressureRedistribution_z
+export ShearProduction_x, ShearProduction_y, ShearProduction_z
 
 using Oceananigans.Operators
 using KernelAbstractions: @index, @kernel
