@@ -289,6 +289,9 @@ function ShearProduction_z(model, u, v, w, U, V, W; location = (Center, Center, 
         error("ShearProduction_z only supports location = (Center, Center, Center) for now.")
     end
 end
+
+ShearProduction_z(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...) =
+    ShearProduction_z(model, model.velocities..., U, V, W; kwargs...)
 #----
 
 end # module
