@@ -1,39 +1,58 @@
 module TurbulentKineticEnergyTerms
 
-
 using Oceananigans.Operators
 using KernelAbstractions: @index, @kernel
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: KernelComputedField
 
+# Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
 @inline ψ′²(i, j, k, grid, ψ, Ψ) = @inbounds (ψ[i, j, k] - Ψ[i, j, k])^2
 
+@inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
 
-@kernel function kinetic_energy_ccc!(tke, grid, u, v, w)
+@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
+
+@inline νfψ_plus_κgφ_times_fψ_plus_gφ(i, j, k, grid, ν, f, ψ, κ, g, φ) =
+    @inbounds (ν*f(i, j, k, grid, ψ) + κ*g(i, j, k, grid, φ)) * (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))
+
+@inline upᶠᵃᵃ(i, j, k, grid, u, p) = @inbounds u[i, j, k] * ℑxᶠᵃᵃ(i, j, k, grid, p)
+@inline vpᵃᶠᵃ(i, j, k, grid, v, p) = @inbounds v[i, j, k] * ℑyᵃᶠᵃ(i, j, k, grid, p)
+@inline wpᵃᵃᶠ(i, j, k, grid, w, p) = @inbounds w[i, j, k] * ℑzᵃᵃᶠ(i, j, k, grid, p)
+
+
+#++++ Turbulent kinetic energy
+@kernel function turbulent_kinetic_energy_ccc!(tke, grid, u, v, w, U, V, W)
     i, j, k = @index(Global, NTuple)
 
     @inbounds tke[i, j, k] = (
-                              ℑxᶜᵃᵃ(i, j, k, grid, ψ², u) +
-                              ℑyᵃᶜᵃ(i, j, k, grid, ψ², v) +
-                              ℑzᵃᵃᶜ(i, j, k, grid, ψ², w)
+                              ℑxᶜᵃᵃ(i, j, k, grid, ψ′², u, U) +
+                              ℑyᵃᶜᵃ(i, j, k, grid, ψ′², v, V) +
+                              ℑzᵃᵃᶜ(i, j, k, grid, ψ′², w, W)
                              ) / 2
 end
 
-function KineticEnergy(model, u, v, w; location = (Center, Center, Center), kwargs...)
+function TurbulentKineticEnergy(model, u, v, w;
+                                U = ZeroField(),
+                                V = ZeroField(),
+                                W = ZeroField(),
+                                location = (Center, Center, Center),
+                                kwargs...)
+
     if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, kinetic_energy_ccc!, model;
-                                   computed_dependencies=(u, v, w), kwargs...)
+        return KernelComputedField(Center, Center, Center, turbulent_kinetic_energy_ccc!, model;
+                                   computed_dependencies=(u, v, w, U, V, W), kwargs...)
     else
-        throw(Exception)
+        error("TurbulentKineticEnergy only supports location = (Center, Center, Center) for now.")
     end
 end
 
-
+KineticEnergy(model, u, v, w; location = (Center, Center, Center), kwargs...) =
+    TurbulentKineticEnergy(model, u, v, w; location, kwargs...)
+#------
 
 
 #++++ Energy dissipation rate for a fluid with constant isotropic viscosity
-@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 @kernel function isotropic_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, ν)
     i, j, k = @index(Global, NTuple)
 
@@ -47,21 +66,17 @@ end
 
     @inbounds ϵ[i, j, k] = ν[i, j, k] * 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
+
 function IsotropicViscousDissipationRate(model, u, v, w, ν; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, isotropic_viscous_dissipation_rate_ccc!, model;
                                    computed_dependencies=(u, v, w, ν), kwargs...)
     else
-        throw(Exception)
+        error("IsotropicViscousDissipationRate only supports location = (Center, Center, Center) for now.")
     end
 end
 
 
-
-
-
-
-@inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
 @kernel function isotropic_pseudo_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, ν)
     i, j, k = @index(Global, NTuple)
 
@@ -71,21 +86,19 @@ end
 
     @inbounds ϵ[i, j, k] = ν[i,j,k] * (ddx² + ddy² + ddz²)
 end
+
 function IsotropicPseudoViscousDissipationRate(model, u, v, w, ν; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, isotropic_pseudo_viscous_dissipation_rate_ccc!, model;
                                    computed_dependencies=(u, v, w, ν), kwargs...)
     else
-        throw(Exception)
+        error("IsotropicPseudoViscousDissipationRate only supports location = (Center, Center, Center) for now.")
     end
 end
 #------
 
 
 #+++++ Energy dissipation rate for a fluid with constant anisotropic viscosity (closure)
-@inline function νfψ_plus_κgφ_times_fψ_plus_gφ(i, j, k, grid, ν, f, ψ, κ, g, φ)
-    @inbounds (ν*f(i, j, k, grid, ψ) + κ*g(i, j, k, grid, φ)) * (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))
-end
 @kernel function anisotropic_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, params)
     i, j, k = @index(Global, NTuple)
     νx=params.νx; νy=params.νy; νz=params.νz; 
@@ -100,16 +113,16 @@ end
 
     @inbounds ϵ[i, j, k] = 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2*(Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
+
 function AnisotropicViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, anisotropic_viscous_dissipation_rate_ccc!, model;
                                    computed_dependencies=(u, v, w), 
                                    parameters=(νx=νx, νy=νy, νz=νz), kwargs...)
     else
-        throw(Exception)
+        error("AnisotropicViscousDissipationRate only supports location = (Center, Center, Center) for now.")
     end
 end
-
 
 
 @kernel function anisotropic_pseudo_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, params)
@@ -121,20 +134,20 @@ end
 
     @inbounds ϵ[i, j, k] = params.νx*ddx² + params.νy*ddy² + params.νz*ddz²
 end
+
 function AnisotropicPseudoViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, anisotropic_pseudo_viscous_dissipation_rate_ccc!, model;
                                    computed_dependencies=(u, v, w), 
                                    parameters=(νx=νx, νy=νy, νz=νz,), kwargs...)
     else
-        throw(Exception)
+        error("AnisotropicPseudoViscousDissipationRate only supports location = (Center, Center, Center) for now.")
     end
 end
 #-----
 
 
 #++++ Pressure redistribution terms
-@inline upᶠᵃᵃ(i, j, k, grid, u, p) = @inbounds u[i, j, k] * ℑxᶠᵃᵃ(i, j, k, grid, p)
 @kernel function pressure_redistribution_x_ccc!(dupdx_ρ, grid, u, p, ρ₀)
     i, j, k = @index(Global, NTuple)
     @inbounds dupdx_ρ[i, j, k] = (1/ρ₀) * ∂xᶜᵃᵃ(i, j, k, grid, upᶠᵃᵃ, u, p) # C, C, F  → C, C, C
@@ -145,13 +158,11 @@ function PressureRedistribution_x(model, u, p, ρ₀; location = (Center, Center
         return KernelComputedField(Center, Center, Center, pressure_redistribution_x_ccc!, model;
                                    computed_dependencies=(u, p), parameters=ρ₀, kwargs...)
     else
-        throw(Exception)
+        error("PressureRedistribution_x only supports location = (Center, Center, Center) for now.")
     end
 end
 
 
-
-@inline vpᵃᶠᵃ(i, j, k, grid, v, p) = @inbounds v[i, j, k] * ℑyᵃᶠᵃ(i, j, k, grid, p)
 @kernel function pressure_redistribution_y_ccc!(dvpdy_ρ, grid, v, p, ρ₀)
     i, j, k = @index(Global, NTuple)
     @inbounds dvpdy_ρ[i, j, k] = (1/ρ₀) * ∂yᵃᶜᵃ(i, j, k, grid, vpᵃᶠᵃ, v, p) # C, C, F  → C, C, C
@@ -162,12 +173,11 @@ function PressureRedistribution_y(model, v, p, ρ₀; location = (Center, Center
         return KernelComputedField(Center, Center, Center, pressure_redistribution_y_ccc!, model;
                                    computed_dependencies=(v, p), parameters=ρ₀, kwargs...)
     else
-        throw(Exception)
+        error("PressureRedistribution_y only supports location = (Center, Center, Center) for now.")
     end
 end
 
 
-@inline wpᵃᵃᶠ(i, j, k, grid, w, p) = @inbounds w[i, j, k] * ℑzᵃᵃᶠ(i, j, k, grid, p)
 @kernel function pressure_redistribution_z_ccc!(dwpdz_ρ, grid, w, p, ρ₀)
     i, j, k = @index(Global, NTuple)
     @inbounds dwpdz_ρ[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wpᵃᵃᶠ, w, p) # C, C, F  → C, C, C
@@ -178,7 +188,7 @@ function PressureRedistribution_z(model, w, p, ρ₀; location = (Center, Center
         return KernelComputedField(Center, Center, Center, pressure_redistribution_z_ccc!, model;
                                    computed_dependencies=(w, p), parameters=ρ₀, kwargs...)
     else
-        throw(Exception)
+        error("PressureRedistribution_z only supports location = (Center, Center, Center) for now.")
     end
 end
 #----
@@ -209,11 +219,9 @@ function ShearProduction_x(model, u, v, w, U, V, W; location = (Center, Center, 
         return KernelComputedField(Center, Center, Center, shear_production_x_ccc!, model;
                                    computed_dependencies=(u, v, w, U, V, W), kwargs...)
     else
-        throw(Exception)
+        error("ShearProduction_x only supports location = (Center, Center, Center) for now.")
     end
 end
-
-
 
 
 @kernel function shear_production_y_ccc!(shear_production, grid, u, v, w, U, V, W)
@@ -240,11 +248,9 @@ function ShearProduction_y(model, u, v, w, U, V, W; location = (Center, Center, 
         return KernelComputedField(Center, Center, Center, shear_production_y_ccc!, model;
                                    computed_dependencies=(u, v, w, U, V, W), kwargs...)
     else
-        throw(Exception)
+        error("ShearProduction_y only supports location = (Center, Center, Center) for now.")
     end
 end
-
-
 
 
 @kernel function shear_production_z_ccc!(shear_production, grid, u, v, w, U, V, W)
@@ -271,7 +277,7 @@ function ShearProduction_z(model, u, v, w, U, V, W; location = (Center, Center, 
         return KernelComputedField(Center, Center, Center, shear_production_z_ccc!, model;
                                    computed_dependencies=(u, v, w, U, V, W), kwargs...)
     else
-        throw(Exception)
+        error("ShearProduction_z only supports location = (Center, Center, Center) for now.")
     end
 end
 #----
