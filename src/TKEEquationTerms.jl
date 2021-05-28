@@ -1,4 +1,4 @@
-module TurbulentKineticEnergyTerms
+module TKEEquationTerms
 
 export TurbulentKineticEnergy, KineticEnergy
 export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
