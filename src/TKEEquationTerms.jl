@@ -3,8 +3,8 @@ module TKEEquationTerms
 export TurbulentKineticEnergy, KineticEnergy
 export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
 export AnisotropicViscousDissipationRate, AnisotropicPseudoViscousDissipationRate
-export PressureRedistribution_x, PressureRedistribution_y, PressureRedistribution_z
-export ShearProduction_x, ShearProduction_y, ShearProduction_z
+export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
+export XShearProduction, YShearProduction, ZShearProduction
 
 using Oceananigans.Operators
 using KernelAbstractions: @index, @kernel
@@ -162,12 +162,12 @@ end
     @inbounds dupdx_ρ[i, j, k] = (1/ρ₀) * ∂xᶜᵃᵃ(i, j, k, grid, upᶠᵃᵃ, u, p) # C, C, F  → C, C, C
 end
 
-function PressureRedistribution_x(model, u, p, ρ₀; location = (Center, Center, Center), kwargs...)
+function XPressureRedistribution(model, u, p, ρ₀; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, pressure_redistribution_x_ccc!, model;
                                    computed_dependencies=(u, p), parameters=ρ₀, kwargs...)
     else
-        error("PressureRedistribution_x only supports location = (Center, Center, Center) for now.")
+        error("XPressureRedistribution only supports location = (Center, Center, Center) for now.")
     end
 end
 
@@ -177,12 +177,12 @@ end
     @inbounds dvpdy_ρ[i, j, k] = (1/ρ₀) * ∂yᵃᶜᵃ(i, j, k, grid, vpᵃᶠᵃ, v, p) # C, C, F  → C, C, C
 end
 
-function PressureRedistribution_y(model, v, p, ρ₀; location = (Center, Center, Center), kwargs...)
+function YPressureRedistribution(model, v, p, ρ₀; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, pressure_redistribution_y_ccc!, model;
                                    computed_dependencies=(v, p), parameters=ρ₀, kwargs...)
     else
-        error("PressureRedistribution_y only supports location = (Center, Center, Center) for now.")
+        error("YPressureRedistribution only supports location = (Center, Center, Center) for now.")
     end
 end
 
@@ -192,12 +192,12 @@ end
     @inbounds dwpdz_ρ[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wpᵃᵃᶠ, w, p) # C, C, F  → C, C, C
 end
 
-function PressureRedistribution_z(model, w, p, ρ₀; location = (Center, Center, Center), kwargs...)
+function ZPressureRedistribution(model, w, p, ρ₀; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, pressure_redistribution_z_ccc!, model;
                                    computed_dependencies=(w, p), parameters=ρ₀, kwargs...)
     else
-        error("PressureRedistribution_z only supports location = (Center, Center, Center) for now.")
+        error("ZPressureRedistribution only supports location = (Center, Center, Center) for now.")
     end
 end
 #----
@@ -223,12 +223,12 @@ end
     @inbounds shear_production[i, j, k] = -(uu∂xU + vu∂xV + wu∂xW)
 end
 
-function ShearProduction_x(model, u, v, w, U, V, W; location = (Center, Center, Center), kwargs...)
+function XShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, shear_production_x_ccc!, model;
                                    computed_dependencies=(u, v, w, U, V, W), kwargs...)
     else
-        error("ShearProduction_x only supports location = (Center, Center, Center) for now.")
+        error("XShearProduction only supports location = (Center, Center, Center) for now.")
     end
 end
 
@@ -252,12 +252,12 @@ end
     @inbounds shear_production[i, j, k] = -(uv∂yU + vv∂yV + wv∂yW)
 end
 
-function ShearProduction_y(model, u, v, w, U, V, W; location = (Center, Center, Center), kwargs...)
+function YShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, shear_production_y_ccc!, model;
                                    computed_dependencies=(u, v, w, U, V, W), kwargs...)
     else
-        error("ShearProduction_y only supports location = (Center, Center, Center) for now.")
+        error("YShearProduction only supports location = (Center, Center, Center) for now.")
     end
 end
 
@@ -281,17 +281,17 @@ end
     @inbounds shear_production[i, j, k] = - (uw∂zU + vw∂zV + ww∂zW)
 end
 
-function ShearProduction_z(model, u, v, w, U, V, W; location = (Center, Center, Center), kwargs...)
+function ZShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center), kwargs...)
     if location == (Center, Center, Center)
         return KernelComputedField(Center, Center, Center, shear_production_z_ccc!, model;
                                    computed_dependencies=(u, v, w, U, V, W), kwargs...)
     else
-        error("ShearProduction_z only supports location = (Center, Center, Center) for now.")
+        error("ZShearProduction only supports location = (Center, Center, Center) for now.")
     end
 end
 
-ShearProduction_z(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...) =
-    ShearProduction_z(model, model.velocities..., U, V, W; kwargs...)
+ZShearProduction(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...) =
+    ZShearProduction(model, model.velocities..., U, V, W; kwargs...)
 #----
 
 end # module
