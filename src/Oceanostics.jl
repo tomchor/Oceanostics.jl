@@ -6,10 +6,10 @@ export AnisotropicViscousDissipationRate, AnisotropicPseudoViscousDissipationRat
 export PressureRedistribution_x, PressureRedistribution_y, PressureRedistribution_z
 export ShearProduction_x, ShearProduction_y, ShearProduction_z
 
-include("TurbulentKineticEnergyTerms.jl")
+include("TKEBudgetTerms.jl")
 include("FlowDiagnostics.jl")
 include("progress_messengers.jl")
 
-using .TurbulentKineticEnergyTerms
+using .TKEBudgetTerms
 
 end # module
