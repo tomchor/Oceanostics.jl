@@ -5,7 +5,7 @@ using Oceanostics
 @testset "Oceanostics" begin
     topo = (Periodic, Periodic, Bounded)
     grid = RegularRectilinearGrid(topology=topo, size=(4, 5, 6), extent=(1, 1, 1))
-    model = IncompressibleModel(grid=grid)
+    model = NonhydrostaticModel(grid=grid)
 
     u, v, w = model.velocities
 
