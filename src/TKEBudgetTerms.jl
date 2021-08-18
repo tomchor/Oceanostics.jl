@@ -19,7 +19,7 @@ using Oceananigans.Fields: KernelComputedField, ZeroField
 
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
 
-@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
+@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
 @inline νfψ_plus_κgφ_times_fψ_plus_gφ(i, j, k, grid, ν, f, ψ, κ, g, φ) =
     @inbounds (ν*f(i, j, k, grid, ψ) + κ*g(i, j, k, grid, φ)) * (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))
@@ -63,9 +63,8 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
 #------
 
 
-#++++ Energy dissipation rate for a fluid with constant isotropic viscosity
-@kernel function isotropic_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, ν)
-    i, j, k = @index(Global, NTuple)
+#++++ Energy dissipation rate for a fluid with isotropic viscosity
+function isotropic_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, ν)
 
     Σˣˣ² = ∂xᶜᵃᵃ(i, j, k, grid, u)^2
     Σʸʸ² = ∂yᵃᶜᵃ(i, j, k, grid, v)^2
@@ -75,33 +74,32 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
     Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᵃᵃᶠ, u, ∂xᶠᵃᵃ, w) / 4
     Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᵃᵃᶠ, v, ∂yᵃᶠᵃ, w) / 4
 
-    @inbounds ϵ[i, j, k] = ν[i, j, k] * 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
+    return ν[i, j, k] * 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
 
-function IsotropicViscousDissipationRate(model, u, v, w, ν; location = (Center, Center, Center), kwargs...)
+function IsotropicViscousDissipationRate(model, u, v, w, ν; location = (Center, Center, Center))
     if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, isotropic_viscous_dissipation_rate_ccc!, model;
-                                   computed_dependencies=(u, v, w, ν), kwargs...)
+        return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_ccc, model.grid;
+                                       computed_dependencies=(u, v, w, ν))
     else
         error("IsotropicViscousDissipationRate only supports location = (Center, Center, Center) for now.")
     end
 end
 
 
-@kernel function isotropic_pseudo_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, ν)
-    i, j, k = @index(Global, NTuple)
+function isotropic_pseudo_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, ν)
 
     ddx² = ∂xᶜᵃᵃ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, w)
     ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, u) + ∂yᵃᶜᵃ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, w)
     ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, v) + ∂zᵃᵃᶜ(i, j, k, grid, ψ², w)
 
-    @inbounds ϵ[i, j, k] = ν[i,j,k] * (ddx² + ddy² + ddz²)
+    return ν[i,j,k] * (ddx² + ddy² + ddz²)
 end
 
-function IsotropicPseudoViscousDissipationRate(model, u, v, w, ν; location = (Center, Center, Center), kwargs...)
+function IsotropicPseudoViscousDissipationRate(model, u, v, w, ν; location = (Center, Center, Center))
     if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, isotropic_pseudo_viscous_dissipation_rate_ccc!, model;
-                                   computed_dependencies=(u, v, w, ν), kwargs...)
+        return KernelFunctionOperation{Center, Center, Center}(isotropic_pseudo_viscous_dissipation_rate_ccc, model.grid;
+                                       computed_dependencies=(u, v, w, ν))
     else
         error("IsotropicPseudoViscousDissipationRate only supports location = (Center, Center, Center) for now.")
     end
@@ -110,32 +108,6 @@ end
 
 
 #+++++ Energy dissipation rate for a fluid with constant anisotropic viscosity (closure)
-@kernel function anisotropic_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, params)
-    i, j, k = @index(Global, NTuple)
-    νx=params.νx; νy=params.νy; νz=params.νz;
-
-    Σˣˣ² = νx * ∂xᶜᵃᵃ(i, j, k, grid, u)^2
-    Σʸʸ² = νy * ∂yᵃᶜᵃ(i, j, k, grid, v)^2
-    Σᶻᶻ² = νz * ∂zᵃᵃᶜ(i, j, k, grid, w)^2
-
-    Σˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, νfψ_plus_κgφ_times_fψ_plus_gφ, νy, ∂yᵃᶠᵃ, u, νx, ∂xᶠᵃᵃ, v) / 4
-    Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, νfψ_plus_κgφ_times_fψ_plus_gφ, νz, ∂zᵃᵃᶠ, u, νx, ∂xᶠᵃᵃ, w) / 4
-    Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, νfψ_plus_κgφ_times_fψ_plus_gφ, νz, ∂zᵃᵃᶠ, v, νy, ∂yᵃᶠᵃ, w) / 4
-
-    @inbounds ϵ[i, j, k] = 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2*(Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
-end
-
-function AnisotropicViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center), kwargs...)
-    if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, anisotropic_viscous_dissipation_rate_ccc!, model;
-                                   computed_dependencies=(u, v, w),
-                                   parameters=(νx=νx, νy=νy, νz=νz), kwargs...)
-    else
-        error("AnisotropicViscousDissipationRate only supports location = (Center, Center, Center) for now.")
-    end
-end
-
-
 @kernel function anisotropic_pseudo_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, params)
     i, j, k = @index(Global, NTuple)
 
