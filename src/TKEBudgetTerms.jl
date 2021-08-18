@@ -159,48 +159,22 @@ end
 
 
 #++++ Pressure redistribution terms
-@kernel function pressure_redistribution_x_ccc!(dupdx_ρ, grid, u, p, ρ₀)
-    i, j, k = @index(Global, NTuple)
-    @inbounds dupdx_ρ[i, j, k] = (1/ρ₀) * ∂xᶜᵃᵃ(i, j, k, grid, upᶠᵃᵃ, u, p) # C, C, F  → C, C, C
+function XPressureRedistribution(model)
+    u, v, w = model.velocities
+    p = sum(model.pressures)
+    return ∂x(u*p) # p is the total kinematic pressure (there's no need to ρ₀)
 end
 
-function XPressureRedistribution(model, u, p, ρ₀; location = (Center, Center, Center), kwargs...)
-    if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, pressure_redistribution_x_ccc!, model;
-                                   computed_dependencies=(u, p), parameters=ρ₀, kwargs...)
-    else
-        error("XPressureRedistribution only supports location = (Center, Center, Center) for now.")
-    end
+function YPressureRedistribution(model)
+    u, v, w = model.velocities
+    p = sum(model.pressures)
+    return ∂y(v*p) # p is the total kinematic pressure (there's no need to ρ₀)
 end
 
-
-@kernel function pressure_redistribution_y_ccc!(dvpdy_ρ, grid, v, p, ρ₀)
-    i, j, k = @index(Global, NTuple)
-    @inbounds dvpdy_ρ[i, j, k] = (1/ρ₀) * ∂yᵃᶜᵃ(i, j, k, grid, vpᵃᶠᵃ, v, p) # C, C, F  → C, C, C
-end
-
-function YPressureRedistribution(model, v, p, ρ₀; location = (Center, Center, Center), kwargs...)
-    if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, pressure_redistribution_y_ccc!, model;
-                                   computed_dependencies=(v, p), parameters=ρ₀, kwargs...)
-    else
-        error("YPressureRedistribution only supports location = (Center, Center, Center) for now.")
-    end
-end
-
-
-@kernel function pressure_redistribution_z_ccc!(dwpdz_ρ, grid, w, p, ρ₀)
-    i, j, k = @index(Global, NTuple)
-    @inbounds dwpdz_ρ[i, j, k] = (1/ρ₀) * ∂zᵃᵃᶜ(i, j, k, grid, wpᵃᵃᶠ, w, p) # C, C, F  → C, C, C
-end
-
-function ZPressureRedistribution(model, w, p, ρ₀; location = (Center, Center, Center), kwargs...)
-    if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, pressure_redistribution_z_ccc!, model;
-                                   computed_dependencies=(w, p), parameters=ρ₀, kwargs...)
-    else
-        error("ZPressureRedistribution only supports location = (Center, Center, Center) for now.")
-    end
+function ZPressureRedistribution(model)
+    u, v, w = model.velocities
+    p = sum(model.pressures)
+    return ∂z(w*p) # p is the total kinematic pressure (there's no need to ρ₀)
 end
 #----
 
