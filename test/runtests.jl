@@ -114,6 +114,28 @@ function test_pressure_terms(model)
     return nothing
 end
 
+
+function test_ke_dissipation_rate_terms(model)
+    u, v, w = model.velocities
+    b = model.tracers.b
+    ν = model.closure.ν
+
+    ε_iso = IsotropicViscousDissipationRate(model, u, v, w, ν)
+    @test ε_iso isa AbstractOperation
+
+    ε_iso = IsotropicPseudoViscousDissipationRate(model, u, v, w, ν)
+    @test ε_iso isa AbstractOperation
+
+    ε_ani = AnisotropicPseudoViscousDissipationRate(model, u, v, w, ν, ν, ν)
+    @test ε_ani isa KernelComputedField
+
+    return nothing
+end
+
+
+
+
+
 @testset "Oceanostics" begin
     model = create_model(; buoyancy=Buoyancy(model=BuoyancyTracer()), 
                          coriolis=FPlane(1e-4),
@@ -129,6 +151,9 @@ end
 
     @info "Testing pressure terms"
     test_pressure_terms(model)
+
+    @info "Testing energy dissipation rate terms"
+    test_ke_dissipation_rate_terms(model)
 
 end
 
