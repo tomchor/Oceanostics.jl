@@ -108,21 +108,20 @@ end
 
 
 #+++++ Energy dissipation rate for a fluid with constant anisotropic viscosity (closure)
-@kernel function anisotropic_pseudo_viscous_dissipation_rate_ccc!(ϵ, grid, u, v, w, params)
-    i, j, k = @index(Global, NTuple)
+function anisotropic_pseudo_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, params)
 
     ddx² = ∂xᶜᵃᵃ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, w)
     ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, u) + ∂yᵃᶜᵃ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, w)
     ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, v) + ∂zᵃᵃᶜ(i, j, k, grid, ψ², w)
 
-    @inbounds ϵ[i, j, k] = params.νx*ddx² + params.νy*ddy² + params.νz*ddz²
+    return params.νx*ddx² + params.νy*ddy² + params.νz*ddz²
 end
 
-function AnisotropicPseudoViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center), kwargs...)
+function AnisotropicPseudoViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center))
     if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, anisotropic_pseudo_viscous_dissipation_rate_ccc!, model;
+        return KernelComputedField(Center, Center, Center, anisotropic_pseudo_viscous_dissipation_rate_ccc, model.grid;
                                    computed_dependencies=(u, v, w),
-                                   parameters=(νx=νx, νy=νy, νz=νz,), kwargs...)
+                                   parameters=(νx=νx, νy=νy, νz=νz,))
     else
         error("AnisotropicPseudoViscousDissipationRate only supports location = (Center, Center, Center) for now.")
     end

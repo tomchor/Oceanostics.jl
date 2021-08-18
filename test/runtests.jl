@@ -127,7 +127,7 @@ function test_ke_dissipation_rate_terms(model)
     @test ε_iso isa AbstractOperation
 
     ε_ani = AnisotropicPseudoViscousDissipationRate(model, u, v, w, ν, ν, ν)
-    @test ε_ani isa KernelComputedField
+    @test ε_ani isa AbstractOperation
 
     return nothing
 end
