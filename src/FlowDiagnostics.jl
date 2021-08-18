@@ -61,7 +61,7 @@ function ThermalWindPotentialVorticityᶠᶠᶠ(model)
     b = model.tracers.b
     f₀ = model.coriolis.f
     return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid;
-                         computed_dependencies=(u, v, w, b), parameters=f₀)
+                                                     computed_dependencies=(u, v, w, b), parameters=f₀)
 end
 
 
@@ -91,7 +91,7 @@ function ErtelPotentialVorticityᶠᶠᶠ(model)
     b = model.tracers.b
     f₀ = model.coriolis.f
     return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid;
-                         computed_dependencies=(u, v, w, b), parameters=f₀)
+                                                     computed_dependencies=(u, v, w, b), parameters=f₀)
 end
 #----
 
