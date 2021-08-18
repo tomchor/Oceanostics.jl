@@ -90,8 +90,29 @@ function test_buoyancy_diagnostics(model)
     χani = AnisotropicBuoyancyMixingRate(model, b, κ, κ, κ, N²₀)
     @test χani isa AbstractOperation
 
+    return nothing
 end
 
+
+
+
+function test_buoyancy_diagnostics(; model_kwargs...)
+    model = create_model(; model_kwargs...)
+    test_buoyancy_diagnostics(model)
+end
+
+function test_pressure_terms(model)
+    ∂x_up = XPressureRedistribution(model)
+    @test ∂x_up isa AbstractOperation
+
+    ∂y_vp = XPressureRedistribution(model)
+    @test ∂y_vp isa AbstractOperation
+
+    ∂z_wp = XPressureRedistribution(model)
+    @test ∂z_wp isa AbstractOperation
+
+    return nothing
+end
 
 @testset "Oceanostics" begin
     model = create_model(; buoyancy=Buoyancy(model=BuoyancyTracer()), 
@@ -100,9 +121,14 @@ end
                          closure=IsotropicDiffusivity(ν=1e-6, κ=1e-7),
                         )
 
+    @info "Testing velocity-only diagnostics"
     test_vel_only_diagnostics(model)
 
+    @info "Testing buoyancy diagnostics"
     test_buoyancy_diagnostics(model)
+
+    @info "Testing pressure terms"
+    test_pressure_terms(model)
 
 end
 
