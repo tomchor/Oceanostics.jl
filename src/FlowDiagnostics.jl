@@ -2,16 +2,15 @@ module FlowDiagnostics
 
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticityᶠᶠᶠ, ThermalWindPotentialVorticityᶠᶠᶠ
+export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
 
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using KernelAbstractions: @index, @kernel
 using Oceananigans.Grids: Center, Face
-using Oceananigans.Fields: KernelComputedField
 
 # Some useful operators
-@inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
+@inline fψ²(i, j, k, grid, f, ψ) = f(i, j, k, grid, ψ)^2
 
 
 function RichardsonNumber(model; N²_bg=0, dUdz_bg=0, dVdz_bg=0)
@@ -112,17 +111,17 @@ function isotropic_buoyancy_mixing_rate_ccc(i, j, k, grid, b, κᵇ, N²₀)
     return κᵇ[i,j,k] * (dbdx² + dbdy² + dbdz²) / N²₀
 end
 
-function IsotropicBuoyancyMixingRate(model, b, κᵇ, N²₀; location = (Center, Center, Center), kwargs...)
+function IsotropicBuoyancyMixingRate(model, b, κᵇ, N²₀; location = (Center, Center, Center))
     if location == (Center, Center, Center)
         return KernelFunctionOperation{Center, Center, Center}(isotropic_buoyancy_mixing_rate_ccc, model.grid;
-                                   computed_dependencies=(b, κᵇ), parameters=N²₀, kwargs...)
+                                   computed_dependencies=(b, κᵇ), parameters=N²₀)
     else
         error("IsotropicBuoyancyMixingRate only supports location = (Center, Center, Center) for now.")
     end
 end
 
 
-function anisotropic_buoyancy_mixing_rate_ccc(mixing_rate, grid, b, params)
+function anisotropic_buoyancy_mixing_rate_ccc(i, j, k, grid, b, params)
 
     dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, b) # C, C, C  → F, C, C  → C, C, C
     dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, b) # C, C, C  → C, F, C  → C, C, C
@@ -131,11 +130,11 @@ function anisotropic_buoyancy_mixing_rate_ccc(mixing_rate, grid, b, params)
     return (params.κx*dbdx² + params.κy*dbdy² + params.κz*dbdz²)/params.N²₀
 end
 
-function AnisotropicBuoyancyMixingRate(model, b, κx, κy, κz, N²₀; location = (Center, Center, Center), kwargs...)
+function AnisotropicBuoyancyMixingRate(model, b, κx, κy, κz, N²₀; location = (Center, Center, Center))
     if location == (Center, Center, Center)
         return KernelFunctionOperation{Center, Center, Center}(anisotropic_buoyancy_mixing_rate_ccc, model.grid;
                                    computed_dependencies=(b,),
-                                   parameters=(κx=κx, κy=κy, κz=κz, N²₀=N²₀), kwargs...)
+                                   parameters=(κx=κx, κy=κy, κz=κz, N²₀=N²₀))
     else
         error("AnisotropicBuoyancyMixingRate only supports location = (Center, Center, Center) for now.")
     end
