@@ -48,25 +48,6 @@ function test_vel_only_diagnostics(model)
     Ro = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1, f=1e-4)
     @test Ro isa AbstractOperation
 
-    Ri = RichardsonNumber(model)
-    @test Ri isa AbstractOperation
-
-    Ri = RichardsonNumber(model; N²_bg=1, dUdz_bg=1, dVdz_bg=1)
-    @test Ri isa AbstractOperation
-
-
-    PVe = ErtelPotentialVorticityᶠᶠᶠ(model)
-    @test PVe isa AbstractOperation
-
-    PVe = ErtelPotentialVorticityᶠᶠᶠ(model, f=1e-4)
-    @test PVe isa AbstractOperation
-
-    PVtw = ThermalWindPotentialVorticityᶠᶠᶠ(model)
-    @test PVtw isa AbstractOperation
-
-    PVtw = ThermalWindPotentialVorticityᶠᶠᶠ(model, f=1e-4)
-    @test PVtw isa AbstractOperation
-
     return nothing
 end
 
@@ -89,6 +70,27 @@ function test_buoyancy_diagnostics(model)
 
     χani = AnisotropicBuoyancyMixingRate(model, b, κ, κ, κ, N²₀)
     @test χani isa AbstractOperation
+
+
+    Ri = RichardsonNumber(model)
+    @test Ri isa AbstractOperation
+
+    Ri = RichardsonNumber(model; N²_bg=1, dUdz_bg=1, dVdz_bg=1)
+    @test Ri isa AbstractOperation
+
+
+    PVe = ErtelPotentialVorticityᶠᶠᶠ(model)
+    @test PVe isa AbstractOperation
+
+    PVe = ErtelPotentialVorticityᶠᶠᶠ(model, f=1e-4)
+    @test PVe isa AbstractOperation
+
+    PVtw = ThermalWindPotentialVorticityᶠᶠᶠ(model)
+    @test PVtw isa AbstractOperation
+
+    PVtw = ThermalWindPotentialVorticityᶠᶠᶠ(model, f=1e-4)
+    @test PVtw isa AbstractOperation
+
 
     return nothing
 end
@@ -114,6 +116,12 @@ function test_pressure_terms(model)
     return nothing
 end
 
+
+
+function test_ke_dissipation_rate_terms(; model_kwargs...)
+    model = create_model(; model_kwargs...)
+    test_ke_dissipation_rate_terms(model)
+end
 
 function test_ke_dissipation_rate_terms(model)
     u, v, w = model.velocities
