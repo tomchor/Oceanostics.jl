@@ -7,6 +7,8 @@ export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
 export XShearProduction, YShearProduction, ZShearProduction
 
 using Oceananigans.Operators
+using Oceananigans.AbstractOperations
+using Oceananigans.AbstractOperations: KernelFunctionOperation
 using KernelAbstractions: @index, @kernel
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: KernelComputedField, ZeroField
@@ -204,8 +206,7 @@ end
 
 
 #++++ Shear production terms
-@kernel function shear_production_x_ccc!(shear_production, grid, u, v, w, U, V, W)
-    i, j, k = @index(Global, NTuple)
+function shear_production_x_ccc(i, j, k, grid, u, v, w, U, V, W)
     u_int = ℑxᶜᵃᵃ(i, j, k, grid, u) # F, C, C  → C, C, C
 
     ∂xU = ∂xᶜᵃᵃ(i, j, k, grid, U) # F, C, C  → C, C, C
@@ -220,21 +221,20 @@ end
     wu = ℑzᵃᵃᶜ(i, j, k, grid, w) * u_int
     wu∂xW = wu * ∂xW
 
-    @inbounds shear_production[i, j, k] = -(uu∂xU + vu∂xV + wu∂xW)
+    return -(uu∂xU + vu∂xV + wu∂xW)
 end
 
-function XShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center), kwargs...)
+function XShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
     if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, shear_production_x_ccc!, model;
-                                   computed_dependencies=(u, v, w, U, V, W), kwargs...)
+        return KernelFunctionOperation{Center, Center, Center}(shear_production_x_ccc, model.grid;
+                                       computed_dependencies=(u, v, w, U, V, W))
     else
         error("XShearProduction only supports location = (Center, Center, Center) for now.")
     end
 end
 
 
-@kernel function shear_production_y_ccc!(shear_production, grid, u, v, w, U, V, W)
-    i, j, k = @index(Global, NTuple)
+function shear_production_y_ccc(i, j, k, grid, u, v, w, U, V, W)
     v_int = ℑyᵃᶜᵃ(i, j, k, grid, v) # C, F, C  → C, C, C
 
     ∂yU = ℑxyᶜᶜᵃ(i, j, k, grid, ∂yᵃᶠᵃ, U) # F, C, C  → F, F, C  → C, C, C
@@ -249,21 +249,20 @@ end
     wv = ℑzᵃᵃᶜ(i, j, k, grid, w) * v_int
     wv∂yW = wv * ∂yW
 
-    @inbounds shear_production[i, j, k] = -(uv∂yU + vv∂yV + wv∂yW)
+    return -(uv∂yU + vv∂yV + wv∂yW)
 end
 
-function YShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center), kwargs...)
+function YShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
     if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, shear_production_y_ccc!, model;
-                                   computed_dependencies=(u, v, w, U, V, W), kwargs...)
+        return KernelFunctionOperation{Center, Center, Center}(shear_production_y_ccc, model.grid;
+                                       computed_dependencies=(u, v, w, U, V, W))
     else
         error("YShearProduction only supports location = (Center, Center, Center) for now.")
     end
 end
 
 
-@kernel function shear_production_z_ccc!(shear_production, grid, u, v, w, U, V, W)
-    i, j, k = @index(Global, NTuple)
+function shear_production_z_ccc(i, j, k, grid, u, v, w, U, V, W)
     w_int = ℑzᵃᵃᶜ(i, j, k, grid, w) # C, C, F  → C, C, C
 
     ∂zU = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᵃᵃᶠ, U) # F, C, C  → F, C, F  → C, C, C
@@ -278,13 +277,13 @@ end
     ww = ℑzᵃᵃᶜ(i, j, k, grid, ψ², w) # C, C, F  → C, C, C
     ww∂zW = ww * ∂zW
 
-    @inbounds shear_production[i, j, k] = - (uw∂zU + vw∂zV + ww∂zW)
+    return - (uw∂zU + vw∂zV + ww∂zW)
 end
 
-function ZShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center), kwargs...)
+function ZShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
     if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, shear_production_z_ccc!, model;
-                                   computed_dependencies=(u, v, w, U, V, W), kwargs...)
+        return KernelFunctionOperation{Center, Center, Center}(shear_production_z_ccc, model.grid;
+                                       computed_dependencies=(u, v, w, U, V, W))
     else
         error("ZShearProduction only supports location = (Center, Center, Center) for now.")
     end

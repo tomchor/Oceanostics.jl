@@ -33,13 +33,13 @@ function test_vel_only_diagnostics(model)
     @test tke isa KernelComputedField
 
     SPx = XShearProduction(model, u, v, w, U, V, W)
-    @test SPx isa KernelComputedField
+    @test SPx isa AbstractOperation
 
     SPy = YShearProduction(model, u, v, w, U, V, W)
-    @test SPy isa KernelComputedField
+    @test SPy isa AbstractOperation
 
     SPz = ZShearProduction(model, u, v, w, U, V, W)
-    @test SPz isa KernelComputedField
+    @test SPz isa AbstractOperation
 
 
     Ro = RossbyNumber(model;)
