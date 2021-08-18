@@ -18,3 +18,4 @@ using Oceanostics
     tke = TurbulentKineticEnergy(model, U=U, V=V)
     @test tke isa KernelComputedField
 end
+
