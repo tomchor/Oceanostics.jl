@@ -27,10 +27,10 @@ function test_vel_only_diagnostics(model)
     W = AveragedField(w, dims=(1, 2))
 
     ke = KineticEnergy(model)
-    @test ke isa KernelComputedField
+    @test ke isa AbstractOperation
 
     tke = TurbulentKineticEnergy(model, U=U, V=V, W=W)
-    @test tke isa KernelComputedField
+    @test tke isa AbstractOperation
 
     SPx = XShearProduction(model, u, v, w, U, V, W)
     @test SPx isa AbstractOperation

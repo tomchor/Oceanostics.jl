@@ -9,47 +9,35 @@ export XShearProduction, YShearProduction, ZShearProduction
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using KernelAbstractions: @index, @kernel
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: KernelComputedField, ZeroField
 
 # Some useful operators
-@inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
-@inline ψ′²(i, j, k, grid, ψ, Ψ) = @inbounds (ψ[i, j, k] - Ψ[i, j, k])^2
+@inline ψ²(i, j, k, grid, ψ) = ψ[i, j, k]^2
+@inline ψ′²(i, j, k, grid, ψ, Ψ) = (ψ[i, j, k] - Ψ[i, j, k])^2
 
-@inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
+@inline fψ²(i, j, k, grid, f, ψ) = f(i, j, k, grid, ψ)^2
 
 @inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
-@inline νfψ_plus_κgφ_times_fψ_plus_gφ(i, j, k, grid, ν, f, ψ, κ, g, φ) =
-    @inbounds (ν*f(i, j, k, grid, ψ) + κ*g(i, j, k, grid, φ)) * (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))
-
-@inline upᶠᵃᵃ(i, j, k, grid, u, p) = @inbounds u[i, j, k] * ℑxᶠᵃᵃ(i, j, k, grid, p)
-@inline vpᵃᶠᵃ(i, j, k, grid, v, p) = @inbounds v[i, j, k] * ℑyᵃᶠᵃ(i, j, k, grid, p)
-@inline wpᵃᵃᶠ(i, j, k, grid, w, p) = @inbounds w[i, j, k] * ℑzᵃᵃᶠ(i, j, k, grid, p)
 
 
 #++++ Turbulent kinetic energy
-@kernel function turbulent_kinetic_energy_ccc!(tke, grid, u, v, w, U, V, W)
-    i, j, k = @index(Global, NTuple)
-
-    @inbounds tke[i, j, k] = (
-                              ℑxᶜᵃᵃ(i, j, k, grid, ψ′², u, U) +
-                              ℑyᵃᶜᵃ(i, j, k, grid, ψ′², v, V) +
-                              ℑzᵃᵃᶜ(i, j, k, grid, ψ′², w, W)
-                             ) / 2
+function turbulent_kinetic_energy_ccc(i, j, k, grid, u, v, w, U, V, W)
+    return (ℑxᶜᵃᵃ(i, j, k, grid, ψ′², u, U) +
+            ℑyᵃᶜᵃ(i, j, k, grid, ψ′², v, V) +
+            ℑzᵃᵃᶜ(i, j, k, grid, ψ′², w, W)) / 2
 end
 
 function TurbulentKineticEnergy(model, u, v, w;
-                                U = ZeroField(),
-                                V = ZeroField(),
-                                W = ZeroField(),
-                                location = (Center, Center, Center),
-                                kwargs...)
+                                U = 0,
+                                V = 0,
+                                W = 0,
+                                location = (Center, Center, Center))
 
     if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, turbulent_kinetic_energy_ccc!, model;
-                                   computed_dependencies=(u, v, w, U, V, W), kwargs...)
+        return KernelFunctionOperation{Center, Center, Center}(turbulent_kinetic_energy_ccc, model.grid;
+                                       computed_dependencies=(u, v, w, U, V, W))
     else
         error("TurbulentKineticEnergy only supports location = (Center, Center, Center) for now.")
     end
@@ -119,9 +107,9 @@ end
 
 function AnisotropicPseudoViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center))
     if location == (Center, Center, Center)
-        return KernelComputedField(Center, Center, Center, anisotropic_pseudo_viscous_dissipation_rate_ccc, model.grid;
-                                   computed_dependencies=(u, v, w),
-                                   parameters=(νx=νx, νy=νy, νz=νz,))
+        return KernelFunctionOperation{Center, Center, Center}(anisotropic_pseudo_viscous_dissipation_rate_ccc, model.grid;
+                                                               computed_dependencies=(u, v, w),
+                                                               parameters=(νx=νx, νy=νy, νz=νz,))
     else
         error("AnisotropicPseudoViscousDissipationRate only supports location = (Center, Center, Center) for now.")
     end
