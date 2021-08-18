@@ -1,5 +1,7 @@
 module FlowDiagnostics
 
+export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
+
 using Oceananigans.Operators
 using KernelAbstractions: @index, @kernel
 using Oceananigans.Grids: Center, Face
