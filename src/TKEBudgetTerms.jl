@@ -13,12 +13,12 @@ using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: KernelComputedField, ZeroField
 
 # Some useful operators
-@inline ψ²(i, j, k, grid, ψ) = ψ[i, j, k]^2
-@inline ψ′²(i, j, k, grid, ψ, Ψ) = (ψ[i, j, k] - Ψ[i, j, k])^2
+@inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
+@inline ψ′²(i, j, k, grid, ψ, Ψ) = @inbounds (ψ[i, j, k] - Ψ[i, j, k])^2
 
-@inline fψ²(i, j, k, grid, f, ψ) = f(i, j, k, grid, ψ)^2
+@inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
 
-@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
+@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
 
 
