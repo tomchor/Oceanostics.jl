@@ -2,7 +2,7 @@ module TKEBudgetTerms
 
 export TurbulentKineticEnergy, KineticEnergy
 export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
-export AnisotropicViscousDissipationRate, AnisotropicPseudoViscousDissipationRate
+export AnisotropicPseudoViscousDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
 export XShearProduction, YShearProduction, ZShearProduction
 

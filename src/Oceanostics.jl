@@ -1,10 +1,19 @@
 module Oceanostics
 
+#++++ TKEBudgetTerms exports
 export TurbulentKineticEnergy, KineticEnergy
 export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
-export AnisotropicViscousDissipationRate, AnisotropicPseudoViscousDissipationRate
-export PressureRedistribution_x, PressureRedistribution_y, PressureRedistribution_z
-export ShearProduction_x, ShearProduction_y, ShearProduction_z
+export AnisotropicPseudoViscousDissipationRate
+export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
+export XShearProduction, YShearProduction, ZShearProduction
+#----
+
+#++++ FlowDiagnostics exports
+export RichardsonNumber, RossbyNumber
+export ErtelPotentialVorticityᶠᶠᶠ, ThermalWindPotentialVorticityᶠᶠᶠ
+export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
+export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
+#----
 
 include("TKEBudgetTerms.jl")
 include("FlowDiagnostics.jl")
