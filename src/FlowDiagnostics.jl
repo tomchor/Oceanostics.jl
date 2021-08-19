@@ -109,4 +109,43 @@ function AnisotropicBuoyancyMixingRate(model, b, κx, κy, κz, N²₀; location
 end
 #-----
 
+
+#+++++ Tracer variance dissipation
+@kernel function isotropic_buoyancy_variance_dissipation_rate_ccc!(mixing_rate, grid, b, κᵇ)
+    i, j, k = @index(Global, NTuple)
+    dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, b) # C, C, C  → F, C, C  → C, C, C
+    dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, b) # C, C, C  → C, F, C  → C, C, C
+    dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, b) # C, C, C  → C, C, F  → C, C, C
+
+    @inbounds mixing_rate[i, j, k] = 2 * κᵇ[i,j,k] * (dbdx² + dbdy² + dbdz²)
+end
+function IsotropicBuoyancyVarianceDissipationRate(model, b, κᵇ; location = (Center, Center, Center), kwargs...)
+    if location == (Center, Center, Center)
+        return KernelComputedField(Center, Center, Center, isotropic_buoyancy_variance_dissipation_rate_ccc!, model;
+                                   computed_dependencies=(b, κᵇ), kwargs...)
+    else
+        throw(Exception)
+    end
+end
+
+
+@kernel function anisotropic_buoyancy_variance_dissipation_rate_ccc!(mixing_rate, grid, b, params)
+    i, j, k = @index(Global, NTuple)
+    dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, b) # C, C, C  → F, C, C  → C, C, C
+    dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, b) # C, C, C  → C, F, C  → C, C, C
+    dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, b) # C, C, C  → C, C, F  → C, C, C
+
+    @inbounds mixing_rate[i, j, k] = 2 * (params.κx*dbdx² + params.κy*dbdy² + params.κz*dbdz²)
+end
+function AnisotropicBuoyancyVarianceDissipationRate(model, b, κx, κy, κz; location = (Center, Center, Center), kwargs...)
+    if location == (Center, Center, Center)
+        return KernelComputedField(Center, Center, Center, anisotropic_buoyancy_variance_dissipation_rate_ccc!, model;
+                                   computed_dependencies=(b,), 
+                                   parameters=(κx=κx, κy=κy, κz=κz), kwargs...)
+    else
+        throw(Exception)
+    end
+end
+#-----
+
 end # module
