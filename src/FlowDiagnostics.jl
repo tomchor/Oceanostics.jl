@@ -11,7 +11,7 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 
 # Some useful operators
-@inline fψ²(i, j, k, grid, f, ψ) = f(i, j, k, grid, ψ)^2
+@inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
 
 
 function RichardsonNumber(model; N²_bg=0, dUdz_bg=0, dVdz_bg=0)
