@@ -90,6 +90,30 @@ function test_buoyancy_diagnostics(model)
     χani = AnisotropicBuoyancyMixingRate(model, b, κ, κ, κ, N²₀)
     @test χani isa AbstractOperation
 
+    return nothing
+end
+
+
+
+
+function test_tracer_diagnostics(; model_kwargs...)
+    model = create_model(; model_kwargs...)
+    test_tracer_diagnostics(model)
+end
+
+function test_tracer_diagnostics(model)
+    u, v, w = model.velocities
+    b = model.tracers.b
+    κ = model.closure.κ.b
+    N²₀ = 1e-6
+
+    χiso = IsotropicTracerVarianceDissipationRate(model, b, κ)
+    @test χiso isa AbstractOperation
+
+    χani = AnisotropicTracerVarianceDissipationRate(model, b, κ, κ, κ,)
+    @test χani isa AbstractOperation
+
+    return nothing
 end
 
 
@@ -103,6 +127,8 @@ end
     test_vel_only_diagnostics(model)
 
     test_buoyancy_diagnostics(model)
+
+    test_tracer_diagnostics(model)
 
 end
 

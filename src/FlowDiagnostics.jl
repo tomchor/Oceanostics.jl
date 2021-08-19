@@ -3,6 +3,7 @@ module FlowDiagnostics
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticityᶠᶠᶠ, ThermalWindPotentialVorticityᶠᶠᶠ
 export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
+export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
 
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
