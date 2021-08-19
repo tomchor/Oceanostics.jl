@@ -3,6 +3,7 @@ module FlowDiagnostics
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticityᶠᶠᶠ, ThermalWindPotentialVorticityᶠᶠᶠ
 export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
+export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
 
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
@@ -137,6 +138,43 @@ function AnisotropicBuoyancyMixingRate(model, b, κx, κy, κz, N²₀; location
                                    parameters=(κx=κx, κy=κy, κz=κz, N²₀=N²₀))
     else
         error("AnisotropicBuoyancyMixingRate only supports location = (Center, Center, Center) for now.")
+    end
+end
+#-----
+
+
+#+++++ Tracer variance dissipation
+function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, b, κᵇ)
+    dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, b) # C, C, C  → F, C, C  → C, C, C
+    dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, b) # C, C, C  → C, F, C  → C, C, C
+    dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, b) # C, C, C  → C, C, F  → C, C, C
+
+    return 2 * κᵇ[i,j,k] * (dbdx² + dbdy² + dbdz²)
+end
+function IsotropicTracerVarianceDissipationRate(model, b, κᵇ; location = (Center, Center, Center))
+    if location == (Center, Center, Center)
+        return KernelFunctionOperation{Center, Center, Center}(isotropic_tracer_variance_dissipation_rate_ccc, model.grid;
+                                       computed_dependencies=(b, κᵇ))
+    else
+        throw(Exception)
+    end
+end
+
+
+function anisotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, b, params)
+    dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, b) # C, C, C  → F, C, C  → C, C, C
+    dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, b) # C, C, C  → C, F, C  → C, C, C
+    dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, b) # C, C, C  → C, C, F  → C, C, C
+
+    return 2 * (params.κx*dbdx² + params.κy*dbdy² + params.κz*dbdz²)
+end
+function AnisotropicTracerVarianceDissipationRate(model, b, κx, κy, κz; location = (Center, Center, Center))
+    if location == (Center, Center, Center)
+        return KernelFunctionOperation{Center, Center, Center}(anisotropic_tracer_variance_dissipation_rate_ccc, model.grid;
+                                       computed_dependencies=(b,), 
+                                       parameters=(κx=κx, κy=κy, κz=κz),)
+    else
+        throw(Exception)
     end
 end
 #-----
