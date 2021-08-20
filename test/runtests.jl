@@ -4,6 +4,7 @@ using Oceananigans.AbstractOperations: AbstractOperation
 using Oceanostics
 using Oceanostics.TKEBudgetTerms
 using Oceanostics.FlowDiagnostics
+using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger
 
 
 function create_model(; kwargs...)
@@ -13,6 +14,14 @@ function create_model(; kwargs...)
     return model
 end
 
+
+function viscosity(model)
+    try
+        return model.diffusivity_fields.νₑ
+    catch e
+        return model.closure.ν
+    end
+end
 
 
 function test_vel_only_diagnostics(; model_kwargs...)
@@ -126,7 +135,7 @@ end
 function test_ke_dissipation_rate_terms(model)
     u, v, w = model.velocities
     b = model.tracers.b
-    ν = model.closure.ν
+    ν = viscosity(model)
 
     ε_iso = IsotropicViscousDissipationRate(model, u, v, w, ν)
     @test ε_iso isa AbstractOperation
@@ -165,6 +174,25 @@ end
 
 
 
+function test_progress_messenger(messenger; model_kwargs...)
+    model = create_model(; model_kwargs...)
+    test_progress_messenger(model, messenger)
+end
+
+function test_progress_messenger(model, messenger)
+    simulation = Simulation(model; Δt=1e-2, 
+                            stop_iteration=10,
+                            iteration_interval=1,
+                            progress=messenger,
+                            )
+
+    run!(simulation)
+
+    return nothing
+end
+
+
+
 
 
 @testset "Oceanostics" begin
@@ -183,11 +211,24 @@ end
     @info "Testing pressure terms"
     test_pressure_terms(model)
 
-    @info "Testing energy dissipation rate terms"
-    test_ke_dissipation_rate_terms(model)
 
-    @info "Testing tracer variance terms"
-    test_tracer_diagnostics(model)
+    closures = (IsotropicDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly(ν=1e-6, κ=1e-7))
+    isLES = (false, true)
+    messengers = (SingleLineProgressMessenger(), SimpleProgressMessenger())
+
+    for (LES, closure) in zip(isLES, closures)
+        model = create_model(; buoyancy=Buoyancy(model=BuoyancyTracer()), 
+                             coriolis=FPlane(1e-4),
+                             tracers=:b,
+                             closure=closure,
+                            )
+
+        @info "Testing energy dissipation rate terms with closure" closure
+        test_ke_dissipation_rate_terms(model)
+
+        @info "Testing tracer variance terms wth closure" closure
+        test_tracer_diagnostics(model)
+    end
 
 end
 
