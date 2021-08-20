@@ -26,7 +26,7 @@ function SimpleProgressMessenger_function(simulation; LES=false, SI_units=true,
         @info @sprintf("[%06.2f%%] i: % 6d,     time: % 10s,     Δt: % 10s,     wall time: % 8s",
                         progress, i, prettytime(t), prettytime(get_Δt(Δt)), prettytime(current_wall_time),)
         if LES
-            ν_max = maximum(abs, model.diffusivities.νₑ)
+            ν_max = maximum(abs, model.diffusivity_fields.νₑ)
             @info @sprintf("          └── max(|u⃗|): [%.2e, %.2e, %.2e] m/s,     adv CFL: %.2e,     diff CFL: %.2e,     νₘₐₓ: %.2e m²/s",
                            u_max, v_max, w_max, AdvectiveCFL(Δt)(model), DiffusiveCFL(Δt)(model), ν_max)
         else
@@ -38,7 +38,7 @@ function SimpleProgressMessenger_function(simulation; LES=false, SI_units=true,
         @info @sprintf("[%06.2f%%] i: % 6d,     time: %13.2f,     Δt: %13.2f,     wall time: % 8s",
                        progress, i, t, get_Δt(Δt), prettytime(current_wall_time))
         if LES
-            ν_max = maximum(abs, model.diffusivities.νₑ)
+            ν_max = maximum(abs, model.diffusivity_fields.νₑ)
             @info @sprintf("          └── max(|u⃗|): [%.2e, %.2e, %.2e],     adv CFL: %.2e,     diff CFL: %.2e,     νₘₐₓ: %.2e",
                            u_max, v_max, w_max, AdvectiveCFL(Δt)(model), DiffusiveCFL(Δt)(model), ν_max)
         else
@@ -74,7 +74,7 @@ function SingleLineProgressMessenger_func(simulation; LES=false, SI_units=true,
 
     if SI_units
         if LES
-            ν_max = maximum(abs, model.diffusivities.νₑ)
+            ν_max = maximum(abs, model.diffusivity_fields.νₑ)
             @info @sprintf("[%06.2f%%] i: % 6d,     time: %10s,     Δt: %10s,     wall time: %8s,     adv CFL: %.2e,     diff CFL: %.2e,     νₘₐₓ: %.2e m²/s",
                            progress, i, prettytime(t), prettytime(get_Δt(Δt)), prettytime(current_wall_time),
                            AdvectiveCFL(Δt)(model), DiffusiveCFL(Δt)(model), ν_max)
@@ -86,7 +86,7 @@ function SingleLineProgressMessenger_func(simulation; LES=false, SI_units=true,
 
     else
         if LES
-            ν_max = maximum(abs, model.diffusivities.νₑ)
+            ν_max = maximum(abs, model.diffusivity_fields.νₑ)
             @info @sprintf("[%06.2f%%] i: % 6d,     time: %13.2f,     Δt: %13.2f,     wall time: % 8s,     adv CFL: %.2e,     diff CFL: %.2e,     νₘₐₓ: %.2e",
                            progress, i, t, get_Δt(Δt), prettytime(current_wall_time), AdvectiveCFL(Δt)(model), DiffusiveCFL(Δt)(model), ν_max)
         else
