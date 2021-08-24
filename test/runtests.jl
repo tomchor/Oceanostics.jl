@@ -24,6 +24,12 @@ function viscosity(model)
 end
 
 
+
+
+include("test_progress_messengers.jl")
+
+
+
 function test_vel_only_diagnostics(; model_kwargs...)
     model = create_model(; model_kwargs...)
     test_vel_only_diagnostics(model)
@@ -174,25 +180,6 @@ end
 
 
 
-function test_progress_messenger(messenger; model_kwargs...)
-    model = create_model(; model_kwargs...)
-    test_progress_messenger(model, messenger)
-end
-
-function test_progress_messenger(model, messenger)
-    simulation = Simulation(model; Δt=1e-2, 
-                            stop_iteration=10,
-                            iteration_interval=1,
-                            progress=messenger,
-                            )
-
-    run!(simulation)
-
-    return nothing
-end
-
-
-
 
 
 @testset "Oceanostics" begin
@@ -213,10 +200,10 @@ end
 
 
     closures = (IsotropicDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly(ν=1e-6, κ=1e-7))
-    isLES = (false, true)
-    messengers = (SingleLineProgressMessenger(), SimpleProgressMessenger())
+    LESs = (false, true)
+    messengers = (SingleLineProgressMessenger, TimedProgressMessenger)
 
-    for (LES, closure) in zip(isLES, closures)
+    for (LES, closure) in zip(LESs, closures)
         model = create_model(; buoyancy=Buoyancy(model=BuoyancyTracer()), 
                              coriolis=FPlane(1e-4),
                              tracers=:b,
@@ -228,6 +215,21 @@ end
 
         @info "Testing tracer variance terms wth closure" closure
         test_tracer_diagnostics(model)
+
+        @info "Testing SimpleProgressMessenger with closure" closure
+        model.clock.iteration = 0
+        time_now = time_ns()*1e-9
+        test_progress_messenger(model, SimpleProgressMessenger(initial_wall_time_seconds=1e-9*time_ns(), LES=LES))
+
+        @info "Testing SingleLineProgressMessenger with closure" closure
+        model.clock.iteration = 0
+        time_now = time_ns()*1e-9
+        test_progress_messenger(model, SingleLineProgressMessenger(initial_wall_time_seconds=1e-9*time_ns(), LES=LES))
+
+        @info "Testing TimedProgressMessenger with closure" closure
+        model.clock.iteration = 0
+        time_now = time_ns()*1e-9
+        test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
     end
 
 end
