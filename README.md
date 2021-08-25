@@ -24,6 +24,8 @@ The keyword `rev` let's you pick which github branch you want.
 The example below is a simple illustration of the use of `TimedProgressMessenger` (which keeps track
 of how long each time step takes) and `KineticEnergy`, which computed the kinetic energy of a flow.
 
+(Note that `(; tke, ε)` is a shorthand for `(tke=tke, ε=ε)`.)
+
 ```julia
 using Oceananigans
 using Oceanostics
@@ -33,7 +35,8 @@ model = NonhydrostaticModel(grid=grid, closure=IsotropicDiffusivity(ν=1e-5, κ=
 simulation = Simulation(model, Δt=1, stop_iteration=10, progress=Oceanostics.TimedProgressMessenger(; LES=false))
 
 ke = ComputedField(KineticEnergy(model))
-simulation.output_writers[:netcdf_writer] = NetCDFOutputWriter(model, (; ke), filepath="out.nc", schedule=TimeInterval(2))
+ε = ComputedField(IsotropicViscousDissipationRate(model))
+simulation.output_writers[:netcdf_writer] = NetCDFOutputWriter(model, (; ke, ε), filepath="out.nc", schedule=TimeInterval(2))
 run!(simulation)
 ```
 
