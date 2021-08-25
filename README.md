@@ -1,32 +1,39 @@
 # Oceanostics
 
-Useful diagnostics for use with [Oceananigans](https://github.com/CliMA/Oceananigans.jl). Mostly `KernelComputedField`s .
+Useful diagnostics to use with [Oceananigans](https://github.com/CliMA/Oceananigans.jl). Mostly `AbstractOperations`s and a few useful progress messengers.
 
-To add from github:
+
+To add the latest registered version from Julia:
+```julia
+julia>]
+(v1.6) pkg> add Oceanostics
+```
+
+If you want the latest deveopments (which may or may not be unstable) you can add the latest version from github in the `main` branch:
 
 ```julia
 julia> using Pkg
 
-julia> Pkg.add(url="https://github.com/tomchor/Oceanostics.jl.git")
+julia> Pkg.add(url="https://github.com/tomchor/Oceanostics.jl.git", rev="main")
 ```
+The keyword `rev` let's you pick which github branch you want.
 
 
 ## Caveats
 
-- Not every kernel has been thoroughly tested.
-- Kernels are written very generally since most uses of averages, etc. do not assume any
-  specific kind of averaging procedure. Chances are it "wastes" computations for a given
-specific application.
+- Not every diagnostic has been thoroughly tested (we're still working on testing everything with CI).
+- Most diagnostics are written very generally since most uses of averages, etc. do not assume any
+  specific kind of averaging procedure. Chances are it "wastes" computations for a given specific application.
 
 
-## Notes on notation and usage
+<!-- ## Notes on notation and usage
 
 For now I'm assuming that lowercase variables are pertubations around a mean and uppercase
 variables are the mean (any kind of mean or even background fields). So, for example,
-turbulent kinetic energy is calculated as (the following is a pseudo-code):
+kinetic energy is calculated as (the following is a pseudo-code):
 
 ```julia
-tke(u, v, w) = 1/2*(u^2 + v^2 + w^2)
+ke(u, v, w) = 1/2*(u^2 + v^2 + w^2)
 ```
 
 And it is up to the user to make sure that the function is called with the perturbations
@@ -37,5 +44,6 @@ function as
 ```julia
 U = AveragedField(model.velocities.u, dims=(1, 2))
 V = AveragedField(model.velocities.v, dims=(1, 2))
-TKE = tke(model.velocities.u-U, model.velocities.v-V, model.velocities.w)
+TKE = ke(model.velocities.u-U, model.velocities.v-V, model.velocities.w)
 ```
+-->
