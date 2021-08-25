@@ -4,6 +4,7 @@ using Oceananigans.AbstractOperations: AbstractOperation
 using Oceanostics
 using Oceanostics.TKEBudgetTerms
 using Oceanostics.FlowDiagnostics
+using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger
 
 
 function create_model(; kwargs...)
@@ -12,6 +13,20 @@ function create_model(; kwargs...)
                                 )
     return model
 end
+
+
+function viscosity(model)
+    try
+        return model.diffusivity_fields.νₑ
+    catch e
+        return model.closure.ν
+    end
+end
+
+
+
+
+include("test_progress_messengers.jl")
 
 
 
@@ -126,7 +141,7 @@ end
 function test_ke_dissipation_rate_terms(model)
     u, v, w = model.velocities
     b = model.tracers.b
-    ν = model.closure.ν
+    ν = viscosity(model)
 
     ε_iso = IsotropicViscousDissipationRate(model, u, v, w, ν)
     @test ε_iso isa AbstractOperation
@@ -183,11 +198,39 @@ end
     @info "Testing pressure terms"
     test_pressure_terms(model)
 
-    @info "Testing energy dissipation rate terms"
-    test_ke_dissipation_rate_terms(model)
 
-    @info "Testing tracer variance terms"
-    test_tracer_diagnostics(model)
+    closures = (IsotropicDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly(ν=1e-6, κ=1e-7))
+    LESs = (false, true)
+    messengers = (SingleLineProgressMessenger, TimedProgressMessenger)
+
+    for (LES, closure) in zip(LESs, closures)
+        model = create_model(; buoyancy=Buoyancy(model=BuoyancyTracer()), 
+                             coriolis=FPlane(1e-4),
+                             tracers=:b,
+                             closure=closure,
+                            )
+
+        @info "Testing energy dissipation rate terms with closure" closure
+        test_ke_dissipation_rate_terms(model)
+
+        @info "Testing tracer variance terms wth closure" closure
+        test_tracer_diagnostics(model)
+
+        @info "Testing SimpleProgressMessenger with closure" closure
+        model.clock.iteration = 0
+        time_now = time_ns()*1e-9
+        test_progress_messenger(model, SimpleProgressMessenger(initial_wall_time_seconds=1e-9*time_ns(), LES=LES))
+
+        @info "Testing SingleLineProgressMessenger with closure" closure
+        model.clock.iteration = 0
+        time_now = time_ns()*1e-9
+        test_progress_messenger(model, SingleLineProgressMessenger(initial_wall_time_seconds=1e-9*time_ns(), LES=LES))
+
+        @info "Testing TimedProgressMessenger with closure" closure
+        model.clock.iteration = 0
+        time_now = time_ns()*1e-9
+        test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
+    end
 
 end
 

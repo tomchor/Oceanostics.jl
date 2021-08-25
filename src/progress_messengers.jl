@@ -3,6 +3,8 @@ using Oceananigans.Simulations: TimeStepWizard
 using Oceananigans.Utils: prettytime
 using Printf
 
+export SimpleProgressMessenger, SingleLineProgressMessenger, TimedProgressMessenger
+
 get_Δt(Δt) = Δt
 get_Δt(wizard::TimeStepWizard) = wizard.Δt
 
