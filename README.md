@@ -31,7 +31,7 @@ using Oceananigans
 using Oceanostics
 
 grid = RegularRectilinearGrid(size=(4, 5, 6), extent=(1, 1, 1))
-model = NonhydrostaticModel(grid=grid, closure=IsotropicDiffusivity(ν=1e-5, κ=1e-6))
+model = NonhydrostaticModel(grid=grid, closure=SmagorinskyLilly())
 simulation = Simulation(model, Δt=1, stop_iteration=10, progress=Oceanostics.TimedProgressMessenger(; LES=false))
 
 ke = ComputedField(KineticEnergy(model))

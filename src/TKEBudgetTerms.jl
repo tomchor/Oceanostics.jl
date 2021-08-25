@@ -82,9 +82,9 @@ function IsotropicViscousDissipationRate(model; ν=nothing, location = (Center, 
     u, v, w = model.velocities
     if ν==nothing
         try
-            ν = model.closure.ν
-        catch e
             ν = model.diffusivity_fields.νₑ
+        catch e
+            ν = model.closure.ν
         end
     end
     return IsotropicViscousDissipationRate(model, u, v, w, ν; location=location)
