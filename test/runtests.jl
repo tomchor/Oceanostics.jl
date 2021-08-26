@@ -28,6 +28,11 @@ end
 
 include("test_progress_messengers.jl")
 
+function computed_operation(op)
+    op_cf = ComputedField(op)
+    compute!(op_cf)
+    return op_cf
+end
 
 
 function test_vel_only_diagnostics(; model_kwargs...)
@@ -43,6 +48,8 @@ function test_vel_only_diagnostics(model)
 
     ke = KineticEnergy(model)
     @test ke isa AbstractOperation
+    ke_c = ComputedField(ke)
+    compute!(ke_c)
 
     tke = TurbulentKineticEnergy(model, U=U, V=V, W=W)
     @test tke isa AbstractOperation
