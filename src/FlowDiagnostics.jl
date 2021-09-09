@@ -43,8 +43,8 @@ end
 #++++ Potential vorticity
 function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, f)
 
-    dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᵃᵃ, v) # F, F, C → F, F, F
-    dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᵃᶠᵃ, u) # F, F, C → F, F, F
+    dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᵃ, v) # F, F, C → F, F, F
+    dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᵃ, u) # F, F, C → F, F, F
     dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᵃᵃᶠ, b) # C, C, F → F, F, F
 
     pv_barot = (f + dVdx - dUdy) * dbdz
@@ -71,18 +71,18 @@ end
 
 function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, f)
 
-    dWdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᵃᶠᵃ, w) # C, C, F  → C, F, F  → F, F, F
+    dWdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᶜᶠᵃ, w) # C, C, F  → C, F, F  → F, F, F
     dVdz =  ℑxᶠᵃᵃ(i, j, k, grid, ∂zᵃᵃᶠ, v) # C, F, C  → C, F, F  → F, F, F
-    dbdx = ℑyzᵃᶠᶠ(i, j, k, grid, ∂xᶠᵃᵃ, b) # C, C, C  → F, C, C  → F, F, F
+    dbdx = ℑyzᵃᶠᶠ(i, j, k, grid, ∂xᶠᶜᵃ, b) # C, C, C  → F, C, C  → F, F, F
     pv_x = (dWdy - dVdz) * dbdx # F, F, F
 
     dUdz =  ℑyᵃᶠᵃ(i, j, k, grid, ∂zᵃᵃᶠ, u) # F, C, C  → F, C, F → F, F, F
-    dWdx =  ℑyᵃᶠᵃ(i, j, k, grid, ∂xᶠᵃᵃ, w) # C, C, F  → F, C, F → F, F, F
-    dbdy = ℑxzᶠᵃᶠ(i, j, k, grid, ∂yᵃᶠᵃ, b) # C, C, C  → C, F, C → F, F, F
+    dWdx =  ℑyᵃᶠᵃ(i, j, k, grid, ∂xᶠᶜᵃ, w) # C, C, F  → F, C, F → F, F, F
+    dbdy = ℑxzᶠᵃᶠ(i, j, k, grid, ∂yᶜᶠᵃ, b) # C, C, C  → C, F, C → F, F, F
     pv_y = (dUdz - dWdx) * dbdy # F, F, F
 
-    dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᵃᵃ, v) # C, F, C  → F, F, C → F, F, F
-    dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᵃᶠᵃ, u) # F, C, C  → F, F, C → F, F, F
+    dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᵃ, v) # C, F, C  → F, F, C → F, F, F
+    dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᵃ, u) # F, C, C  → F, F, C → F, F, F
     dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᵃᵃᶠ, b) # C, C, C  → C, C, F → F, F, F
     pv_z = (f + dVdx - dUdy) * dbdz
 
