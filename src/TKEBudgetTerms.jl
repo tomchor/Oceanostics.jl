@@ -142,6 +142,7 @@ function IsotropicPseudoViscousDissipationRate(model; U=nothing, V=nothing, W=no
     if location != (Center, Center, Center)
         error("IsotropicPseudoViscousDissipationRate only supports location = (Center, Center, Center) for now.")
     end
+
     u, v, w = model.velocities
     if U != nothing
         u -= U
@@ -182,14 +183,32 @@ function anisotropic_pseudo_viscous_dissipation_rateᶜᶜᶜ(i, j, k, grid, u, 
     return params.νx*ddx² + params.νy*ddy² + params.νz*ddz²
 end
 
-function AnisotropicPseudoViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center))
+function AnisotropicPseudoViscousDissipationRate(model; U=nothing, V=nothing, W=nothing, 
+                                                 location = (Center, Center, Center))
 
     if location != (Center, Center, Center)
         error("AnisotropicPseudoViscousDissipationRate only supports location = (Center, Center, Center) for now.")
     end
-        return KernelFunctionOperation{Center, Center, Center}(anisotropic_pseudo_viscous_dissipation_rateᶜᶜᶜ, model.grid;
-                                                               computed_dependencies=(u, v, w),
-                                                               parameters=(νx=νx, νy=νy, νz=νz,))
+
+    u, v, w = model.velocities
+    if U != nothing
+        u -= U
+    end
+
+    if V != nothing
+        v -= V
+    end
+
+    if W != nothing
+        w -= W
+    end
+
+    νx = model.closure.νx
+    νy = model.closure.νy
+    νz = model.closure.νz
+    return KernelFunctionOperation{Center, Center, Center}(anisotropic_pseudo_viscous_dissipation_rateᶜᶜᶜ, model.grid;
+                                                           computed_dependencies=(u, v, w),
+                                                           parameters=(νx=νx, νy=νy, νz=νz,))
 end
 #-----
 
