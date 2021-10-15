@@ -143,13 +143,13 @@ function test_ke_dissipation_rate_terms(model)
     b = model.tracers.b
     ν = viscosity(model)
 
-    ε_iso = IsotropicViscousDissipationRate(model, u, v, w, ν)
+    ε_iso = IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
     @test ε_iso isa AbstractOperation
 
-    ε_iso = IsotropicPseudoViscousDissipationRate(model, u, v, w, ν)
+    ε_iso = IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
     @test ε_iso isa AbstractOperation
 
-    ε_ani = AnisotropicPseudoViscousDissipationRate(model, u, v, w, ν, ν, ν)
+    ε_ani = AnisotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
     @test ε_ani isa AbstractOperation
 
     return nothing
