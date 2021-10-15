@@ -1,6 +1,7 @@
 using Test
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
+using Oceananigans.Fields: compute_at!
 using Oceanostics
 using Oceanostics.TKEBudgetTerms
 using Oceanostics.FlowDiagnostics
@@ -45,6 +46,10 @@ function test_vel_only_diagnostics(model)
     U = AveragedField(u, dims=(1, 2))
     V = AveragedField(v, dims=(1, 2))
     W = AveragedField(w, dims=(1, 2))
+
+    @test (u*v) isa AbstractOperation
+    uv = ComputedField(u*v)
+    compute!(uv)
 
     ke = KineticEnergy(model)
     @test ke isa AbstractOperation
