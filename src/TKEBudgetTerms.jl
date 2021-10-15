@@ -24,7 +24,7 @@ using Oceananigans.Fields: KernelComputedField, ZeroField
 
 
 #++++ Turbulent kinetic energy
-function turbulent_kinetic_energy_ccc(i, j, k, grid, u, v, w, U, V, W)
+function turbulent_kinetic_energyᶜᶜᶜ(i, j, k, grid, u, v, w, U, V, W)
     return (ℑxᶜᵃᵃ(i, j, k, grid, ψ′², u, U) +
             ℑyᵃᶜᵃ(i, j, k, grid, ψ′², v, V) +
             ℑzᵃᵃᶜ(i, j, k, grid, ψ′², w, W)) / 2
@@ -37,7 +37,7 @@ function TurbulentKineticEnergy(model, u, v, w;
                                 location = (Center, Center, Center))
 
     if location == (Center, Center, Center)
-        return KernelFunctionOperation{Center, Center, Center}(turbulent_kinetic_energy_ccc, model.grid;
+        return KernelFunctionOperation{Center, Center, Center}(turbulent_kinetic_energyᶜᶜᶜ, model.grid;
                                        computed_dependencies=(u, v, w, U, V, W))
     else
         error("TurbulentKineticEnergy only supports location = (Center, Center, Center) for now.")
@@ -53,7 +53,7 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
 
 
 #++++ Energy dissipation rate for a fluid with isotropic viscosity
-function isotropic_viscous_dissipation_rate_les_ccc(i, j, k, grid, u, v, w, ν)
+function isotropic_viscous_dissipation_rate_lesᶜᶜᶜ(i, j, k, grid, u, v, w, ν)
 
     Σˣˣ² = ∂xᶜᵃᵃ(i, j, k, grid, u)^2
     Σʸʸ² = ∂yᵃᶜᵃ(i, j, k, grid, v)^2
@@ -66,7 +66,7 @@ function isotropic_viscous_dissipation_rate_les_ccc(i, j, k, grid, u, v, w, ν)
     return ν[i, j, k] * 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
 
-function isotropic_viscous_dissipation_rate_dns_ccc(i, j, k, grid, u, v, w, ν)
+function isotropic_viscous_dissipation_rate_dnsᶜᶜᶜ(i, j, k, grid, u, v, w, ν)
 
     Σˣˣ² = ∂xᶜᵃᵃ(i, j, k, grid, u)^2
     Σʸʸ² = ∂yᵃᶜᵃ(i, j, k, grid, v)^2
@@ -105,7 +105,7 @@ function IsotropicViscousDissipationRate(model; U=nothing, V=nothing, W=nothing,
 
     if model.closure isa Oceananigans.TurbulenceClosures.AbstractEddyViscosityClosure
         νₑ = model.diffusivity_fields.νₑ
-        return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_les_ccc, model.grid;
+        return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_lesᶜᶜᶜ, model.grid;
                                                                computed_dependencies=(u, v, w, νₑ))
 
     elseif model.closure == nothing
@@ -113,7 +113,7 @@ function IsotropicViscousDissipationRate(model; U=nothing, V=nothing, W=nothing,
 
     else
         ν = model.closure.ν
-        return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_dns_ccc, model.grid;
+        return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_dnsᶜᶜᶜ, model.grid;
                                                                computed_dependencies=(u, v, w), parameters=ν)
     end
 
@@ -123,14 +123,14 @@ end
 
 
 
-function isotropic_pseudo_viscous_dissipation_rate_les_ccc(i, j, k, grid, u, v, w, ν)
+function isotropic_pseudo_viscous_dissipation_rate_lesᶜᶜᶜ(i, j, k, grid, u, v, w, ν)
     ddx² = ∂xᶜᵃᵃ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, w)
     ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, u) + ∂yᵃᶜᵃ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, w)
     ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, v) + ∂zᵃᵃᶜ(i, j, k, grid, ψ², w)
     return ν[i,j,k] * (ddx² + ddy² + ddz²)
 end
 
-function isotropic_pseudo_viscous_dissipation_rate_dns_ccc(i, j, k, grid, u, v, w, ν)
+function isotropic_pseudo_viscous_dissipation_rate_dnsᶜᶜᶜ(i, j, k, grid, u, v, w, ν)
     ddx² = ∂xᶜᵃᵃ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, w)
     ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, u) + ∂yᵃᶜᵃ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, w)
     ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, v) + ∂zᵃᵃᶜ(i, j, k, grid, ψ², w)
@@ -157,14 +157,14 @@ function IsotropicPseudoViscousDissipationRate(model; U=nothing, V=nothing, W=no
 
     if model.closure isa Oceananigans.TurbulenceClosures.AbstractEddyViscosityClosure
         νₑ = model.diffusivity_fields.νₑ
-        return KernelFunctionOperation{Center, Center, Center}(isotropic_pseudo_viscous_dissipation_rate_les_ccc, model.grid;
+        return KernelFunctionOperation{Center, Center, Center}(isotropic_pseudo_viscous_dissipation_rate_lesᶜᶜᶜ, model.grid;
                                        computed_dependencies=(u, v, w, νₑ))
     elseif model.closure == nothing
         error("Trying to calculate a TKE pseudo viscous dissipation rate with `model.closure==nothing`.")
 
     else
         ν = model.closure.ν
-        return KernelFunctionOperation{Center, Center, Center}(isotropic_pseudo_viscous_dissipation_rate_dns_ccc, model.grid;
+        return KernelFunctionOperation{Center, Center, Center}(isotropic_pseudo_viscous_dissipation_rate_dnsᶜᶜᶜ, model.grid;
                                                                computed_dependencies=(u, v, w), parameters=ν)
     end
 
@@ -173,7 +173,7 @@ end
 
 
 #+++++ Energy dissipation rate for a fluid with constant anisotropic viscosity (closure)
-function anisotropic_pseudo_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, params)
+function anisotropic_pseudo_viscous_dissipation_rateᶜᶜᶜ(i, j, k, grid, u, v, w, params)
 
     ddx² = ∂xᶜᵃᵃ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, w)
     ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, u) + ∂yᵃᶜᵃ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, w)
@@ -184,7 +184,7 @@ end
 
 function AnisotropicPseudoViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center))
     if location == (Center, Center, Center)
-        return KernelFunctionOperation{Center, Center, Center}(anisotropic_pseudo_viscous_dissipation_rate_ccc, model.grid;
+        return KernelFunctionOperation{Center, Center, Center}(anisotropic_pseudo_viscous_dissipation_rateᶜᶜᶜ, model.grid;
                                                                computed_dependencies=(u, v, w),
                                                                parameters=(νx=νx, νy=νy, νz=νz,))
     else
@@ -216,7 +216,7 @@ end
 
 
 #++++ Shear production terms
-function shear_production_x_ccc(i, j, k, grid, u, v, w, U, V, W)
+function shear_production_xᶜᶜᶜ(i, j, k, grid, u, v, w, U, V, W)
     u_int = ℑxᶜᵃᵃ(i, j, k, grid, u) # F, C, C  → C, C, C
 
     ∂xU = ∂xᶜᵃᵃ(i, j, k, grid, U) # F, C, C  → C, C, C
@@ -236,7 +236,7 @@ end
 
 function XShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
     if location == (Center, Center, Center)
-        return KernelFunctionOperation{Center, Center, Center}(shear_production_x_ccc, model.grid;
+        return KernelFunctionOperation{Center, Center, Center}(shear_production_xᶜᶜᶜ, model.grid;
                                        computed_dependencies=(u, v, w, U, V, W))
     else
         error("XShearProduction only supports location = (Center, Center, Center) for now.")
@@ -244,7 +244,7 @@ function XShearProduction(model, u, v, w, U, V, W; location = (Center, Center, C
 end
 
 
-function shear_production_y_ccc(i, j, k, grid, u, v, w, U, V, W)
+function shear_production_yᶜᶜᶜ(i, j, k, grid, u, v, w, U, V, W)
     v_int = ℑyᵃᶜᵃ(i, j, k, grid, v) # C, F, C  → C, C, C
 
     ∂yU = ℑxyᶜᶜᵃ(i, j, k, grid, ∂yᵃᶠᵃ, U) # F, C, C  → F, F, C  → C, C, C
@@ -264,7 +264,7 @@ end
 
 function YShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
     if location == (Center, Center, Center)
-        return KernelFunctionOperation{Center, Center, Center}(shear_production_y_ccc, model.grid;
+        return KernelFunctionOperation{Center, Center, Center}(shear_production_yᶜᶜᶜ, model.grid;
                                        computed_dependencies=(u, v, w, U, V, W))
     else
         error("YShearProduction only supports location = (Center, Center, Center) for now.")
@@ -272,7 +272,7 @@ function YShearProduction(model, u, v, w, U, V, W; location = (Center, Center, C
 end
 
 
-function shear_production_z_ccc(i, j, k, grid, u, v, w, U, V, W)
+function shear_production_zᶜᶜᶜ(i, j, k, grid, u, v, w, U, V, W)
     w_int = ℑzᵃᵃᶜ(i, j, k, grid, w) # C, C, F  → C, C, C
 
     ∂zU = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᵃᵃᶠ, U) # F, C, C  → F, C, F  → C, C, C
@@ -292,7 +292,7 @@ end
 
 function ZShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
     if location == (Center, Center, Center)
-        return KernelFunctionOperation{Center, Center, Center}(shear_production_z_ccc, model.grid;
+        return KernelFunctionOperation{Center, Center, Center}(shear_production_zᶜᶜᶜ, model.grid;
                                        computed_dependencies=(u, v, w, U, V, W))
     else
         error("ZShearProduction only supports location = (Center, Center, Center) for now.")
