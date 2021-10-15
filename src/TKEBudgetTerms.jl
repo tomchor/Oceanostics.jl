@@ -183,13 +183,13 @@ function anisotropic_pseudo_viscous_dissipation_rateᶜᶜᶜ(i, j, k, grid, u, 
 end
 
 function AnisotropicPseudoViscousDissipationRate(model, u, v, w, νx, νy, νz; location = (Center, Center, Center))
-    if location == (Center, Center, Center)
+
+    if location != (Center, Center, Center)
+        error("AnisotropicPseudoViscousDissipationRate only supports location = (Center, Center, Center) for now.")
+    end
         return KernelFunctionOperation{Center, Center, Center}(anisotropic_pseudo_viscous_dissipation_rateᶜᶜᶜ, model.grid;
                                                                computed_dependencies=(u, v, w),
                                                                parameters=(νx=νx, νy=νy, νz=νz,))
-    else
-        error("AnisotropicPseudoViscousDissipationRate only supports location = (Center, Center, Center) for now.")
-    end
 end
 #-----
 
