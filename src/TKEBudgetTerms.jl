@@ -6,6 +6,7 @@ export AnisotropicPseudoViscousDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
 export XShearProduction, YShearProduction, ZShearProduction
 
+using Oceananigans
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -52,7 +53,7 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
 
 
 #++++ Energy dissipation rate for a fluid with isotropic viscosity
-function isotropic_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, ν)
+function isotropic_viscous_dissipation_rate_les_ccc(i, j, k, grid, u, v, w, ν)
 
     Σˣˣ² = ∂xᶜᵃᵃ(i, j, k, grid, u)^2
     Σʸʸ² = ∂yᵃᶜᵃ(i, j, k, grid, v)^2
@@ -65,29 +66,58 @@ function isotropic_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, ν)
     return ν[i, j, k] * 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
 
-function IsotropicViscousDissipationRate(model, u, v, w, ν; location = (Center, Center, Center))
-    if location == (Center, Center, Center)
-        return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_ccc, model.grid;
-                                       computed_dependencies=(u, v, w, ν))
-    else
-        error("IsotropicViscousDissipationRate only supports location = (Center, Center, Center) for now.")
-    end
+function isotropic_viscous_dissipation_rate_dns_ccc(i, j, k, grid, u, v, w, ν)
+
+    Σˣˣ² = ∂xᶜᵃᵃ(i, j, k, grid, u)^2
+    Σʸʸ² = ∂yᵃᶜᵃ(i, j, k, grid, v)^2
+    Σᶻᶻ² = ∂zᵃᵃᶜ(i, j, k, grid, w)^2
+
+    Σˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_plus_gφ², ∂yᵃᶠᵃ, u, ∂xᶠᵃᵃ, v) / 4
+    Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᵃᵃᶠ, u, ∂xᶠᵃᵃ, w) / 4
+    Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᵃᵃᶠ, v, ∂yᵃᶠᵃ, w) / 4
+
+    return ν * 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
+
 
 """
 Calculates the Viscous Dissipation Rate for a fluid with an isotropic turbulence closure (i.e., a 
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
-function IsotropicViscousDissipationRate(model; ν=nothing, location = (Center, Center, Center))
-    u, v, w = model.velocities
-    if ν==nothing
-        try
-            ν = model.diffusivity_fields.νₑ
-        catch e
-            ν = model.closure.ν
-        end
+function IsotropicViscousDissipationRate(model; U=nothing, V=nothing, W=nothing, 
+                                         location = (Center, Center, Center))
+    if location != (Center, Center, Center)
+        error("IsotropicViscousDissipationRate only supports location = (Center, Center, Center) for now.")
     end
-    return IsotropicViscousDissipationRate(model, u, v, w, ν; location=location)
+
+    u, v, w = model.velocities
+    if U != nothing
+        u -= U
+    end
+
+    if V != nothing
+        v -= V
+    end
+
+    if W != nothing
+        w -= W
+    end
+
+    if model.closure isa Oceananigans.TurbulenceClosures.AbstractEddyViscosityClosure
+        νₑ = model.diffusivity_fields.νₑ
+        return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_les_ccc, model.grid;
+                                                               computed_dependencies=(u, v, w, νₑ))
+
+    elseif model.closure == nothing
+        error("Trying to calculate a TKE viscous dissipation rate with `model.closure==nothing`.")
+
+    else
+        ν = model.closure.ν
+        return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_dns_ccc, model.grid;
+                                                               computed_dependencies=(u, v, w), parameters=ν)
+    end
+
+
 end
 
 
