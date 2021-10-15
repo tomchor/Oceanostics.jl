@@ -14,7 +14,9 @@ using Oceananigans.Fields: KernelComputedField, ZeroField
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
+
 @inline ψ′²(i, j, k, grid, ψ, Ψ) = @inbounds (ψ[i, j, k] - Ψ[i, j, k])^2
+@inline ψ′²(i, j, k, grid, ψ, Ψ::Number) = @inbounds (ψ[i, j, k] - Ψ)^2
 
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
 
@@ -23,7 +25,7 @@ using Oceananigans.Fields: KernelComputedField, ZeroField
 
 
 #++++ Turbulent kinetic energy
-function turbulent_kinetic_energy_ccc(i, j, k, grid, u, v, w, U, V, W)
+@inline function turbulent_kinetic_energy_ccc(i, j, k, grid, u, v, w, U, V, W)
     return (ℑxᶜᵃᵃ(i, j, k, grid, ψ′², u, U) +
             ℑyᵃᶜᵃ(i, j, k, grid, ψ′², v, V) +
             ℑzᵃᵃᶜ(i, j, k, grid, ψ′², w, W)) / 2
@@ -36,7 +38,7 @@ function TurbulentKineticEnergy(model, u, v, w;
                                 location = (Center, Center, Center))
 
     if location == (Center, Center, Center)
-        return KernelFunctionOperation{Center, Center, Center}(turbulent_kinetic_energy_ccc, model.grid;
+        return KernelFunctionOperation{Center, Center, Center}(turbulent_kinetic_energy_ccc, model.grid,
                                        computed_dependencies=(u, v, w, U, V, W))
     else
         error("TurbulentKineticEnergy only supports location = (Center, Center, Center) for now.")
