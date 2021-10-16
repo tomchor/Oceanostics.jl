@@ -1,7 +1,7 @@
 module FlowDiagnostics
 
 export RichardsonNumber, RossbyNumber
-export ErtelPotentialVorticityᶠᶠᶠ, ThermalWindPotentialVorticityᶠᶠᶠ
+export ErtelPotentialVorticity, ThermalWindPotentialVorticity
 export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
 export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
 
@@ -58,7 +58,7 @@ function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, f)
     return pv_barot + pv_baroc
 end
 
-function ThermalWindPotentialVorticityᶠᶠᶠ(model; f=nothing)
+function ThermalWindPotentialVorticity(model; f=nothing)
     u, v, w = model.velocities
     b = model.tracers.b
     if f==nothing
@@ -89,7 +89,7 @@ function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
     return pv_x + pv_y + pv_z
 end
 
-function ErtelPotentialVorticityᶠᶠᶠ(model)
+function ErtelPotentialVorticity(model)
     u, v, w = model.velocities
     if ~(model.background_fields.velocities.u isa Oceananigans.Fields.ZeroField)
         u += model.background_fields.velocities.u
