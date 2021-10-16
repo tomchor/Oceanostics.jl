@@ -87,13 +87,13 @@ function test_buoyancy_diagnostics(model)
     @test Ri isa AbstractOperation
 
 
-    PVe = ErtelPotentialVorticityᶠᶠᶠ(model)
+    PVe = ErtelPotentialVorticity(model)
     @test PVe isa AbstractOperation
 
-    PVtw = ThermalWindPotentialVorticityᶠᶠᶠ(model)
+    PVtw = ThermalWindPotentialVorticity(model)
     @test PVtw isa AbstractOperation
 
-    PVtw = ThermalWindPotentialVorticityᶠᶠᶠ(model, f=1e-4)
+    PVtw = ThermalWindPotentialVorticity(model, f=1e-4)
     @test PVtw isa AbstractOperation
 
 
