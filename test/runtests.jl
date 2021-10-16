@@ -1,8 +1,10 @@
 using Test
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
+using Oceananigans.Fields: compute_at!
 using Oceanostics
 using Oceanostics.TKEBudgetTerms
+using Oceanostics.TKEBudgetTerms: turbulent_kinetic_energy_ccc
 using Oceanostics.FlowDiagnostics
 using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger
 
@@ -28,6 +30,11 @@ end
 
 include("test_progress_messengers.jl")
 
+function computed_operation(op)
+    op_cf = ComputedField(op)
+    compute!(op_cf)
+    return op_cf
+end
 
 
 function test_vel_only_diagnostics(; model_kwargs...)
@@ -41,27 +48,57 @@ function test_vel_only_diagnostics(model)
     V = AveragedField(v, dims=(1, 2))
     W = AveragedField(w, dims=(1, 2))
 
-    ke = KineticEnergy(model)
-    @test ke isa AbstractOperation
 
-    tke = TurbulentKineticEnergy(model, U=U, V=V, W=W)
-    @test tke isa AbstractOperation
-
-    SPx = XShearProduction(model, u, v, w, U, V, W)
-    @test SPx isa AbstractOperation
-
-    SPy = YShearProduction(model, u, v, w, U, V, W)
-    @test SPy isa AbstractOperation
-
-    SPz = ZShearProduction(model, u, v, w, U, V, W)
-    @test SPz isa AbstractOperation
+    @test begin
+        tke_op = KineticEnergy(model)
+        ke_c = ComputedField(tke_op)
+        compute!(ke_c)
+        tke_op isa AbstractOperation
+    end
 
 
-    Ro = RossbyNumber(model;)
-    @test Ro isa AbstractOperation
+    @test begin
+        op = TurbulentKineticEnergy(model, U=U, V=V, W=W)
+        tke_c = ComputedField(op)
+        compute!(tke_c)
+        op isa AbstractOperation
+    end
 
-    Ro = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1, f=1e-4)
-    @test Ro isa AbstractOperation
+    @test begin
+        op = XShearProduction(model, u, v, w, U, V, W)
+        XSP = ComputedField(op)
+        compute!(XSP)
+        op isa AbstractOperation
+    end
+
+    @test begin
+        op = YShearProduction(model, u, v, w, U, V, W)
+        YSP = ComputedField(op)
+        compute!(YSP)
+        op isa AbstractOperation
+    end
+
+    @test begin
+        op = ZShearProduction(model, u, v, w, U, V, W)
+        ZSP = ComputedField(op)
+        compute!(ZSP)
+        op isa AbstractOperation
+    end
+
+
+    @test begin
+        op = RossbyNumber(model;)
+        Ro = ComputedField(op)
+        compute!(Ro)
+        op isa AbstractOperation
+    end
+
+    @test begin
+        op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1, f=1e-4)
+        Ro = ComputedField(op)
+        compute!(Ro)
+        op isa AbstractOperation
+    end
 
     return nothing
 end
