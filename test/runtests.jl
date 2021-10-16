@@ -168,16 +168,19 @@ end
 function test_ke_dissipation_rate_terms(model)
     u, v, w = model.velocities
     b = model.tracers.b
-    ν = viscosity(model)
+    #ν = viscosity(model)
 
-    ε_iso = IsotropicViscousDissipationRate(model, u, v, w, ν)
-    @test ε_iso isa AbstractOperation
+    if model.closure isa AnisotropicDiffusivity
+        ε_ani = AnisotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
+        @test ε_ani isa AbstractOperation
 
-    ε_iso = IsotropicPseudoViscousDissipationRate(model, u, v, w, ν)
-    @test ε_iso isa AbstractOperation
+    else
+        ε_iso = IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
+        @test ε_iso isa AbstractOperation
 
-    ε_ani = AnisotropicPseudoViscousDissipationRate(model, u, v, w, ν, ν, ν)
-    @test ε_ani isa AbstractOperation
+        ε_iso = IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
+        @test ε_iso isa AbstractOperation
+    end
 
     return nothing
 end
@@ -193,14 +196,19 @@ end
 function test_tracer_diagnostics(model)
     u, v, w = model.velocities
     b = model.tracers.b
-    κ = model.closure.κ.b
-    N²₀ = 1e-6
 
-    χiso = IsotropicTracerVarianceDissipationRate(model, b, κ)
-    @test χiso isa AbstractOperation
+    if model.closure isa AnisotropicDiffusivity
+        κx = model.closure.κx.b
+        κy = model.closure.κy.b
+        κz = model.closure.κz.b
+        χani = AnisotropicTracerVarianceDissipationRate(model, b, κx, κy, κz,)
+        @test χani isa AbstractOperation
 
-    χani = AnisotropicTracerVarianceDissipationRate(model, b, κ, κ, κ,)
-    @test χani isa AbstractOperation
+    else
+        κ = model.closure.κ.b
+        χiso = IsotropicTracerVarianceDissipationRate(model, b, κ)
+        @test χiso isa AbstractOperation
+    end
 
     return nothing
 end
@@ -226,8 +234,10 @@ end
     test_pressure_terms(model)
 
 
-    closures = (IsotropicDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly(ν=1e-6, κ=1e-7))
-    LESs = (false, true)
+    closures = (IsotropicDiffusivity(ν=1e-6, κ=1e-7),
+                AnisotropicDiffusivity(νz=1e-5, νh=3e-4, κz=1e-6, κh=1e-5),
+                SmagorinskyLilly(ν=1e-6, κ=1e-7))
+    LESs = (false, false, true)
     messengers = (SingleLineProgressMessenger, TimedProgressMessenger)
 
     for (LES, closure) in zip(LESs, closures)
