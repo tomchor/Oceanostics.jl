@@ -140,6 +140,7 @@ end
 
 function (pm::TimedProgressMessenger)(simulation)
     model = simulation.model
+    Δt = simulation.Δt
 
     i, t = model.clock.iteration, model.clock.time
 
@@ -155,7 +156,7 @@ function (pm::TimedProgressMessenger)(simulation)
     w_max = maximum(abs, model.velocities.w)
 
     @info @sprintf("[%06.2f%%] iteration: % 6d, time: % 10s, Δt: % 10s, wall time: % 8s (% 8s / time step)",
-                    progress, i, prettytime(t), prettytime(get_Δt(pm.Δt)), prettytime(current_wall_time), prettytime(wall_time_per_step))
+                    progress, i, prettytime(t), prettytime(get_Δt(Δt)), prettytime(current_wall_time), prettytime(wall_time_per_step))
 
     if pm.LES
         ν_max = maximum(abs, model.diffusivity_fields.νₑ)

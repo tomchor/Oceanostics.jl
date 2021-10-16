@@ -10,7 +10,7 @@ export XShearProduction, YShearProduction, ZShearProduction
 
 #++++ FlowDiagnostics exports
 export RichardsonNumber, RossbyNumber
-export ErtelPotentialVorticityᶠᶠᶠ, ThermalWindPotentialVorticityᶠᶠᶠ
+export ErtelPotentialVorticity, ThermalWindPotentialVorticity
 export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
 export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
 #----

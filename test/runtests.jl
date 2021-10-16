@@ -117,13 +117,6 @@ function test_buoyancy_diagnostics(model)
     κ = model.closure.κ.b
     N²₀ = 1e-6
 
-    χiso = IsotropicBuoyancyMixingRate(model, b, κ, N²₀)
-    @test χiso isa AbstractOperation
-
-    χani = AnisotropicBuoyancyMixingRate(model, b, κ, κ, κ, N²₀)
-    @test χani isa AbstractOperation
-
-
     Ri = RichardsonNumber(model)
     @test Ri isa AbstractOperation
 
@@ -131,16 +124,13 @@ function test_buoyancy_diagnostics(model)
     @test Ri isa AbstractOperation
 
 
-    PVe = ErtelPotentialVorticityᶠᶠᶠ(model)
+    PVe = ErtelPotentialVorticity(model)
     @test PVe isa AbstractOperation
 
-    PVe = ErtelPotentialVorticityᶠᶠᶠ(model, f=1e-4)
-    @test PVe isa AbstractOperation
-
-    PVtw = ThermalWindPotentialVorticityᶠᶠᶠ(model)
+    PVtw = ThermalWindPotentialVorticity(model)
     @test PVtw isa AbstractOperation
 
-    PVtw = ThermalWindPotentialVorticityᶠᶠᶠ(model, f=1e-4)
+    PVtw = ThermalWindPotentialVorticity(model, f=1e-4)
     @test PVtw isa AbstractOperation
 
 

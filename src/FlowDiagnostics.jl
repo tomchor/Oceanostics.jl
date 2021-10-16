@@ -1,10 +1,11 @@
 module FlowDiagnostics
 
 export RichardsonNumber, RossbyNumber
-export ErtelPotentialVorticityᶠᶠᶠ, ThermalWindPotentialVorticityᶠᶠᶠ
+export ErtelPotentialVorticity, ThermalWindPotentialVorticity
 export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
 export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
 
+using Oceananigans
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -57,7 +58,7 @@ function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, f)
     return pv_barot + pv_baroc
 end
 
-function ThermalWindPotentialVorticityᶠᶠᶠ(model; f=nothing)
+function ThermalWindPotentialVorticity(model; f=nothing)
     u, v, w = model.velocities
     b = model.tracers.b
     if f==nothing
@@ -68,79 +69,61 @@ function ThermalWindPotentialVorticityᶠᶠᶠ(model; f=nothing)
 end
 
 
-
-function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, f)
+function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
 
     dWdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᶜᶠᵃ, w) # C, C, F  → C, F, F  → F, F, F
     dVdz =  ℑxᶠᵃᵃ(i, j, k, grid, ∂zᵃᵃᶠ, v) # C, F, C  → C, F, F  → F, F, F
     dbdx = ℑyzᵃᶠᶠ(i, j, k, grid, ∂xᶠᶜᵃ, b) # C, C, C  → F, C, C  → F, F, F
-    pv_x = (dWdy - dVdz) * dbdx # F, F, F
+    pv_x = (params.fx + dWdy - dVdz) * dbdx # F, F, F
 
     dUdz =  ℑyᵃᶠᵃ(i, j, k, grid, ∂zᵃᵃᶠ, u) # F, C, C  → F, C, F → F, F, F
     dWdx =  ℑyᵃᶠᵃ(i, j, k, grid, ∂xᶠᶜᵃ, w) # C, C, F  → F, C, F → F, F, F
     dbdy = ℑxzᶠᵃᶠ(i, j, k, grid, ∂yᶜᶠᵃ, b) # C, C, C  → C, F, C → F, F, F
-    pv_y = (dUdz - dWdx) * dbdy # F, F, F
+    pv_y = (params.fy + dUdz - dWdx) * dbdy # F, F, F
 
     dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᵃ, v) # C, F, C  → F, F, C → F, F, F
     dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᵃ, u) # F, C, C  → F, F, C → F, F, F
     dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᵃᵃᶠ, b) # C, C, C  → C, C, F → F, F, F
-    pv_z = (f + dVdx - dUdy) * dbdz
+    pv_z = (params.fz + dVdx - dUdy) * dbdz
 
     return pv_x + pv_y + pv_z
 end
 
-function ErtelPotentialVorticityᶠᶠᶠ(model; f=nothing)
+function ErtelPotentialVorticity(model)
     u, v, w = model.velocities
-    b = model.tracers.b
-    if f==nothing
-        f = model.coriolis.f
+    if ~(model.background_fields.velocities.u isa Oceananigans.Fields.ZeroField)
+        u += model.background_fields.velocities.u
     end
+    if ~(model.background_fields.velocities.v isa Oceananigans.Fields.ZeroField)
+        v += model.background_fields.velocities.v
+    end
+    if ~(model.background_fields.velocities.w isa Oceananigans.Fields.ZeroField)
+        w += model.background_fields.velocities.w
+    end
+
+    b = model.tracers.b
+    if ~(model.background_fields.tracers.b isa Oceananigans.Fields.ZeroField)
+        b += model.background_fields.tracers.b
+    end
+
+    coriolis = model.coriolis
+    if coriolis isa FPlane
+        fx = fy = fz = model.coriolis.f
+    elseif coriolis isa ConstantCartesianCoriolis
+        fx = coriolis.fx
+        fy = coriolis.fy
+        fz = coriolis.fz
+    else
+        throw(ArgumentError("Ertel PV only implemented for FPlane and ConstantCartesianCoriolis"))
+    end
+
     return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid;
-                                                     computed_dependencies=(u, v, w, b), parameters=f)
+                                                     computed_dependencies=(u, v, w, b), parameters=(; fx, fy, fz))
 end
 #----
 
 
 
-#+++++ Mixing of buoyancy
-function isotropic_buoyancy_mixing_rate_ccc(i, j, k, grid, b, κᵇ, N²₀)
-
-    dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, b) # C, C, C  → F, C, C  → C, C, C
-    dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, b) # C, C, C  → C, F, C  → C, C, C
-    dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, b) # C, C, C  → C, C, F  → C, C, C
-
-    return κᵇ[i,j,k] * (dbdx² + dbdy² + dbdz²) / N²₀
-end
-
-function IsotropicBuoyancyMixingRate(model, b, κᵇ, N²₀; location = (Center, Center, Center))
-    if location == (Center, Center, Center)
-        return KernelFunctionOperation{Center, Center, Center}(isotropic_buoyancy_mixing_rate_ccc, model.grid;
-                                   computed_dependencies=(b, κᵇ), parameters=N²₀)
-    else
-        error("IsotropicBuoyancyMixingRate only supports location = (Center, Center, Center) for now.")
-    end
-end
-
-
-function anisotropic_buoyancy_mixing_rate_ccc(i, j, k, grid, b, params)
-
-    dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, b) # C, C, C  → F, C, C  → C, C, C
-    dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, b) # C, C, C  → C, F, C  → C, C, C
-    dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, b) # C, C, C  → C, C, F  → C, C, C
-
-    return (params.κx*dbdx² + params.κy*dbdy² + params.κz*dbdz²)/params.N²₀
-end
-
-function AnisotropicBuoyancyMixingRate(model, b, κx, κy, κz, N²₀; location = (Center, Center, Center))
-    if location == (Center, Center, Center)
-        return KernelFunctionOperation{Center, Center, Center}(anisotropic_buoyancy_mixing_rate_ccc, model.grid;
-                                   computed_dependencies=(b,),
-                                   parameters=(κx=κx, κy=κy, κz=κz, N²₀=N²₀))
-    else
-        error("AnisotropicBuoyancyMixingRate only supports location = (Center, Center, Center) for now.")
-    end
-end
-#-----
 
 
 #+++++ Tracer variance dissipation
