@@ -89,7 +89,11 @@ function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
     return pv_x + pv_y + pv_z
 end
 
-function ErtelPotentialVorticity(model)
+function ErtelPotentialVorticity(model; location = (Face, Face, Face))
+    if location != (Face, Face, Face)
+        throw(ArgumentError("ErtelPotentialVorticity only implemented at location (Face, Face, Face) for now."))
+    end
+
     u, v, w = model.velocities
     if ~(model.background_fields.velocities.u isa Oceananigans.Fields.ZeroField)
         u += model.background_fields.velocities.u
@@ -114,7 +118,7 @@ function ErtelPotentialVorticity(model)
         fy = coriolis.fy
         fz = coriolis.fz
     else
-        throw(ArgumentError("Ertel PV only implemented for FPlane and ConstantCartesianCoriolis"))
+        throw(ArgumentError("ErtelPotentialVorticity only implemented for FPlane and ConstantCartesianCoriolis"))
     end
 
     return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid;
