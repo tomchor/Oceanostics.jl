@@ -110,11 +110,9 @@ end
 
 
 
-mutable struct TimedProgressMessenger{T, A, D, L, Δ} <: Function
+mutable struct TimedProgressMessenger{T, L, Δ} <: Function
     wall_time₀ :: T  # Wall time at simulation start
     wall_time⁻ :: T  # Wall time at previous calback
-       adv_cfl :: A
-       dif_cfl :: D
            LES :: L
             Δt :: Δ
 end
@@ -123,24 +121,24 @@ TimedProgressMessenger(Δt) =
     TimedProgressMessenger(
                       1e-9 * time_ns(),
                       1e-9 * time_ns(),
-                      AdvectiveCFL(Δt),
-                      DiffusiveCFL(Δt),
                       false,
                       Δt)
 
 function TimedProgressMessenger(; Δt=0, LES=false, 
-                       wall_time₀=1e-9*time_ns(), wall_time⁻=1e-9*time_ns(),
-                       adv_cfl=nothing, dif_cfl=nothing)
+                                wall_time₀=1e-9*time_ns(), 
+                                wall_time⁻=1e-9*time_ns())
 
-    adv_cfl = adv_cfl==nothing ? AdvectiveCFL(Δt) : adv_cfl
-    dif_cfl = dif_cfl==nothing ? DiffusiveCFL(Δt) : dif_cfl
-    return TimedProgressMessenger(wall_time₀, wall_time⁻, adv_cfl, dif_cfl, LES, Δt)
+    return TimedProgressMessenger(wall_time₀, wall_time⁻, LES, Δt)
 end
 
 
 function (pm::TimedProgressMessenger)(simulation)
     model = simulation.model
-    Δt = simulation.Δt
+    Δt = get_Δt(simulation.Δt)
+    adv_cfl = AdvectiveCFL(get_Δt(simulation.Δt))(model)
+    dif_cfl = DiffusiveCFL(get_Δt(simulation.Δt))(model)
+
+    @info AdvectiveCFL(get_Δt(simulation.Δt))(model)
 
     i, t = model.clock.iteration, model.clock.time
 
@@ -161,10 +159,10 @@ function (pm::TimedProgressMessenger)(simulation)
     if pm.LES
         ν_max = maximum(abs, model.diffusivity_fields.νₑ)
         @info @sprintf("          └── max(|u⃗|): [%.2e, %.2e, %.2e] m/s, CFL: %.2e, νCFL: %.2e, ν_max: %.2e m²/s",
-                        u_max, v_max, w_max, pm.adv_cfl(model), pm.dif_cfl(model), ν_max)
+                        u_max, v_max, w_max, adv_cfl, dif_cfl, ν_max)
     else
         @info @sprintf("          └── max(|u⃗|): [%.2e, %.2e, %.2e] m/s, CFL: %.2e, νCFL: %.2e",
-                        u_max, v_max, w_max, pm.adv_cfl(model), pm.dif_cfl(model))
+                        u_max, v_max, w_max, adv_cfl, dif_cfl)
     end
 
     @info ""
