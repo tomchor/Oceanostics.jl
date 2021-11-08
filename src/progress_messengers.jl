@@ -11,7 +11,7 @@ function SimpleProgressMessenger_function(simulation; LES=false, SI_units=true,
     model = simulation.model
     Δt = simulation.Δt
 
-    iter, t = model.clock.iteration, model.clock.time
+    iter, t = iteration(simulation), time(simulation)
 
     progress = 100 * (t / simulation.stop_time)
 
