@@ -1,6 +1,7 @@
 using Oceananigans.Diagnostics: AdvectiveCFL, DiffusiveCFL
 using Oceananigans.Simulations: TimeStepWizard
 using Oceananigans.Utils: prettytime
+using Oceananigans: iteration, time
 using Printf
 
 export SimpleProgressMessenger, SingleLineProgressMessenger, TimedProgressMessenger
@@ -65,7 +66,7 @@ function SingleLineProgressMessenger_func(simulation; LES=false, SI_units=true,
     model = simulation.model
     Δt = simulation.Δt
 
-    iter, t = model.clock.iteration, model.clock.time
+    iter, t = iteration(simulation), time(simulation)
 
     progress = 100 * (t / simulation.stop_time)
 
@@ -130,7 +131,7 @@ function (pm::TimedProgressMessenger)(simulation)
     adv_cfl = AdvectiveCFL(simulation.Δt)(model)
     dif_cfl = DiffusiveCFL(simulation.Δt)(model)
 
-    iter, t = model.clock.iteration, model.clock.time
+    iter, t = iteration(simulation), time(simulation)
 
     progress = 100 * (t / simulation.stop_time)
 
