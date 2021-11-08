@@ -1,12 +1,10 @@
 using Oceananigans.Diagnostics: AdvectiveCFL, DiffusiveCFL
 using Oceananigans.Simulations: TimeStepWizard
 using Oceananigans.Utils: prettytime
+using Oceananigans: iteration, time
 using Printf
 
 export SimpleProgressMessenger, SingleLineProgressMessenger, TimedProgressMessenger
-
-get_Δt(Δt) = Δt
-get_Δt(wizard::TimeStepWizard) = wizard.Δt
 
 
 function SimpleProgressMessenger_function(simulation; LES=false, SI_units=true,
@@ -14,7 +12,7 @@ function SimpleProgressMessenger_function(simulation; LES=false, SI_units=true,
     model = simulation.model
     Δt = simulation.Δt
 
-    i, t = model.clock.iteration, model.clock.time
+    iter, t = iteration(simulation), time(simulation)
 
     progress = 100 * (t / simulation.stop_time)
 
@@ -25,8 +23,8 @@ function SimpleProgressMessenger_function(simulation; LES=false, SI_units=true,
     w_max = maximum(abs, model.velocities.w)
 
     if SI_units
-        @info @sprintf("[%06.2f%%] i: % 6d,     time: % 10s,     Δt: % 10s,     wall time: % 8s",
-                        progress, i, prettytime(t), prettytime(get_Δt(Δt)), prettytime(current_wall_time),)
+        @info @sprintf("[%06.2f%%] iter: % 6d,     time: % 10s,     Δt: % 10s,     wall time: % 8s",
+                        progress, iter, prettytime(t), prettytime(Δt), prettytime(current_wall_time),)
         if LES
             ν_max = maximum(abs, model.diffusivity_fields.νₑ)
             @info @sprintf("          └── max(|u⃗|): [%.2e, %.2e, %.2e] m/s,     adv CFL: %.2e,     diff CFL: %.2e,     νₘₐₓ: %.2e m²/s",
@@ -37,8 +35,8 @@ function SimpleProgressMessenger_function(simulation; LES=false, SI_units=true,
         end
 
     else
-        @info @sprintf("[%06.2f%%] i: % 6d,     time: %13.2f,     Δt: %13.2f,     wall time: % 8s",
-                       progress, i, t, get_Δt(Δt), prettytime(current_wall_time))
+        @info @sprintf("[%06.2f%%] iter: % 6d,     time: %13.2f,     Δt: %13.2f,     wall time: % 8s",
+                       progress, iter, t, Δt, prettytime(current_wall_time))
         if LES
             ν_max = maximum(abs, model.diffusivity_fields.νₑ)
             @info @sprintf("          └── max(|u⃗|): [%.2e, %.2e, %.2e],     adv CFL: %.2e,     diff CFL: %.2e,     νₘₐₓ: %.2e",
@@ -68,7 +66,7 @@ function SingleLineProgressMessenger_func(simulation; LES=false, SI_units=true,
     model = simulation.model
     Δt = simulation.Δt
 
-    i, t = model.clock.iteration, model.clock.time
+    iter, t = iteration(simulation), time(simulation)
 
     progress = 100 * (t / simulation.stop_time)
 
@@ -77,23 +75,23 @@ function SingleLineProgressMessenger_func(simulation; LES=false, SI_units=true,
     if SI_units
         if LES
             ν_max = maximum(abs, model.diffusivity_fields.νₑ)
-            @info @sprintf("[%06.2f%%] i: % 6d,     time: %10s,     Δt: %10s,     wall time: %8s,     adv CFL: %.2e,     diff CFL: %.2e,     νₘₐₓ: %.2e m²/s",
-                           progress, i, prettytime(t), prettytime(get_Δt(Δt)), prettytime(current_wall_time),
+            @info @sprintf("[%06.2f%%] iter: % 6d,     time: %10s,     Δt: %10s,     wall time: %8s,     adv CFL: %.2e,     diff CFL: %.2e,     νₘₐₓ: %.2e m²/s",
+                           progress, iter, prettytime(t), prettytime(Δt), prettytime(current_wall_time),
                            AdvectiveCFL(Δt)(model), DiffusiveCFL(Δt)(model), ν_max)
         else
-            @info @sprintf("[%06.2f%%] i: % 6d,     time: %10s,     Δt: %10s,     wall time: %8s,     adv CFL: %.2e,     diff CFL: %.2e",
-                           progress, i, prettytime(t), prettytime(get_Δt(Δt)), prettytime(current_wall_time),
+            @info @sprintf("[%06.2f%%] iter: % 6d,     time: %10s,     Δt: %10s,     wall time: %8s,     adv CFL: %.2e,     diff CFL: %.2e",
+                           progress, iter, prettytime(t), prettytime(Δt), prettytime(current_wall_time),
                            AdvectiveCFL(Δt)(model), DiffusiveCFL(Δt)(model))
         end
 
     else
         if LES
             ν_max = maximum(abs, model.diffusivity_fields.νₑ)
-            @info @sprintf("[%06.2f%%] i: % 6d,     time: %13.2f,     Δt: %13.2f,     wall time: % 8s,     adv CFL: %.2e,     diff CFL: %.2e,     νₘₐₓ: %.2e",
-                           progress, i, t, get_Δt(Δt), prettytime(current_wall_time), AdvectiveCFL(Δt)(model), DiffusiveCFL(Δt)(model), ν_max)
+            @info @sprintf("[%06.2f%%] iter: % 6d,     time: %13.2f,     Δt: %13.2f,     wall time: % 8s,     adv CFL: %.2e,     diff CFL: %.2e,     νₘₐₓ: %.2e",
+                           progress, iter, t, Δt, prettytime(current_wall_time), AdvectiveCFL(Δt)(model), DiffusiveCFL(Δt)(model), ν_max)
         else
-            @info @sprintf("[%06.2f%%] i: % 6d,     time: %13.2f,     Δt: %13.2f,     wall time: % 8s,     adv CFL: %.2e,     diff CFL: %.2e",
-                           progress, i, t, get_Δt(Δt), prettytime(current_wall_time), AdvectiveCFL(Δt)(model), DiffusiveCFL(Δt)(model))
+            @info @sprintf("[%06.2f%%] iter: % 6d,     time: %13.2f,     Δt: %13.2f,     wall time: % 8s,     adv CFL: %.2e,     diff CFL: %.2e",
+                           progress, iter, t, Δt, prettytime(current_wall_time), AdvectiveCFL(Δt)(model), DiffusiveCFL(Δt)(model))
         end
     end
 
@@ -110,51 +108,46 @@ end
 
 
 
-mutable struct TimedProgressMessenger{T, L, Δ} <: Function
+mutable struct TimedProgressMessenger{T, I, L} <: Function
     wall_time₀ :: T  # Wall time at simulation start
     wall_time⁻ :: T  # Wall time at previous calback
+    iteration⁻ :: I  # Iteration at previous calback
            LES :: L
-            Δt :: Δ
 end
 
-TimedProgressMessenger(Δt) =
-    TimedProgressMessenger(
-                      1e-9 * time_ns(),
-                      1e-9 * time_ns(),
-                      false,
-                      Δt)
-
-function TimedProgressMessenger(; Δt=0, LES=false, 
+function TimedProgressMessenger(; LES=false, 
                                 wall_time₀=1e-9*time_ns(), 
-                                wall_time⁻=1e-9*time_ns())
+                                wall_time⁻=1e-9*time_ns(),
+                                iteration⁻=0,
+    )
 
-    return TimedProgressMessenger(wall_time₀, wall_time⁻, LES, Δt)
+    return TimedProgressMessenger(wall_time₀, wall_time⁻, iteration⁻, LES)
 end
 
 
 function (pm::TimedProgressMessenger)(simulation)
     model = simulation.model
-    Δt = get_Δt(simulation.Δt)
-    adv_cfl = AdvectiveCFL(get_Δt(simulation.Δt))(model)
-    dif_cfl = DiffusiveCFL(get_Δt(simulation.Δt))(model)
+    Δt = simulation.Δt
+    adv_cfl = AdvectiveCFL(simulation.Δt)(model)
+    dif_cfl = DiffusiveCFL(simulation.Δt)(model)
 
-    @info AdvectiveCFL(get_Δt(simulation.Δt))(model)
-
-    i, t = model.clock.iteration, model.clock.time
+    iter, t = iteration(simulation), time(simulation)
 
     progress = 100 * (t / simulation.stop_time)
 
     current_wall_time = 1e-9 * time_ns() - pm.wall_time₀
     time_since_last_callback = 1e-9 * time_ns() - pm.wall_time⁻
-    wall_time_per_step = time_since_last_callback / simulation.iteration_interval
+    iterations_since_last_callback = iter==0 ? Inf : iter - pm.iteration⁻
+    wall_time_per_step = time_since_last_callback / iterations_since_last_callback
     pm.wall_time⁻ = 1e-9 * time_ns()
+    pm.iteration⁻ = iter
 
     u_max = maximum(abs, model.velocities.u)
     v_max = maximum(abs, model.velocities.v)
     w_max = maximum(abs, model.velocities.w)
 
     @info @sprintf("[%06.2f%%] iteration: % 6d, time: % 10s, Δt: % 10s, wall time: % 8s (% 8s / time step)",
-                    progress, i, prettytime(t), prettytime(get_Δt(Δt)), prettytime(current_wall_time), prettytime(wall_time_per_step))
+                    progress, iter, prettytime(t), prettytime(Δt), prettytime(current_wall_time), prettytime(wall_time_per_step))
 
     if pm.LES
         ν_max = maximum(abs, model.diffusivity_fields.νₑ)

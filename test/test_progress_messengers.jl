@@ -8,9 +8,8 @@ end
 function test_progress_messenger(model, messenger; LES=false)
     simulation = Simulation(model; Δt=1e-2, 
                             stop_iteration=10,
-                            iteration_interval=1,
-                            progress=messenger,
                             )
+    simulation.callbacks[:progress] = Callback(messenger, IterationInterval(1))
 
     run!(simulation)
 
