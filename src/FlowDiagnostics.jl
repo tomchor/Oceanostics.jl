@@ -15,9 +15,8 @@ using Oceananigans.Grids: Center, Face
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
 
 
-function RichardsonNumber(model; N²_bg=0, dUdz_bg=0, dVdz_bg=0)
+function RichardsonNumber(model; b=model.tracers.b, N²_bg=0, dUdz_bg=0, dVdz_bg=0)
     u, v, w = model.velocities
-    b = model.tracers.b
 
     dBdz_tot = ∂z(b) + N²_bg
     dUdz_tot = ∂z(u) + dUdz_bg
