@@ -9,7 +9,7 @@ julia>]
 (v1.6) pkg> add Oceanostics
 ```
 
-If you want the latest deveopments (which may or may not be unstable) you can add the latest version from github in the `main` branch:
+If you want the latest developments (which may or may not be unstable) you can add the latest version from github in the `main` branch:
 
 ```julia
 julia> using Pkg
