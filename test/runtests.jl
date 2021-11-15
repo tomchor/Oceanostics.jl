@@ -10,7 +10,7 @@ using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger
 
 
 function create_model(; kwargs...)
-    model = NonhydrostaticModel(grid = RegularRectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+    model = NonhydrostaticModel(grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
                                 kwargs...
                                 )
     return model
