@@ -11,7 +11,7 @@ using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
-using Oceananigans.Fields: KernelComputedField, ZeroField
+using Oceananigans.Fields: ZeroField
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
