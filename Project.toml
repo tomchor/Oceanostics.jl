@@ -1,7 +1,7 @@
 name = "Oceanostics"
 uuid = "d0ccf422-c8fb-49b5-a76d-74acdde946ac"
 authors = ["tomchor <tomaschor@gmail.com>"]
-version = "0.6.2"
+version = "0.6.3"
 
 [deps]
 Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
@@ -9,5 +9,5 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
-Oceananigans = "^0.64, 0.65, 0.66, 0.67"
+Oceananigans = "^0.68"
 julia = "^1.6"

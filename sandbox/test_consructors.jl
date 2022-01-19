@@ -1,7 +1,7 @@
 using Oceananigans
 using Oceanostics
 
-grid = RegularRectilinearGrid(size=(4,4,4), extent=(1,1,1))
+grid = RectilinearGrid(size=(4,4,4), extent=(1,1,1))
 model = IncompressibleModel(grid=grid)
 u, v, w = model.velocities
 

@@ -34,8 +34,8 @@ grid = RectilinearGrid(size=(4, 5, 6), extent=(1, 1, 1))
 model = NonhydrostaticModel(grid=grid, closure=SmagorinskyLilly())
 simulation = Simulation(model, Δt=1, stop_iteration=10, progress=Oceanostics.TimedProgressMessenger(; LES=false))
 
-ke = ComputedField(KineticEnergy(model))
-ε = ComputedField(IsotropicViscousDissipationRate(model))
+ke = Field(KineticEnergy(model))
+ε = Field(IsotropicViscousDissipationRate(model))
 simulation.output_writers[:netcdf_writer] = NetCDFOutputWriter(model, (; ke, ε), filepath="out.nc", schedule=TimeInterval(2))
 run!(simulation)
 ```
@@ -63,8 +63,8 @@ output is total kinetic energy. So for turbulent kinetic energy one might call t
 function as
 
 ```julia
-U = AveragedField(model.velocities.u, dims=(1, 2))
-V = AveragedField(model.velocities.v, dims=(1, 2))
+U = Field(Average(model.velocities.u, dims=(1, 2)))
+V = Field(Average(model.velocities.v, dims=(1, 2)))
 TKE = ke(model.velocities.u-U, model.velocities.v-V, model.velocities.w)
 ```
 -->
