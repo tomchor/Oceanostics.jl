@@ -11,7 +11,7 @@ using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
-using Oceananigans.Fields: KernelComputedField, ZeroField
+using Oceananigans.Fields: ZeroField
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -22,8 +22,6 @@ using Oceananigans.Fields: KernelComputedField, ZeroField
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
 
 @inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
-
-
 
 #++++ Turbulent kinetic energy
 @inline function turbulent_kinetic_energy_ccc(i, j, k, grid, u, v, w, U, V, W)

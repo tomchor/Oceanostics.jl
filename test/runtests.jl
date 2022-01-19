@@ -29,7 +29,7 @@ end
 include("test_progress_messengers.jl")
 
 function computed_operation(op)
-    op_cf = ComputedField(op)
+    op_cf = Field(op)
     compute!(op_cf)
     return op_cf
 end
@@ -42,14 +42,14 @@ end
 
 function test_vel_only_diagnostics(model)
     u, v, w = model.velocities
-    U = AveragedField(u, dims=(1, 2))
-    V = AveragedField(v, dims=(1, 2))
-    W = AveragedField(w, dims=(1, 2))
+    U = Field(Average(u, dims=(1, 2)))
+    V = Field(Average(v, dims=(1, 2)))
+    W = Field(Average(w, dims=(1, 2)))
 
 
     @test begin
         tke_op = KineticEnergy(model)
-        ke_c = ComputedField(tke_op)
+        ke_c = Field(tke_op)
         compute!(ke_c)
         tke_op isa AbstractOperation
     end
@@ -57,28 +57,28 @@ function test_vel_only_diagnostics(model)
 
     @test begin
         op = TurbulentKineticEnergy(model, U=U, V=V, W=W)
-        tke_c = ComputedField(op)
+        tke_c = Field(op)
         compute!(tke_c)
         op isa AbstractOperation
     end
 
     @test begin
         op = XShearProduction(model, u, v, w, U, V, W)
-        XSP = ComputedField(op)
+        XSP = Field(op)
         compute!(XSP)
         op isa AbstractOperation
     end
 
     @test begin
         op = YShearProduction(model, u, v, w, U, V, W)
-        YSP = ComputedField(op)
+        YSP = Field(op)
         compute!(YSP)
         op isa AbstractOperation
     end
 
     @test begin
         op = ZShearProduction(model, u, v, w, U, V, W)
-        ZSP = ComputedField(op)
+        ZSP = Field(op)
         compute!(ZSP)
         op isa AbstractOperation
     end
@@ -86,14 +86,14 @@ function test_vel_only_diagnostics(model)
 
     @test begin
         op = RossbyNumber(model;)
-        Ro = ComputedField(op)
+        Ro = Field(op)
         compute!(Ro)
         op isa AbstractOperation
     end
 
     @test begin
         op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1, f=1e-4)
-        Ro = ComputedField(op)
+        Ro = Field(op)
         compute!(Ro)
         op isa AbstractOperation
     end
