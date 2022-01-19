@@ -15,7 +15,7 @@ using Oceananigans.Grids: Center, Face
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
 
 
-function RichardsonNumber(model; b=model.tracers.b, N²_bg=0, dUdz_bg=0, dVdz_bg=0)
+function RichardsonNumber(model; b=BuoyancyField(model), N²_bg=0, dUdz_bg=0, dVdz_bg=0)
     u, v, w = model.velocities
 
     dBdz_tot = ∂z(b) + N²_bg
@@ -59,7 +59,7 @@ end
 
 function ThermalWindPotentialVorticity(model; f=nothing)
     u, v, w = model.velocities
-    b = model.tracers.b
+    b = BuoyancyField(model)
     if f==nothing
         f = model.coriolis.f
     end
