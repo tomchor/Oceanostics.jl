@@ -43,14 +43,14 @@ end
 #++++ Potential vorticity
 function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, f)
 
-    dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᵃ, v) # F, F, C → F, F, F
-    dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᵃ, u) # F, F, C → F, F, F
-    dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᵃᵃᶠ, b) # C, C, F → F, F, F
+    dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # F, F, C → F, F, F
+    dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᶜ, u) # F, F, C → F, F, F
+    dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᶜᶜᶠ, b) # C, C, F → F, F, F
 
     pv_barot = (f + dVdx - dUdy) * dbdz
 
-    dUdz = ℑyᵃᶠᵃ(i, j, k, grid, ∂zᵃᵃᶠ, u) # F, C, F → F, F, F
-    dVdz = ℑxᶠᵃᵃ(i, j, k, grid, ∂zᵃᵃᶠ, v) # C, F, F → F, F, F
+    dUdz = ℑyᵃᶠᵃ(i, j, k, grid, ∂zᶠᶜᶠ, u) # F, C, F → F, F, F
+    dVdz = ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, F → F, F, F
 
     pv_baroc = -f*(dUdz^2 + dVdz^2)
 
