@@ -126,16 +126,16 @@ end
 
 
 function isotropic_pseudo_viscous_dissipation_rate_les_ccc(i, j, k, grid, u, v, w, ν)
-    ddx² = ∂xᶜᵃᵃ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, w)
-    ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, u) + ∂yᵃᶜᵃ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, w)
-    ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, v) + ∂zᵃᵃᶜ(i, j, k, grid, ψ², w)
+    ddx² = ∂xᶜᶜᶜ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᶠᶜ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᶜᶠ, w)
+    ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᶠᶠᶜ, u) + ∂yᶜᶜᶜ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᶜᶠᶠ, w)
+    ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᶠᶜᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᶜᶠᶠ, v) + ∂zᶜᶜᶜ(i, j, k, grid, ψ², w)
     return ν[i,j,k] * (ddx² + ddy² + ddz²)
 end
 
 function isotropic_pseudo_viscous_dissipation_rate_dns_ccc(i, j, k, grid, u, v, w, ν)
-    ddx² = ∂xᶜᵃᵃ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, w)
-    ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, u) + ∂yᵃᶜᵃ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, w)
-    ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, v) + ∂zᵃᵃᶜ(i, j, k, grid, ψ², w)
+    ddx² = ∂xᶜᶜᶜ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᶠᶜ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᶜᶠ, w)
+    ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᶠᶠᶜ, u) + ∂yᶜᶜᶜ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᶜᶠᶠ, w)
+    ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᶠᶜᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᶜᶠᶠ, v) + ∂zᶜᶜᶜ(i, j, k, grid, ψ², w)
     return ν * (ddx² + ddy² + ddz²)
 end
 
