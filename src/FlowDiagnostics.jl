@@ -70,19 +70,19 @@ end
 
 function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
 
-    dWdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᶜᶠᵃ, w) # C, C, F  → C, F, F  → F, F, F
-    dVdz =  ℑxᶠᵃᵃ(i, j, k, grid, ∂zᵃᵃᶠ, v) # C, F, C  → C, F, F  → F, F, F
-    dbdx = ℑyzᵃᶠᶠ(i, j, k, grid, ∂xᶠᶜᵃ, b) # C, C, C  → F, C, C  → F, F, F
+    dWdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᶜᶠᶠ, w) # C, C, F  → C, F, F  → F, F, F
+    dVdz =  ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, C  → C, F, F  → F, F, F
+    dbdx = ℑyzᵃᶠᶠ(i, j, k, grid, ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C  → F, F, F
     pv_x = (params.fx + dWdy - dVdz) * dbdx # F, F, F
 
-    dUdz =  ℑyᵃᶠᵃ(i, j, k, grid, ∂zᵃᵃᶠ, u) # F, C, C  → F, C, F → F, F, F
-    dWdx =  ℑyᵃᶠᵃ(i, j, k, grid, ∂xᶠᶜᵃ, w) # C, C, F  → F, C, F → F, F, F
-    dbdy = ℑxzᶠᵃᶠ(i, j, k, grid, ∂yᶜᶠᵃ, b) # C, C, C  → C, F, C → F, F, F
+    dUdz =  ℑyᵃᶠᵃ(i, j, k, grid, ∂zᶠᶜᶠ, u) # F, C, C  → F, C, F → F, F, F
+    dWdx =  ℑyᵃᶠᵃ(i, j, k, grid, ∂xᶠᶜᶠ, w) # C, C, F  → F, C, F → F, F, F
+    dbdy = ℑxzᶠᵃᶠ(i, j, k, grid, ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C → F, F, F
     pv_y = (params.fy + dUdz - dWdx) * dbdy # F, F, F
 
-    dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᵃ, v) # C, F, C  → F, F, C → F, F, F
-    dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᵃ, u) # F, C, C  → F, F, C → F, F, F
-    dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᵃᵃᶠ, b) # C, C, C  → C, C, F → F, F, F
+    dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # C, F, C  → F, F, C → F, F, F
+    dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᶜ, u) # F, C, C  → F, F, C → F, F, F
+    dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᶜᶜᶠ, b) # C, C, C  → C, C, F → F, F, F
     pv_z = (params.fz + dVdx - dUdy) * dbdz
 
     return pv_x + pv_y + pv_z
