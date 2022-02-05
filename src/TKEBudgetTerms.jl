@@ -240,15 +240,15 @@ end
 function shear_production_x_ccc(i, j, k, grid, u, v, w, U, V, W)
     u_int = ℑxᶜᵃᵃ(i, j, k, grid, u) # F, C, C  → C, C, C
 
-    ∂xU = ∂xᶜᵃᵃ(i, j, k, grid, U) # F, C, C  → C, C, C
+    ∂xU = ∂xᶜᶜᶜ(i, j, k, grid, U) # F, C, C  → C, C, C
     uu = ℑxᶜᵃᵃ(i, j, k, grid, ψ², u)
     uu∂xU = uu * ∂xU
 
-    ∂xV = ℑxyᶜᶜᵃ(i, j, k, grid, ∂xᶠᵃᵃ, V) # C, F, C  → F, F, C  → C, C, C
+    ∂xV = ℑxyᶜᶜᵃ(i, j, k, grid, ∂xᶠᶠᶜ, V) # C, F, C  → F, F, C  → C, C, C
     vu = ℑyᵃᶜᵃ(i, j, k, grid, v) * u_int
     vu∂xV = vu * ∂xV
 
-    ∂xW = ℑxzᶜᵃᶜ(i, j, k, grid, ∂xᶠᵃᵃ, W) # C, C, F  → F, C, F  → C, C, C
+    ∂xW = ℑxzᶜᵃᶜ(i, j, k, grid, ∂xᶠᶜᶠ, W) # C, C, F  → F, C, F  → C, C, C
     wu = ℑzᵃᵃᶜ(i, j, k, grid, w) * u_int
     wu∂xW = wu * ∂xW
 
@@ -268,15 +268,15 @@ end
 function shear_production_y_ccc(i, j, k, grid, u, v, w, U, V, W)
     v_int = ℑyᵃᶜᵃ(i, j, k, grid, v) # C, F, C  → C, C, C
 
-    ∂yU = ℑxyᶜᶜᵃ(i, j, k, grid, ∂yᵃᶠᵃ, U) # F, C, C  → F, F, C  → C, C, C
+    ∂yU = ℑxyᶜᶜᵃ(i, j, k, grid, ∂yᶠᶠᶜ, U) # F, C, C  → F, F, C  → C, C, C
     uv = ℑxᶜᵃᵃ(i, j, k, grid, u) * v_int
     uv∂yU = uv * ∂yU
 
-    ∂yV = ∂yᵃᶜᵃ(i, j, k, grid, V)
+    ∂yV = ∂yᶜᶜᶜ(i, j, k, grid, V) # C, F, C  → C, C C
     vv = ℑyᵃᶜᵃ(i, j, k, grid, ψ², v) # C, F, C  → C, C, C
     vv∂yV = vv * ∂yV
 
-    ∂yW = ℑyzᵃᶜᶜ(i, j, k, grid, ∂yᵃᶠᵃ, W) # C, C, F  → C, F, F  → C, C, C
+    ∂yW = ℑyzᵃᶜᶜ(i, j, k, grid, ∂yᶜᶠᶠ, W) # C, C, F  → C, F, F  → C, C, C
     wv = ℑzᵃᵃᶜ(i, j, k, grid, w) * v_int
     wv∂yW = wv * ∂yW
 
@@ -296,15 +296,15 @@ end
 function shear_production_z_ccc(i, j, k, grid, u, v, w, U, V, W)
     w_int = ℑzᵃᵃᶜ(i, j, k, grid, w) # C, C, F  → C, C, C
 
-    ∂zU = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᵃᵃᶠ, U) # F, C, C  → F, C, F  → C, C, C
+    ∂zU = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᶠᶜᶠ, U) # F, C, C  → F, C, F  → C, C, C
     uw = ℑxᶜᵃᵃ(i, j, k, grid, u) * w_int
     uw∂zU = uw * ∂zU
 
-    ∂zV = ℑyzᵃᶜᶜ(i, j, k, grid, ∂zᵃᵃᶠ, V) # C, F, C  → C, F, F  → C, C, C
+    ∂zV = ℑyzᵃᶜᶜ(i, j, k, grid, ∂zᶜᶠᶠ, V) # C, F, C  → C, F, F  → C, C, C
     vw = ℑyᵃᶜᵃ(i, j, k, grid, v) * w_int
     vw∂zV = vw * ∂zV
 
-    ∂zW = ∂zᵃᵃᶜ(i, j, k, grid, W)
+    ∂zW = ∂zᶜᶜᶜ(i, j, k, grid, W) # C, C, F  → C, C, C
     ww = ℑzᵃᵃᶜ(i, j, k, grid, ψ², w) # C, C, F  → C, C, C
     ww∂zW = ww * ∂zW
 
