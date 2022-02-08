@@ -57,26 +57,26 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
 #++++ Energy dissipation rate for a fluid with isotropic viscosity
 function isotropic_viscous_dissipation_rate_les_ccc(i, j, k, grid, u, v, w, ν)
 
-    Σˣˣ² = ∂xᶜᵃᵃ(i, j, k, grid, u)^2
-    Σʸʸ² = ∂yᵃᶜᵃ(i, j, k, grid, v)^2
-    Σᶻᶻ² = ∂zᵃᵃᶜ(i, j, k, grid, w)^2
+    Σˣˣ² = ∂xᶜᶜᶜ(i, j, k, grid, u)^2
+    Σʸʸ² = ∂yᶜᶜᶜ(i, j, k, grid, v)^2
+    Σᶻᶻ² = ∂zᵃᶜᶜ(i, j, k, grid, w)^2
 
-    Σˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_plus_gφ², ∂yᵃᶠᵃ, u, ∂xᶠᵃᵃ, v) / 4
-    Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᵃᵃᶠ, u, ∂xᶠᵃᵃ, w) / 4
-    Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᵃᵃᶠ, v, ∂yᵃᶠᵃ, w) / 4
+    Σˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_plus_gφ², ∂yᶠᶠᶜ, u, ∂xᶠᶠᶜ, v) / 4
+    Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4
+    Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶜᶠᶠ, v, ∂yᶜᶠᶠ, w) / 4
 
     return ν[i, j, k] * 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
 
 function isotropic_viscous_dissipation_rate_dns_ccc(i, j, k, grid, u, v, w, ν)
 
-    Σˣˣ² = ∂xᶜᵃᵃ(i, j, k, grid, u)^2
-    Σʸʸ² = ∂yᵃᶜᵃ(i, j, k, grid, v)^2
-    Σᶻᶻ² = ∂zᵃᵃᶜ(i, j, k, grid, w)^2
+    Σˣˣ² = ∂xᶜᶜᶜ(i, j, k, grid, u)^2
+    Σʸʸ² = ∂yᶜᶜᶜ(i, j, k, grid, v)^2
+    Σᶻᶻ² = ∂zᵃᶜᶜ(i, j, k, grid, w)^2
 
-    Σˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_plus_gφ², ∂yᵃᶠᵃ, u, ∂xᶠᵃᵃ, v) / 4
-    Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᵃᵃᶠ, u, ∂xᶠᵃᵃ, w) / 4
-    Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᵃᵃᶠ, v, ∂yᵃᶠᵃ, w) / 4
+    Σˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_plus_gφ², ∂yᶠᶠᶜ, u, ∂xᶠᶠᶜ, v) / 4
+    Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4
+    Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶜᶠᶠ, v, ∂yᶜᶠᶠ, w) / 4
 
     return ν * 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
@@ -119,23 +119,22 @@ function IsotropicViscousDissipationRate(model; U=nothing, V=nothing, W=nothing,
                                                                computed_dependencies=(u, v, w), parameters=ν)
     end
 
-
 end
 
 
 
 
 function isotropic_pseudo_viscous_dissipation_rate_les_ccc(i, j, k, grid, u, v, w, ν)
-    ddx² = ∂xᶜᵃᵃ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, w)
-    ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, u) + ∂yᵃᶜᵃ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, w)
-    ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, v) + ∂zᵃᵃᶜ(i, j, k, grid, ψ², w)
+    ddx² = ∂xᶜᶜᶜ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᶠᶜ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᶜᶠ, w)
+    ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᶠᶠᶜ, u) + ∂yᶜᶜᶜ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᶜᶠᶠ, w)
+    ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᶠᶜᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᶜᶠᶠ, v) + ∂zᶜᶜᶜ(i, j, k, grid, ψ², w)
     return ν[i,j,k] * (ddx² + ddy² + ddz²)
 end
 
 function isotropic_pseudo_viscous_dissipation_rate_dns_ccc(i, j, k, grid, u, v, w, ν)
-    ddx² = ∂xᶜᵃᵃ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, w)
-    ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, u) + ∂yᵃᶜᵃ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, w)
-    ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, v) + ∂zᵃᵃᶜ(i, j, k, grid, ψ², w)
+    ddx² = ∂xᶜᶜᶜ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᶠᶜ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᶜᶠ, w)
+    ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᶠᶠᶜ, u) + ∂yᶜᶜᶜ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᶜᶠᶠ, w)
+    ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᶠᶜᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᶜᶠᶠ, v) + ∂zᶜᶜᶜ(i, j, k, grid, ψ², w)
     return ν * (ddx² + ddy² + ddz²)
 end
 
@@ -161,7 +160,8 @@ function IsotropicPseudoViscousDissipationRate(model; U=nothing, V=nothing, W=no
     if model.closure isa Oceananigans.TurbulenceClosures.AbstractEddyViscosityClosure
         νₑ = model.diffusivity_fields.νₑ
         return KernelFunctionOperation{Center, Center, Center}(isotropic_pseudo_viscous_dissipation_rate_les_ccc, model.grid;
-                                       computed_dependencies=(u, v, w, νₑ))
+                                                               computed_dependencies=(u, v, w, νₑ))
+
     elseif model.closure == nothing
         error("Trying to calculate a TKE pseudo viscous dissipation rate with `model.closure==nothing`.")
 
@@ -178,9 +178,9 @@ end
 #+++++ Energy dissipation rate for a fluid with constant anisotropic viscosity (closure)
 function anisotropic_pseudo_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, params)
 
-    ddx² = ∂xᶜᵃᵃ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᵃᵃ, w)
-    ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, u) + ∂yᵃᶜᵃ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᵃᶠᵃ, w)
-    ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᵃᵃᶠ, v) + ∂zᵃᵃᶜ(i, j, k, grid, ψ², w)
+    ddx² = ∂xᶜᶜᶜ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᶠᶜ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᶜᶠ, w)
+    ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᶠᶠᶜ, u) + ∂yᶜᶜᶜ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᶜᶠᶠ, w)
+    ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᶠᶜᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᶜᶠᶠ, v) + ∂zᶜᶜᶜ(i, j, k, grid, ψ², w)
 
     return params.νx*ddx² + params.νy*ddy² + params.νz*ddz²
 end
@@ -240,15 +240,15 @@ end
 function shear_production_x_ccc(i, j, k, grid, u, v, w, U, V, W)
     u_int = ℑxᶜᵃᵃ(i, j, k, grid, u) # F, C, C  → C, C, C
 
-    ∂xU = ∂xᶜᵃᵃ(i, j, k, grid, U) # F, C, C  → C, C, C
+    ∂xU = ∂xᶜᶜᶜ(i, j, k, grid, U) # F, C, C  → C, C, C
     uu = ℑxᶜᵃᵃ(i, j, k, grid, ψ², u)
     uu∂xU = uu * ∂xU
 
-    ∂xV = ℑxyᶜᶜᵃ(i, j, k, grid, ∂xᶠᵃᵃ, V) # C, F, C  → F, F, C  → C, C, C
+    ∂xV = ℑxyᶜᶜᵃ(i, j, k, grid, ∂xᶠᶠᶜ, V) # C, F, C  → F, F, C  → C, C, C
     vu = ℑyᵃᶜᵃ(i, j, k, grid, v) * u_int
     vu∂xV = vu * ∂xV
 
-    ∂xW = ℑxzᶜᵃᶜ(i, j, k, grid, ∂xᶠᵃᵃ, W) # C, C, F  → F, C, F  → C, C, C
+    ∂xW = ℑxzᶜᵃᶜ(i, j, k, grid, ∂xᶠᶜᶠ, W) # C, C, F  → F, C, F  → C, C, C
     wu = ℑzᵃᵃᶜ(i, j, k, grid, w) * u_int
     wu∂xW = wu * ∂xW
 
@@ -268,15 +268,15 @@ end
 function shear_production_y_ccc(i, j, k, grid, u, v, w, U, V, W)
     v_int = ℑyᵃᶜᵃ(i, j, k, grid, v) # C, F, C  → C, C, C
 
-    ∂yU = ℑxyᶜᶜᵃ(i, j, k, grid, ∂yᵃᶠᵃ, U) # F, C, C  → F, F, C  → C, C, C
+    ∂yU = ℑxyᶜᶜᵃ(i, j, k, grid, ∂yᶠᶠᶜ, U) # F, C, C  → F, F, C  → C, C, C
     uv = ℑxᶜᵃᵃ(i, j, k, grid, u) * v_int
     uv∂yU = uv * ∂yU
 
-    ∂yV = ∂yᵃᶜᵃ(i, j, k, grid, V)
+    ∂yV = ∂yᶜᶜᶜ(i, j, k, grid, V) # C, F, C  → C, C C
     vv = ℑyᵃᶜᵃ(i, j, k, grid, ψ², v) # C, F, C  → C, C, C
     vv∂yV = vv * ∂yV
 
-    ∂yW = ℑyzᵃᶜᶜ(i, j, k, grid, ∂yᵃᶠᵃ, W) # C, C, F  → C, F, F  → C, C, C
+    ∂yW = ℑyzᵃᶜᶜ(i, j, k, grid, ∂yᶜᶠᶠ, W) # C, C, F  → C, F, F  → C, C, C
     wv = ℑzᵃᵃᶜ(i, j, k, grid, w) * v_int
     wv∂yW = wv * ∂yW
 
@@ -296,15 +296,15 @@ end
 function shear_production_z_ccc(i, j, k, grid, u, v, w, U, V, W)
     w_int = ℑzᵃᵃᶜ(i, j, k, grid, w) # C, C, F  → C, C, C
 
-    ∂zU = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᵃᵃᶠ, U) # F, C, C  → F, C, F  → C, C, C
+    ∂zU = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᶠᶜᶠ, U) # F, C, C  → F, C, F  → C, C, C
     uw = ℑxᶜᵃᵃ(i, j, k, grid, u) * w_int
     uw∂zU = uw * ∂zU
 
-    ∂zV = ℑyzᵃᶜᶜ(i, j, k, grid, ∂zᵃᵃᶠ, V) # C, F, C  → C, F, F  → C, C, C
+    ∂zV = ℑyzᵃᶜᶜ(i, j, k, grid, ∂zᶜᶠᶠ, V) # C, F, C  → C, F, F  → C, C, C
     vw = ℑyᵃᶜᵃ(i, j, k, grid, v) * w_int
     vw∂zV = vw * ∂zV
 
-    ∂zW = ∂zᵃᵃᶜ(i, j, k, grid, W)
+    ∂zW = ∂zᶜᶜᶜ(i, j, k, grid, W) # C, C, F  → C, C, C
     ww = ℑzᵃᵃᶜ(i, j, k, grid, ψ², w) # C, C, F  → C, C, C
     ww∂zW = ww * ∂zW
 
