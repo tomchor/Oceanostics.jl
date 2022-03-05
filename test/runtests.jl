@@ -8,23 +8,8 @@ using Oceanostics.TKEBudgetTerms: turbulent_kinetic_energy_ccc
 using Oceanostics.FlowDiagnostics
 using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger
 
-
-function create_model(; kwargs...)
-    model = NonhydrostaticModel(grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1)); kwargs...)
-    return model
-end
-
-
-function viscosity(model)
-    try
-        return model.diffusivity_fields.νₑ
-    catch e
-        return model.closure.ν
-    end
-end
-
-
-
+# Default grid for all tests
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
 
 include("test_progress_messengers.jl")
 
@@ -34,9 +19,8 @@ function computed_operation(op)
     return op_cf
 end
 
-
 function test_vel_only_diagnostics(; model_kwargs...)
-    model = create_model(; model_kwargs...)
+    model = NonhydrostaticModel(; grid, model_kwargs...)
     test_vel_only_diagnostics(model)
 end
 
@@ -46,14 +30,12 @@ function test_vel_only_diagnostics(model)
     V = Field(Average(v, dims=(1, 2)))
     W = Field(Average(w, dims=(1, 2)))
 
-
     @test begin
         tke_op = KineticEnergy(model)
         ke_c = Field(tke_op)
         compute!(ke_c)
         tke_op isa AbstractOperation
     end
-
 
     @test begin
         op = TurbulentKineticEnergy(model, U=U, V=V, W=W)
@@ -83,7 +65,6 @@ function test_vel_only_diagnostics(model)
         op isa AbstractOperation
     end
 
-
     @test begin
         op = RossbyNumber(model;)
         Ro = Field(op)
@@ -101,11 +82,8 @@ function test_vel_only_diagnostics(model)
     return nothing
 end
 
-
-
-
 function test_buoyancy_diagnostics(; model_kwargs...)
-    model = create_model(; model_kwargs...)
+    model = NonhydrostaticModel(; grid, model_kwargs...)
     test_buoyancy_diagnostics(model)
 end
 
@@ -121,7 +99,6 @@ function test_buoyancy_diagnostics(model)
     Ri = RichardsonNumber(model; N²_bg=1, dUdz_bg=1, dVdz_bg=1)
     @test Ri isa AbstractOperation
 
-
     PVe = ErtelPotentialVorticity(model)
     @test PVe isa AbstractOperation
 
@@ -131,15 +108,11 @@ function test_buoyancy_diagnostics(model)
     PVtw = ThermalWindPotentialVorticity(model, f=1e-4)
     @test PVtw isa AbstractOperation
 
-
     return nothing
 end
 
-
-
-
 function test_buoyancy_diagnostics(; model_kwargs...)
-    model = create_model(; model_kwargs...)
+    model = NonhydrostaticModel(; grid, model_kwargs...)
     test_buoyancy_diagnostics(model)
 end
 
@@ -156,38 +129,26 @@ function test_pressure_terms(model)
     return nothing
 end
 
-
-
 function test_ke_dissipation_rate_terms(; model_kwargs...)
-    model = create_model(; model_kwargs...)
+    model = NonhydrostaticModel(; grid, model_kwargs...)
     test_ke_dissipation_rate_terms(model)
 end
 
 function test_ke_dissipation_rate_terms(model)
     u, v, w = model.velocities
     b = model.tracers.b
-    #ν = viscosity(model)
 
-    if model.closure isa AnisotropicDiffusivity
-        ε_ani = AnisotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
-        @test ε_ani isa AbstractOperation
+    ε_iso = IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
+    @test ε_iso isa AbstractOperation
 
-    else
-        ε_iso = IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
-        @test ε_iso isa AbstractOperation
-
-        ε_iso = IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
-        @test ε_iso isa AbstractOperation
-    end
+    ε_iso = IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
+    @test ε_iso isa AbstractOperation
 
     return nothing
 end
 
-
-
-
 function test_tracer_diagnostics(; model_kwargs...)
-    model = create_model(; model_kwargs...)
+    model = NonhydrostaticModel(; grid, model_kwargs...)
     test_tracer_diagnostics(model)
 end
 
@@ -195,32 +156,19 @@ function test_tracer_diagnostics(model)
     u, v, w = model.velocities
     b = model.tracers.b
 
-    if model.closure isa AnisotropicDiffusivity
-        κx = model.closure.κx.b
-        κy = model.closure.κy.b
-        κz = model.closure.κz.b
-        χani = AnisotropicTracerVarianceDissipationRate(model, b, κx, κy, κz,)
-        @test χani isa AbstractOperation
-
-    else
-        κ = model.closure.κ.b
-        χiso = IsotropicTracerVarianceDissipationRate(model, b, κ)
-        @test χiso isa AbstractOperation
-    end
+    κ = model.closure.κ.b
+    χiso = IsotropicTracerVarianceDissipationRate(model, b, κ)
+    @test χiso isa AbstractOperation
 
     return nothing
 end
 
-
-
-
-
 @testset "Oceanostics" begin
-    model = create_model(; buoyancy=Buoyancy(model=BuoyancyTracer()), 
-                         coriolis=FPlane(1e-4),
-                         tracers=:b,
-                         closure=IsotropicDiffusivity(ν=1e-6, κ=1e-7),
-                        )
+    model = NonhydrostaticModel(; grid,
+                                buoyancy = Buoyancy(model=BuoyancyTracer()), 
+                                coriolis = FPlane(1e-4),
+                                tracers = :b,
+                                closure = ScalarDiffusivity(ν=1e-6, κ=1e-7))
 
     @info "Testing velocity-only diagnostics"
     test_vel_only_diagnostics(model)
@@ -231,19 +179,19 @@ end
     @info "Testing pressure terms"
     test_pressure_terms(model)
 
-
-    closures = (IsotropicDiffusivity(ν=1e-6, κ=1e-7),
-                AnisotropicDiffusivity(νz=1e-5, νh=3e-4, κz=1e-6, κh=1e-5),
+    closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
                 SmagorinskyLilly(ν=1e-6, κ=1e-7))
-    LESs = (false, false, true)
+
+    LESs = (false, true)
+
     messengers = (SingleLineProgressMessenger, TimedProgressMessenger)
 
     for (LES, closure) in zip(LESs, closures)
-        model = create_model(; buoyancy=Buoyancy(model=BuoyancyTracer()), 
-                             coriolis=FPlane(1e-4),
-                             tracers=:b,
-                             closure=closure,
-                            )
+        model = NonhydrostaticModel(; grid,
+                                    buoyancy = Buoyancy(model=BuoyancyTracer()), 
+                                    coriolis = FPlane(1e-4),
+                                    tracers = :b,
+                                    closure = closure)
 
         @info "Testing energy dissipation rate terms with closure" closure
         test_ke_dissipation_rate_terms(model)
@@ -266,7 +214,5 @@ end
         time_now = time_ns()*1e-9
         test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
     end
-
 end
-
 
