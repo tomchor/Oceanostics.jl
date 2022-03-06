@@ -82,7 +82,7 @@ end
 Calculates the Viscous Dissipation Rate for a fluid with an isotropic turbulence closure (i.e., a 
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
-function IsotropicViscousDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), 
+function IsotropicViscousDissipationRate(model; U=0, V=0, W=0, 
                                          location = (Center, Center, Center))
 
     validate_location(location, "IsotropicViscousDissipationRate")
@@ -105,7 +105,7 @@ function isotropic_pseudo_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p
     return νᶜᶜᶜ(i, j, k, grid, p.clock, p.ν) * (ddx² + ddy² + ddz²)
 end
 
-function IsotropicPseudoViscousDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
+function IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0,
                                                location = (Center, Center, Center))
 
     validate_location(location, "IsotropicPseudoViscousDissipationRate")
