@@ -12,12 +12,15 @@ using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
-using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, viscosity, AbstractScalarDiffusivity, ThreeDimensionalFormulation
+using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, AbstractScalarDiffusivity, ThreeDimensionalFormulation
+
+# Temporary until Oceananigans supports this...
+import Oceananigans.TurbulenceClosures: viscosity
 
 # Right now, all kernels must be located at ccc
-validate_location_ccc(location, type) =
-    location != (Center, Center, Center) &&
-        error("$type only supports location = (Center, Center, Center) for now.")
+validate_location(location, type, valid_location=(Center, Center, Center)) =
+    location != valid_location &&
+        error("$type only supports location = $valid_location for now.")
 
 
 # Some useful operators
@@ -38,7 +41,7 @@ validate_location_ccc(location, type) =
 end
 
 function TurbulentKineticEnergy(model, u, v, w; U = 0, V = 0, W = 0, location = (Center, Center, Center))
-    validate_location_ccc(location, "TurbulentKineticEnergy")
+    validate_location(location, "TurbulentKineticEnergy")
     return KernelFunctionOperation{Center, Center, Center}(turbulent_kinetic_energy_ccc, model.grid,
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
@@ -57,6 +60,9 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
 validate_dissipative_closure(closure) = error("Cannot calculate dissipation rate for $closure")
 validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}) = nothing
 validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_closure(c) for c in closure_tuple)
+
+# TODO: move to Oceananigans
+viscosity(closure_tuple::Tuple, K_tuple) = Tuple(viscosity(c, K) for (c, K) in zip(closure_tuple, K_tuple))
 
 #++++ Energy dissipation rate for a fluid with isotropic viscosity
 function isotropic_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
@@ -79,7 +85,7 @@ turbulence closure where ν (eddy or not) is the same for all directions.
 function IsotropicViscousDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), 
                                          location = (Center, Center, Center))
 
-    validate_location_ccc(location, "IsotropicViscousDissipationRate")
+    validate_location(location, "IsotropicViscousDissipationRate")
     validate_dissipative_closure(model.closure)
 
     u, v, w = model.velocities
@@ -102,7 +108,7 @@ end
 function IsotropicPseudoViscousDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
                                                location = (Center, Center, Center))
 
-    validate_location_ccc(location, "IsotropicPseudoViscousDissipationRate")
+    validate_location(location, "IsotropicPseudoViscousDissipationRate")
     validate_dissipative_closure(model.closure)
 
     u, v, w = model.velocities
@@ -155,7 +161,7 @@ function shear_production_x_ccc(i, j, k, grid, u, v, w, U, V, W)
 end
 
 function XShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
-    validate_location_ccc(location, "XShearProduction")
+    validate_location(location, "XShearProduction")
     return KernelFunctionOperation{Center, Center, Center}(shear_production_x_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
@@ -180,7 +186,7 @@ function shear_production_y_ccc(i, j, k, grid, u, v, w, U, V, W)
 end
 
 function YShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
-    validate_location_ccc(location, "YShearProduction")
+    validate_location(location, "YShearProduction")
     return KernelFunctionOperation{Center, Center, Center}(shear_production_y_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
@@ -205,7 +211,7 @@ function shear_production_z_ccc(i, j, k, grid, u, v, w, U, V, W)
 end
 
 function ZShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
-    validate_location_ccc(location, "ZShearProduction")
+    validate_location(location, "ZShearProduction")
     return KernelFunctionOperation{Center, Center, Center}(shear_production_z_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end

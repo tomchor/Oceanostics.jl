@@ -156,18 +156,18 @@ function test_tracer_diagnostics(model)
     u, v, w = model.velocities
     b = model.tracers.b
 
-    κ = model.closure.κ.b
-    χiso = IsotropicTracerVarianceDissipationRate(model, b, κ)
+    χiso = IsotropicTracerVarianceDissipationRate(model, b)
     @test χiso isa AbstractOperation
 
     return nothing
 end
 
 @testset "Oceanostics" begin
-    model = NonhydrostaticModel(; grid,
-                                buoyancy = Buoyancy(model=BuoyancyTracer()), 
-                                coriolis = FPlane(1e-4),
-                                tracers = :b,
+    model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()), 
+                    coriolis = FPlane(1e-4),
+                    tracers = :b)
+
+    model = NonhydrostaticModel(; grid, model_kwargs...,
                                 closure = ScalarDiffusivity(ν=1e-6, κ=1e-7))
 
     @info "Testing velocity-only diagnostics"
@@ -179,13 +179,26 @@ end
     @info "Testing pressure terms"
     test_pressure_terms(model)
 
-    closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
-                SmagorinskyLilly(ν=1e-6, κ=1e-7))
+    @info "Testing input validation for dissipation rates"
+    invalid_closures = [HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7),
+                        VerticalScalarDiffusivity(ν=1e-6, κ=1e-7),
+                        (ScalarDiffusivity(ν=1e-6, κ=1e-7), HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7))]
+        
+    for closure in invalid_closures
+        model = NonhydrostaticModel(; grid, model_kwargs..., closure)
+        @test_throws ErrorException IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
+        @test_throws ErrorException IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
+    end
 
-    LESs = (false, true)
-
+    closures = [
+        ScalarDiffusivity(ν=1e-6, κ=1e-7),
+        SmagorinskyLilly(),
+        (ScalarDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly())
+    ]
+        
+    LESs = [false, true, true]
     messengers = (SingleLineProgressMessenger, TimedProgressMessenger)
-
+    
     for (LES, closure) in zip(LESs, closures)
         model = NonhydrostaticModel(; grid,
                                     buoyancy = Buoyancy(model=BuoyancyTracer()), 
