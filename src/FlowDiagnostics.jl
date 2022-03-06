@@ -41,7 +41,7 @@ function RossbyNumber(model; dUdy_bg=0, dVdx_bg=0, f=nothing)
 end
 
 #++++ Potential vorticity
-function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, f)
+@inline function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, f)
 
     dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # F, F, C → F, F, F
     dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᶜ, u) # F, F, C → F, F, F
@@ -67,7 +67,7 @@ function ThermalWindPotentialVorticity(model; f=nothing)
                                                      computed_dependencies=(u, v, w, b), parameters=f)
 end
 
-function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
+@inline function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
     dWdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᶜᶠᶠ, w) # C, C, F  → C, F, F  → F, F, F
     dVdz =  ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, C  → C, F, F  → F, F, F
     dbdx = ℑyzᵃᶠᶠ(i, j, k, grid, ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C  → F, F, F
@@ -125,7 +125,7 @@ end
 
 diffusivity(closure_tuple::Tuple, idx, K_tuple) = Tuple(diffusivity(c, idx, K) for (c, K) in zip(closure_tuple, K_tuple))
 
-function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, b, κᵇ)
+@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, b, κᵇ)
     dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C  → C, C, C
     dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C  → C, C, C
     dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, b) # C, C, C  → C, C, F  → C, C, C

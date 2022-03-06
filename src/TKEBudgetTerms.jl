@@ -65,7 +65,7 @@ validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_
 viscosity(closure_tuple::Tuple, K_tuple) = Tuple(viscosity(c, K) for (c, K) in zip(closure_tuple, K_tuple))
 
 #++++ Energy dissipation rate for a fluid with isotropic viscosity
-function isotropic_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
+@inline function isotropic_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
 
     Σˣˣ² = ∂xᶜᶜᶜ(i, j, k, grid, u)^2
     Σʸʸ² = ∂yᶜᶜᶜ(i, j, k, grid, v)^2
@@ -98,7 +98,7 @@ function IsotropicViscousDissipationRate(model; U=0, V=0, W=0,
 end
 #------
 
-function isotropic_pseudo_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
+@inline function isotropic_pseudo_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
     ddx² = ∂xᶜᶜᶜ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᶠᶜ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᶜᶠ, w)
     ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᶠᶠᶜ, u) + ∂yᶜᶜᶜ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᶜᶠᶠ, w)
     ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᶠᶜᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᶜᶠᶠ, v) + ∂zᶜᶜᶜ(i, j, k, grid, ψ², w)
@@ -142,7 +142,7 @@ end
 
 
 #++++ Shear production terms
-function shear_production_x_ccc(i, j, k, grid, u, v, w, U, V, W)
+@inline function shear_production_x_ccc(i, j, k, grid, u, v, w, U, V, W)
     u_int = ℑxᶜᵃᵃ(i, j, k, grid, u) # F, C, C  → C, C, C
 
     ∂xU = ∂xᶜᶜᶜ(i, j, k, grid, U) # F, C, C  → C, C, C
@@ -166,8 +166,7 @@ function XShearProduction(model, u, v, w, U, V, W; location = (Center, Center, C
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
 
-
-function shear_production_y_ccc(i, j, k, grid, u, v, w, U, V, W)
+@inline function shear_production_y_ccc(i, j, k, grid, u, v, w, U, V, W)
     v_int = ℑyᵃᶜᵃ(i, j, k, grid, v) # C, F, C  → C, C, C
 
     ∂yU = ℑxyᶜᶜᵃ(i, j, k, grid, ∂yᶠᶠᶜ, U) # F, C, C  → F, F, C  → C, C, C
@@ -191,8 +190,7 @@ function YShearProduction(model, u, v, w, U, V, W; location = (Center, Center, C
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
 
-
-function shear_production_z_ccc(i, j, k, grid, u, v, w, U, V, W)
+@inline function shear_production_z_ccc(i, j, k, grid, u, v, w, U, V, W)
     w_int = ℑzᵃᵃᶜ(i, j, k, grid, w) # C, C, F  → C, C, C
 
     ∂zU = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᶠᶜᶠ, U) # F, C, C  → F, C, F  → C, C, C
