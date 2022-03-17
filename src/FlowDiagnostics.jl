@@ -12,8 +12,7 @@ using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
-
-import Oceananigans.TurbulenceClosures: diffusivity
+using Oceananigans.TurbulenceClosures: diffusivity
 
 # Some useful operators
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2

@@ -12,10 +12,7 @@ using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
-using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, AbstractScalarDiffusivity, ThreeDimensionalFormulation
-
-# Temporary until Oceananigans supports this...
-import Oceananigans.TurbulenceClosures: viscosity
+using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, AbstractScalarDiffusivity, ThreeDimensionalFormulation, viscosity
 
 # Right now, all kernels must be located at ccc
 validate_location(location, type, valid_location=(Center, Center, Center)) =
@@ -61,8 +58,6 @@ validate_dissipative_closure(closure) = error("Cannot calculate dissipation rate
 validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}) = nothing
 validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_closure(c) for c in closure_tuple)
 
-# TODO: move to Oceananigans
-viscosity(closure_tuple::Tuple, K_tuple) = Tuple(viscosity(c, K) for (c, K) in zip(closure_tuple, K_tuple))
 
 #++++ Energy dissipation rate for a fluid with isotropic viscosity
 @inline function isotropic_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
