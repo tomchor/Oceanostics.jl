@@ -121,9 +121,6 @@ end
 #----
 
 #+++++ Tracer variance dissipation
-
-diffusivity(closure_tuple::Tuple, idx, K_tuple) = Tuple(diffusivity(c, idx, K) for (c, K) in zip(closure_tuple, K_tuple))
-
 @inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, b, κᵇ)
     dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C  → C, C, C
     dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C  → C, C, C
