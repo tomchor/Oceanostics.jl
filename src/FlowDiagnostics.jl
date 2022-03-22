@@ -13,8 +13,6 @@ using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 
-import Oceananigans.TurbulenceClosures: diffusivity
-
 # Some useful operators
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
 
@@ -122,23 +120,34 @@ end
 #----
 
 #+++++ Tracer variance dissipation
-
-diffusivity(closure_tuple::Tuple, idx, K_tuple) = Tuple(diffusivity(c, idx, K) for (c, K) in zip(closure_tuple, K_tuple))
-
-@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, b, κᵇ)
+@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, p)
     dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C  → C, C, C
     dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C  → C, C, C
     dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, b) # C, C, C  → C, C, F  → C, C, C
 
-    return 2 * κᶜᶜᶜ(i, j, k, grid, p.clock, p.κ) * (dbdx² + dbdy² + dbdz²)
+    κ = _κᶜᶜᶜ(i, j, k, grid, p.closure, p.diffusivity_fields, p.id, p.clock)
+
+    return 2κ * (dbdx² + dbdy² + dbdz²)
 end
 
-function IsotropicTracerVarianceDissipationRate(model, b,
-                                                κᵇ = diffusivity(model.closure, Val(:b), model.diffusivity_fields);
-                                                location = (Center, Center, Center))
+"""
+    IsotropicTracerVarianceDissipationRate(model, tracer_name)
+
+Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
+for `tracer_name` in `model.tracers`.
+"""    
+function IsotropicTracerVarianceDissipationRate(model, name; location = (Center, Center, Center))
     validate_location(location, "IsotropicTracerVarianceDissipationRate")
+
+    tracer_index = findfirst(n -> n === name, propertynames(model.tracers))
+
+    parameters = (closure = model.closure,
+                  id = Val(tracer_index),
+                  clock = model.clock,
+                  diffusivity_fields = model.diffusivity_fields)
+
     return KernelFunctionOperation{Center, Center, Center}(isotropic_tracer_variance_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies=(b, κᵇ))
+                                                           parameters)
 end
 #-----
 

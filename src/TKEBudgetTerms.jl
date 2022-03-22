@@ -14,9 +14,6 @@ using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
 using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, AbstractScalarDiffusivity, ThreeDimensionalFormulation
 
-# Temporary until Oceananigans supports this...
-import Oceananigans.TurbulenceClosures: viscosity
-
 # Right now, all kernels must be located at ccc
 validate_location(location, type, valid_location=(Center, Center, Center)) =
     location != valid_location &&
@@ -61,9 +58,6 @@ validate_dissipative_closure(closure) = error("Cannot calculate dissipation rate
 validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}) = nothing
 validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_closure(c) for c in closure_tuple)
 
-# TODO: move to Oceananigans
-viscosity(closure_tuple::Tuple, K_tuple) = Tuple(viscosity(c, K) for (c, K) in zip(closure_tuple, K_tuple))
-
 #++++ Energy dissipation rate for a fluid with isotropic viscosity
 @inline function isotropic_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
 
@@ -75,7 +69,9 @@ viscosity(closure_tuple::Tuple, K_tuple) = Tuple(viscosity(c, K) for (c, K) in z
     Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4
     Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶜᶠᶠ, v, ∂yᶜᶠᶠ, w) / 4
 
-    return νᶜᶜᶜ(i, j, k, grid, p.clock, p.ν) * 2 * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
+    ν = _νᶜᶜᶜ(i, j, k, grid, p.closure, p.diffusivity_fields, p.clock)
+
+    return 2ν * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
 
 """
@@ -89,11 +85,13 @@ function IsotropicViscousDissipationRate(model; U=0, V=0, W=0,
     validate_dissipative_closure(model.closure)
 
     u, v, w = model.velocities
-    ν = viscosity(model.closure, model.diffusivity_fields)
-    parameters = (; clock = model.clock, ν)
+
+    parameters = (closure = model.closure,
+                  diffusivity_fields = model.diffusivity_fields,
+                  clock = model.clock)
 
     return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies=(u - U, v - V, w - W, ν),
+                                                           computed_dependencies=(u - U, v - V, w - W),
                                                            parameters)
 end
 #------
@@ -102,7 +100,8 @@ end
     ddx² = ∂xᶜᶜᶜ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᶠᶜ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᶜᶠ, w)
     ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᶠᶠᶜ, u) + ∂yᶜᶜᶜ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᶜᶠᶠ, w)
     ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᶠᶜᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᶜᶠᶠ, v) + ∂zᶜᶜᶜ(i, j, k, grid, ψ², w)
-    return νᶜᶜᶜ(i, j, k, grid, p.clock, p.ν) * (ddx² + ddy² + ddz²)
+    ν = _νᶜᶜᶜ(i, j, k, grid, p.closure, p.diffusivity_fields, p.clock)
+    return ν * (ddx² + ddy² + ddz²)
 end
 
 function IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0,
@@ -112,11 +111,13 @@ function IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0,
     validate_dissipative_closure(model.closure)
 
     u, v, w = model.velocities
-    ν = viscosity(model.closure, model.diffusivity_fields)
-    parameters = (; clock = model.clock, ν)
+
+    parameters = (closure = model.closure,
+                  diffusivity_fields = model.diffusivity_fields,
+                  clock = model.clock)
 
     return KernelFunctionOperation{Center, Center, Center}(isotropic_pseudo_viscous_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies=(u - U, v - V, w - W, ν),
+                                                           computed_dependencies=(u - U, v - V, w - W),
                                                            parameters)
 end
 
