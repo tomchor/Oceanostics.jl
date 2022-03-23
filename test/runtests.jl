@@ -161,7 +161,7 @@ function test_tracer_diagnostics(model)
     u, v, w = model.velocities
     b = model.tracers.b
 
-    χiso = IsotropicTracerVarianceDissipationRate(model, b)
+    χiso = IsotropicTracerVarianceDissipationRate(model, :b)
     @test χiso isa AbstractOperation
 
     return nothing
