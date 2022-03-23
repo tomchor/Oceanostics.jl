@@ -14,6 +14,8 @@ using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
 using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, AbstractScalarDiffusivity, ThreeDimensionalFormulation
 
+using Oceanostics: _νᶜᶜᶜ
+
 # Right now, all kernels must be located at ccc
 validate_location(location, type, valid_location=(Center, Center, Center)) =
     location != valid_location &&
@@ -63,7 +65,7 @@ validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_
 
     Σˣˣ² = ∂xᶜᶜᶜ(i, j, k, grid, u)^2
     Σʸʸ² = ∂yᶜᶜᶜ(i, j, k, grid, v)^2
-    Σᶻᶻ² = ∂zᵃᶜᶜ(i, j, k, grid, w)^2
+    Σᶻᶻ² = ∂zᶜᶜᶜ(i, j, k, grid, w)^2
 
     Σˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_plus_gφ², ∂yᶠᶠᶜ, u, ∂xᶠᶠᶜ, v) / 4
     Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4

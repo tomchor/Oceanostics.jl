@@ -15,6 +15,8 @@ export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
 export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
 #----
 
+using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, κᶜᶜᶜ
+
 #####
 ##### A few utils for closure tuples:
 #####
@@ -22,6 +24,10 @@ export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipat
 # Fallbacks that capture "single closure" case
 @inline _νᶜᶜᶜ(args...) = νᶜᶜᶜ(args...)
 @inline _κᶜᶜᶜ(args...) = κᶜᶜᶜ(args...)
+
+# End point
+@inline _νᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple{}, K::Tuple{}, clock) = zero(eltype(grid))
+@inline _κᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple{}, K::Tuple{}, id, clock) = zero(eltype(grid))
 
 # "Inner-outer" form (hopefully) makes the compiler "unroll" the loop over a tuple:
 @inline _νᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple, K::Tuple, clock) =

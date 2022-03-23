@@ -144,10 +144,14 @@ function test_ke_dissipation_rate_terms(model)
     b = model.tracers.b
 
     ε_iso = IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
+    ε_iso_field = compute!(Field(ε_iso))
     @test ε_iso isa AbstractOperation
+    @test ε_iso_field isa Field
 
     ε_iso = IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
+    ε_iso_field = compute!(Field(ε_iso))
     @test ε_iso isa AbstractOperation
+    @test ε_iso_field isa Field
 
     return nothing
 end

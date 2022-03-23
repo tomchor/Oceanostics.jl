@@ -7,6 +7,8 @@ export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipat
 
 using ..TKEBudgetTerms: validate_location
 
+using Oceanostics: _κᶜᶜᶜ
+
 using Oceananigans
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
