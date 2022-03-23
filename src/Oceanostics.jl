@@ -15,6 +15,8 @@ export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
 export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
 #----
 
+using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, κᶜᶜᶜ
+
 #####
 ##### A few utils for closure tuples:
 #####
