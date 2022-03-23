@@ -14,6 +14,8 @@ using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
 using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, AbstractScalarDiffusivity, ThreeDimensionalFormulation
 
+using Oceanostics: _νᶜᶜᶜ
+
 # Right now, all kernels must be located at ccc
 validate_location(location, type, valid_location=(Center, Center, Center)) =
     location != valid_location &&
