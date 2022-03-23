@@ -1,7 +1,7 @@
 name = "Oceanostics"
 uuid = "d0ccf422-c8fb-49b5-a76d-74acdde946ac"
 authors = ["tomchor <tomaschor@gmail.com>"]
-version = "0.8.0"
+version = "0.8.1"
 
 [deps]
 Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
