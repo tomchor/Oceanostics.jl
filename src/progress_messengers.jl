@@ -36,7 +36,7 @@ function print_message(simulation, single_line=false;
     message = @sprintf("[%06.2f%%] iter: % 6d,     time: % 10s,     Δt: % 10s,     wall time: % 8s",
                       progress, iter, t2str(t), t2str(Δt), prettytime(current_wall_time))
 
-    if single_line
+    if !single_line
         message *= @sprintf("\n          └── max(|u⃗|): [%.2e, %.2e, %.2e]%s", u_max, v_max, w_max, u_units)
     end
                            
@@ -101,7 +101,7 @@ function (pm::TimedProgressMessenger)(simulation)
     message = @sprintf("[%06.2f%%] iteration: % 6d, time: % 10s, Δt: % 10s, wall time: % 8s (% 8s / time step)",
                        progress, iter, prettytime(t), prettytime(Δt), prettytime(current_wall_time), prettytime(wall_time_per_step))
 
-    message *= @sprintf("          └── max(|u⃗|): [%.2e, %.2e, %.2e] m/s, CFL: %.2e",
+    message *= @sprintf("\n          └── max(|u⃗|): [%.2e, %.2e, %.2e] m/s, CFL: %.2e",
                         u_max, v_max, w_max, adv_cfl)
 
     if pm.LES && !(model.closure isa Tuple)
