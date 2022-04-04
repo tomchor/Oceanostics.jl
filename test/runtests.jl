@@ -6,7 +6,7 @@ using Oceanostics
 using Oceanostics.TKEBudgetTerms
 using Oceanostics.TKEBudgetTerms: turbulent_kinetic_energy_ccc
 using Oceanostics.FlowDiagnostics
-using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger
+using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger, make_message
 
 # Default grid for all tests
 grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
@@ -231,15 +231,13 @@ end
         time_now = time_ns()*1e-9
         test_progress_messenger(model, SingleLineProgressMessenger(initial_wall_time_seconds=1e-9*time_ns()))
 
+        simulation = Simulation(model; Δt=1e-2, stop_iteration=1)
+        msg = make_message(simulation, true)
+        @test count(s -> s === '\n', msg) == 1
+
         @info "Testing TimedProgressMessenger with closure" closure
         model.clock.iteration = 0
         time_now = time_ns()*1e-9
         test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
     end
-
-    # Test single line progress messenger
-    io = IOBuffer(append=true)
-    run(pipeline(`julia --project run_progress_messenger.jl`, stderr=io))
-    @test countlines(io) == 1
 end
-

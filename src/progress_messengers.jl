@@ -11,10 +11,10 @@ tuple_to_op(ν) = ν
 tuple_to_op(::Nothing) = nothing
 tuple_to_op(ν_tuple::Tuple) = sum(ν_tuple)
 
-function print_message(simulation, single_line=false; 
-                       ν = viscosity(simulation.model.closure, simulation.model.diffusivity_fields),
-                       SI_units = true,
-                       initial_wall_time_seconds = 1e-9*time_ns())
+function make_message(simulation, single_line=false; 
+                      ν = viscosity(simulation.model.closure, simulation.model.diffusivity_fields),
+                      SI_units = true,
+                      initial_wall_time_seconds = 1e-9*time_ns())
 
     model = simulation.model
     Δt = simulation.Δt
@@ -53,11 +53,11 @@ function print_message(simulation, single_line=false;
 
     message *= "\n"
     
-    @info message
 
-    return nothing
+    return message
 end
 
+print_message(args...; kw...) = @info make_message(args...; kw...)
 SimpleProgressMessenger(; kwargs...) = simulation -> print_message(simulation; kwargs...)
 SingleLineProgressMessenger(; kwargs...) = simulation -> print_message(simulation, true; kwargs...)
 
@@ -71,8 +71,7 @@ end
 function TimedProgressMessenger(; LES=false, 
                                 wall_time₀=1e-9*time_ns(), 
                                 wall_time⁻=1e-9*time_ns(),
-                                iteration⁻=0,
-    )
+                                iteration⁻=0)
 
     return TimedProgressMessenger(wall_time₀, wall_time⁻, iteration⁻, LES)
 end
