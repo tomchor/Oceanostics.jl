@@ -236,5 +236,10 @@ end
         time_now = time_ns()*1e-9
         test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
     end
+
+    # Test single line progress messenger
+    io = IOBuffer(append=true)
+    run(pipeline(`julia --project run_progress_messenger.jl`, stderr=io))
+    @test countlines(io) == 1
 end
 
