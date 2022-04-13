@@ -2,7 +2,6 @@
 
 Useful diagnostics to use with [Oceananigans](https://github.com/CliMA/Oceananigans.jl). Mostly `AbstractOperations`s and a few useful progress messengers.
 
-
 To add the latest registered version from Julia:
 ```julia
 julia>]
