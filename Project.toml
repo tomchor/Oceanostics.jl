@@ -8,7 +8,7 @@ Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [compat]
-Oceananigans = "0.73, 0.74, 0.75, 0.76"
+Oceananigans = "0.73, 0.74, 0.75, 0.76, 0.77"
 julia = "^1.6"
 
 [extras]
