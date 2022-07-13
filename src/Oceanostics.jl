@@ -15,7 +15,7 @@ export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
 export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
 #----
 
-using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, κᶜᶜᶜ
+using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, calc_κᶜᶜᶜ
 
 #####
 ##### A few utils for closure tuples:
@@ -23,20 +23,20 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, κᶜᶜᶜ
 
 # Fallbacks that capture "single closure" case
 @inline _νᶜᶜᶜ(args...) = νᶜᶜᶜ(args...)
-@inline _κᶜᶜᶜ(args...) = κᶜᶜᶜ(args...)
+@inline _calc_κᶜᶜᶜ(args...) = calc_κᶜᶜᶜ(args...)
 
 # End point
 @inline _νᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple{}, K::Tuple{}, clock) = zero(eltype(grid))
-@inline _κᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple{}, K::Tuple{}, id, clock) = zero(eltype(grid))
+@inline _calc_κᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple{}, K::Tuple{}, id, clock) = zero(eltype(grid))
 
 # "Inner-outer" form (hopefully) makes the compiler "unroll" the loop over a tuple:
 @inline _νᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple, K::Tuple, clock) =
      νᶜᶜᶜ(i, j, k, grid, closure_tuple[1],     K[1],     clock) + 
     _νᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], K[2:end], clock)
 
-@inline _κᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple, K::Tuple, id, clock) =
-     κᶜᶜᶜ(i, j, k, grid, closure_tuple[1],     K[1],     id, clock) + 
-    _κᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], K[2:end], id, clock)
+@inline _calc_κᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple, K::Tuple, id, clock) =
+     calc_κᶜᶜᶜ(i, j, k, grid, closure_tuple[1],     K[1],     id, clock) + 
+    _calc_κᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], K[2:end], id, clock)
 
 include("TKEBudgetTerms.jl")
 include("FlowDiagnostics.jl")

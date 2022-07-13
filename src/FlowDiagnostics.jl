@@ -7,7 +7,7 @@ export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipat
 
 using ..TKEBudgetTerms: validate_location
 
-using Oceanostics: _κᶜᶜᶜ
+using Oceanostics: _calc_κᶜᶜᶜ
 
 using Oceananigans
 using Oceananigans.Operators
@@ -127,7 +127,7 @@ end
     dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C  → C, C, C
     dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, b) # C, C, C  → C, C, F  → C, C, C
 
-    κ = _κᶜᶜᶜ(i, j, k, grid, p.closure, p.diffusivity_fields, p.id, p.clock)
+    κ = _calc_κᶜᶜᶜ(i, j, k, grid, p.closure, p.diffusivity_fields, p.id, p.clock)
 
     return 2κ * (dbdx² + dbdy² + dbdz²)
 end
