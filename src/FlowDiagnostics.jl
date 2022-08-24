@@ -90,19 +90,24 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
 
     u, v, w = model.velocities
-    if ~(model.background_fields.velocities.u isa Oceananigans.Fields.ZeroField)
-        u += model.background_fields.velocities.u
-    end
-    if ~(model.background_fields.velocities.v isa Oceananigans.Fields.ZeroField)
-        v += model.background_fields.velocities.v
-    end
-    if ~(model.background_fields.velocities.w isa Oceananigans.Fields.ZeroField)
-        w += model.background_fields.velocities.w
-    end
-
     b = model.tracers.b
-    if ~(model.background_fields.tracers.b isa Oceananigans.Fields.ZeroField)
-        b += model.background_fields.tracers.b
+
+    if model isa NonhydrostaticModel
+        if ~(model.background_fields.velocities.u isa Oceananigans.Fields.ZeroField)
+            u += model.background_fields.velocities.u
+        end
+
+        if ~(model.background_fields.velocities.v isa Oceananigans.Fields.ZeroField)
+            v += model.background_fields.velocities.v
+        end
+
+        if ~(model.background_fields.velocities.w isa Oceananigans.Fields.ZeroField)
+            w += model.background_fields.velocities.w
+        end
+
+        if ~(model.background_fields.tracers.b isa Oceananigans.Fields.ZeroField)
+            b += model.background_fields.tracers.b
+        end
     end
 
     coriolis = model.coriolis
