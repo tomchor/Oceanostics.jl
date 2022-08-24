@@ -24,11 +24,6 @@ function computed_operation(op)
     return op_cf
 end
 
-function test_vel_only_diagnostics(; model_kwargs...)
-    model = NonhydrostaticModel(; grid, model_kwargs...)
-    test_vel_only_diagnostics(model)
-end
-
 function test_vel_only_diagnostics(model)
     u, v, w = model.velocities
     U = Field(Average(u, dims=(1, 2)))
@@ -87,11 +82,6 @@ function test_vel_only_diagnostics(model)
     return nothing
 end
 
-function test_buoyancy_diagnostics(; model_kwargs...)
-    model = NonhydrostaticModel(; grid, model_kwargs...)
-    test_buoyancy_diagnostics(model)
-end
-
 function test_buoyancy_diagnostics(model)
     u, v, w = model.velocities
     b = model.tracers.b
@@ -116,11 +106,6 @@ function test_buoyancy_diagnostics(model)
     return nothing
 end
 
-function test_buoyancy_diagnostics(; model_kwargs...)
-    model = NonhydrostaticModel(; grid, model_kwargs...)
-    test_buoyancy_diagnostics(model)
-end
-
 function test_pressure_terms(model)
     ∂x_up = XPressureRedistribution(model)
     @test ∂x_up isa AbstractOperation
@@ -132,11 +117,6 @@ function test_pressure_terms(model)
     @test ∂z_wp isa AbstractOperation
 
     return nothing
-end
-
-function test_ke_dissipation_rate_terms(; model_kwargs...)
-    model = NonhydrostaticModel(; grid, model_kwargs...)
-    test_ke_dissipation_rate_terms(model)
 end
 
 function test_ke_dissipation_rate_terms(model)
@@ -156,11 +136,6 @@ function test_ke_dissipation_rate_terms(model)
     return nothing
 end
 
-function test_tracer_diagnostics(; model_kwargs...)
-    model = NonhydrostaticModel(; grid, model_kwargs...)
-    test_tracer_diagnostics(model)
-end
-
 function test_tracer_diagnostics(model)
     u, v, w = model.velocities
     b = model.tracers.b
@@ -171,22 +146,32 @@ function test_tracer_diagnostics(model)
     return nothing
 end
 
+
+scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
+
 @testset "Oceanostics" begin
     model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()), 
                     coriolis = FPlane(1e-4),
                     tracers = :b)
 
-    model = NonhydrostaticModel(; grid, model_kwargs...,
-                                closure = ScalarDiffusivity(ν=1e-6, κ=1e-7))
+    models = (NonhydrostaticModel(; grid, model_kwargs...,
+                                  closure = scalar_diff),
+              HydrostaticFreeSurfaceModel(; grid, model_kwargs...,
+                                          closure = scalar_diff))
 
-    @info "Testing velocity-only diagnostics"
-    test_vel_only_diagnostics(model)
+    for model in models
+        model_type = split(summary(model), "{")[1]
+        @info "Testing velocity-only diagnostics in $model_type"
+        #test_vel_only_diagnostics(model)
 
-    @info "Testing buoyancy diagnostics"
-    test_buoyancy_diagnostics(model)
+        @info "Testing buoyancy diagnostics in $model_type"
+        test_buoyancy_diagnostics(model)
 
-    @info "Testing pressure terms"
-    test_pressure_terms(model)
+        if model isa NonhydrostaticModel
+            @info "Testing pressure terms in $model_type"
+            #test_pressure_terms(model)
+        end
+    end
 
     @info "Testing input validation for dissipation rates"
     invalid_closures = [HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7),
