@@ -162,14 +162,14 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
     for model in models
         model_type = split(summary(model), "{")[1]
         @info "Testing velocity-only diagnostics in $model_type"
-        #test_vel_only_diagnostics(model)
+        test_vel_only_diagnostics(model)
 
         @info "Testing buoyancy diagnostics in $model_type"
         test_buoyancy_diagnostics(model)
 
         if model isa NonhydrostaticModel
             @info "Testing pressure terms in $model_type"
-            #test_pressure_terms(model)
+            test_pressure_terms(model)
         end
     end
 
