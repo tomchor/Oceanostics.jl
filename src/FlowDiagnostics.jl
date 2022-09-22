@@ -128,13 +128,13 @@ end
 
 #+++++ Tracer variance dissipation
 @inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, p)
-    dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C  → C, C, C
-    dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C  → C, C, C
-    dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, b) # C, C, C  → C, C, F  → C, C, C
+    dcdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, c) # C, C, C  → F, C, C  → C, C, C
+    dcdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, c) # C, C, C  → C, F, C  → C, C, C
+    dcdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, c) # C, C, C  → C, C, F  → C, C, C
 
     κ = _calc_κᶜᶜᶜ(i, j, k, grid, p.closure, p.diffusivity_fields, p.id, p.clock)
 
-    return 2κ * (dbdx² + dbdy² + dbdz²)
+    return 2κ * (dcdx² + dcdy² + dcdz²)
 end
 
 """
@@ -143,10 +143,10 @@ end
 Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
 for `tracer_name` in `model.tracers`.
 """    
-function IsotropicTracerVarianceDissipationRate(model, name; location = (Center, Center, Center))
+function IsotropicTracerVarianceDissipationRate(model, tracer_name; location = (Center, Center, Center))
     validate_location(location, "IsotropicTracerVarianceDissipationRate")
 
-    tracer_index = findfirst(n -> n === name, propertynames(model.tracers))
+    tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
 
     parameters = (closure = model.closure,
                   id = Val(tracer_index),
@@ -154,7 +154,8 @@ function IsotropicTracerVarianceDissipationRate(model, name; location = (Center,
                   diffusivity_fields = model.diffusivity_fields)
 
     return KernelFunctionOperation{Center, Center, Center}(isotropic_tracer_variance_dissipation_rate_ccc, model.grid;
-                                                           parameters)
+                                                           computed_dependencies=(model.tracers[tracer_name],), 
+                                                           parameters=parameters)
 end
 #-----
 
