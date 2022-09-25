@@ -112,11 +112,11 @@ function test_pressure_terms(model)
 
     ∂y_vp = XPressureRedistribution(model)
     @test ∂y_vp isa AbstractOperation
-    @test compute!(Field(∂x_vp)) isa Field
+    @test compute!(Field(∂y_vp)) isa Field
 
     ∂z_wp = XPressureRedistribution(model)
     @test ∂z_wp isa AbstractOperation
-    @test compute!(Field(∂x_wp)) isa Field
+    @test compute!(Field(∂z_wp)) isa Field
 
     return nothing
 end
