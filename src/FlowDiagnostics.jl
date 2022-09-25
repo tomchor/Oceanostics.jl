@@ -126,13 +126,14 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
 end
 #----
 
+
 #+++++ Tracer variance dissipation
-@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, p)
+@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, velocities, p)
     dcdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, c) # C, C, C  → F, C, C  → C, C, C
     dcdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, c) # C, C, C  → C, F, C  → C, C, C
     dcdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, c) # C, C, C  → C, C, F  → C, C, C
 
-    κ = _calc_κᶜᶜᶜ(i, j, k, grid, p.closure, p.diffusivity_fields, p.id, p.clock)
+    κ = _calc_κᶜᶜᶜ(i, j, k, grid, p.closure, c, p.id, velocities)
 
     return 2κ * (dcdx² + dcdy² + dcdz²)
 end
@@ -142,19 +143,15 @@ end
 
 Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
 for `tracer_name` in `model.tracers`.
-"""    
+"""
 function IsotropicTracerVarianceDissipationRate(model, tracer_name; location = (Center, Center, Center))
-    validate_location(location, "IsotropicTracerVarianceDissipationRate")
-
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
 
     parameters = (closure = model.closure,
-                  id = Val(tracer_index),
-                  clock = model.clock,
-                  diffusivity_fields = model.diffusivity_fields)
+                  id = Val(tracer_index))
 
     return KernelFunctionOperation{Center, Center, Center}(isotropic_tracer_variance_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies=(model.tracers[tracer_name],), 
+                                                           computed_dependencies=(model.tracers[tracer_name], model.velocities),
                                                            parameters=parameters)
 end
 #-----
