@@ -140,8 +140,10 @@ function test_tracer_diagnostics(model)
     u, v, w = model.velocities
     b = model.tracers.b
 
-    χiso = IsotropicTracerVarianceDissipationRate(model, :b)
-    @test χiso isa AbstractOperation
+    χ_iso = IsotropicTracerVarianceDissipationRate(model, :b)
+    χ_iso_field = compute!(Field(χ_iso))
+    @test χ_iso isa AbstractOperation
+    @test χ_iso_field isa Field
 
     return nothing
 end
@@ -187,10 +189,11 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
     closures = [
         ScalarDiffusivity(ν=1e-6, κ=1e-7),
         SmagorinskyLilly(),
+        AnisotropicMinimumDissipation(),
         (ScalarDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly())
     ]
         
-    LESs = [false, true, true]
+    LESs = [false, true, true, true]
     messengers = (SingleLineProgressMessenger, TimedProgressMessenger)
     
     for (LES, closure) in zip(LESs, closures)
