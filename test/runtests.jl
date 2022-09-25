@@ -18,12 +18,6 @@ function test_progress_messenger(model, messenger)
     return nothing
 end
 
-function computed_operation(op)
-    op_cf = Field(op)
-    compute!(op_cf)
-    return op_cf
-end
-
 function test_vel_only_diagnostics(model)
     u, v, w = model.velocities
     U = Field(Average(u, dims=(1, 2)))
@@ -90,18 +84,23 @@ function test_buoyancy_diagnostics(model)
 
     Ri = RichardsonNumber(model)
     @test Ri isa AbstractOperation
+    @test compute!(Field(Ri)) isa Field
 
     Ri = RichardsonNumber(model; N²_bg=1, dUdz_bg=1, dVdz_bg=1)
     @test Ri isa AbstractOperation
+    @test compute!(Field(Ri)) isa Field
 
     PVe = ErtelPotentialVorticity(model)
     @test PVe isa AbstractOperation
+    @test compute!(Field(PVe)) isa Field
 
     PVtw = ThermalWindPotentialVorticity(model)
     @test PVtw isa AbstractOperation
+    @test compute!(Field(PVtw)) isa Field
 
     PVtw = ThermalWindPotentialVorticity(model, f=1e-4)
     @test PVtw isa AbstractOperation
+    @test compute!(Field(PVtw)) isa Field
 
     return nothing
 end
@@ -109,12 +108,15 @@ end
 function test_pressure_terms(model)
     ∂x_up = XPressureRedistribution(model)
     @test ∂x_up isa AbstractOperation
+    @test compute!(Field(∂x_up)) isa Field
 
     ∂y_vp = XPressureRedistribution(model)
     @test ∂y_vp isa AbstractOperation
+    @test compute!(Field(∂x_vp)) isa Field
 
     ∂z_wp = XPressureRedistribution(model)
     @test ∂z_wp isa AbstractOperation
+    @test compute!(Field(∂x_wp)) isa Field
 
     return nothing
 end
