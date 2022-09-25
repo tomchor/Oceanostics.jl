@@ -60,7 +60,7 @@ end
 function ThermalWindPotentialVorticity(model; f=nothing)
     u, v, w = model.velocities
     b = BuoyancyField(model)
-    if !isnothing(f)
+    if isnothing(f)
         f = model.coriolis.f
     end
     return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid;
