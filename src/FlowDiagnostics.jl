@@ -41,18 +41,18 @@ function RossbyNumber(model; dUdy_bg=0, dVdx_bg=0, f=nothing)
 end
 
 #++++ Potential vorticity
-@inline function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, f)
+@inline function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, p)
 
     dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # F, F, C → F, F, F
     dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᶜ, u) # F, F, C → F, F, F
     dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᶜᶜᶠ, b) # C, C, F → F, F, F
 
-    pv_barot = (f + dVdx - dUdy) * dbdz
+    pv_barot = (p.f + dVdx - dUdy) * dbdz
 
     dUdz = ℑyᵃᶠᵃ(i, j, k, grid, ∂zᶠᶜᶠ, u) # F, C, F → F, F, F
     dVdz = ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, F → F, F, F
 
-    pv_baroc = -f * (dUdz^2 + dVdz^2)
+    pv_baroc = -p.f * (dUdz^2 + dVdz^2)
 
     return pv_barot + pv_baroc
 end
@@ -60,11 +60,11 @@ end
 function ThermalWindPotentialVorticity(model; f=nothing)
     u, v, w = model.velocities
     b = BuoyancyField(model)
-    if !isnothing(f)
+    if isnothing(f)
         f = model.coriolis.f
     end
     return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid;
-                                                     computed_dependencies=(u, v, w, b), parameters=f)
+                                                     computed_dependencies=(u, v, b), parameters= (; f,))
 end
 
 @inline function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
@@ -126,15 +126,16 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
 end
 #----
 
+
 #+++++ Tracer variance dissipation
-@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, p)
-    dbdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C  → C, C, C
-    dbdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C  → C, C, C
-    dbdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, b) # C, C, C  → C, C, F  → C, C, C
+@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, velocities, p)
+    dcdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, c) # C, C, C  → F, C, C  → C, C, C
+    dcdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, c) # C, C, C  → C, F, C  → C, C, C
+    dcdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, c) # C, C, C  → C, C, F  → C, C, C
 
-    κ = _calc_κᶜᶜᶜ(i, j, k, grid, p.closure, p.diffusivity_fields, p.id, p.clock)
+    κ = _calc_κᶜᶜᶜ(i, j, k, grid, p.closure, c, p.id, velocities)
 
-    return 2κ * (dbdx² + dbdy² + dbdz²)
+    return 2κ * (dcdx² + dcdy² + dcdz²)
 end
 
 """
@@ -142,19 +143,16 @@ end
 
 Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
 for `tracer_name` in `model.tracers`.
-"""    
-function IsotropicTracerVarianceDissipationRate(model, name; location = (Center, Center, Center))
-    validate_location(location, "IsotropicTracerVarianceDissipationRate")
-
-    tracer_index = findfirst(n -> n === name, propertynames(model.tracers))
+"""
+function IsotropicTracerVarianceDissipationRate(model, tracer_name; location = (Center, Center, Center))
+    tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
 
     parameters = (closure = model.closure,
-                  id = Val(tracer_index),
-                  clock = model.clock,
-                  diffusivity_fields = model.diffusivity_fields)
+                  id = Val(tracer_index))
 
     return KernelFunctionOperation{Center, Center, Center}(isotropic_tracer_variance_dissipation_rate_ccc, model.grid;
-                                                           parameters)
+                                                           computed_dependencies=(model.tracers[tracer_name], model.velocities),
+                                                           parameters=parameters)
 end
 #-----
 
