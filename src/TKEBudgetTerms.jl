@@ -1,4 +1,5 @@
 module TKEBudgetTerms
+using DocStringExtensions
 
 export TurbulentKineticEnergy, KineticEnergy
 export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
@@ -77,6 +78,8 @@ validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_
 end
 
 """
+    $(SIGNATURES)
+
 Calculates the Viscous Dissipation Rate for a fluid with an isotropic turbulence closure (i.e., a 
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
