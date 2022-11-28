@@ -28,17 +28,52 @@ function RichardsonNumber(model; b=BuoyancyField(model), N²_bg=0, dUdz_bg=0, dV
     return dBdz_tot / (dUdz_tot^2 + dVdz_tot^2)
 end
 
-function RossbyNumber(model; dUdy_bg=0, dVdx_bg=0, f=nothing)
+#+++ Rossby number
+@inline function rossby_number_fff(i, j, k, grid, u, v, w, params)
+    dwdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᶜᶠᶠ, w) # C, C, F  → C, F, F  → F, F, F
+    dvdz =  ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, C  → C, F, F  → F, F, F
+    ω_x = (dwdy + params.dWdy_bg) - (dvdz + params.dVdz_bg)
+
+    dudz =  ℑyᵃᶠᵃ(i, j, k, grid, ∂zᶠᶜᶠ, u) # F, C, C  → F, C, F → F, F, F
+    dwdx =  ℑyᵃᶠᵃ(i, j, k, grid, ∂xᶠᶜᶠ, w) # C, C, F  → F, C, F → F, F, F
+    ω_y = (dudz + params.dUdz_bg) - (dwdx + params.dWdx_bg)
+
+    dvdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # C, F, C  → F, F, C → F, F, F
+    dudy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᶜ, u) # F, C, C  → F, F, C → F, F, F
+    ω_z = (dvdx + params.dVdx_bg) - (dudy + params.dUdy_bg)
+
+    return (ω_x*params.fx + ω_y*params.fy + ω_z*params.fz)/(params.fx^2 + params.fy^2 + params.fz^2)
+end
+
+""" 
+Calculates the Rossby number using the vorticity in the rotation axis direction according
+to `model.coriolis`.
+"""
+function RossbyNumber(model; location = (Face, Face, Face),
+                      dWdy_bg=0, dVdz_bg=0,
+                      dUdz_bg=0, dWdx_bg=0
+                      dUdy_bg=0, dVdx_bg=0)
+    validate_location(location, "RossbyNumber", (Face, Face, Face))
+
     u, v, w = model.velocities
-    if f==nothing
-        f = model.coriolis.f
+
+    coriolis = model.coriolis
+    if coriolis isa FPlane
+        fx = fy = 0
+        fz = model.coriolis.f
+    elseif coriolis isa ConstantCartesianCoriolis
+        fx = coriolis.fx
+        fy = coriolis.fy
+        fz = coriolis.fz
+    else
+        throw(ArgumentError("RossbyNumber only implemented for FPlane and ConstantCartesianCoriolis"))
     end
 
-    dUdy_tot = ∂y(u) + dUdy_bg
-    dVdx_tot = ∂x(v) + dVdx_bg
-
-    return (dVdx_tot - dUdy_tot) / f
+    parameters = (; fx, fy, fz, dWdy_bg, dVdz_bg, dUdz_bg, dWdx_bg, dUdy_bg, dVdx_bg)
+    return KernelFunctionOperation{Face, Face, Face}(rossby_number_fff, model.grid;
+                                                     computed_dependencies=(u, v, w), parameters=(; fx, fy, fz))
 end
+#---
 
 #++++ Potential vorticity
 @inline function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, p)
