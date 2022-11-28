@@ -14,6 +14,7 @@ using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
+using DocStringExtensions
 
 # Some useful operators
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
@@ -139,7 +140,7 @@ end
 end
 
 """
-    IsotropicTracerVarianceDissipationRate(model, tracer_name)
+    $(SIGNATURES)
 
 Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
 for `tracer_name` in `model.tracers`.
