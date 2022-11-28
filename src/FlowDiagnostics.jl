@@ -15,8 +15,30 @@ using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 
-# Some useful operators
+#+++ Useful operators and functions
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
+
+"""
+Adds background fields (velocities and tracers only) to their perturbations
+"""
+function add_background_fields(model)
+
+    velocities = model.velocities
+    # Adds background velocities to their perturbations only if background velocity isn't ZeroField
+    full_velocities = NamedTuple{keys(velocities)}((model.background_fields.velocities[key] isa Oceananigans.Fields.ZeroField) ? 
+                                                   val : 
+                                                   val + model.background_fields.velocities[key] 
+                                                   for (key,val) in zip(keys(velocities), velocities))
+    tracers = model.tracers
+    # Adds background tracer fields to their perturbations only if background tracer field isn't ZeroField
+    full_tracers = NamedTuple{keys(tracers)}((model.background_fields.tracers[key] isa Oceananigans.Fields.ZeroField) ? 
+                                                   val : 
+                                                   val + model.background_fields.tracers[key] 
+                                                   for (key,val) in zip(keys(tracers), tracers))
+
+    return merge(full_velocities, full_tracers)
+end
+#---
 
 function RichardsonNumber(model; b=BuoyancyField(model), N²_bg=0, dUdz_bg=0, dVdz_bg=0)
     u, v, w = model.velocities
@@ -51,11 +73,16 @@ to `model.coriolis`.
 """
 function RossbyNumber(model; location = (Face, Face, Face),
                       dWdy_bg=0, dVdz_bg=0,
-                      dUdz_bg=0, dWdx_bg=0
+                      dUdz_bg=0, dWdx_bg=0,
                       dUdy_bg=0, dVdx_bg=0)
     validate_location(location, "RossbyNumber", (Face, Face, Face))
 
-    u, v, w = model.velocities
+    if model isa NonhydrostaticModel
+        full_fields = add_background_fields(model)
+        u, v, w = full_fields.u, full_fields.v, full_fields.w
+    else
+        u, v, w = model.velocities
+    end
 
     coriolis = model.coriolis
     if coriolis isa FPlane
