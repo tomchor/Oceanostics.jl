@@ -98,7 +98,7 @@ function RossbyNumber(model; location = (Face, Face, Face),
 
     parameters = (; fx, fy, fz, dWdy_bg, dVdz_bg, dUdz_bg, dWdx_bg, dUdy_bg, dVdx_bg)
     return KernelFunctionOperation{Face, Face, Face}(rossby_number_fff, model.grid;
-                                                     computed_dependencies=(u, v, w), parameters=(; fx, fy, fz))
+                                                     computed_dependencies=(u, v, w), parameters=parameters)
 end
 #---
 
