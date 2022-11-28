@@ -112,7 +112,8 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
 
     coriolis = model.coriolis
     if coriolis isa FPlane
-        fx = fy = fz = model.coriolis.f
+        fx = fy = 0
+        fz = model.coriolis.f
     elseif coriolis isa ConstantCartesianCoriolis
         fx = coriolis.fx
         fy = coriolis.fy
@@ -125,7 +126,6 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
                                                      computed_dependencies=(u, v, w, b), parameters=(; fx, fy, fz))
 end
 #----
-
 
 #+++++ Tracer variance dissipation
 @inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, velocities, p)
