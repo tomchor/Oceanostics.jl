@@ -67,7 +67,7 @@ function test_vel_only_diagnostics(model)
     end
 
     @test begin
-        op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1, f=1e-4)
+        op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1)
         Ro = Field(op)
         compute!(Ro)
         op isa AbstractOperation

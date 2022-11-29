@@ -15,8 +15,30 @@ using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 
-# Some useful operators
+#+++ Useful operators and functions
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
+
+"""
+Adds background fields (velocities and tracers only) to their perturbations
+"""
+function add_background_fields(model)
+
+    velocities = model.velocities
+    # Adds background velocities to their perturbations only if background velocity isn't ZeroField
+    full_velocities = NamedTuple{keys(velocities)}((model.background_fields.velocities[key] isa Oceananigans.Fields.ZeroField) ? 
+                                                   val : 
+                                                   val + model.background_fields.velocities[key] 
+                                                   for (key,val) in zip(keys(velocities), velocities))
+    tracers = model.tracers
+    # Adds background tracer fields to their perturbations only if background tracer field isn't ZeroField
+    full_tracers = NamedTuple{keys(tracers)}((model.background_fields.tracers[key] isa Oceananigans.Fields.ZeroField) ? 
+                                                   val : 
+                                                   val + model.background_fields.tracers[key] 
+                                                   for (key,val) in zip(keys(tracers), tracers))
+
+    return merge(full_velocities, full_tracers)
+end
+#---
 
 function RichardsonNumber(model; b=BuoyancyField(model), N²_bg=0, dUdz_bg=0, dVdz_bg=0)
     u, v, w = model.velocities
@@ -28,17 +50,57 @@ function RichardsonNumber(model; b=BuoyancyField(model), N²_bg=0, dUdz_bg=0, dV
     return dBdz_tot / (dUdz_tot^2 + dVdz_tot^2)
 end
 
-function RossbyNumber(model; dUdy_bg=0, dVdx_bg=0, f=nothing)
-    u, v, w = model.velocities
-    if f==nothing
-        f = model.coriolis.f
+#+++ Rossby number
+@inline function rossby_number_fff(i, j, k, grid, u, v, w, params)
+    dwdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᶜᶠᶠ, w) # C, C, F  → C, F, F  → F, F, F
+    dvdz =  ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, C  → C, F, F  → F, F, F
+    ω_x = (dwdy + params.dWdy_bg) - (dvdz + params.dVdz_bg)
+
+    dudz =  ℑyᵃᶠᵃ(i, j, k, grid, ∂zᶠᶜᶠ, u) # F, C, C  → F, C, F → F, F, F
+    dwdx =  ℑyᵃᶠᵃ(i, j, k, grid, ∂xᶠᶜᶠ, w) # C, C, F  → F, C, F → F, F, F
+    ω_y = (dudz + params.dUdz_bg) - (dwdx + params.dWdx_bg)
+
+    dvdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # C, F, C  → F, F, C → F, F, F
+    dudy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᶜ, u) # F, C, C  → F, F, C → F, F, F
+    ω_z = (dvdx + params.dVdx_bg) - (dudy + params.dUdy_bg)
+
+    return (ω_x*params.fx + ω_y*params.fy + ω_z*params.fz)/(params.fx^2 + params.fy^2 + params.fz^2)
+end
+
+""" 
+Calculates the Rossby number using the vorticity in the rotation axis direction according
+to `model.coriolis`.
+"""
+function RossbyNumber(model; location = (Face, Face, Face),
+                      dWdy_bg=0, dVdz_bg=0,
+                      dUdz_bg=0, dWdx_bg=0,
+                      dUdy_bg=0, dVdx_bg=0)
+    validate_location(location, "RossbyNumber", (Face, Face, Face))
+
+    if model isa NonhydrostaticModel
+        full_fields = add_background_fields(model)
+        u, v, w = full_fields.u, full_fields.v, full_fields.w
+    else
+        u, v, w = model.velocities
     end
 
-    dUdy_tot = ∂y(u) + dUdy_bg
-    dVdx_tot = ∂x(v) + dVdx_bg
+    coriolis = model.coriolis
+    if coriolis isa FPlane
+        fx = fy = 0
+        fz = model.coriolis.f
+    elseif coriolis isa ConstantCartesianCoriolis
+        fx = coriolis.fx
+        fy = coriolis.fy
+        fz = coriolis.fz
+    else
+        throw(ArgumentError("RossbyNumber only implemented for FPlane and ConstantCartesianCoriolis"))
+    end
 
-    return (dVdx_tot - dUdy_tot) / f
+    parameters = (; fx, fy, fz, dWdy_bg, dVdz_bg, dUdz_bg, dWdx_bg, dUdy_bg, dVdx_bg)
+    return KernelFunctionOperation{Face, Face, Face}(rossby_number_fff, model.grid;
+                                                     computed_dependencies=(u, v, w), parameters=parameters)
 end
+#---
 
 #++++ Potential vorticity
 @inline function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, p)
@@ -112,7 +174,8 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
 
     coriolis = model.coriolis
     if coriolis isa FPlane
-        fx = fy = fz = model.coriolis.f
+        fx = fy = 0
+        fz = model.coriolis.f
     elseif coriolis isa ConstantCartesianCoriolis
         fx = coriolis.fx
         fy = coriolis.fy
@@ -125,7 +188,6 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
                                                      computed_dependencies=(u, v, w, b), parameters=(; fx, fy, fz))
 end
 #----
-
 
 #+++++ Tracer variance dissipation
 @inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, velocities, p)
