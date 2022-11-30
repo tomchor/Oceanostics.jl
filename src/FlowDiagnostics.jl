@@ -1,7 +1,7 @@
 module FlowDiagnostics
 
 export RichardsonNumber, RossbyNumber
-export ErtelPotentialVorticity, ThermalWindPotentialVorticity
+export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
 export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
 export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
 
