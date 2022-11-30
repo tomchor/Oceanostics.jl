@@ -215,6 +215,10 @@ end
 function DirectionalErtelPotentialVorticity(model, direction; location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
 
+    if model.buoyancy == nothing || !(model.buoyancy.model isa Oceananigans.BuoyancyTracer)
+        throw(ArgumentError("`DirectionalErtelPotentialVorticity` is only implemented for `BuoyancyTracer`"))
+    end
+
     if model isa NonhydrostaticModel
         full_fields = add_background_fields(model)
         u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
@@ -224,18 +228,22 @@ function DirectionalErtelPotentialVorticity(model, direction; location = (Face, 
     end
 
     coriolis = model.coriolis
-    if coriolis isa FPlane
-        fx = fy = 0
-        fz = model.coriolis.f
-    elseif coriolis isa ConstantCartesianCoriolis
-        fx = coriolis.fx
-        fy = coriolis.fy
-        fz = coriolis.fz
+    if coriolis != nothing
+        if coriolis isa FPlane
+            fx = fy = 0
+            fz = coriolis.f
+        elseif coriolis isa ConstantCartesianCoriolis
+            fx = coriolis.fx
+            fy = coriolis.fy
+            fz = coriolis.fz
+        else
+        throw(ArgumentError("`DirectionalErtelPotentialVorticity` only implemented for `FPlane` and `ConstantCartesianCoriolis`"))
+        end
+        f_dir = sum([fx, fy, fz] .* direction)
     else
-        throw(ArgumentError("DirectionalErtelPotentialVorticity only implemented for FPlane and ConstantCartesianCoriolis"))
+        f_dir = 0
     end
 
-    f_dir = sum([fx, fy, fz] .* direction)
     dir_x, dir_y, dir_z = direction
     return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid;
                                                      computed_dependencies=(u, v, w, b), parameters=(; f_dir, dir_x, dir_y, dir_z))
