@@ -102,6 +102,10 @@ function test_buoyancy_diagnostics(model)
     @test PVtw isa AbstractOperation
     @test compute!(Field(PVtw)) isa Field
 
+    DEPV = DirectionalErtelPotentialVorticity(model, direction=(0, 0, 1))
+    @test DEPV isa AbstractOperation
+    @test compute!(Field(DEPV)) isa Field
+
     return nothing
 end
 
