@@ -187,6 +187,59 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
     return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid;
                                                      computed_dependencies=(u, v, w, b), parameters=(; fx, fy, fz))
 end
+
+@inline function directional_ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
+
+    dWdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᶜᶠᶠ, w) # C, C, F  → C, F, F → F, F, F
+    dVdz =  ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, C  → C, F, F → F, F, F
+    ω̂_x = dWdy - dVdz # F, F, F
+
+    dUdz =  ℑyᵃᶠᵃ(i, j, k, grid, ∂zᶠᶜᶠ, u) # F, C, C  → F, C, F → F, F, F
+    dWdx =  ℑyᵃᶠᵃ(i, j, k, grid, ∂xᶠᶜᶠ, w) # C, C, F  → F, C, F → F, F, F
+    ω̂_y = dUdz - dWdx # F, F, F
+
+    dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # C, F, C  → F, F, C → F, F, F
+    dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᶜ, u) # F, C, C  → F, F, C → F, F, F
+    ω̂_z = dVdx - dUdy # F, F, F
+
+    dbdx̂ = ℑyzᵃᶠᶠ(i, j, k, grid, ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C → F, F, F
+    dbdŷ = ℑxzᶠᵃᶠ(i, j, k, grid, ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C → F, F, F
+    dbdẑ = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᶜᶜᶠ, b) # C, C, C  → C, C, F → F, F, F
+
+    ω_dir = ω̂_x * params.dir_x + ω̂_y * params.dir_y + ω̂_z * params.dir_z
+    dbddir = dbdx̂ * params.dir_x + dbdŷ * params.dir_y + dbdẑ * params.dir_z
+
+    return (params.f_dir + ω_dir) * dbddir
+end
+
+function DirectionalErtelPotentialVorticity(model, direction; location = (Face, Face, Face))
+    validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
+
+    if model isa NonhydrostaticModel
+        full_fields = add_background_fields(model)
+        u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
+    else
+        u, v, w = model.velocities
+        b = model.tracers.b
+    end
+
+    coriolis = model.coriolis
+    if coriolis isa FPlane
+        fx = fy = 0
+        fz = model.coriolis.f
+    elseif coriolis isa ConstantCartesianCoriolis
+        fx = coriolis.fx
+        fy = coriolis.fy
+        fz = coriolis.fz
+    else
+        throw(ArgumentError("DirectionalErtelPotentialVorticity only implemented for FPlane and ConstantCartesianCoriolis"))
+    end
+
+    f_dir = sum([fx, fy, fz] .* direction)
+    dir_x, dir_y, dir_z = direction
+    return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid;
+                                                     computed_dependencies=(u, v, w, b), parameters=(; f_dir, dir_x, dir_y, dir_z))
+end
 #----
 
 #+++++ Tracer variance dissipation
