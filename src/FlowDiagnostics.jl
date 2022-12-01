@@ -255,12 +255,22 @@ end
 #----
 
 #+++++ Tracer variance dissipation
+@inline function _calc_κᶜᶜᶜ(i, j, k, grid, closure::SmagorinskyLilly, buoyancy, velocities, tracers, ::Val{tracer_index}) where {tracer_index}
+    νₑ = calc_νᶜᶜᶜ(i, j, k, grid, closure, buoyancy, velocities, tracers)
+    @inbounds Pr = closure.Pr[tracer_index]
+    return νₑ / Pr
+end
+
+@inline function _calc_κᶜᶜᶜ(i, j, k, grid, closure::AnisotropicMinimumDissipation, buoyancy, velocities, tracers, id::Val{tracer_index}) where {tracer_index}
+    return _calc_κᶜᶜᶜ(i, j, k, grid, closure, tracers, id, velocities)
+end
+
 @inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, velocities, p)
     dcdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, c) # C, C, C  → F, C, C  → C, C, C
     dcdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, c) # C, C, C  → C, F, C  → C, C, C
     dcdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, c) # C, C, C  → C, C, F  → C, C, C
 
-    κ = _calc_κᶜᶜᶜ(i, j, k, grid, p.closure, c, p.id, velocities)
+    κ = _calc_κᶜᶜᶜ(i, j, k, grid, p.closure, p.buoyancy, velocities, tracers, p.id)
 
     return 2κ * (dcdx² + dcdy² + dcdz²)
 end
