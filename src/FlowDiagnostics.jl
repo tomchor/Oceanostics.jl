@@ -212,6 +212,10 @@ end
     return (params.f_dir + ω_dir) * dbddir
 end
 
+
+"""
+Calculates the contribution from a given `direction` to the Ertel Potential Vorticty
+"""
 function DirectionalErtelPotentialVorticity(model, direction; location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
 
