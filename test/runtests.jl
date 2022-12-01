@@ -86,10 +86,6 @@ function test_buoyancy_diagnostics(model)
     @test Ri isa AbstractOperation
     @test compute!(Field(Ri)) isa Field
 
-    Ri = RichardsonNumber(model; N²_bg=1, dUdz_bg=1, dVdz_bg=1)
-    @test Ri isa AbstractOperation
-    @test compute!(Field(Ri)) isa Field
-
     PVe = ErtelPotentialVorticity(model)
     @test PVe isa AbstractOperation
     @test compute!(Field(PVe)) isa Field

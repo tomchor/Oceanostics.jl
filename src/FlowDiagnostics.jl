@@ -40,15 +40,59 @@ function add_background_fields(model)
 end
 #---
 
-function RichardsonNumber(model; b=BuoyancyField(model), N²_bg=0, dUdz_bg=0, dVdz_bg=0)
-    u, v, w = model.velocities
+#+++ Richardson number
+@inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
 
-    dBdz_tot = ∂z(b) + N²_bg
-    dUdz_tot = ∂z(u) + dUdz_bg
-    dVdz_tot = ∂z(v) + dVdz_bg
-
-    return dBdz_tot / (dUdz_tot^2 + dVdz_tot^2)
+"""
+Get `w` from `û`, `v̂`, `ŵ` and based on the direction given by the unit vector `(k_x, k_y, k_z)`.
+"""
+@inline function w²_from_u⃗_tilted(i, j, k, grid, û, v̂, ŵ, k_x, k_y, k_z)
+    û = ℑxᶜᵃᵃ(i, j, k, grid, û) # F, C, C  → C, C, C
+    v̂ = ℑyᵃᶜᵃ(i, j, k, grid, v̂) # C, F, C  → C, C, C
+    ŵ = ℑzᵃᵃᶜ(i, j, k, grid, ŵ) # C, C, F  → C, C, C
+    return (û * k_x + v̂ * k_y + ŵ * k_z)^2
 end
+
+"""
+Return the (true) horizontal velocity magnitude.
+"""
+@inline function uₕ_norm(i, j, k, grid, û, v̂, ŵ, k_x, k_y, k_z)
+    û² = ℑxᶜᵃᵃ(i, j, k, grid, ψ², û) # F, C, C  → C, C, C
+    v̂² = ℑyᵃᶜᵃ(i, j, k, grid, ψ², v̂) # C, F, C  → C, C, C
+    ŵ² = ℑzᵃᵃᶜ(i, j, k, grid, ψ², ŵ) # C, C, F  → C, C, C
+    return √(û² + v̂² + ŵ² - w²_from_u⃗_tilted(i, j, k, grid, û, v̂, ŵ, k_x, k_y, k_z))
+end
+
+@inline function richardson_number_ccf(i, j, k, grid, û, v̂, ŵ, b, params)
+
+    dbdx̂ = ℑxzᶜᵃᶠ(i, j, k, grid, ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C → C, C, F
+    dbdŷ = ℑyzᵃᶜᶠ(i, j, k, grid, ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C → C, C, F
+    dbdẑ = ∂zᶜᶜᶠ(i, j, k, grid, b) # C, C, C  → C, C, F
+    dbdz = dbdx̂ * params.vertical_dir_x + dbdŷ * params.vertical_dir_y + dbdẑ * params.vertical_dir_z
+
+    duₕdx̂ = ℑxᶜᵃᵃ(i, j, k, grid, ∂xᶠᶜᶜ, uₕ_norm, û, v̂, ŵ, params.vertical_dir_x, params.vertical_dir_y, params.vertical_dir_z)
+    duₕdŷ = ℑyᵃᶜᵃ(i, j, k, grid, ∂yᶜᶠᶜ, uₕ_norm, û, v̂, ŵ, params.vertical_dir_x, params.vertical_dir_y, params.vertical_dir_z)
+    duₕdẑ = ∂zᶜᶜᶠ(i, j, k, grid, uₕ_norm, û, v̂, ŵ, params.vertical_dir_x, params.vertical_dir_y, params.vertical_dir_z)
+    duₕdz = duₕdx̂ * params.vertical_dir_x + duₕdŷ * params.vertical_dir_y + duₕdẑ * params.vertical_dir_z
+
+    return dbdz / duₕdz^2
+end
+function RichardsonNumber(model; location = (Face, Face, Face), add_background=true)
+    validate_location(location, "RichardsonNumber", (Face, Face, Face))
+
+    if (model isa NonhydrostaticModel) & add_background
+        full_fields = add_background_fields(model)
+        u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
+    else
+        u, v, w = model.velocities
+        b = model.tracers.b
+    end
+
+    vertical_dir_x, vertical_dir_y, vertical_dir_z = model.buoyancy.gravity_unit_vector
+    return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid;
+                                                     computed_dependencies=(u, v, w, b), parameters=(; vertical_dir_x, vertical_dir_y, vertical_dir_z))
+end
+#---
 
 #+++ Rossby number
 @inline function rossby_number_fff(i, j, k, grid, u, v, w, params)
