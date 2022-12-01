@@ -46,7 +46,7 @@ end
 """
 Get `w` from `û`, `v̂`, `ŵ` and based on the direction given by the unit vector `(k_x, k_y, k_z)`.
 """
-@inline function w²_from_u⃗_tilted(i, j, k, grid, û, v̂, ŵ, k_x, k_y, k_z)
+@inline function w²_from_u⃗_tilted_ccc(i, j, k, grid, û, v̂, ŵ, k_x, k_y, k_z)
     û = ℑxᶜᵃᵃ(i, j, k, grid, û) # F, C, C  → C, C, C
     v̂ = ℑyᵃᶜᵃ(i, j, k, grid, v̂) # C, F, C  → C, C, C
     ŵ = ℑzᵃᵃᶜ(i, j, k, grid, ŵ) # C, C, F  → C, C, C
@@ -56,11 +56,11 @@ end
 """
 Return the (true) horizontal velocity magnitude.
 """
-@inline function uₕ_norm(i, j, k, grid, û, v̂, ŵ, k_x, k_y, k_z)
+@inline function uₕ_norm_ccc(i, j, k, grid, û, v̂, ŵ, k_x, k_y, k_z)
     û² = ℑxᶜᵃᵃ(i, j, k, grid, ψ², û) # F, C, C  → C, C, C
     v̂² = ℑyᵃᶜᵃ(i, j, k, grid, ψ², v̂) # C, F, C  → C, C, C
     ŵ² = ℑzᵃᵃᶜ(i, j, k, grid, ψ², ŵ) # C, C, F  → C, C, C
-    return √(û² + v̂² + ŵ² - w²_from_u⃗_tilted(i, j, k, grid, û, v̂, ŵ, k_x, k_y, k_z))
+    return √(û² + v̂² + ŵ² - w²_from_u⃗_tilted_ccc(i, j, k, grid, û, v̂, ŵ, k_x, k_y, k_z))
 end
 
 @inline function richardson_number_ccf(i, j, k, grid, û, v̂, ŵ, b, params)
@@ -70,15 +70,15 @@ end
     dbdẑ = ∂zᶜᶜᶠ(i, j, k, grid, b) # C, C, C  → C, C, F
     dbdz = dbdx̂ * params.vertical_dir_x + dbdŷ * params.vertical_dir_y + dbdẑ * params.vertical_dir_z
 
-    duₕdx̂ = ℑxᶜᵃᵃ(i, j, k, grid, ∂xᶠᶜᶜ, uₕ_norm, û, v̂, ŵ, params.vertical_dir_x, params.vertical_dir_y, params.vertical_dir_z)
-    duₕdŷ = ℑyᵃᶜᵃ(i, j, k, grid, ∂yᶜᶠᶜ, uₕ_norm, û, v̂, ŵ, params.vertical_dir_x, params.vertical_dir_y, params.vertical_dir_z)
-    duₕdẑ = ∂zᶜᶜᶠ(i, j, k, grid, uₕ_norm, û, v̂, ŵ, params.vertical_dir_x, params.vertical_dir_y, params.vertical_dir_z)
+    duₕdx̂ = ℑxᶜᵃᵃ(i, j, k, grid, ∂xᶠᶜᶜ, uₕ_norm_ccc, û, v̂, ŵ, params.vertical_dir_x, params.vertical_dir_y, params.vertical_dir_z)
+    duₕdŷ = ℑyᵃᶜᵃ(i, j, k, grid, ∂yᶜᶠᶜ, uₕ_norm_ccc, û, v̂, ŵ, params.vertical_dir_x, params.vertical_dir_y, params.vertical_dir_z)
+    duₕdẑ = ∂zᶜᶜᶠ(i, j, k, grid, uₕ_norm_ccc, û, v̂, ŵ, params.vertical_dir_x, params.vertical_dir_y, params.vertical_dir_z)
     duₕdz = duₕdx̂ * params.vertical_dir_x + duₕdŷ * params.vertical_dir_y + duₕdẑ * params.vertical_dir_z
 
     return dbdz / duₕdz^2
 end
-function RichardsonNumber(model; location = (Face, Face, Face), add_background=true)
-    validate_location(location, "RichardsonNumber", (Face, Face, Face))
+function RichardsonNumber(model; location = (Center, Center, Face), add_background=true)
+    validate_location(location, "RichardsonNumber", (Center, Center, Face))
 
     if (model isa NonhydrostaticModel) & add_background
         full_fields = add_background_fields(model)
