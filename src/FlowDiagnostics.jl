@@ -88,7 +88,12 @@ function RichardsonNumber(model; location = (Center, Center, Face), add_backgrou
         b = model.tracers.b
     end
 
-    vertical_dir_x, vertical_dir_y, vertical_dir_z = model.buoyancy.gravity_unit_vector
+    true_vertical_direction =  model.buoyancy.gravity_unit_vector
+    if true_vertical_direction isa Oceananigans.Grids.ZDirection
+        vertical_dir_x, vertical_dir_y, vertical_dir_z = (0, 0, 1)
+    else
+        vertical_dir_x, vertical_dir_y, vertical_dir_z = true_vertical_direction
+    end
     return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid;
                                                      computed_dependencies=(u, v, w, b), parameters=(; vertical_dir_x, vertical_dir_y, vertical_dir_z))
 end
