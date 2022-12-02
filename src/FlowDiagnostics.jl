@@ -44,36 +44,36 @@ end
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
 
 """
-Get `w` from `û`, `v̂`, `ŵ` and based on the direction given by the unit vector `(k_x, k_y, k_z)`.
+Get `w` from `û`, `v̂`, `ŵ` and based on the direction given by the unit vector `vertical_dir`.
 """
-@inline function w²_from_u⃗_tilted_ccc(i, j, k, grid, û, v̂, ŵ, k_x, k_y, k_z)
+@inline function w²_from_u⃗_tilted_ccc(i, j, k, grid, û, v̂, ŵ, vertical_dir)
     û = ℑxᶜᵃᵃ(i, j, k, grid, û) # F, C, C  → C, C, C
     v̂ = ℑyᵃᶜᵃ(i, j, k, grid, v̂) # C, F, C  → C, C, C
     ŵ = ℑzᵃᵃᶜ(i, j, k, grid, ŵ) # C, C, F  → C, C, C
-    return (û * k_x + v̂ * k_y + ŵ * k_z)^2
+    return (û * vertical_dir[1] + v̂ * vertical_dir[2] + ŵ * vertical_dir[3])^2
 end
 
 """
 Return the (true) horizontal velocity magnitude.
 """
-@inline function uₕ_norm_ccc(i, j, k, grid, û, v̂, ŵ, k_x, k_y, k_z)
+@inline function uₕ_norm_ccc(i, j, k, grid, û, v̂, ŵ, vertical_dir)
     û² = ℑxᶜᵃᵃ(i, j, k, grid, ψ², û) # F, C, C  → C, C, C
     v̂² = ℑyᵃᶜᵃ(i, j, k, grid, ψ², v̂) # C, F, C  → C, C, C
     ŵ² = ℑzᵃᵃᶜ(i, j, k, grid, ψ², ŵ) # C, C, F  → C, C, C
-    return √(û² + v̂² + ŵ² - w²_from_u⃗_tilted_ccc(i, j, k, grid, û, v̂, ŵ, k_x, k_y, k_z))
+    return √(û² + v̂² + ŵ² - w²_from_u⃗_tilted_ccc(i, j, k, grid, û, v̂, ŵ, vertical_dir))
 end
 
-@inline function richardson_number_ccf(i, j, k, grid, û, v̂, ŵ, b, params)
+@inline function richardson_number_ccf(i, j, k, grid, û, v̂, ŵ, b, vertical_dir)
 
     dbdx̂ = ℑxzᶜᵃᶠ(i, j, k, grid, ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C → C, C, F
     dbdŷ = ℑyzᵃᶜᶠ(i, j, k, grid, ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C → C, C, F
     dbdẑ = ∂zᶜᶜᶠ(i, j, k, grid, b) # C, C, C  → C, C, F
-    dbdz = dbdx̂ * params.vertical_dir_x + dbdŷ * params.vertical_dir_y + dbdẑ * params.vertical_dir_z
+    dbdz = dbdx̂ * vertical_dir[1] + dbdŷ * vertical_dir[2] + dbdẑ * vertical_dir[3]
 
-    duₕdx̂ = ℑxᶜᵃᵃ(i, j, k, grid, ∂xᶠᶜᶜ, uₕ_norm_ccc, û, v̂, ŵ, params.vertical_dir_x, params.vertical_dir_y, params.vertical_dir_z)
-    duₕdŷ = ℑyᵃᶜᵃ(i, j, k, grid, ∂yᶜᶠᶜ, uₕ_norm_ccc, û, v̂, ŵ, params.vertical_dir_x, params.vertical_dir_y, params.vertical_dir_z)
-    duₕdẑ = ∂zᶜᶜᶠ(i, j, k, grid, uₕ_norm_ccc, û, v̂, ŵ, params.vertical_dir_x, params.vertical_dir_y, params.vertical_dir_z)
-    duₕdz = duₕdx̂ * params.vertical_dir_x + duₕdŷ * params.vertical_dir_y + duₕdẑ * params.vertical_dir_z
+    duₕdx̂ = ℑxᶜᵃᵃ(i, j, k, grid, ∂xᶠᶜᶜ, uₕ_norm_ccc, û, v̂, ŵ, vertical_dir)
+    duₕdŷ = ℑyᵃᶜᵃ(i, j, k, grid, ∂yᶜᶠᶜ, uₕ_norm_ccc, û, v̂, ŵ, vertical_dir)
+    duₕdẑ = ∂zᶜᶜᶠ(i, j, k, grid, uₕ_norm_ccc, û, v̂, ŵ, vertical_dir)
+    duₕdz = duₕdx̂ * vertical_dir[1] + duₕdŷ * vertical_dir[2] + duₕdẑ * vertical_dir[3]
 
     return dbdz / duₕdz^2
 end
@@ -88,14 +88,13 @@ function RichardsonNumber(model; location = (Center, Center, Face), add_backgrou
         b = model.tracers.b
     end
 
-    true_vertical_direction =  model.buoyancy.gravity_unit_vector
-    if true_vertical_direction isa Oceananigans.Grids.ZDirection
-        vertical_dir_x, vertical_dir_y, vertical_dir_z = (0, 0, 1)
+    if model.buoyancy.gravity_unit_vector isa Oceananigans.Grids.ZDirection
+        true_vertical_direction = (0, 0, 1)
     else
-        vertical_dir_x, vertical_dir_y, vertical_dir_z = true_vertical_direction
+        true_vertical_direction =  model.buoyancy.gravity_unit_vector
     end
     return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid;
-                                                     computed_dependencies=(u, v, w, b), parameters=(; vertical_dir_x, vertical_dir_y, vertical_dir_z))
+                                                         computed_dependencies=(u, v, w, b), parameters=Tuple(true_vertical_direction))
 end
 #---
 
