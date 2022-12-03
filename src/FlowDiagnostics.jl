@@ -14,6 +14,7 @@ using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
+using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 
 #+++ Useful operators and functions
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
@@ -255,24 +256,31 @@ end
 #----
 
 #+++++ Tracer variance dissipation
-@inline function _calc_κᶜᶜᶜ(i, j, k, grid, closure::SmagorinskyLilly, buoyancy, velocities, tracers, ::Val{tracer_index}) where {tracer_index}
-    νₑ = calc_νᶜᶜᶜ(i, j, k, grid, closure, buoyancy, velocities, tracers)
-    @inbounds Pr = closure.Pr[tracer_index]
-    return νₑ / Pr
-end
+# Variance dissipation at fcc
+@inline χxᶠᶜᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) = - δxᶠᵃᵃ(i, j, k, grid, c) * diffusive_flux_x(i, j, k, grid, closure, diffusivities, id, c, args...) 
 
-@inline function _calc_κᶜᶜᶜ(i, j, k, grid, closure::AnisotropicMinimumDissipation, buoyancy, velocities, tracers, id::Val{tracer_index}) where {tracer_index}
-    return _calc_κᶜᶜᶜ(i, j, k, grid, closure, tracers, id, velocities)
-end
+# Variance dissipation at cfc
+@inline χyᶜᶠᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) = - δyᵃᶠᵃ(i, j, k, grid, c) * diffusive_flux_y(i, j, k, grid, closure, diffusivities, id, c, args...)
 
-@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, velocities, p)
-    dcdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, c) # C, C, C  → F, C, C  → C, C, C
-    dcdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, c) # C, C, C  → C, F, C  → C, C, C
-    dcdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, c) # C, C, C  → C, C, F  → C, C, C
+# Variance dissipation at ccf
+@inline χzᶜᶜᶠ(i, j, k, grid, closure, diffusivities, id, c, args...) = - δzᵃᵃᶠ(i, j, k, grid, c) * diffusive_flux_z(i, j, k, grid, closure, diffusivities, id, c, args...)
+# Function call is 
+# diffusive_flux_x(i, j, k, grid, cl::AIDorAHD, K, ::Val{id}, c, clk, fields, b)
+# Which can be written more verbose as
+# diffusive_flux_x(i, j, k, grid, closure, diffusivities, id, c, clock, fields, model.buoyancy)
 
-    κ = _calc_κᶜᶜᶜ(i, j, k, grid, p.closure, p.buoyancy, velocities, tracers, p.id)
+@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, diffusivity_fields, c, fields, p)
+#    dcdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, c) # C, C, C  → F, C, C  → C, C, C
+#    dcdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, c) # C, C, C  → C, F, C  → C, C, C
+#    dcdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, c) # C, C, C  → C, C, F  → C, C, C
 
-    return 2κ * (dcdx² + dcdy² + dcdz²)
+return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, χxᶠᶜᶜ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # F, C, C  → C, C, C
+            ℑyᵃᶜᵃ(i, j, k, grid, χyᶜᶠᶜ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # C, F, C  → C, C, C
+            ℑzᵃᵃᶜ(i, j, k, grid, χzᶜᶜᶠ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy)   # C, C, F  → C, C, C
+            ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to δ above, ensures a derivative operation
+
+#    κ = _calc_κᶜᶜᶜ(i, j, k, grid, p.closure, p.buoyancy, velocities, tracers, p.id)
+#    return 2κ * (dcdx² + dcdy² + dcdz²)
 end
 
 """
@@ -284,11 +292,11 @@ for `tracer_name` in `model.tracers`.
 function IsotropicTracerVarianceDissipationRate(model, tracer_name; location = (Center, Center, Center))
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
 
-    parameters = (closure = model.closure,
+    parameters = (; model.closure, model.clock, model.buoyancy,
                   id = Val(tracer_index))
 
     return KernelFunctionOperation{Center, Center, Center}(isotropic_tracer_variance_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies=(model.tracers[tracer_name], model.velocities),
+                                                           computed_dependencies=(model.diffusivity_fields, model.tracers[tracer_name], fields(model)),
                                                            parameters=parameters)
 end
 #-----
