@@ -17,8 +17,6 @@ using Oceananigans.Grids: Center, Face
 using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 
 #+++ Useful operators and functions
-@inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
-
 """
 Adds background fields (velocities and tracers only) to their perturbations
 """
