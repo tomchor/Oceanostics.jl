@@ -1,9 +1,9 @@
 module FlowDiagnostics
+using DocStringExtensions
 
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
-export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
-export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
+export IsotropicTracerVarianceDissipationRate
 
 using ..TKEBudgetTerms: validate_location
 
@@ -18,7 +18,9 @@ using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffu
 
 #+++ Useful operators and functions
 """
-Adds background fields (velocities and tracers only) to their perturbations
+    $(SIGNATURES)
+
+Add background fields (velocities and tracers only) to their perturbations.
 """
 function add_background_fields(model)
 
@@ -53,6 +55,8 @@ Get `w` from `û`, `v̂`, `ŵ` and based on the direction given by the unit ve
 end
 
 """
+    $(SIGNATURES)
+
 Return the (true) horizontal velocity magnitude.
 """
 @inline function uₕ_norm_ccc(i, j, k, grid, û, v̂, ŵ, vertical_dir)
@@ -76,6 +80,14 @@ end
 
     return dbdz / duₕdz^2
 end
+
+"""
+    $(SIGNATURES)
+
+Calculate the Richardson Number as
+    Ri = (∂b/∂z) / (|∂u⃗ₕ/∂z|²)
+where `z` is the true vertical direction (ie anti-parallel to gravity).
+"""
 function RichardsonNumber(model; location = (Center, Center, Face), add_background=true)
     validate_location(location, "RichardsonNumber", (Center, Center, Face))
 
@@ -115,8 +127,14 @@ end
 end
 
 """ 
-Calculates the Rossby number using the vorticity in the rotation axis direction according
-to `model.coriolis`.
+    $(SIGNATURES)
+
+Calculate the Rossby number using the vorticity in the rotation axis direction according
+to `model.coriolis`. Rossby number is defined as
+
+    Ro = ωᶻ / f
+
+where ωᶻ is the vorticity in the Coriolis axis of rotation and `f` is the Coriolis rotation frequency.
 """
 function RossbyNumber(model; location = (Face, Face, Face),
                       dWdy_bg=0, dVdz_bg=0,
@@ -166,6 +184,18 @@ end
     return pv_barot + pv_baroc
 end
 
+"""
+    $(SIGNATURES)
+
+Calculate the Potential Vorticty assuming thermal wind balance for `model`, where the characteristics of
+the Coriolis rotation are taken from `model.coriolis`. The Potential Vorticity in this case
+is defined as
+
+    TWPV = (f + ωᶻ) ∂b/∂z - f ((∂U/∂z)² + (∂V/∂z)²)
+
+where `f` is the Coriolis frequency, `ωᶻ` is the relative vorticity in the `z` direction, `b` is the buoyancy, and
+`∂U/∂z` and `∂V/∂z` comprise the thermal wind shear.
+"""
 function ThermalWindPotentialVorticity(model; f=nothing)
     u, v, w = model.velocities
     b = BuoyancyField(model)
@@ -195,6 +225,18 @@ end
     return pv_x + pv_y + pv_z
 end
 
+"""
+    $(SIGNATURES)
+
+Calculate the Ertel Potential Vorticty for `model`, where the characteristics of
+the Coriolis rotation are taken from `model.coriolis`. The Ertel Potential Vorticity
+is defined as
+
+    EPV = ωₜₒₜ ⋅ ∇b
+
+where ωₜₒₜ is the total (relative + planetary) vorticity vector, `b` is the buoyancy and ∇ is the gradient
+operator.
+"""
 function ErtelPotentialVorticity(model; location = (Face, Face, Face))
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
 
@@ -261,7 +303,15 @@ end
 
 
 """
-Calculates the contribution from a given `direction` to the Ertel Potential Vorticty
+    $(SIGNATURES)
+
+Calculate the contribution from a given `direction` to the Ertel Potential Vorticity
+basde on a `model` and a `direction`. The Ertel Potential Vorticity is defined as
+
+    EPV = ωₜₒₜ ⋅ ∇b
+
+where ωₜₒₜ is the total (relative + planetary) vorticity vector, `b` is the buoyancy and ∇ is the gradient
+operator.
 """
 function DirectionalErtelPotentialVorticity(model, direction; location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
@@ -319,10 +369,14 @@ return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, χxᶠᶜᶜ, p.closure, diffusivity_fi
 end
 
 """
-    IsotropicTracerVarianceDissipationRate(model, tracer_name)
+    $(SIGNATURES)
 
 Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
-for `tracer_name` in `model.tracers`.
+for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is defined as 
+
+    2κ (∇c ⋅ ∇c)
+
+where c is the tracer concentration, κ is the tracer diffusivity and ∇ is the gradient operator.
 """
 function IsotropicTracerVarianceDissipationRate(model, tracer_name; location = (Center, Center, Center))
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))

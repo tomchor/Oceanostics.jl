@@ -1,4 +1,5 @@
 module TKEBudgetTerms
+using DocStringExtensions
 
 export TurbulentKineticEnergy, KineticEnergy
 export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
@@ -39,16 +40,38 @@ validate_location(location, type, valid_location=(Center, Center, Center)) =
             ℑzᵃᵃᶜ(i, j, k, grid, ψ′², w, W)) / 2
 end
 
+"""
+    $(SIGNATURES)
+
+Calculate the turbulent kinetic energy of `model` manually specifying `u`, `v`, `w` and optionally
+background velocities `U`, `V` and `W`.
+"""
 function TurbulentKineticEnergy(model, u, v, w; U = 0, V = 0, W = 0, location = (Center, Center, Center))
     validate_location(location, "TurbulentKineticEnergy")
     return KernelFunctionOperation{Center, Center, Center}(turbulent_kinetic_energy_ccc, model.grid,
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
 
+"""
+    $(SIGNATURES)
+
+Calculate the turbulent kinetic energy of `model`.
+"""
+TurbulentKineticEnergy(model; kwargs...) = TurbulentKineticEnergy(model, model.velocities...; kwargs...)
+
+"""
+    $(SIGNATURES)
+
+Calculate the kinetic energy of `model` manually specifying `u`, `v` and `w`.
+"""
 KineticEnergy(model, u, v, w; location = (Center, Center, Center), kwargs...) =
     TurbulentKineticEnergy(model, u, v, w; location, kwargs...)
 
-TurbulentKineticEnergy(model; kwargs...) = TurbulentKineticEnergy(model, model.velocities...; kwargs...)
+"""
+    $(SIGNATURES)
+    
+Calculate the kinetic energy of `model`.
+"""
 KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwargs...)
 #------
 
@@ -77,7 +100,13 @@ validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_
 end
 
 """
-Calculates the Viscous Dissipation Rate for a fluid with an isotropic turbulence closure (i.e., a 
+    $(SIGNATURES)
+
+Calculate the Viscous Dissipation Rate, defined as
+
+    ε = 2 ν SᵢⱼSᵢⱼ,
+
+where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a 
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
 function IsotropicViscousDissipationRate(model; U=0, V=0, W=0, 
@@ -106,6 +135,16 @@ end
     return ν * (ddx² + ddy² + ddz²)
 end
 
+"""
+    $(SIGNATURES)
+
+Calculate the pseudo viscous Dissipation Rate, defined as
+
+    ε = ν (∂uᵢ/∂xⱼ) (∂uᵢ/∂xⱼ)
+
+for a fluid with an isotropic turbulence closure (i.e., a 
+turbulence closure where ν (eddy or not) is the same for all directions.
+"""
 function IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0,
                                                location = (Center, Center, Center))
 
@@ -127,19 +166,19 @@ end
 function XPressureRedistribution(model)
     u, v, w = model.velocities
     p = sum(model.pressures)
-    return ∂x(u*p) # p is the total kinematic pressure (there's no need to ρ₀)
+    return ∂x(u*p) # p is the total kinematic pressure (there's no need for ρ₀)
 end
 
 function YPressureRedistribution(model)
     u, v, w = model.velocities
     p = sum(model.pressures)
-    return ∂y(v*p) # p is the total kinematic pressure (there's no need to ρ₀)
+    return ∂y(v*p) # p is the total kinematic pressure (there's no need for ρ₀)
 end
 
 function ZPressureRedistribution(model)
     u, v, w = model.velocities
     p = sum(model.pressures)
-    return ∂z(w*p) # p is the total kinematic pressure (there's no need to ρ₀)
+    return ∂z(w*p) # p is the total kinematic pressure (there's no need for ρ₀)
 end
 #----
 
@@ -163,6 +202,12 @@ end
     return -(uu∂xU + vu∂xV + wu∂xW)
 end
 
+"""
+    $(SIGNATURES)
+
+Calculate the shear production rate in the `model`'s `x` direction, considering velocities
+`u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
+"""
 function XShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
     validate_location(location, "XShearProduction")
     return KernelFunctionOperation{Center, Center, Center}(shear_production_x_ccc, model.grid;
@@ -187,6 +232,12 @@ end
     return -(uv∂yU + vv∂yV + wv∂yW)
 end
 
+"""
+    $(SIGNATURES)
+
+Calculate the shear production rate in the `model`'s `y` direction, considering velocities
+`u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
+"""
 function YShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
     validate_location(location, "YShearProduction")
     return KernelFunctionOperation{Center, Center, Center}(shear_production_y_ccc, model.grid;
@@ -211,6 +262,12 @@ end
     return - (uw∂zU + vw∂zV + ww∂zW)
 end
 
+"""
+    $(SIGNATURES)
+
+Calculate the shear production rate in the `model`'s `z` direction, considering velocities
+`u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
+"""
 function ZShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
     validate_location(location, "ZShearProduction")
     return KernelFunctionOperation{Center, Center, Center}(shear_production_z_ccc, model.grid;

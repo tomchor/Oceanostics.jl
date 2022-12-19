@@ -1,4 +1,5 @@
 module Oceanostics
+using DocStringExtensions
 
 #++++ TKEBudgetTerms exports
 export TurbulentKineticEnergy, KineticEnergy
