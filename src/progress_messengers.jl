@@ -11,6 +11,11 @@ tuple_to_op(ν) = ν
 tuple_to_op(::Nothing) = nothing
 tuple_to_op(ν_tuple::Tuple) = sum(ν_tuple)
 
+"""
+    $(SIGNATURES)
+
+Builds the message displayed by the progress messenger.
+"""
 function make_message(simulation, single_line=false; 
                       ν = viscosity(simulation.model.closure, simulation.model.diffusivity_fields),
                       SI_units = true,
@@ -58,7 +63,23 @@ function make_message(simulation, single_line=false;
 end
 
 print_message(args...; kw...) = @info make_message(args...; kw...)
+
+"""
+    $(SIGNATURES)
+
+Return a `SimpleProgressMessenger`. 
+
+`kwargs` are passed to `make_message()`.
+"""
 SimpleProgressMessenger(; kwargs...) = simulation -> print_message(simulation; kwargs...)
+
+"""
+    $(SIGNATURES)
+
+Return a `SingleLineProgressMessenger`, where the messenger output fits in one line.
+
+`kwargs` are passed to `make_message()`.
+"""
 SingleLineProgressMessenger(; kwargs...) = simulation -> print_message(simulation, true; kwargs...)
 
 mutable struct TimedProgressMessenger{T, I, L} <: Function
@@ -68,6 +89,13 @@ mutable struct TimedProgressMessenger{T, I, L} <: Function
            LES :: L
 end
 
+"""
+    $(SIGNATURES)
+
+Return a `TimedProgressMessenger`, where the time per model time step is calculated.
+
+`kwargs` are passed to `make_message()`.
+"""
 function TimedProgressMessenger(; LES=false, 
                                 wall_time₀=1e-9*time_ns(), 
                                 wall_time⁻=1e-9*time_ns(),
