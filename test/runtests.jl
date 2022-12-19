@@ -67,7 +67,7 @@ function test_vel_only_diagnostics(model)
     end
 
     @test begin
-        op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1, f=1e-4)
+        op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1)
         Ro = Field(op)
         compute!(Ro)
         op isa AbstractOperation
@@ -86,10 +86,6 @@ function test_buoyancy_diagnostics(model)
     @test Ri isa AbstractOperation
     @test compute!(Field(Ri)) isa Field
 
-    Ri = RichardsonNumber(model; N²_bg=1, dUdz_bg=1, dVdz_bg=1)
-    @test Ri isa AbstractOperation
-    @test compute!(Field(Ri)) isa Field
-
     PVe = ErtelPotentialVorticity(model)
     @test PVe isa AbstractOperation
     @test compute!(Field(PVe)) isa Field
@@ -101,6 +97,10 @@ function test_buoyancy_diagnostics(model)
     PVtw = ThermalWindPotentialVorticity(model, f=1e-4)
     @test PVtw isa AbstractOperation
     @test compute!(Field(PVtw)) isa Field
+
+    DEPV = DirectionalErtelPotentialVorticity(model, (0, 0, 1))
+    @test DEPV isa AbstractOperation
+    @test compute!(Field(DEPV)) isa Field
 
     return nothing
 end
