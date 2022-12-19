@@ -20,7 +20,9 @@ using Oceananigans.Grids: Center, Face
 @inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
 
 """
-Adds background fields (velocities and tracers only) to their perturbations
+    $(SIGNATURES)
+
+Adds background fields (velocities and tracers only) to their perturbations.
 """
 function add_background_fields(model)
 
@@ -78,6 +80,14 @@ end
 
     return dbdz / duₕdz^2
 end
+
+"""
+    $(SIGNATURES)
+
+Calculates the Richardson Number as
+    Ri = (∂b/∂z) / (|∂u⃗ₕ/∂z|²)
+where `z` is the true vertical direction (ie anti-parallel to gravity).
+"""
 function RichardsonNumber(model; location = (Center, Center, Face), add_background=true)
     validate_location(location, "RichardsonNumber", (Center, Center, Face))
 
@@ -117,8 +127,14 @@ end
 end
 
 """ 
+    $(SIGNATURES)
+
 Calculates the Rossby number using the vorticity in the rotation axis direction according
-to `model.coriolis`.
+to `model.coriolis`. Rossby number is defined as
+
+    Ro = ωᶻ / f
+
+where ωᶻ is the vorticity in the Coriolis axis of rotation and `f` is the Coriolis rotation frequency.
 """
 function RossbyNumber(model; location = (Face, Face, Face),
                       dWdy_bg=0, dVdz_bg=0,
@@ -287,7 +303,15 @@ end
 
 
 """
-Calculates the contribution from a given `direction` to the Ertel Potential Vorticty
+    $(SIGNATURES)
+
+Calculates the contribution from a given `direction` to the Ertel Potential Vorticity
+basde on a `model` and a `direction`. The Ertel Potential Vorticity is defined as
+
+    EPV = ωₜₒₜ ⋅ ∇b
+
+where ωₜₒₜ is the total (relative + planetary) vorticity vector, `b` is the buoyancy and ∇ is the gradient
+operator.
 """
 function DirectionalErtelPotentialVorticity(model, direction; location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
