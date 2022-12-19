@@ -3,8 +3,7 @@ using DocStringExtensions
 
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
-export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
-export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
+export IsotropicTracerVarianceDissipationRate
 
 using ..TKEBudgetTerms: validate_location
 
@@ -22,7 +21,7 @@ using Oceananigans.Grids: Center, Face
 """
     $(SIGNATURES)
 
-Adds background fields (velocities and tracers only) to their perturbations.
+Add background fields (velocities and tracers only) to their perturbations.
 """
 function add_background_fields(model)
 
@@ -57,6 +56,8 @@ Get `w` from `û`, `v̂`, `ŵ` and based on the direction given by the unit ve
 end
 
 """
+    $(SIGNATURES)
+
 Return the (true) horizontal velocity magnitude.
 """
 @inline function uₕ_norm_ccc(i, j, k, grid, û, v̂, ŵ, vertical_dir)
@@ -84,7 +85,7 @@ end
 """
     $(SIGNATURES)
 
-Calculates the Richardson Number as
+Calculate the Richardson Number as
     Ri = (∂b/∂z) / (|∂u⃗ₕ/∂z|²)
 where `z` is the true vertical direction (ie anti-parallel to gravity).
 """
@@ -129,7 +130,7 @@ end
 """ 
     $(SIGNATURES)
 
-Calculates the Rossby number using the vorticity in the rotation axis direction according
+Calculate the Rossby number using the vorticity in the rotation axis direction according
 to `model.coriolis`. Rossby number is defined as
 
     Ro = ωᶻ / f
@@ -305,7 +306,7 @@ end
 """
     $(SIGNATURES)
 
-Calculates the contribution from a given `direction` to the Ertel Potential Vorticity
+Calculate the contribution from a given `direction` to the Ertel Potential Vorticity
 basde on a `model` and a `direction`. The Ertel Potential Vorticity is defined as
 
     EPV = ωₜₒₜ ⋅ ∇b
