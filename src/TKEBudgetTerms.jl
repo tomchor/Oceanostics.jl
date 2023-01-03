@@ -214,6 +214,18 @@ function XShearProduction(model, u, v, w, U, V, W; location = (Center, Center, C
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
 
+"""
+    $(SIGNATURES)
+
+Calculate the shear production rate in the `model`'s `x` direction. At least one of the mean 
+velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
+"""
+function XShearProduction(model; U=0, V=0, W=0, kwargs...)
+    u, v, w = model.velocities
+    return XShearProduction(model, u-U, v-V, w-W, U, V, W; kwargs...)
+end
+
+
 @inline function shear_production_y_ccc(i, j, k, grid, u, v, w, U, V, W)
     v_int = ℑyᵃᶜᵃ(i, j, k, grid, v) # C, F, C  → C, C, C
 
@@ -243,6 +255,18 @@ function YShearProduction(model, u, v, w, U, V, W; location = (Center, Center, C
     return KernelFunctionOperation{Center, Center, Center}(shear_production_y_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
+
+"""
+    $(SIGNATURES)
+
+Calculate the shear production rate in the `model`'s `y` direction. At least one of the mean 
+velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
+"""
+function YShearProduction(model; U=0, V=0, W=0, kwargs...)
+    u, v, w = model.velocities
+    return YShearProduction(model, u-U, v-V, w-W, U, V, W; kwargs...)
+end
+
 
 @inline function shear_production_z_ccc(i, j, k, grid, u, v, w, U, V, W)
     w_int = ℑzᵃᵃᶜ(i, j, k, grid, w) # C, C, F  → C, C, C
@@ -274,8 +298,16 @@ function ZShearProduction(model, u, v, w, U, V, W; location = (Center, Center, C
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
 
-ZShearProduction(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...) =
-    ZShearProduction(model, model.velocities..., U, V, W; kwargs...)
+"""
+    $(SIGNATURES)
+
+Calculate the shear production rate in the `model`'s `z` direction. At least one of the mean 
+velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
+"""
+function ZShearProduction(model; U=0, V=0, W=0, kwargs...)
+    u, v, w = model.velocities
+    return ZShearProduction(model, u-U, v-V, w-W, U, V, W; kwargs...)
+end
 #----
 
 end # module
