@@ -24,83 +24,66 @@ function test_vel_only_diagnostics(model)
     V = Field(Average(v, dims=(2, 3)))
     W = Field(Average(w, dims=(2, 3)))
 
-    @test begin
-        tke_op = KineticEnergy(model)
-        tke_op isa AbstractOperation
-        ke_c = Field(tke_op)
-        compute!(ke_c)
-    end
+    ke_op = KineticEnergy(model)
+    @test ke_op isa AbstractOperation
+    ke_c = Field(ke_op)
+    @test all(interior(compute!(ke_c)) .≈ 0)
 
-    @test begin
-        op = TurbulentKineticEnergy(model, U=U, V=V, W=W)
-        op isa AbstractOperation
-        tke_c = Field(op)
-        compute!(tke_c)
-    end
+    op = TurbulentKineticEnergy(model, U=U, V=V, W=W)
+    @test op isa AbstractOperation
+    tke_c = Field(op)
+    @test all(interior(compute!(tke_c)) .≈ 0)
 
-    @test begin
-        op = XShearProduction(model, u, v, w, U, V, W)
-        op isa AbstractOperation
-        XSP = Field(op)
-        compute!(XSP)
-    end
+    op = XShearProduction(model, u, v, w, U, V, W)
+    @test op isa AbstractOperation
+    XSP = Field(op)
+    @test all(interior(compute!(XSP)) .≈ 0)
 
-    @test begin
-        op = XShearProduction(model; U=U, V=V, W=W)
-        op isa AbstractOperation
-        XSP = Field(op)
-        compute!(XSP)
-    end
+    op = XShearProduction(model; U=U, V=V, W=W)
+    @test op isa AbstractOperation
+    XSP = Field(op)
+    @test all(interior(compute!(XSP)) .≈ 0)
+
 
     U = Field(Average(u, dims=(1, 3)))
     V = Field(Average(v, dims=(1, 3)))
     W = Field(Average(w, dims=(1, 3)))
 
-    @test begin
-        op = YShearProduction(model; U=U, V=V, W=W)
-        op isa AbstractOperation
-        YSP = Field(op)
-        compute!(YSP)
-    end
+    op = YShearProduction(model; U=U, V=V, W=W)
+    @test op isa AbstractOperation
+    YSP = Field(op)
+    @test all(interior(compute!(YSP)) .≈ 0)
 
-    @test begin
-        op = YShearProduction(model, u, v, w, U, V, W)
-        op isa AbstractOperation
-        YSP = Field(op)
-        compute!(YSP)
-    end
+    op = YShearProduction(model, u, v, w, U, V, W)
+    @test op isa AbstractOperation
+    YSP = Field(op)
+    @test all(interior(compute!(YSP)) .≈ 0)
+
 
     U = Field(Average(u, dims=(1, 2)))
     V = Field(Average(v, dims=(1, 2)))
     W = Field(Average(w, dims=(1, 2)))
 
-    @test begin
-        op = ZShearProduction(model, u, v, w, U, V, W)
-        op isa AbstractOperation
-        ZSP = Field(op)
-        compute!(ZSP)
-    end
+    op = ZShearProduction(model, u, v, w, U, V, W)
+    @test op isa AbstractOperation
+    ZSP = Field(op)
+    @test all(interior(compute!(ZSP)) .≈ 0)
 
-    @test begin
-        op = ZShearProduction(model; U=U, V=V, W=W)
-        op isa AbstractOperation
-        ZSP = Field(op)
-        compute!(ZSP)
-    end
+    op = ZShearProduction(model; U=U, V=V, W=W)
+    @test op isa AbstractOperation
+    ZSP = Field(op)
+    @test all(interior(compute!(ZSP)) .≈ 0)
 
-    @test begin
-        op = RossbyNumber(model;)
-        op isa AbstractOperation
-        Ro = Field(op)
-        compute!(Ro)
-    end
 
-    @test begin
-        op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1)
-        op isa AbstractOperation
-        Ro = Field(op)
-        compute!(Ro)
-    end
+    op = RossbyNumber(model;)
+    @test op isa AbstractOperation
+    Ro = Field(op)
+    @test all(interior(compute!(Ro)) .≈ 0)
+
+    op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1)
+    @test op isa AbstractOperation
+    Ro = Field(op)
+    @test all(interior(compute!(Ro)) .≈ 0)
 
     return nothing
 end
