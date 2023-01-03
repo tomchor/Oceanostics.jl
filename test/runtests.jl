@@ -34,12 +34,12 @@ function test_vel_only_diagnostics(model)
     tke_c = Field(op)
     @test all(interior(compute!(tke_c)) .≈ 0)
 
-    op = XShearProduction(model, u, v, w, U, V, W)
+    op = XShearProductionRate(model, u, v, w, U, V, W)
     @test op isa AbstractOperation
     XSP = Field(op)
     @test all(interior(compute!(XSP)) .≈ 0)
 
-    op = XShearProduction(model; U=U, V=V, W=W)
+    op = XShearProductionRate(model; U=U, V=V, W=W)
     @test op isa AbstractOperation
     XSP = Field(op)
     @test all(interior(compute!(XSP)) .≈ 0)
@@ -49,12 +49,12 @@ function test_vel_only_diagnostics(model)
     V = Field(Average(v, dims=(1, 3)))
     W = Field(Average(w, dims=(1, 3)))
 
-    op = YShearProduction(model; U=U, V=V, W=W)
+    op = YShearProductionRate(model; U=U, V=V, W=W)
     @test op isa AbstractOperation
     YSP = Field(op)
     @test all(interior(compute!(YSP)) .≈ 0)
 
-    op = YShearProduction(model, u, v, w, U, V, W)
+    op = YShearProductionRate(model, u, v, w, U, V, W)
     @test op isa AbstractOperation
     YSP = Field(op)
     @test all(interior(compute!(YSP)) .≈ 0)
@@ -64,12 +64,12 @@ function test_vel_only_diagnostics(model)
     V = Field(Average(v, dims=(1, 2)))
     W = Field(Average(w, dims=(1, 2)))
 
-    op = ZShearProduction(model, u, v, w, U, V, W)
+    op = ZShearProductionRate(model, u, v, w, U, V, W)
     @test op isa AbstractOperation
     ZSP = Field(op)
     @test all(interior(compute!(ZSP)) .≈ 0)
 
-    op = ZShearProduction(model; U=U, V=V, W=W)
+    op = ZShearProductionRate(model; U=U, V=V, W=W)
     @test op isa AbstractOperation
     ZSP = Field(op)
     @test all(interior(compute!(ZSP)) .≈ 0)

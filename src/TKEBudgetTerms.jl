@@ -5,7 +5,7 @@ export TurbulentKineticEnergy, KineticEnergy
 export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
 export AnisotropicPseudoViscousDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
-export XShearProduction, YShearProduction, ZShearProduction
+export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 
 using Oceananigans
 using Oceananigans.Operators
@@ -208,8 +208,8 @@ end
 Calculate the shear production rate in the `model`'s `x` direction, considering velocities
 `u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
 """
-function XShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
-    validate_location(location, "XShearProduction")
+function XShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
+    validate_location(location, "XShearProductionRate")
     return KernelFunctionOperation{Center, Center, Center}(shear_production_x_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
@@ -220,9 +220,9 @@ end
 Calculate the shear production rate in the `model`'s `x` direction. At least one of the mean 
 velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
 """
-function XShearProduction(model; U=0, V=0, W=0, kwargs...)
+function XShearProductionRate(model; U=0, V=0, W=0, kwargs...)
     u, v, w = model.velocities
-    return XShearProduction(model, u-U, v-V, w-W, U, V, W; kwargs...)
+    return XShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
 end
 
 
@@ -250,8 +250,8 @@ end
 Calculate the shear production rate in the `model`'s `y` direction, considering velocities
 `u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
 """
-function YShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
-    validate_location(location, "YShearProduction")
+function YShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
+    validate_location(location, "YShearProductionRate")
     return KernelFunctionOperation{Center, Center, Center}(shear_production_y_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
@@ -262,9 +262,9 @@ end
 Calculate the shear production rate in the `model`'s `y` direction. At least one of the mean 
 velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
 """
-function YShearProduction(model; U=0, V=0, W=0, kwargs...)
+function YShearProductionRate(model; U=0, V=0, W=0, kwargs...)
     u, v, w = model.velocities
-    return YShearProduction(model, u-U, v-V, w-W, U, V, W; kwargs...)
+    return YShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
 end
 
 
@@ -292,8 +292,8 @@ end
 Calculate the shear production rate in the `model`'s `z` direction, considering velocities
 `u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
 """
-function ZShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
-    validate_location(location, "ZShearProduction")
+function ZShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
+    validate_location(location, "ZShearProductionRate")
     return KernelFunctionOperation{Center, Center, Center}(shear_production_z_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
@@ -304,9 +304,9 @@ end
 Calculate the shear production rate in the `model`'s `z` direction. At least one of the mean 
 velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
 """
-function ZShearProduction(model; U=0, V=0, W=0, kwargs...)
+function ZShearProductionRate(model; U=0, V=0, W=0, kwargs...)
     u, v, w = model.velocities
-    return ZShearProduction(model, u-U, v-V, w-W, U, V, W; kwargs...)
+    return ZShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
 end
 #----
 

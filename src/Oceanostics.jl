@@ -6,7 +6,7 @@ export TurbulentKineticEnergy, KineticEnergy
 export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
 export AnisotropicPseudoViscousDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
-export XShearProduction, YShearProduction, ZShearProduction
+export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 #----
 
 #++++ FlowDiagnostics exports
