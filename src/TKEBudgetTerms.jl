@@ -184,7 +184,7 @@ end
 
 
 #++++ Shear production terms
-@inline function shear_production_x_ccc(i, j, k, grid, u, v, w, U, V, W)
+@inline function shear_production_rate_x_ccc(i, j, k, grid, u, v, w, U, V, W)
     u_int = ℑxᶜᵃᵃ(i, j, k, grid, u) # F, C, C  → C, C, C
 
     ∂xU = ∂xᶜᶜᶜ(i, j, k, grid, U) # F, C, C  → C, C, C
@@ -210,7 +210,7 @@ Calculate the shear production rate in the `model`'s `x` direction, considering 
 """
 function XShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
     validate_location(location, "XShearProductionRate")
-    return KernelFunctionOperation{Center, Center, Center}(shear_production_x_ccc, model.grid;
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_x_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
 
@@ -226,7 +226,7 @@ function XShearProductionRate(model; U=0, V=0, W=0, kwargs...)
 end
 
 
-@inline function shear_production_y_ccc(i, j, k, grid, u, v, w, U, V, W)
+@inline function shear_production_rate_y_ccc(i, j, k, grid, u, v, w, U, V, W)
     v_int = ℑyᵃᶜᵃ(i, j, k, grid, v) # C, F, C  → C, C, C
 
     ∂yU = ℑxyᶜᶜᵃ(i, j, k, grid, ∂yᶠᶠᶜ, U) # F, C, C  → F, F, C  → C, C, C
@@ -252,7 +252,7 @@ Calculate the shear production rate in the `model`'s `y` direction, considering 
 """
 function YShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
     validate_location(location, "YShearProductionRate")
-    return KernelFunctionOperation{Center, Center, Center}(shear_production_y_ccc, model.grid;
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_y_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
 
@@ -268,7 +268,7 @@ function YShearProductionRate(model; U=0, V=0, W=0, kwargs...)
 end
 
 
-@inline function shear_production_z_ccc(i, j, k, grid, u, v, w, U, V, W)
+@inline function shear_production_rate_z_ccc(i, j, k, grid, u, v, w, U, V, W)
     w_int = ℑzᵃᵃᶜ(i, j, k, grid, w) # C, C, F  → C, C, C
 
     ∂zU = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᶠᶜᶠ, U) # F, C, C  → F, C, F  → C, C, C
@@ -294,7 +294,7 @@ Calculate the shear production rate in the `model`'s `z` direction, considering 
 """
 function ZShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
     validate_location(location, "ZShearProductionRate")
-    return KernelFunctionOperation{Center, Center, Center}(shear_production_z_ccc, model.grid;
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_z_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
 
