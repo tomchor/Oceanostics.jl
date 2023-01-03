@@ -20,57 +20,86 @@ end
 
 function test_vel_only_diagnostics(model)
     u, v, w = model.velocities
+    U = Field(Average(u, dims=(2, 3)))
+    V = Field(Average(v, dims=(2, 3)))
+    W = Field(Average(w, dims=(2, 3)))
+
+    @test begin
+        tke_op = KineticEnergy(model)
+        tke_op isa AbstractOperation
+        ke_c = Field(tke_op)
+        compute!(ke_c)
+    end
+
+    @test begin
+        op = TurbulentKineticEnergy(model, U=U, V=V, W=W)
+        op isa AbstractOperation
+        tke_c = Field(op)
+        compute!(tke_c)
+    end
+
+    @test begin
+        op = XShearProduction(model, u, v, w, U, V, W)
+        op isa AbstractOperation
+        XSP = Field(op)
+        compute!(XSP)
+    end
+
+    @test begin
+        op = XShearProduction(model; U=U, V=V, W=W)
+        op isa AbstractOperation
+        XSP = Field(op)
+        compute!(XSP)
+    end
+
+    U = Field(Average(u, dims=(1, 3)))
+    V = Field(Average(v, dims=(1, 3)))
+    W = Field(Average(w, dims=(1, 3)))
+
+    @test begin
+        op = YShearProduction(model; U=U, V=V, W=W)
+        op isa AbstractOperation
+        YSP = Field(op)
+        compute!(YSP)
+    end
+
+    @test begin
+        op = YShearProduction(model, u, v, w, U, V, W)
+        op isa AbstractOperation
+        YSP = Field(op)
+        compute!(YSP)
+    end
+
     U = Field(Average(u, dims=(1, 2)))
     V = Field(Average(v, dims=(1, 2)))
     W = Field(Average(w, dims=(1, 2)))
 
     @test begin
-        tke_op = KineticEnergy(model)
-        ke_c = Field(tke_op)
-        compute!(ke_c)
-        tke_op isa AbstractOperation
-    end
-
-    @test begin
-        op = TurbulentKineticEnergy(model, U=U, V=V, W=W)
-        tke_c = Field(op)
-        compute!(tke_c)
-        op isa AbstractOperation
-    end
-
-    @test begin
-        op = XShearProduction(model, u, v, w, U, V, W)
-        XSP = Field(op)
-        compute!(XSP)
-        op isa AbstractOperation
-    end
-
-    @test begin
-        op = YShearProduction(model, u, v, w, U, V, W)
-        YSP = Field(op)
-        compute!(YSP)
-        op isa AbstractOperation
-    end
-
-    @test begin
         op = ZShearProduction(model, u, v, w, U, V, W)
+        op isa AbstractOperation
         ZSP = Field(op)
         compute!(ZSP)
+    end
+
+    @test begin
+        op = ZShearProduction(model; U=U, V=V, W=W)
         op isa AbstractOperation
+        ZSP = Field(op)
+        compute!(ZSP)
     end
 
     @test begin
         op = RossbyNumber(model;)
+        op isa AbstractOperation
         Ro = Field(op)
         compute!(Ro)
-        op isa AbstractOperation
     end
 
     @test begin
         op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1)
+        op isa AbstractOperation
         Ro = Field(op)
         compute!(Ro)
-        op isa AbstractOperation
     end
 
     return nothing
