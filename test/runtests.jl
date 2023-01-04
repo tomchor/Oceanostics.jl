@@ -118,15 +118,15 @@ function test_buoyancy_diagnostics(model)
 end
 
 function test_pressure_terms(model)
-    ∂x_up = XPressureRedistribution(model)
+    ∂x_up = XPressureRedistribution(model, model.velocities.u, sum(model.pressures))
     @test ∂x_up isa AbstractOperation
     @test compute!(Field(∂x_up)) isa Field
 
-    ∂y_vp = XPressureRedistribution(model)
+    ∂y_vp = YPressureRedistribution(model, model.velocities.v, sum(model.pressures))
     @test ∂y_vp isa AbstractOperation
     @test compute!(Field(∂y_vp)) isa Field
 
-    ∂z_wp = XPressureRedistribution(model)
+    ∂z_wp = ZPressureRedistribution(model, model.velocities.w, sum(model.pressures))
     @test ∂z_wp isa AbstractOperation
     @test compute!(Field(∂z_wp)) isa Field
 

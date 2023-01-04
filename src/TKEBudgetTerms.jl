@@ -163,22 +163,34 @@ function IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0,
 end
 
 #++++ Pressure redistribution terms
-function XPressureRedistribution(model)
-    u, v, w = model.velocities
-    p = sum(model.pressures)
-    return ∂x(u*p) # p is the total kinematic pressure (there's no need for ρ₀)
+"""
+    $(SIGNATURES)
+
+Calculate the pressure redistribution term in the `x` direction. Here `u′` and `p′`
+are the fluctuations around a mean.
+"""
+function XPressureRedistribution(model, u′, p′)
+    return ∂x(u′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
 end
 
-function YPressureRedistribution(model)
-    u, v, w = model.velocities
-    p = sum(model.pressures)
-    return ∂y(v*p) # p is the total kinematic pressure (there's no need for ρ₀)
+"""
+    $(SIGNATURES)
+
+Calculate the pressure redistribution term in the `y` direction. Here `v′` and `p′`
+are the fluctuations around a mean.
+"""
+function YPressureRedistribution(model, v′, p′)
+    return ∂y(v′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
 end
 
-function ZPressureRedistribution(model)
-    u, v, w = model.velocities
-    p = sum(model.pressures)
-    return ∂z(w*p) # p is the total kinematic pressure (there's no need for ρ₀)
+"""
+    $(SIGNATURES)
+
+Calculate the pressure redistribution term in the `z` direction. Here `w′` and `p′`
+are the fluctuations around a mean.
+"""
+function ZPressureRedistribution(model, w′, p′)
+    return ∂z(w′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
 end
 #----
 
