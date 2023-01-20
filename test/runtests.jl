@@ -20,58 +20,70 @@ end
 
 function test_vel_only_diagnostics(model)
     u, v, w = model.velocities
+    U = Field(Average(u, dims=(2, 3)))
+    V = Field(Average(v, dims=(2, 3)))
+    W = Field(Average(w, dims=(2, 3)))
+
+    ke_op = KineticEnergy(model)
+    @test ke_op isa AbstractOperation
+    ke_c = Field(ke_op)
+    @test all(interior(compute!(ke_c)) .≈ 0)
+
+    op = TurbulentKineticEnergy(model, U=U, V=V, W=W)
+    @test op isa AbstractOperation
+    tke_c = Field(op)
+    @test all(interior(compute!(tke_c)) .≈ 0)
+
+    op = XShearProductionRate(model, u, v, w, U, V, W)
+    @test op isa AbstractOperation
+    XSP = Field(op)
+    @test all(interior(compute!(XSP)) .≈ 0)
+
+    op = XShearProductionRate(model; U=U, V=V, W=W)
+    @test op isa AbstractOperation
+    XSP = Field(op)
+    @test all(interior(compute!(XSP)) .≈ 0)
+
+
+    U = Field(Average(u, dims=(1, 3)))
+    V = Field(Average(v, dims=(1, 3)))
+    W = Field(Average(w, dims=(1, 3)))
+
+    op = YShearProductionRate(model; U=U, V=V, W=W)
+    @test op isa AbstractOperation
+    YSP = Field(op)
+    @test all(interior(compute!(YSP)) .≈ 0)
+
+    op = YShearProductionRate(model, u, v, w, U, V, W)
+    @test op isa AbstractOperation
+    YSP = Field(op)
+    @test all(interior(compute!(YSP)) .≈ 0)
+
+
     U = Field(Average(u, dims=(1, 2)))
     V = Field(Average(v, dims=(1, 2)))
     W = Field(Average(w, dims=(1, 2)))
 
-    @test begin
-        tke_op = KineticEnergy(model)
-        ke_c = Field(tke_op)
-        compute!(ke_c)
-        tke_op isa AbstractOperation
-    end
+    op = ZShearProductionRate(model, u, v, w, U, V, W)
+    @test op isa AbstractOperation
+    ZSP = Field(op)
+    @test all(interior(compute!(ZSP)) .≈ 0)
 
-    @test begin
-        op = TurbulentKineticEnergy(model, U=U, V=V, W=W)
-        tke_c = Field(op)
-        compute!(tke_c)
-        op isa AbstractOperation
-    end
+    op = ZShearProductionRate(model; U=U, V=V, W=W)
+    @test op isa AbstractOperation
+    ZSP = Field(op)
+    @test all(interior(compute!(ZSP)) .≈ 0)
 
-    @test begin
-        op = XShearProduction(model, u, v, w, U, V, W)
-        XSP = Field(op)
-        compute!(XSP)
-        op isa AbstractOperation
-    end
 
-    @test begin
-        op = YShearProduction(model, u, v, w, U, V, W)
-        YSP = Field(op)
-        compute!(YSP)
-        op isa AbstractOperation
-    end
+    op = RossbyNumber(model;)
+    @test op isa AbstractOperation
+    Ro = Field(op)
+    @test all(interior(compute!(Ro)) .≈ 0)
 
-    @test begin
-        op = ZShearProduction(model, u, v, w, U, V, W)
-        ZSP = Field(op)
-        compute!(ZSP)
-        op isa AbstractOperation
-    end
-
-    @test begin
-        op = RossbyNumber(model;)
-        Ro = Field(op)
-        compute!(Ro)
-        op isa AbstractOperation
-    end
-
-    @test begin
-        op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1)
-        Ro = Field(op)
-        compute!(Ro)
-        op isa AbstractOperation
-    end
+    op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1)
+    @test op isa AbstractOperation
+    Ro = Field(op)
+    @test all(interior(compute!(Ro)) .≈ 0)
 
     return nothing
 end
@@ -106,15 +118,15 @@ function test_buoyancy_diagnostics(model)
 end
 
 function test_pressure_terms(model)
-    ∂x_up = XPressureRedistribution(model)
+    ∂x_up = XPressureRedistribution(model, model.velocities.u, sum(model.pressures))
     @test ∂x_up isa AbstractOperation
     @test compute!(Field(∂x_up)) isa Field
 
-    ∂y_vp = XPressureRedistribution(model)
+    ∂y_vp = YPressureRedistribution(model, model.velocities.v, sum(model.pressures))
     @test ∂y_vp isa AbstractOperation
     @test compute!(Field(∂y_vp)) isa Field
 
-    ∂z_wp = XPressureRedistribution(model)
+    ∂z_wp = ZPressureRedistribution(model, model.velocities.w, sum(model.pressures))
     @test ∂z_wp isa AbstractOperation
     @test compute!(Field(∂z_wp)) isa Field
 
