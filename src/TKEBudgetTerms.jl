@@ -5,7 +5,7 @@ export TurbulentKineticEnergy, KineticEnergy
 export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
 export AnisotropicPseudoViscousDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
-export XShearProduction, YShearProduction, ZShearProduction
+export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 
 using Oceananigans
 using Oceananigans.Operators
@@ -163,28 +163,40 @@ function IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0,
 end
 
 #++++ Pressure redistribution terms
-function XPressureRedistribution(model)
-    u, v, w = model.velocities
-    p = sum(model.pressures)
-    return ∂x(u*p) # p is the total kinematic pressure (there's no need for ρ₀)
+"""
+    $(SIGNATURES)
+
+Calculate the pressure redistribution term in the `x` direction. Here `u′` and `p′`
+are the fluctuations around a mean.
+"""
+function XPressureRedistribution(model, u′, p′)
+    return ∂x(u′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
 end
 
-function YPressureRedistribution(model)
-    u, v, w = model.velocities
-    p = sum(model.pressures)
-    return ∂y(v*p) # p is the total kinematic pressure (there's no need for ρ₀)
+"""
+    $(SIGNATURES)
+
+Calculate the pressure redistribution term in the `y` direction. Here `v′` and `p′`
+are the fluctuations around a mean.
+"""
+function YPressureRedistribution(model, v′, p′)
+    return ∂y(v′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
 end
 
-function ZPressureRedistribution(model)
-    u, v, w = model.velocities
-    p = sum(model.pressures)
-    return ∂z(w*p) # p is the total kinematic pressure (there's no need for ρ₀)
+"""
+    $(SIGNATURES)
+
+Calculate the pressure redistribution term in the `z` direction. Here `w′` and `p′`
+are the fluctuations around a mean.
+"""
+function ZPressureRedistribution(model, w′, p′)
+    return ∂z(w′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
 end
 #----
 
 
 #++++ Shear production terms
-@inline function shear_production_x_ccc(i, j, k, grid, u, v, w, U, V, W)
+@inline function shear_production_rate_x_ccc(i, j, k, grid, u, v, w, U, V, W)
     u_int = ℑxᶜᵃᵃ(i, j, k, grid, u) # F, C, C  → C, C, C
 
     ∂xU = ∂xᶜᶜᶜ(i, j, k, grid, U) # F, C, C  → C, C, C
@@ -208,13 +220,25 @@ end
 Calculate the shear production rate in the `model`'s `x` direction, considering velocities
 `u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
 """
-function XShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
-    validate_location(location, "XShearProduction")
-    return KernelFunctionOperation{Center, Center, Center}(shear_production_x_ccc, model.grid;
+function XShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
+    validate_location(location, "XShearProductionRate")
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_x_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
 
-@inline function shear_production_y_ccc(i, j, k, grid, u, v, w, U, V, W)
+"""
+    $(SIGNATURES)
+
+Calculate the shear production rate in the `model`'s `x` direction. At least one of the mean 
+velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
+"""
+function XShearProductionRate(model; U=0, V=0, W=0, kwargs...)
+    u, v, w = model.velocities
+    return XShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
+end
+
+
+@inline function shear_production_rate_y_ccc(i, j, k, grid, u, v, w, U, V, W)
     v_int = ℑyᵃᶜᵃ(i, j, k, grid, v) # C, F, C  → C, C, C
 
     ∂yU = ℑxyᶜᶜᵃ(i, j, k, grid, ∂yᶠᶠᶜ, U) # F, C, C  → F, F, C  → C, C, C
@@ -238,13 +262,25 @@ end
 Calculate the shear production rate in the `model`'s `y` direction, considering velocities
 `u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
 """
-function YShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
-    validate_location(location, "YShearProduction")
-    return KernelFunctionOperation{Center, Center, Center}(shear_production_y_ccc, model.grid;
+function YShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
+    validate_location(location, "YShearProductionRate")
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_y_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
 
-@inline function shear_production_z_ccc(i, j, k, grid, u, v, w, U, V, W)
+"""
+    $(SIGNATURES)
+
+Calculate the shear production rate in the `model`'s `y` direction. At least one of the mean 
+velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
+"""
+function YShearProductionRate(model; U=0, V=0, W=0, kwargs...)
+    u, v, w = model.velocities
+    return YShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
+end
+
+
+@inline function shear_production_rate_z_ccc(i, j, k, grid, u, v, w, U, V, W)
     w_int = ℑzᵃᵃᶜ(i, j, k, grid, w) # C, C, F  → C, C, C
 
     ∂zU = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᶠᶜᶠ, U) # F, C, C  → F, C, F  → C, C, C
@@ -268,14 +304,22 @@ end
 Calculate the shear production rate in the `model`'s `z` direction, considering velocities
 `u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
 """
-function ZShearProduction(model, u, v, w, U, V, W; location = (Center, Center, Center))
-    validate_location(location, "ZShearProduction")
-    return KernelFunctionOperation{Center, Center, Center}(shear_production_z_ccc, model.grid;
+function ZShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
+    validate_location(location, "ZShearProductionRate")
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_z_ccc, model.grid;
                                                            computed_dependencies=(u, v, w, U, V, W))
 end
 
-ZShearProduction(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...) =
-    ZShearProduction(model, model.velocities..., U, V, W; kwargs...)
+"""
+    $(SIGNATURES)
+
+Calculate the shear production rate in the `model`'s `z` direction. At least one of the mean 
+velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
+"""
+function ZShearProductionRate(model; U=0, V=0, W=0, kwargs...)
+    u, v, w = model.velocities
+    return ZShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
+end
 #----
 
 end # module
