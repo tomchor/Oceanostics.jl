@@ -151,9 +151,6 @@ function test_ke_dissipation_rate_terms(model)
 end
 
 function test_tracer_diagnostics(model)
-    u, v, w = model.velocities
-    b = model.tracers.b
-
     χ_iso = IsotropicTracerVarianceDissipationRate(model, :b)
     χ_iso_field = compute!(Field(χ_iso))
     @test χ_iso isa AbstractOperation

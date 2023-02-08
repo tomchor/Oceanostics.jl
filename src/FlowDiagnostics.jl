@@ -7,8 +7,6 @@ export IsotropicTracerVarianceDissipationRate
 
 using ..TKEBudgetTerms: validate_location
 
-using Oceanostics: _calc_κᶜᶜᶜ
-
 using Oceananigans
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
@@ -353,12 +351,32 @@ end
 #----
 
 #+++++ Tracer variance dissipation
-@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, velocities, p)
+using Oceanostics: _calc_nonlinear_κᶜᶜᶜ
+import Oceananigans.TurbulenceClosures: calc_nonlinear_κᶜᶜᶜ
+using Oceananigans.TurbulenceClosures: calc_nonlinear_νᶜᶜᶜ
+
+@inline calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure::AnisotropicMinimumDissipation, c, id, velocities, tracers, buoyancy) = 
+        calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure, c, id, velocities)
+
+#@inline function _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure::SmagorinskyLilly, buoyancy, velocities, tracers, ::Val{tracer_index}) where {tracer_index}
+@inline function calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure::SmagorinskyLilly, c, ::Val{tracer_index}, velocities, tracers, buoyancy) where {tracer_index}
+    νₑ = calc_nonlinear_νᶜᶜᶜ(i, j, k, grid, closure, buoyancy, velocities, tracers)
+    @inbounds Pr = closure.Pr[tracer_index]
+    return νₑ / Pr
+end
+
+#@inline function _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure::ScalarDiffusivity, buoyancy, velocities, tracers, ::Val{tracer_index}) where {tracer_index}
+@inline function calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure::ScalarDiffusivity, c, ::Val{tracer_index}, args...) where {tracer_index}
+    return closure.κ[tracer_index]
+end
+
+
+@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, velocities, tracers, p)
     dcdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, c) # C, C, C  → F, C, C  → C, C, C
     dcdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, c) # C, C, C  → C, F, C  → C, C, C
     dcdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, c) # C, C, C  → C, C, F  → C, C, C
 
-    κ = _calc_κᶜᶜᶜ(i, j, k, grid, p.closure, c, p.id, velocities)
+    κ = _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, p.closure, c, p.id, velocities, tracers, p.buoyancy)
 
     return 2κ * (dcdx² + dcdy² + dcdz²)
 end
@@ -376,11 +394,12 @@ where c is the tracer concentration, κ is the tracer diffusivity and ∇ is the
 function IsotropicTracerVarianceDissipationRate(model, tracer_name; location = (Center, Center, Center))
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
 
-    parameters = (closure = model.closure,
+    parameters = (; model.closure,
+                  model.buoyancy,
                   id = Val(tracer_index))
 
     return KernelFunctionOperation{Center, Center, Center}(isotropic_tracer_variance_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies=(model.tracers[tracer_name], model.velocities),
+                                                           computed_dependencies=(model.tracers[tracer_name], model.velocities, model.tracers),
                                                            parameters=parameters)
 end
 #-----
