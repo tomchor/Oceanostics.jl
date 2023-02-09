@@ -3,7 +3,6 @@ using DocStringExtensions
 
 export TurbulentKineticEnergy, KineticEnergy
 export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
-export AnisotropicPseudoViscousDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 
@@ -13,15 +12,8 @@ using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
-using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, AbstractScalarDiffusivity, ThreeDimensionalFormulation
 
 using Oceanostics: _νᶜᶜᶜ
-
-# Right now, all kernels must be located at ccc
-validate_location(location, type, valid_location=(Center, Center, Center)) =
-    location != valid_location &&
-        error("$type only supports location = $valid_location for now.")
-
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -75,15 +67,7 @@ Calculate the kinetic energy of `model`.
 KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwargs...)
 #------
 
-#####
-##### Dissipation rates
-#####
-
-validate_dissipative_closure(closure) = error("Cannot calculate dissipation rate for $closure")
-validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}) = nothing
-validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_closure(c) for c in closure_tuple)
-
-#++++ Energy dissipation rate for a fluid with isotropic viscosity
+#+++ Energy dissipation rate for a fluid with isotropic viscosity
 @inline function isotropic_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
 
     Σˣˣ² = ∂xᶜᶜᶜ(i, j, k, grid, u)^2
@@ -125,7 +109,6 @@ function IsotropicViscousDissipationRate(model; U=0, V=0, W=0,
                                                            computed_dependencies=(u - U, v - V, w - W),
                                                            parameters)
 end
-#------
 
 @inline function isotropic_pseudo_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
     ddx² = ∂xᶜᶜᶜ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᶠᶜ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᶜᶠ, w)
@@ -161,6 +144,7 @@ function IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0,
                                                            computed_dependencies=(u - U, v - V, w - W),
                                                            parameters)
 end
+#---
 
 #++++ Pressure redistribution terms
 """
@@ -193,7 +177,6 @@ function ZPressureRedistribution(model, w′, p′)
     return ∂z(w′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
 end
 #----
-
 
 #++++ Shear production terms
 @inline function shear_production_rate_x_ccc(i, j, k, grid, u, v, w, U, V, W)
