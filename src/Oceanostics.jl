@@ -18,6 +18,8 @@ export IsotropicTracerVarianceDissipationRate
 #+++ Utils for validation
 # Right now, all kernels must be located at ccc
 using Oceananigans.TurbulenceClosures: AbstractScalarDiffusivity, ThreeDimensionalFormulation
+using Oceananigans.Grids: Center, Face
+
 validate_location(location, type, valid_location=(Center, Center, Center)) =
     location != valid_location &&
         error("$type only supports location = $valid_location for now.")
