@@ -14,6 +14,7 @@ using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
 
 using Oceanostics: _νᶜᶜᶜ
+using Oceanostics: validate_location, validate_dissipative_closure
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
