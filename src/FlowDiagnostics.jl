@@ -392,6 +392,17 @@ for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is
 where c is the tracer concentration, κ is the tracer diffusivity and ∇ is the gradient operator.
 
 Here `tracer_name` is needed even when passing `tracer` in order to get the appropriate Prandtl number.
+When passing `tracer`, this function should be used as
+
+```julia
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
+model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly())
+
+b̄ = Field(Average(model.tracers.b, dims=(1,2)))
+b′ = model.tracers.b - b̄
+
+χb = IsotropicTracerVarianceDissipationRate(model, :b, tracer=b′)
+```
 """
 function IsotropicTracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))
     validate_dissipative_closure(model.closure)
