@@ -156,6 +156,13 @@ function test_tracer_diagnostics(model)
     @test χ_iso isa AbstractOperation
     @test χ_iso_field isa Field
 
+    b̄ = Field(Average(model.tracers.b, dims=(1,2)))
+    b′ = model.tracers.b - b̄
+    χ_iso = IsotropicTracerVarianceDissipationRate(model, :b, tracer=b′)
+    χ_iso_field = compute!(Field(χ_iso))
+    @test χ_iso isa AbstractOperation
+    @test χ_iso_field isa Field
+
     return nothing
 end
 

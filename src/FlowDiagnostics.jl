@@ -5,7 +5,7 @@ export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
 export IsotropicTracerVarianceDissipationRate
 
-using ..TKEBudgetTerms: validate_location
+using Oceanostics: validate_location, validate_dissipative_closure
 
 using Oceananigans
 using Oceananigans.Operators
@@ -166,7 +166,7 @@ function RossbyNumber(model; location = (Face, Face, Face),
 end
 #---
 
-#++++ Potential vorticity
+#+++ Potential vorticity
 @inline function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, p)
 
     dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # F, F, C → F, F, F
@@ -348,9 +348,9 @@ function DirectionalErtelPotentialVorticity(model, direction; location = (Face, 
     return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid;
                                                      computed_dependencies=(u, v, w, b), parameters=(; f_dir, dir_x, dir_y, dir_z))
 end
-#----
+#---
 
-#+++++ Tracer variance dissipation
+#+++ Tracer variance dissipation
 using Oceanostics: _calc_nonlinear_κᶜᶜᶜ
 import Oceananigans.TurbulenceClosures: calc_nonlinear_κᶜᶜᶜ
 using Oceananigans.TurbulenceClosures: calc_nonlinear_νᶜᶜᶜ
@@ -390,18 +390,34 @@ for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is
     2κ (∇c ⋅ ∇c)
 
 where c is the tracer concentration, κ is the tracer diffusivity and ∇ is the gradient operator.
+
+Here `tracer_name` is needed even when passing `tracer` in order to get the appropriate Prandtl number.
+When passing `tracer`, this function should be used as
+
+```julia
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
+model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly())
+
+b̄ = Field(Average(model.tracers.b, dims=(1,2)))
+b′ = model.tracers.b - b̄
+
+χb = IsotropicTracerVarianceDissipationRate(model, :b, tracer=b′)
+```
 """
-function IsotropicTracerVarianceDissipationRate(model, tracer_name; location = (Center, Center, Center))
+function IsotropicTracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))
+    validate_dissipative_closure(model.closure)
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
 
     parameters = (; model.closure,
                   model.buoyancy,
                   id = Val(tracer_index))
 
+    tracer = tracer == nothing ? model.tracers[tracer_name] : tracer
+
     return KernelFunctionOperation{Center, Center, Center}(isotropic_tracer_variance_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies=(model.tracers[tracer_name], model.velocities, model.tracers),
+                                                           computed_dependencies=(tracer, model.velocities, model.tracers),
                                                            parameters=parameters)
 end
-#-----
+#---
 
 end # module

@@ -4,7 +4,6 @@ using DocStringExtensions
 #++++ TKEBudgetTerms exports
 export TurbulentKineticEnergy, KineticEnergy
 export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
-export AnisotropicPseudoViscousDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 #----
@@ -12,15 +11,28 @@ export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 #++++ FlowDiagnostics exports
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity
-export IsotropicBuoyancyMixingRate, AnisotropicBuoyancyMixingRate
-export IsotropicTracerVarianceDissipationRate, AnisotropicTracerVarianceDissipationRate
+export IsotropicBuoyancyMixingRate
+export IsotropicTracerVarianceDissipationRate
 #----
 
-using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, calc_nonlinear_κᶜᶜᶜ
+#+++ Utils for validation
+# Right now, all kernels must be located at ccc
+using Oceananigans.TurbulenceClosures: AbstractScalarDiffusivity, ThreeDimensionalFormulation
+using Oceananigans.Grids: Center, Face
+
+validate_location(location, type, valid_location=(Center, Center, Center)) =
+    location != valid_location &&
+        error("$type only supports location = $valid_location for now.")
+
+validate_dissipative_closure(closure) = error("Cannot calculate dissipation rate for $closure")
+validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}) = nothing
+validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_closure(c) for c in closure_tuple)
+#---
 
 #####
 ##### A few utils for closure tuples:
 #####
+using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, calc_nonlinear_κᶜᶜᶜ
 
 # Fallbacks that capture "single closure" case
 @inline _νᶜᶜᶜ(args...) = νᶜᶜᶜ(args...)
