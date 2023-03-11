@@ -351,13 +351,16 @@ end
 
 #+++++ Tracer variance dissipation
 # Variance dissipation at fcc
-@inline χxᶠᶜᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) = - δxᶠᵃᵃ(i, j, k, grid, c) * diffusive_flux_x(i, j, k, grid, closure, diffusivities, id, c, args...) 
+@inline χxᶠᶜᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) =
+    - Axᶠᶜᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, c) * diffusive_flux_x(i, j, k, grid, closure, diffusivities, id, c, args...)
 
 # Variance dissipation at cfc
-@inline χyᶜᶠᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) = - δyᵃᶠᵃ(i, j, k, grid, c) * diffusive_flux_y(i, j, k, grid, closure, diffusivities, id, c, args...)
+@inline χyᶜᶠᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) =
+    - Ayᶜᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, c) * diffusive_flux_y(i, j, k, grid, closure, diffusivities, id, c, args...)
 
 # Variance dissipation at ccf
-@inline χzᶜᶜᶠ(i, j, k, grid, closure, diffusivities, id, c, args...) = - δzᵃᵃᶠ(i, j, k, grid, c) * diffusive_flux_z(i, j, k, grid, closure, diffusivities, id, c, args...)
+@inline χzᶜᶜᶠ(i, j, k, grid, closure, diffusivities, id, c, args...) =
+    - Azᶜᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, c) * diffusive_flux_z(i, j, k, grid, closure, diffusivities, id, c, args...)
 
 @inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, diffusivity_fields, c, fields, p)
 return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, χxᶠᶜᶜ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # F, C, C  → C, C, C
