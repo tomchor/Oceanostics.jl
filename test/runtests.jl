@@ -1,7 +1,10 @@
 using Test
+
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.Fields: compute_at!
+using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
+
 using Oceanostics
 using Oceanostics.TKEBudgetTerms
 using Oceanostics.TKEBudgetTerms: turbulent_kinetic_energy_ccc
@@ -204,12 +207,12 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
         @test_throws ErrorException IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
     end
 
-    closures = [
-        ScalarDiffusivity(ν=1e-6, κ=1e-7),
-        SmagorinskyLilly(),
-        AnisotropicMinimumDissipation(),
-        (ScalarDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly())
-    ]
+    closures = [ScalarDiffusivity(ν=1e-6, κ=1e-7),
+                SmagorinskyLilly(),
+                AnisotropicMinimumDissipation(),
+                (HorizontalScalarDiffusivity(ν=1e-4, κ=1e-4), VerticalScalarDiffusivity(ν=1e-6, κ=1e-6)),
+                (ScalarDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly()),
+                ]
         
     LESs = [false, true, true, true]
     messengers = (SingleLineProgressMessenger, TimedProgressMessenger)
@@ -221,8 +224,10 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
                                     tracers = :b,
                                     closure = closure)
 
-        @info "Testing energy dissipation rate terms with closure" closure
-        test_ke_dissipation_rate_terms(model)
+        if all(isa.(closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
+            @info "Testing energy dissipation rate terms with closure" closure
+            test_ke_dissipation_rate_terms(model)
+        end
 
         @info "Testing tracer variance terms wth closure" closure
         test_tracer_diagnostics(model)
