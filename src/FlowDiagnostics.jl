@@ -12,7 +12,7 @@ using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
-using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
+import Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 
 #+++ Useful operators and functions
 """
@@ -350,6 +350,10 @@ end
 #---
 
 #+++++ Tracer variance dissipation
+diffusive_flux_x(i, j, k, grid, closure_tuple::Tuple, args...) = sum(diffusive_flux_x(i, j, k, grid, closure, args...) for closure in closure_tuple)
+diffusive_flux_y(i, j, k, grid, closure_tuple::Tuple, args...) = sum(diffusive_flux_y(i, j, k, grid, closure, args...) for closure in closure_tuple)
+diffusive_flux_z(i, j, k, grid, closure_tuple::Tuple, args...) = sum(diffusive_flux_z(i, j, k, grid, closure, args...) for closure in closure_tuple)
+
 # Variance dissipation at fcc
 @inline χxᶠᶜᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) =
     - Axᶠᶜᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, c) * diffusive_flux_x(i, j, k, grid, closure, diffusivities, id, c, args...)
@@ -393,7 +397,6 @@ b′ = model.tracers.b - b̄
 ```
 """
 function IsotropicTracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))
-    validate_dissipative_closure(model.closure)
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
 
     parameters = (; model.closure, model.clock, model.buoyancy,
