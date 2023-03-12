@@ -246,4 +246,7 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
         time_now = time_ns()*1e-9
         test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
     end
+
+    include("test_budgets.jl")
+    test_tracer_variance_budget(N=4, κ=2, rtol=0.01)
 end
