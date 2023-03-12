@@ -12,6 +12,9 @@ using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
+import Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz, 
+                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
+                                        viscous_flux_wx  viscous_flux_wy  viscous_flux_wz
 
 using Oceanostics: _νᶜᶜᶜ
 using Oceanostics: validate_location, validate_dissipative_closure
@@ -111,12 +114,24 @@ function IsotropicViscousDissipationRate(model; U=0, V=0, W=0,
                                                            parameters)
 end
 
+# ∂ⱼuᵢ: Fᵢⱼ
+δˣuFuxᶜᶜᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) = - Axᶜᶜᶜ(i, j, k, grid) * δxᶜᶜᶜ(i, j, k, grid, c) * viscous_flux_ux(i, j, k, grid, closure, diffusivities, id, c, args...)
+δʸuFuyᶠᶠᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) = - Ayᶠᶠᶜ(i, j, k, grid) * δyᶠᶠᶜ(i, j, k, grid, c) * viscous_flux_uy(i, j, k, grid, closure, diffusivities, id, c, args...)
+δᶻuFuzᶠᶜᶠ(i, j, k, grid, closure, diffusivities, id, c, args...) = - Azᶠᶜᶠ(i, j, k, grid) * δzᶠᶜᶠ(i, j, k, grid, c) * viscous_flux_uz(i, j, k, grid, closure, diffusivities, id, c, args...)
+
+δˣvFvxᶠᶠᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) = - Axᶠᶠᶜ(i, j, k, grid) * δxᶠᶠᶜ(i, j, k, grid, c) * viscous_flux_vx(i, j, k, grid, closure, diffusivities, id, c, args...)
+δʸvFvyᶜᶜᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) = - Ayᶜᶜᶜ(i, j, k, grid) * δyᶜᶜᶜ(i, j, k, grid, c) * viscous_flux_vy(i, j, k, grid, closure, diffusivities, id, c, args...)
+δᶻvFvzᶜᶠᶠ(i, j, k, grid, closure, diffusivities, id, c, args...) = - Azᶜᶠᶠ(i, j, k, grid) * δzᶜᶠᶠ(i, j, k, grid, c) * viscous_flux_vz(i, j, k, grid, closure, diffusivities, id, c, args...)
+
+δˣwFwxᶠᶜᶠ(i, j, k, grid, closure, diffusivities, id, c, args...) = - Axᶠᶜᶠ(i, j, k, grid) * δxᶠᶜᶠ(i, j, k, grid, c) * viscous_flux_wx(i, j, k, grid, closure, diffusivities, id, c, args...)
+δʸwFwyᶜᶠᶠ(i, j, k, grid, closure, diffusivities, id, c, args...) = - Ayᶜᶠᶠ(i, j, k, grid) * δyᶜᶠᶠ(i, j, k, grid, c) * viscous_flux_wy(i, j, k, grid, closure, diffusivities, id, c, args...)
+δᶻwFwzᶜᶜᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) = - Azᶜᶜᶜ(i, j, k, grid) * δzᶜᶜᶜ(i, j, k, grid, c) * viscous_flux_wz(i, j, k, grid, closure, diffusivities, id, c, args...)
+
 @inline function isotropic_pseudo_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
-    ddx² = ∂xᶜᶜᶜ(i, j, k, grid, ψ², u) + ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂xᶠᶠᶜ, v) + ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂xᶠᶜᶠ, w)
-    ddy² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ², ∂yᶠᶠᶜ, u) + ∂yᶜᶜᶜ(i, j, k, grid, ψ², v) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂yᶜᶠᶠ, w)
-    ddz² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ², ∂zᶠᶜᶠ, u) + ℑyzᵃᶜᶜ(i, j, k, grid, fψ², ∂zᶜᶠᶠ, v) + ∂zᶜᶜᶜ(i, j, k, grid, ψ², w)
-    ν = _νᶜᶜᶜ(i, j, k, grid, p.closure, p.diffusivity_fields, p.clock)
-    return ν * (ddx² + ddy² + ddz²)
+return (δˣuFuxᶜᶜᶜ(i, j, k, grid, closure, diffusivities, id, c, args...) +
+        ℑxyᶜᶜᵃ(i, j, k, grid, δʸuFuyᶠᶠᶜ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
+        ℑxzᶜᵃᶜ(i, j, k, grid, δᶻuFuzᶠᶜᶠ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
+        ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to δ above, ensures a derivative operation
 end
 
 """
