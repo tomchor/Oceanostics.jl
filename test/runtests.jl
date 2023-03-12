@@ -214,7 +214,7 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
                 (ScalarDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly()),
                 ]
         
-    LESs = [false, true, true, true]
+    LESs = [false, true, true, false, true]
     messengers = (SingleLineProgressMessenger, TimedProgressMessenger)
     
     for (LES, closure) in zip(LESs, closures)
@@ -224,7 +224,7 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
                                     tracers = :b,
                                     closure = closure)
 
-        if all(isa.(closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
+        if !(closure isa Tuple) || all(isa.(closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
             @info "Testing energy dissipation rate terms with closure" closure
             test_ke_dissipation_rate_terms(model)
         end
