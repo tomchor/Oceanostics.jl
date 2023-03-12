@@ -132,7 +132,7 @@ function (pm::TimedProgressMessenger)(simulation)
                         u_max, v_max, w_max, adv_cfl)
 
     if pm.LES && !(model.closure isa Tuple)
-        ν_max = maximum(abs, model.diffusivity_fields.νₑ)
+        ν_max = maximum(abs, viscosity(model.closure, model.diffusivity_fields))
         message *= @sprintf(", νCFL: %.2e, ν_max: %.2e m²/s", DiffusiveCFL(simulation.Δt)(model), ν_max)
     end
 
