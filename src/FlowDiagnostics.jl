@@ -349,7 +349,7 @@ function DirectionalErtelPotentialVorticity(model, direction; location = (Face, 
 end
 #---
 
-#+++++ Tracer variance dissipation
+#+++ Tracer variance dissipation
 for diff_flux in (:diffusive_flux_x, :diffusive_flux_y, :diffusive_flux_z)
     @eval   $diff_flux(i, j, k, grid, closure_tuple::Tuple, diffusivity_fields, args...) = 
         sum($diff_flux(i, j, k, grid, closure, diffusivities, args...) for (closure, diffusivities) in zip(closure_tuple, diffusivity_fields))

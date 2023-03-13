@@ -252,6 +252,8 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
         test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
     end
 
+    rtol = 0.01
+    @info "Testing tracer variance budget with a tolerance of $(100*rtol)%"
     include("test_budgets.jl")
-    test_tracer_variance_budget(N=4, κ=2, rtol=0.01)
+    test_tracer_variance_budget(N=4, κ=2, rtol=rtol)
 end
