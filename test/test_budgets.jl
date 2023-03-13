@@ -1,12 +1,12 @@
 using Oceananigans.TurbulenceClosures: HorizontalFormulation, VerticalFormulation
-using NCDatasets
+using Oceananigans.Fields: @compute
 
 function test_tracer_variance_budget(; N=4, κ=2, rtol=0.01)
     closure = ScalarDiffusivity(HorizontalFormulation(), κ=κ)
 
     grid = RectilinearGrid(topology=(Periodic, Periodic, Periodic),
                            size=(N,N,N), extent=(1,1,1))
-    model = NonhydrostaticModel(grid=grid, tracers=:c, closure=closure)
+    model = NonhydrostaticModel(grid=grid, tracers=:c, closure=closure, auxiliary_fields=(; ∫∫χdVdt=0.0))
 
     # A kind of convoluted way to create x-periodic, resolved initial noise
     σx = 4grid.Δxᶜᵃᵃ # x length scale of the noise
@@ -23,27 +23,30 @@ function test_tracer_variance_budget(; N=4, κ=2, rtol=0.01)
     resolved_noise(x, y, z) = sum(@. exp(-(x-xₚ)^2/σx^2 -(y-yₚ)^2/σy^2 -(z-zₚ)^2/σz^2))
     set!(model, c=resolved_noise)
 
-    simulation = Simulation(model; Δt=grid.Δxᶜᵃᵃ^2/κ/20, stop_time=0.05)
+    simulation = Simulation(model; Δt=grid.Δxᶜᵃᵃ^2/κ/20, stop_time=0.1)
 
     c = model.tracers.c
     χ  = Oceanostics.FlowDiagnostics.IsotropicTracerVarianceDissipationRate(model, :c)
-    c² = c^2
 
-    ∫χdV   = Integral(χ)
-    ∫c²dV  = Integral(c²)
+    @compute ∫χdV   = Field(Integral(χ))
+    @compute ∫c²dV  = Field(Integral(c^2))
 
-    simulation.output_writers[:tracer] = NetCDFOutputWriter(model, (; ∫χdV, ∫c²dV),
-                                                            filename = "test_tracer_variance_budget.nc",
-                                                            schedule = IterationInterval(1),
-                                                            overwrite_existing = true)
+    ∫c²dV_t⁰ = parent(∫c²dV)[1,1,1]
+    function accumulate_χ(sim)
+        compute!(∫χdV)
+        increment = sim.Δt * parent(∫χdV)[1,1,1]
+        model.auxiliary_fields = (; ∫∫χdVdt = model.auxiliary_fields.∫∫χdVdt + increment)
+        return nothing
+    end
+    simulation.callbacks[:integrate_χ] = Callback(accumulate_χ)
+
     run!(simulation)
 
-    ds = NCDataset(simulation.output_writers[:tracer].filepath, "r")
-    ∫∫χdVdt_final = ds["∫c²dV"][1] .- (cumsum(ds["∫χdV"]) * simulation.Δt)[end]
-    ∫c²dV_final   = ds["∫c²dV"][end]
-    close(ds)
+    compute!(∫c²dV)
+    ∫c²dV_tᶠ = parent(∫c²dV)[1,1,1]
+    ∫∫χdVdt_tᶠ = ∫c²dV_t⁰- model.auxiliary_fields.∫∫χdVdt
+    abs_error = (abs(∫∫χdVdt_tᶠ - ∫c²dV_tᶠ)/∫c²dV_tᶠ)
 
-    abs_error = (abs(∫∫χdVdt_final - ∫c²dV_final)/∫c²dV_final)
     @info "Error in c² decrease is $abs_error"
     @test ≈(∫∫χdVdt_final, ∫c²dV_final, rtol=rtol)
 
