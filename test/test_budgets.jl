@@ -42,6 +42,9 @@ function test_tracer_variance_budget(; N=4, κ=2, rtol=0.01)
     ∫∫χdVdt_final = ds["∫c²dV"][1] .- (cumsum(ds["∫χdV"]) * simulation.Δt)[end]
     ∫c²dV_final   = ds["∫c²dV"][end]
     close(ds)
+
+    abs_error = (abs(∫∫χdVdt_final - ∫c²dV_final)/∫c²dV_final)
+    @info "Error in c² decrease is $abs_error"
     @test ≈(∫∫χdVdt_final, ∫c²dV_final, rtol=rtol)
 
     return nothing
