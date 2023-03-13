@@ -351,8 +351,8 @@ end
 
 #+++++ Tracer variance dissipation
 for diff_flux in (:diffusive_flux_x, :diffusive_flux_y, :diffusive_flux_z)
-    @eval $diff_flux(i, j, k, grid, closure_tuple::Tuple, diffusivity_fields, args...) = 
-        sum(diffusive_flux_x(i, j, k, grid, closure, diffusivities, args...) for (closure, diffusivities) in zip(closure_tuple, diffusivity_fields))
+    @eval   $diff_flux(i, j, k, grid, closure_tuple::Tuple, diffusivity_fields, args...) = 
+        sum($diff_flux(i, j, k, grid, closure, diffusivities, args...) for (closure, diffusivities) in zip(closure_tuple, diffusivity_fields))
 end
 
 # Variance dissipation at fcc
