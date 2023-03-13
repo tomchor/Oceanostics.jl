@@ -138,7 +138,15 @@ end
 @inline function isotropic_pseudo_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, diffusivity_fields, fields, p)
 return (δˣuFuxᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, C, C
         ℑxyᶜᶜᵃ(i, j, k, grid, δʸuFuyᶠᶠᶜ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
-        ℑxzᶜᵃᶜ(i, j, k, grid, δᶻuFuzᶠᶜᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) # F, C, F  → C, C, C
+        ℑxzᶜᵃᶜ(i, j, k, grid, δᶻuFuzᶠᶜᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
+
+        ℑxyᶜᶜᵃ(i, j, k, grid, δˣvFvxᶠᶠᶜ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
+        δʸvFvyᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, C, C
+        ℑyzᵃᶜᶜ(i, j, k, grid, δᶻvFvzᶜᶠᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
+
+        ℑxzᶜᵃᶜ(i, j, k, grid, δˣwFwxᶠᶜᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
+        ℑyzᵃᶜᶜ(i, j, k, grid, δʸwFwyᶜᶠᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
+        δᶻwFwzᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy)   # C, C, C
         ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to δ above, ensures a derivative operation
 end
 
