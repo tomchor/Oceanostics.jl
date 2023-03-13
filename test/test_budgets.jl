@@ -48,7 +48,7 @@ function test_tracer_variance_budget(; N=4, κ=2, rtol=0.01)
     abs_error = (abs(∫∫χdVdt_tᶠ - ∫c²dV_tᶠ)/∫c²dV_tᶠ)
 
     @info "Error in c² decrease is $abs_error"
-    @test ≈(∫∫χdVdt_final, ∫c²dV_final, rtol=rtol)
+    @test ≈(∫∫χdVdt_tᶠ, ∫c²dV_tᶠ, rtol=rtol)
 
     return nothing
 end
