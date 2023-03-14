@@ -154,14 +154,14 @@ function test_ke_dissipation_rate_terms(model)
 end
 
 function test_tracer_diagnostics(model)
-    χ_iso = IsotropicTracerVarianceDissipationRate(model, :b)
+    χ_iso = TracerVarianceDissipationRate(model, :b)
     χ_iso_field = compute!(Field(χ_iso))
     @test χ_iso isa AbstractOperation
     @test χ_iso_field isa Field
 
     b̄ = Field(Average(model.tracers.b, dims=(1,2)))
     b′ = model.tracers.b - b̄
-    χ_iso = IsotropicTracerVarianceDissipationRate(model, :b, tracer=b′)
+    χ_iso = TracerVarianceDissipationRate(model, :b, tracer=b′)
     χ_iso_field = compute!(Field(χ_iso))
     @test χ_iso isa AbstractOperation
     @test χ_iso_field isa Field

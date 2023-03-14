@@ -3,7 +3,7 @@ using DocStringExtensions
 
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
-export IsotropicTracerVarianceDissipationRate
+export TracerVarianceDissipationRate
 
 using Oceanostics: validate_location, validate_dissipative_closure
 
@@ -367,7 +367,7 @@ end
 @inline χzᶜᶜᶠ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
     - Azᶜᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, c) * diffusive_flux_z(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
 
-@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, diffusivity_fields, c, fields, p)
+@inline function tracer_variance_dissipation_rate_ccc(i, j, k, grid, diffusivity_fields, c, fields, p)
 return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, χxᶠᶜᶜ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # F, C, C  → C, C, C
             ℑyᵃᶜᵃ(i, j, k, grid, χyᶜᶠᶜ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # C, F, C  → C, C, C
             ℑzᵃᵃᶜ(i, j, k, grid, χzᶜᶜᶠ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy)   # C, C, F  → C, C, C
@@ -380,9 +380,14 @@ end
 Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
 for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is defined as 
 
-    2κ (∇c ⋅ ∇c)
+    χ = 2 ∇c ⋅ F⃗
 
-where c is the tracer concentration, κ is the tracer diffusivity and ∇ is the gradient operator.
+where F⃗ is the diffusive flux of c and ∇ is the gradient operator. χ is implemented in its
+conservative formulation based on the equation above. 
+
+    χ = 2κ (∇c ⋅ ∇c)
+
+where c is the tracer concentration, κ is the tracer diffusivity
 
 Here `tracer_name` is needed even when passing `tracer` in order to get the appropriate Prandtl number.
 When passing `tracer`, this function should be used as
@@ -394,10 +399,10 @@ model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly())
 b̄ = Field(Average(model.tracers.b, dims=(1,2)))
 b′ = model.tracers.b - b̄
 
-χb = IsotropicTracerVarianceDissipationRate(model, :b, tracer=b′)
+χb = TracerVarianceDissipationRate(model, :b, tracer=b′)
 ```
 """
-function IsotropicTracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))
+function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
 
     parameters = (; model.closure, model.clock, model.buoyancy,
@@ -405,8 +410,8 @@ function IsotropicTracerVarianceDissipationRate(model, tracer_name; tracer = not
 
     tracer = tracer == nothing ? model.tracers[tracer_name] : tracer
 
-    return KernelFunctionOperation{Center, Center, Center}(isotropic_tracer_variance_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies=(model.diffusivity_fields, model.tracers[tracer_name], fields(model)),
+    return KernelFunctionOperation{Center, Center, Center}(tracer_variance_dissipation_rate_ccc, model.grid;
+                                                           computed_dependencies=(model.diffusivity_fields, tracer, fields(model)),
                                                            parameters=parameters)
 end
 #---

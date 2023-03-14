@@ -26,7 +26,7 @@ function test_tracer_variance_budget(; N=4, κ=2, rtol=0.01)
     simulation = Simulation(model; Δt=grid.Δxᶜᵃᵃ^2/κ/20, stop_time=0.1)
 
     c = model.tracers.c
-    χ  = Oceanostics.FlowDiagnostics.IsotropicTracerVarianceDissipationRate(model, :c)
+    χ  = Oceanostics.FlowDiagnostics.TracerVarianceDissipationRate(model, :c)
 
     @compute ∫χdV   = Field(Integral(χ))
     @compute ∫c²dV  = Field(Integral(c^2))
