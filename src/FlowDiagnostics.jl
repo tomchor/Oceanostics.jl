@@ -382,14 +382,13 @@ for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is
 
     χ = 2 ∇c ⋅ F⃗
 
-where F⃗ is the diffusive flux of c and ∇ is the gradient operator. χ is implemented in its
+where `F⃗` is the diffusive flux of `c` and `∇` is the gradient operator. `χ` is implemented in its
 conservative formulation based on the equation above. 
 
-    χ = 2κ (∇c ⋅ ∇c)
+Note that often χ is written as `χ = 2κ (∇c ⋅ ∇c)`, which is the special case for Fickian diffusion
+(`κ` is the tracer diffusivity).
 
-where c is the tracer concentration, κ is the tracer diffusivity
-
-Here `tracer_name` is needed even when passing `tracer` in order to get the appropriate Prandtl number.
+Here `tracer_name` is needed even when passing `tracer` in order to get the appropriate `tracer_index`.
 When passing `tracer`, this function should be used as
 
 ```julia
