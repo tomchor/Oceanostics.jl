@@ -28,7 +28,7 @@ function test_tracer_variance_budget(; N=16, κ=2, rtol=0.01)
 
     N_gaussians = 20 # How many Gaussians do we want sprinkled throughout the domain?
     Random.seed!(772)
-    xₚ, yₚ, zₚ = periodic_locations(20)
+    xₚ, yₚ, zₚ = periodic_locations(N_gaussians)
 
     resolved_noise(x, y, z) = sum(@. exp(-(x-xₚ)^2/σx^2 -(y-yₚ)^2/σy^2 -(z-zₚ)^2/σz^2))
     set!(model, c=resolved_noise)
