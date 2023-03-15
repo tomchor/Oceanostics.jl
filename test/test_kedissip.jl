@@ -2,6 +2,7 @@ using Oceananigans
 using Oceanostics
 using Oceananigans.TurbulenceClosures: HorizontalFormulation, VerticalFormulation
 using Oceananigans.Fields: @compute
+using Random
 
 function periodic_locations(N_locations, flip_z=true)
     Random.seed!(772)
@@ -20,9 +21,7 @@ closure = ScalarDiffusivity(ν=ν)
 
 grid = RectilinearGrid(topology=(Periodic, Periodic, Periodic), size=(N,N,N), extent=(1,1,1))
 model = NonhydrostaticModel(grid=grid, advection=WENO(order=9), closure=closure,
-                           auxiliary_fields=(; ∫∫εdVdt=0.0))
-                           #auxiliary_fields=(; ∫∫εdVdt=0.0, ∫∫ε2dVdt=0.0))
-                           #auxiliary_fields=(; ∫∫εdVdt=0.0, ∫∫ε2dVdt=0.0, ∫∫ε3dVdt=0.0, ∫εdV_prev=0.0))
+                           auxiliary_fields=(; ∫∫εdVdt=0.0, ∫∫ε2dVdt=0.0, ∫εdV_prev=0.0))
 
 # A kind of convoluted way to create x-periodic, resolved initial noise
 σx = 4grid.Δxᶜᵃᵃ # x length scale of the noise
@@ -74,28 +73,27 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 ∫edV_t⁰ = parent(∫edV)[1,1,1]
 function accumulate_ε(sim)
     compute!(∫εdV)
-    increment = sim.Δt * parent(∫εdV)[1,1,1]
+    increment = sim.Δt * model.auxiliary_fields.∫εdV_prev
     model.auxiliary_fields = (; model.auxiliary_fields..., ∫∫εdVdt = model.auxiliary_fields.∫∫εdVdt + increment)
-    #model.auxiliary_fields = (; ∫∫εdVdt = model.auxiliary_fields.∫∫εdVdt + increment)
 
-#    compute!(∫ε2dV)
-#    increment = sim.Δt * parent(∫ε2dV)[1,1,1]
-#    model.auxiliary_fields = (; model.auxiliary_fields..., ∫∫ε2dVdt = model.auxiliary_fields.∫∫ε2dVdt + increment)
+    compute!(∫ε2dV)
+    increment = sim.Δt * parent(∫ε2dV)[1,1,1]
+    model.auxiliary_fields = (; model.auxiliary_fields..., ∫∫ε2dVdt = model.auxiliary_fields.∫∫ε2dVdt + increment)
     
-#    increment = sim.Δt * parent(∫εdV_prev)[1,1,1]
-#    model.auxiliary_fields = (; ∫∫ε3dVdt = model.auxiliary_fields.∫∫ε3dVdt + increment)
-#    compute!(∫εdV_prev)
+    model.auxiliary_fields = (; model.auxiliary_fields..., ∫εdV_prev = parent(∫εdV)[1,1,1])
     return nothing
 end
 simulation.callbacks[:integrate_ε] = Callback(accumulate_ε)
 
 get_∫∫εdVdt(model) = model.auxiliary_fields.∫∫εdVdt
+get_∫∫ε2dVdt(model) = model.auxiliary_fields.∫∫ε2dVdt
 
 outputs = (; u, v, w, 
            ε, ∫εdV,
            ε2, ∫ε2dV,
            e, ∫edV,
            ∫∫εdVdt = get_∫∫εdVdt,
+           ∫∫ε2dVdt = get_∫∫ε2dVdt,
            )
 
 dt = simulation.Δt
@@ -103,7 +101,7 @@ filename = "ke_dissip"
 simulation.output_writers[:tracer] = NetCDFOutputWriter(model, outputs;
                                                         filename = filename,
                                                         schedule = TimeInterval(dt),
-                                                        dimensions = (; ∫∫εdVdt = ()),
+                                                        dimensions = (; ∫∫εdVdt = (), ∫∫ε2dVdt = ()),
                                                         overwrite_existing = true)
 run!(simulation)
 
@@ -127,11 +125,7 @@ ds = NCDataset(simulation.output_writers[:tracer].filepath, "r")
 ∫∫εdVdt = ds["∫∫εdVdt"]
 ∫∫εdVdt = ∫edV[1] .- ∫∫εdVdt
 
-#∫∫ε2dVdt = ds["∫∫ε2dVdt"]
-#∫∫ε2dVdt = ∫edV[1] .- ∫∫ε2dVdt
-
-∫∫ε2dVdt = cumsum(ds["∫ε2dV"])[1:end-1] * dt
-pushfirst!(∫∫ε2dVdt, 0)
+∫∫ε2dVdt = ds["∫∫ε2dVdt"]
 ∫∫ε2dVdt = ∫edV[1] .- ∫∫ε2dVdt
 
 fig = Figure(resolution = (800, 800))
@@ -139,9 +133,9 @@ fig = Figure(resolution = (800, 800))
 ax1 = Axis(fig[1, 1]; title = "KE")
 ax2 = Axis(fig[2, 1]; title = "KE dissip rate")
 
-lines!(ax1, ∫edV, label="∫edV")
-lines!(ax1, ∫∫εdVdt, label="∫∫εdVdt (conservative form)", linestyle=:dashdot)
-lines!(ax1, ∫∫ε2dVdt, label="∫∫ε2dVdt (non-conservative form)", linestyle=:dot)
+lines!(ax1, ds["time"], ∫edV, label="∫edV")
+lines!(ax1, ds["time"], ∫∫εdVdt, label="∫∫εdVdt (conservative form)", linestyle=:dashdot)
+lines!(ax1, ds["time"], ∫∫ε2dVdt, label="∫∫ε2dVdt (non-conservative form)", linestyle=:dot)
 axislegend(ax1)
 
 lines!(ax2, ds["time"][2:end], ∂ₜ∫edV, label="∂(∫edV)/∂ₜ")
