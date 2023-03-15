@@ -164,7 +164,6 @@ function IsotropicPseudoViscousDissipationRate(model; U=ZeroField(), V=ZeroField
                                                location = (Center, Center, Center))
 
     validate_location(location, "IsotropicPseudoViscousDissipationRate")
-    validate_dissipative_closure(model.closure)
 
     u, v, w = model.velocities
 

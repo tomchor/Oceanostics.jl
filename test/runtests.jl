@@ -224,10 +224,8 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
                                     tracers = :b,
                                     closure = closure)
 
-        if !(closure isa Tuple) || all(isa.(closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
-            @info "Testing energy dissipation rate terms with closure" closure
-            test_ke_dissipation_rate_terms(model)
-        end
+        @info "Testing energy dissipation rate terms with closure" closure
+        test_ke_dissipation_rate_terms(model)
 
         @info "Testing tracer variance terms wth closure" closure
         test_tracer_diagnostics(model)
@@ -252,8 +250,8 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
         test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
     end
 
-    rtol = 0.005
+    rtol = 0.01
     @info "Testing tracer variance budget with a tolerance of $(100*rtol)%"
     include("test_budgets.jl")
-    test_tracer_variance_budget(N=4, κ=2, rtol=rtol)
+    test_tracer_variance_budget(N=32, κ=2, rtol=rtol)
 end
