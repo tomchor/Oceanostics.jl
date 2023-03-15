@@ -17,9 +17,9 @@ end
 function test_tracer_variance_budget(; N=16, κ=2, rtol=0.01)
     closure = ScalarDiffusivity(κ=κ)
 
-    grid = RectilinearGrid(topology=(Periodic, Periodic, Periodic),
-                           size=(N,N,N), extent=(1,1,1))
-    model = NonhydrostaticModel(grid=grid, tracers=:c, closure=closure, auxiliary_fields=(; ∫∫χdVdt=0.0))
+    grid = RectilinearGrid(topology=(Periodic, Periodic, Periodic), size=(N,N,N), extent=(1,1,1))
+    model = NonhydrostaticModel(grid=grid, tracers=:c, closure=closure,
+                                auxiliary_fields=(; ∫∫χdVdt=0.0, ∫χdV_prev=0.0))
 
     # A kind of convoluted way to create x-periodic, resolved initial noise
     σx = 4grid.Δxᶜᵃᵃ # x length scale of the noise
@@ -44,9 +44,11 @@ function test_tracer_variance_budget(; N=16, κ=2, rtol=0.01)
 
     ∫c²dV_t⁰ = parent(∫c²dV)[1,1,1]
     function accumulate_χ(sim)
+        increment = sim.Δt * model.auxiliary_fields.∫χdV_prev
+        model.auxiliary_fields = (; model.auxiliary_fields..., ∫∫χdVdt = model.auxiliary_fields.∫∫χdVdt + increment)
+
         compute!(∫χdV)
-        increment = sim.Δt * parent(∫χdV)[1,1,1]
-        model.auxiliary_fields = (; ∫∫χdVdt = model.auxiliary_fields.∫∫χdVdt + increment)
+        model.auxiliary_fields = (; model.auxiliary_fields..., ∫χdV_prev = parent(∫χdV)[1,1,1])
         return nothing
     end
     simulation.callbacks[:integrate_χ] = Callback(accumulate_χ)
