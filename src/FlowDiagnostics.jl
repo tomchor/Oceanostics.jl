@@ -3,7 +3,7 @@ using DocStringExtensions
 
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
-export IsotropicTracerVarianceDissipationRate
+export TracerVarianceDissipationRate
 
 using Oceanostics: validate_location, validate_dissipative_closure
 
@@ -12,10 +12,9 @@ using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
+import Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 
 #+++ Useful operators and functions
-@inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
-
 """
     $(SIGNATURES)
 
@@ -351,34 +350,28 @@ end
 #---
 
 #+++ Tracer variance dissipation
-using Oceanostics: _calc_nonlinear_κᶜᶜᶜ
-import Oceananigans.TurbulenceClosures: calc_nonlinear_κᶜᶜᶜ
-using Oceananigans.TurbulenceClosures: calc_nonlinear_νᶜᶜᶜ
-
-@inline calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure::AnisotropicMinimumDissipation, c, id, velocities, tracers, buoyancy) = 
-        calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure, c, id, velocities)
-
-#@inline function _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure::SmagorinskyLilly, buoyancy, velocities, tracers, ::Val{tracer_index}) where {tracer_index}
-@inline function calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure::SmagorinskyLilly, c, ::Val{tracer_index}, velocities, tracers, buoyancy) where {tracer_index}
-    νₑ = calc_nonlinear_νᶜᶜᶜ(i, j, k, grid, closure, buoyancy, velocities, tracers)
-    @inbounds Pr = closure.Pr[tracer_index]
-    return νₑ / Pr
+for diff_flux in (:diffusive_flux_x, :diffusive_flux_y, :diffusive_flux_z)
+    @eval   $diff_flux(i, j, k, grid, closure_tuple::Tuple, diffusivity_fields, args...) = 
+        sum($diff_flux(i, j, k, grid, closure, diffusivities, args...) for (closure, diffusivities) in zip(closure_tuple, diffusivity_fields))
 end
 
-#@inline function _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure::ScalarDiffusivity, buoyancy, velocities, tracers, ::Val{tracer_index}) where {tracer_index}
-@inline function calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure::ScalarDiffusivity, c, ::Val{tracer_index}, args...) where {tracer_index}
-    return closure.κ[tracer_index]
-end
+# Variance dissipation at fcc
+@inline χxᶠᶜᶜ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
+    - Axᶠᶜᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, c) * diffusive_flux_x(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
 
+# Variance dissipation at cfc
+@inline χyᶜᶠᶜ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
+    - Ayᶜᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, c) * diffusive_flux_y(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
 
-@inline function isotropic_tracer_variance_dissipation_rate_ccc(i, j, k, grid, c, velocities, tracers, p)
-    dcdx² = ℑxᶜᵃᵃ(i, j, k, grid, fψ², ∂xᶠᶜᶜ, c) # C, C, C  → F, C, C  → C, C, C
-    dcdy² = ℑyᵃᶜᵃ(i, j, k, grid, fψ², ∂yᶜᶠᶜ, c) # C, C, C  → C, F, C  → C, C, C
-    dcdz² = ℑzᵃᵃᶜ(i, j, k, grid, fψ², ∂zᶜᶜᶠ, c) # C, C, C  → C, C, F  → C, C, C
+# Variance dissipation at ccf
+@inline χzᶜᶜᶠ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
+    - Azᶜᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, c) * diffusive_flux_z(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
 
-    κ = _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, p.closure, c, p.id, velocities, tracers, p.buoyancy)
-
-    return 2κ * (dcdx² + dcdy² + dcdz²)
+@inline function tracer_variance_dissipation_rate_ccc(i, j, k, grid, diffusivity_fields, c, fields, p)
+return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, χxᶠᶜᶜ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # F, C, C  → C, C, C
+            ℑyᵃᶜᵃ(i, j, k, grid, χyᶜᶠᶜ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # C, F, C  → C, C, C
+            ℑzᵃᵃᶜ(i, j, k, grid, χzᶜᶜᶠ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy)   # C, C, F  → C, C, C
+            ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to δ above, ensures a derivative operation
 end
 
 """
@@ -387,11 +380,15 @@ end
 Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
 for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is defined as 
 
-    2κ (∇c ⋅ ∇c)
+    χ = 2 ∇c ⋅ F⃗
 
-where c is the tracer concentration, κ is the tracer diffusivity and ∇ is the gradient operator.
+where `F⃗` is the diffusive flux of `c` and `∇` is the gradient operator. `χ` is implemented in its
+conservative formulation based on the equation above. 
 
-Here `tracer_name` is needed even when passing `tracer` in order to get the appropriate Prandtl number.
+Note that often χ is written as `χ = 2κ (∇c ⋅ ∇c)`, which is the special case for Fickian diffusion
+(`κ` is the tracer diffusivity).
+
+Here `tracer_name` is needed even when passing `tracer` in order to get the appropriate `tracer_index`.
 When passing `tracer`, this function should be used as
 
 ```julia
@@ -401,21 +398,19 @@ model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly())
 b̄ = Field(Average(model.tracers.b, dims=(1,2)))
 b′ = model.tracers.b - b̄
 
-χb = IsotropicTracerVarianceDissipationRate(model, :b, tracer=b′)
+χb = TracerVarianceDissipationRate(model, :b, tracer=b′)
 ```
 """
-function IsotropicTracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))
-    validate_dissipative_closure(model.closure)
+function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
 
-    parameters = (; model.closure,
-                  model.buoyancy,
+    parameters = (; model.closure, model.clock, model.buoyancy,
                   id = Val(tracer_index))
 
     tracer = tracer == nothing ? model.tracers[tracer_name] : tracer
 
-    return KernelFunctionOperation{Center, Center, Center}(isotropic_tracer_variance_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies=(tracer, model.velocities, model.tracers),
+    return KernelFunctionOperation{Center, Center, Center}(tracer_variance_dissipation_rate_ccc, model.grid;
+                                                           computed_dependencies=(model.diffusivity_fields, tracer, fields(model)),
                                                            parameters=parameters)
 end
 #---

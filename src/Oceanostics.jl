@@ -12,7 +12,7 @@ export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity
 export IsotropicBuoyancyMixingRate
-export IsotropicTracerVarianceDissipationRate
+export TracerVarianceDissipationRate
 #----
 
 #+++ Utils for validation
