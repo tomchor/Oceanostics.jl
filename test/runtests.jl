@@ -1,7 +1,10 @@
 using Test
+
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.Fields: compute_at!
+using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
+
 using Oceanostics
 using Oceanostics.TKEBudgetTerms
 using Oceanostics.TKEBudgetTerms: turbulent_kinetic_energy_ccc
@@ -151,14 +154,14 @@ function test_ke_dissipation_rate_terms(model)
 end
 
 function test_tracer_diagnostics(model)
-    χ_iso = IsotropicTracerVarianceDissipationRate(model, :b)
+    χ_iso = TracerVarianceDissipationRate(model, :b)
     χ_iso_field = compute!(Field(χ_iso))
     @test χ_iso isa AbstractOperation
     @test χ_iso_field isa Field
 
     b̄ = Field(Average(model.tracers.b, dims=(1,2)))
     b′ = model.tracers.b - b̄
-    χ_iso = IsotropicTracerVarianceDissipationRate(model, :b, tracer=b′)
+    χ_iso = TracerVarianceDissipationRate(model, :b, tracer=b′)
     χ_iso_field = compute!(Field(χ_iso))
     @test χ_iso isa AbstractOperation
     @test χ_iso_field isa Field
@@ -204,14 +207,14 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
         @test_throws ErrorException IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
     end
 
-    closures = [
-        ScalarDiffusivity(ν=1e-6, κ=1e-7),
-        SmagorinskyLilly(),
-        AnisotropicMinimumDissipation(),
-        (ScalarDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly())
-    ]
+    closures = [ScalarDiffusivity(ν=1e-6, κ=1e-7),
+                SmagorinskyLilly(),
+                AnisotropicMinimumDissipation(),
+                (HorizontalScalarDiffusivity(ν=1e-4, κ=1e-4), VerticalScalarDiffusivity(ν=1e-6, κ=1e-6)),
+                (ScalarDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly()),
+                ]
         
-    LESs = [false, true, true, true]
+    LESs = [false, true, true, false, true]
     messengers = (SingleLineProgressMessenger, TimedProgressMessenger)
     
     for (LES, closure) in zip(LESs, closures)
@@ -221,8 +224,10 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
                                     tracers = :b,
                                     closure = closure)
 
-        @info "Testing energy dissipation rate terms with closure" closure
-        test_ke_dissipation_rate_terms(model)
+        if !(closure isa Tuple) || all(isa.(closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
+            @info "Testing energy dissipation rate terms with closure" closure
+            test_ke_dissipation_rate_terms(model)
+        end
 
         @info "Testing tracer variance terms wth closure" closure
         test_tracer_diagnostics(model)
@@ -246,4 +251,9 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
         time_now = time_ns()*1e-9
         test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
     end
+
+    rtol = 0.005
+    @info "Testing tracer variance budget with a tolerance of $(100*rtol)%"
+    include("test_budgets.jl")
+    test_tracer_variance_budget(N=4, κ=2, rtol=rtol)
 end
