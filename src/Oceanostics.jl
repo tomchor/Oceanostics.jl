@@ -42,7 +42,7 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, calc_nonlinear_κᶜᶜᶜ
 @inline _νᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple{}, K::Tuple{}, clock) = zero(eltype(grid))
 @inline _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple{}, args...) = zero(eltype(grid))
 
-# "Inner-outer" form (hopefully) makes the compiler "unroll" the loop over a tuple:
+# "Inner-outer" form makes the compiler "unroll" the loop over a tuple:
 @inline _νᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple, K::Tuple, clock) =
      νᶜᶜᶜ(i, j, k, grid, closure_tuple[1],     K[1],     clock) + 
     _νᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], K[2:end], clock)
