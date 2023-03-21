@@ -361,7 +361,7 @@ for diff_flux in (:diffusive_flux_x, :diffusive_flux_y, :diffusive_flux_z)
         $diff_flux(i, j, k, grid, closure_tuple[2:end], diffusivity_fields[2:end], args...)
 
     # End of the line
-    @eval @inline $diff_flux(i, j, k, grid, closure_tuple::Tuple{}, args...) = zero(eltype(grid))
+    @eval @inline $diff_flux(i, j, k, grid, closure_tuple::Tuple{}, args...) = zero(grid)
 end
 
 # Variance dissipation at fcc
