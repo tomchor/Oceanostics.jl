@@ -351,10 +351,7 @@ end
 
 #+++ Tracer variance dissipation
 for diff_flux in (:diffusive_flux_x, :diffusive_flux_y, :diffusive_flux_z)
-    # Unroll the loop over a tuple. This is necessary because no arrays can be dynamically
-    # allocated inside a GPU Kernel, so something like
-    # `sum(diff_flux(ijk, closure) for closure in closure_tuple)`
-    # doesn't work, since it allocates a dynamically-sized Array.
+    # Unroll the loop over a tuple
     @eval @inline $diff_flux(i, j, k, grid, closure_tuple::Tuple, diffusivity_fields, args...) = 
         $diff_flux(i, j, k, grid, closure_tuple[1], diffusivity_fields[1], args...) + 
         $diff_flux(i, j, k, grid, closure_tuple[2:end], diffusivity_fields[2:end], args...)
