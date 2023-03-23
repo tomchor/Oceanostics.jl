@@ -1,8 +1,7 @@
 using Oceananigans.TurbulenceClosures: HorizontalFormulation, VerticalFormulation
 using Oceananigans.Fields: @compute
 
-function test_tracer_variance_budget(; N=4, κ=2, rtol=0.01)
-    closure = ScalarDiffusivity(HorizontalFormulation(), κ=κ)
+function test_tracer_variance_budget(; N=4, κ=1, rtol=0.01, closure = ScalarDiffusivity(HorizontalFormulation(), κ=κ))
 
     grid = RectilinearGrid(topology=(Periodic, Periodic, Periodic),
                            size=(N,N,N), extent=(1,1,1))
