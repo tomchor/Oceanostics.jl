@@ -11,6 +11,8 @@ using Oceanostics.TKEBudgetTerms: turbulent_kinetic_energy_ccc
 using Oceanostics.FlowDiagnostics
 using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger, make_message
 
+include("test_budgets.jl")
+
 # Default grid for all tests
 grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
 
@@ -254,4 +256,13 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
     @info "Testing tracer variance budget with a tolerance of $(100*rtol)%"
     include("test_budgets.jl")
     test_tracer_variance_budget(N=32, κ=2, rtol=rtol)
+
+    closures = [ScalarDiffusivity(ν=1, κ=1),
+                (HorizontalScalarDiffusivity(κ=2), VerticalScalarDiffusivity(κ=1/2)),
+                (ScalarDiffusivity(ν=1, κ=1), SmagorinskyLilly()),
+                ]
+    for closure in closures
+        @info "Testing tracer variance budget with closure $closure"
+        test_tracer_variance_budget(N=4, κ=2, rtol=0.005, closure=closure)
+    end
 end
