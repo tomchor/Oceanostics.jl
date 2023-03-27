@@ -19,7 +19,7 @@ N = 16
 ν = 1
 closure = ScalarDiffusivity(ν=ν)
 
-grid = RectilinearGrid(topology=(Periodic, Periodic, Bounded), size=(N,N,N), extent=(1,1,1))
+grid = RectilinearGrid(topology=(Periodic, Periodic, Periodic), size=(N,N,N), extent=(1,1,1))
 model = NonhydrostaticModel(grid=grid, advection=WENO(order=5), closure=closure)
 
 # A kind of convoluted way to create periodic, resolved initial noise
