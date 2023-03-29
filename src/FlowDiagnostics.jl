@@ -12,6 +12,8 @@ using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
+using Oceananigans.Fields: ZeroField
+
 import Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 
 #+++ Useful operators and functions
@@ -24,13 +26,13 @@ function add_background_fields(model)
 
     velocities = model.velocities
     # Adds background velocities to their perturbations only if background velocity isn't ZeroField
-    full_velocities = NamedTuple{keys(velocities)}((model.background_fields.velocities[key] isa Oceananigans.Fields.ZeroField) ? 
+    full_velocities = NamedTuple{keys(velocities)}((model.background_fields.velocities[key] isa ZeroField) ? 
                                                    val : 
                                                    val + model.background_fields.velocities[key] 
                                                    for (key,val) in zip(keys(velocities), velocities))
     tracers = model.tracers
     # Adds background tracer fields to their perturbations only if background tracer field isn't ZeroField
-    full_tracers = NamedTuple{keys(tracers)}((model.background_fields.tracers[key] isa Oceananigans.Fields.ZeroField) ? 
+    full_tracers = NamedTuple{keys(tracers)}((model.background_fields.tracers[key] isa ZeroField) ? 
                                                    val : 
                                                    val + model.background_fields.tracers[key] 
                                                    for (key,val) in zip(keys(tracers), tracers))
@@ -242,19 +244,19 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
     b = model.tracers.b
 
     if model isa NonhydrostaticModel
-        if ~(model.background_fields.velocities.u isa Oceananigans.Fields.ZeroField)
+        if ~(model.background_fields.velocities.u isa ZeroField)
             u += model.background_fields.velocities.u
         end
 
-        if ~(model.background_fields.velocities.v isa Oceananigans.Fields.ZeroField)
+        if ~(model.background_fields.velocities.v isa ZeroField)
             v += model.background_fields.velocities.v
         end
 
-        if ~(model.background_fields.velocities.w isa Oceananigans.Fields.ZeroField)
+        if ~(model.background_fields.velocities.w isa ZeroField)
             w += model.background_fields.velocities.w
         end
 
-        if ~(model.background_fields.tracers.b isa Oceananigans.Fields.ZeroField)
+        if ~(model.background_fields.tracers.b isa ZeroField)
             b += model.background_fields.tracers.b
         end
     end
