@@ -12,6 +12,8 @@ using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
+using Oceananigans.Fields: ZeroField
+
 import Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 
 #+++ Useful operators and functions
@@ -24,13 +26,13 @@ function add_background_fields(model)
 
     velocities = model.velocities
     # Adds background velocities to their perturbations only if background velocity isn't ZeroField
-    full_velocities = NamedTuple{keys(velocities)}((model.background_fields.velocities[key] isa Oceananigans.Fields.ZeroField) ? 
+    full_velocities = NamedTuple{keys(velocities)}((model.background_fields.velocities[key] isa ZeroField) ? 
                                                    val : 
                                                    val + model.background_fields.velocities[key] 
                                                    for (key,val) in zip(keys(velocities), velocities))
     tracers = model.tracers
     # Adds background tracer fields to their perturbations only if background tracer field isn't ZeroField
-    full_tracers = NamedTuple{keys(tracers)}((model.background_fields.tracers[key] isa Oceananigans.Fields.ZeroField) ? 
+    full_tracers = NamedTuple{keys(tracers)}((model.background_fields.tracers[key] isa ZeroField) ? 
                                                    val : 
                                                    val + model.background_fields.tracers[key] 
                                                    for (key,val) in zip(keys(tracers), tracers))
@@ -97,13 +99,15 @@ function RichardsonNumber(model; location = (Center, Center, Face), add_backgrou
         b = model.tracers.b
     end
 
-    if model.buoyancy.gravity_unit_vector isa Oceananigans.Grids.ZDirection
+    if model.buoyancy.gravity_unit_vector isa Oceananigans.Grids.NegativeZDirection
         true_vertical_direction = (0, 0, 1)
+    elseif model.buoyancy.gravity_unit_vector isa Oceananigans.Grids.ZDirection
+        true_vertical_direction = (0, 0, -1)
     else
-        true_vertical_direction =  model.buoyancy.gravity_unit_vector
+        true_vertical_direction = .-model.buoyancy.gravity_unit_vector
     end
-    return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid;
-                                                         computed_dependencies=(u, v, w, b), parameters=Tuple(true_vertical_direction))
+    return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid,
+                                                         u, v, w, b, true_vertical_direction)
 end
 #---
 
@@ -160,24 +164,24 @@ function RossbyNumber(model; location = (Face, Face, Face),
     end
 
     parameters = (; fx, fy, fz, dWdy_bg, dVdz_bg, dUdz_bg, dWdx_bg, dUdy_bg, dVdx_bg)
-    return KernelFunctionOperation{Face, Face, Face}(rossby_number_fff, model.grid;
-                                                     computed_dependencies=(u, v, w), parameters=parameters)
+    return KernelFunctionOperation{Face, Face, Face}(rossby_number_fff, model.grid,
+                                                     u, v, w, parameters)
 end
 #---
 
 #+++ Potential vorticity
-@inline function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, p)
+@inline function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, f)
 
     dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # F, F, C → F, F, F
     dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᶜ, u) # F, F, C → F, F, F
     dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᶜᶜᶠ, b) # C, C, F → F, F, F
 
-    pv_barot = (p.f + dVdx - dUdy) * dbdz
+    pv_barot = (f + dVdx - dUdy) * dbdz
 
     dUdz = ℑyᵃᶠᵃ(i, j, k, grid, ∂zᶠᶜᶠ, u) # F, C, F → F, F, F
     dVdz = ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, F → F, F, F
 
-    pv_baroc = -p.f * (dUdz^2 + dVdz^2)
+    pv_baroc = -f * (dUdz^2 + dVdz^2)
 
     return pv_barot + pv_baroc
 end
@@ -200,25 +204,25 @@ function ThermalWindPotentialVorticity(model; f=nothing)
     if isnothing(f)
         f = model.coriolis.f
     end
-    return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid;
-                                                     computed_dependencies=(u, v, b), parameters= (; f,))
+    return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid,
+                                                     u, v, b, f)
 end
 
-@inline function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
+@inline function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, fx, fy, fz)
     dWdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᶜᶠᶠ, w) # C, C, F  → C, F, F  → F, F, F
     dVdz =  ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, C  → C, F, F  → F, F, F
     dbdx = ℑyzᵃᶠᶠ(i, j, k, grid, ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C  → F, F, F
-    pv_x = (params.fx + dWdy - dVdz) * dbdx # F, F, F
+    pv_x = (fx + dWdy - dVdz) * dbdx # F, F, F
 
     dUdz =  ℑyᵃᶠᵃ(i, j, k, grid, ∂zᶠᶜᶠ, u) # F, C, C  → F, C, F → F, F, F
     dWdx =  ℑyᵃᶠᵃ(i, j, k, grid, ∂xᶠᶜᶠ, w) # C, C, F  → F, C, F → F, F, F
     dbdy = ℑxzᶠᵃᶠ(i, j, k, grid, ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C → F, F, F
-    pv_y = (params.fy + dUdz - dWdx) * dbdy # F, F, F
+    pv_y = (fy + dUdz - dWdx) * dbdy # F, F, F
 
     dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # C, F, C  → F, F, C → F, F, F
     dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᶜ, u) # F, C, C  → F, F, C → F, F, F
     dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᶜᶜᶠ, b) # C, C, C  → C, C, F → F, F, F
-    pv_z = (params.fz + dVdx - dUdy) * dbdz
+    pv_z = (fz + dVdx - dUdy) * dbdz
 
     return pv_x + pv_y + pv_z
 end
@@ -242,21 +246,11 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
     b = model.tracers.b
 
     if model isa NonhydrostaticModel
-        if ~(model.background_fields.velocities.u isa Oceananigans.Fields.ZeroField)
-            u += model.background_fields.velocities.u
-        end
-
-        if ~(model.background_fields.velocities.v isa Oceananigans.Fields.ZeroField)
-            v += model.background_fields.velocities.v
-        end
-
-        if ~(model.background_fields.velocities.w isa Oceananigans.Fields.ZeroField)
-            w += model.background_fields.velocities.w
-        end
-
-        if ~(model.background_fields.tracers.b isa Oceananigans.Fields.ZeroField)
-            b += model.background_fields.tracers.b
-        end
+        full_fields = add_background_fields(model)
+        u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
+    else
+        u, v, w = model.velocities
+        b = model.tracers.b
     end
 
     coriolis = model.coriolis
@@ -271,8 +265,8 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
         throw(ArgumentError("ErtelPotentialVorticity only implemented for FPlane and ConstantCartesianCoriolis"))
     end
 
-    return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid;
-                                                     computed_dependencies=(u, v, w, b), parameters=(; fx, fy, fz))
+    return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid,
+                                                     u, v, w, b, fx, fy, fz)
 end
 
 @inline function directional_ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
@@ -344,8 +338,8 @@ function DirectionalErtelPotentialVorticity(model, direction; location = (Face, 
     end
 
     dir_x, dir_y, dir_z = direction
-    return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid;
-                                                     computed_dependencies=(u, v, w, b), parameters=(; f_dir, dir_x, dir_y, dir_z))
+    return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid,
+                                                     u, v, w, b, (; f_dir, dir_x, dir_y, dir_z))
 end
 #---
 
@@ -372,10 +366,10 @@ end
 @inline χzᶜᶜᶠ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
     - Azᶜᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, c) * diffusive_flux_z(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
 
-@inline function tracer_variance_dissipation_rate_ccc(i, j, k, grid, diffusivity_fields, c, fields, p)
-return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, χxᶠᶜᶜ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # F, C, C  → C, C, C
-            ℑyᵃᶜᵃ(i, j, k, grid, χyᶜᶠᶜ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # C, F, C  → C, C, C
-            ℑzᵃᵃᶜ(i, j, k, grid, χzᶜᶜᶠ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy)   # C, C, F  → C, C, C
+@inline function tracer_variance_dissipation_rate_ccc(i, j, k, grid, args...)
+return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, χxᶠᶜᶜ, args...) + # F, C, C  → C, C, C
+            ℑyᵃᶜᵃ(i, j, k, grid, χyᶜᶠᶜ, args...) + # C, F, C  → C, C, C
+            ℑzᵃᵃᶜ(i, j, k, grid, χzᶜᶜᶠ, args...)   # C, C, F  → C, C, C
             ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to δ above, ensures a derivative operation
 end
 
@@ -413,10 +407,14 @@ function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, loc
                   id = Val(tracer_index))
 
     tracer = tracer == nothing ? model.tracers[tracer_name] : tracer
-
-    return KernelFunctionOperation{Center, Center, Center}(tracer_variance_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies=(model.diffusivity_fields, tracer, fields(model)),
-                                                           parameters=parameters)
+    return KernelFunctionOperation{Center, Center, Center}(tracer_variance_dissipation_rate_ccc, model.grid,
+                                                           model.closure,
+                                                           model.diffusivity_fields,
+                                                           Val(tracer_index),
+                                                           tracer, 
+                                                           model.clock,
+                                                           fields(model),
+                                                           model.buoyancy)
 end
 #---
 

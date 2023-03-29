@@ -51,7 +51,6 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, calc_nonlinear_κᶜᶜᶜ
     calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple[1], args...) +
     _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], args...)
 
-
 include("TKEBudgetTerms.jl")
 include("FlowDiagnostics.jl")
 include("progress_messengers.jl")
