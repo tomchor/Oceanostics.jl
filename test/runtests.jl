@@ -1,4 +1,5 @@
 using Test
+using CUDA
 
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
@@ -14,7 +15,8 @@ using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger, make_me
 include("test_budgets.jl")
 
 # Default grid for all tests
-grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
+arch = has_cuda_gpu() ? arch = GPU() : CPU()
+grid = RectilinearGrid(arch, size=(4, 4, 4), extent=(1, 1, 1))
 
 function test_progress_messenger(model, messenger)
     simulation = Simulation(model; Δt=1e-2, stop_iteration=10)
