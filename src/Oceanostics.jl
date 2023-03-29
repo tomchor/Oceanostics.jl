@@ -51,6 +51,9 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, calc_nonlinear_κᶜᶜᶜ
     calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple[1], args...) +
     _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], args...)
 
+using Oceananigans.Fields: ZeroField
+import Base: -
+-(a::ZeroField, b::ZeroField) = ZeroField()
 
 include("TKEBudgetTerms.jl")
 include("FlowDiagnostics.jl")
