@@ -102,7 +102,7 @@ function RichardsonNumber(model; location = (Center, Center, Face), add_backgrou
     else
         true_vertical_direction =  model.buoyancy.gravity_unit_vector
     end
-    return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid;
+    return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid,
                                                          u, v, w, b, Tuple(true_vertical_direction))
 end
 #---
@@ -135,9 +135,9 @@ to `model.coriolis`. Rossby number is defined as
 where ωᶻ is the vorticity in the Coriolis axis of rotation and `f` is the Coriolis rotation frequency.
 """
 function RossbyNumber(model; location = (Face, Face, Face),
-                      dWdy_bg=0, dVdz_bg=0,
-                      dUdz_bg=0, dWdx_bg=0,
-                      dUdy_bg=0, dVdx_bg=0)
+                      dWdy_bg=ZeroField(), dVdz_bg=ZeroField(),
+                      dUdz_bg=ZeroField(), dWdx_bg=ZeroField(),
+                      dUdy_bg=ZeroField(), dVdx_bg=ZeroField())
     validate_location(location, "RossbyNumber", (Face, Face, Face))
 
     if model isa NonhydrostaticModel
@@ -160,7 +160,7 @@ function RossbyNumber(model; location = (Face, Face, Face),
     end
 
     parameters = (; fx, fy, fz, dWdy_bg, dVdz_bg, dUdz_bg, dWdx_bg, dUdy_bg, dVdx_bg)
-    return KernelFunctionOperation{Face, Face, Face}(rossby_number_fff, model.grid;
+    return KernelFunctionOperation{Face, Face, Face}(rossby_number_fff, model.grid,
                                                      u, v, w, parameters)
 end
 #---
@@ -200,7 +200,7 @@ function ThermalWindPotentialVorticity(model; f=nothing)
     if isnothing(f)
         f = model.coriolis.f
     end
-    return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid;
+    return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid,
                                                      u, v, b, f)
 end
 
@@ -271,7 +271,7 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
         throw(ArgumentError("ErtelPotentialVorticity only implemented for FPlane and ConstantCartesianCoriolis"))
     end
 
-    return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid;
+    return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid,
                                                      u, v, w, b, fx, fy, fz)
 end
 
@@ -344,7 +344,7 @@ function DirectionalErtelPotentialVorticity(model, direction; location = (Face, 
     end
 
     dir_x, dir_y, dir_z = direction
-    return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid;
+    return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid,
                                                      u, v, w, b, (; f_dir, dir_x, dir_y, dir_z))
 end
 #---
@@ -413,7 +413,7 @@ function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, loc
                   id = Val(tracer_index))
 
     tracer = tracer == nothing ? model.tracers[tracer_name] : tracer
-    return KernelFunctionOperation{Center, Center, Center}(tracer_variance_dissipation_rate_ccc, model.grid;
+    return KernelFunctionOperation{Center, Center, Center}(tracer_variance_dissipation_rate_ccc, model.grid,
                                                            model.closure,
                                                            model.diffusivity_fields,
                                                            Val(tracer_index),
