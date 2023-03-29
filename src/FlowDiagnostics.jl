@@ -137,9 +137,9 @@ to `model.coriolis`. Rossby number is defined as
 where ωᶻ is the vorticity in the Coriolis axis of rotation and `f` is the Coriolis rotation frequency.
 """
 function RossbyNumber(model; location = (Face, Face, Face),
-                      dWdy_bg=ZeroField(), dVdz_bg=ZeroField(),
-                      dUdz_bg=ZeroField(), dWdx_bg=ZeroField(),
-                      dUdy_bg=ZeroField(), dVdx_bg=ZeroField())
+                      dWdy_bg=0, dVdz_bg=0,
+                      dUdz_bg=0, dWdx_bg=0,
+                      dUdy_bg=0, dVdx_bg=0)
     validate_location(location, "RossbyNumber", (Face, Face, Face))
 
     if model isa NonhydrostaticModel

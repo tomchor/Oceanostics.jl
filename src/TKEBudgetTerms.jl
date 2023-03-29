@@ -39,7 +39,7 @@ end
 Calculate the turbulent kinetic energy of `model` manually specifying `u`, `v`, `w` and optionally
 background velocities `U`, `V` and `W`.
 """
-function TurbulentKineticEnergy(model, u, v, w; U = ZeroField(), V = ZeroField(), W = ZeroField(), location = (Center, Center, Center))
+function TurbulentKineticEnergy(model, u, v, w; U=0, V=0, W=0, location = (Center, Center, Center))
     validate_location(location, "TurbulentKineticEnergy")
     return KernelFunctionOperation{Center, Center, Center}(turbulent_kinetic_energy_ccc, model.grid,
                                                            u, v, w, U, V, W)
@@ -94,7 +94,7 @@ Calculate the Viscous Dissipation Rate, defined as
 where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a 
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
-function IsotropicViscousDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
+function IsotropicViscousDissipationRate(model; U=0, V=0, W=0,
                                          location = (Center, Center, Center))
 
     validate_location(location, "IsotropicViscousDissipationRate")
@@ -128,7 +128,7 @@ Calculate the pseudo viscous Dissipation Rate, defined as
 for a fluid with an isotropic turbulence closure (i.e., a 
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
-function IsotropicPseudoViscousDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
+function IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0,
                                                location = (Center, Center, Center))
 
     validate_location(location, "IsotropicPseudoViscousDissipationRate")
@@ -214,7 +214,7 @@ end
 Calculate the shear production rate in the `model`'s `x` direction. At least one of the mean 
 velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
 """
-function XShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
+function XShearProductionRate(model; U=0, V=0, W=0, kwargs...)
     u, v, w = model.velocities
     return XShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
 end
@@ -256,7 +256,7 @@ end
 Calculate the shear production rate in the `model`'s `y` direction. At least one of the mean 
 velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
 """
-function YShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
+function YShearProductionRate(model; U=0, V=0, W=0, kwargs...)
     u, v, w = model.velocities
     return YShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
 end
@@ -298,7 +298,7 @@ end
 Calculate the shear production rate in the `model`'s `z` direction. At least one of the mean 
 velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
 """
-function ZShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
+function ZShearProductionRate(model; U=0, V=0, W=0, kwargs...)
     u, v, w = model.velocities
     return ZShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
 end
