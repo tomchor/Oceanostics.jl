@@ -99,13 +99,15 @@ function RichardsonNumber(model; location = (Center, Center, Face), add_backgrou
         b = model.tracers.b
     end
 
-    if model.buoyancy.gravity_unit_vector isa Oceananigans.Grids.ZDirection
+    if model.buoyancy.gravity_unit_vector isa Oceananigans.Grids.NegativeZDirection
         true_vertical_direction = (0, 0, 1)
+    elseif model.buoyancy.gravity_unit_vector isa Oceananigans.Grids.ZDirection
+        true_vertical_direction = (0, 0, -1)
     else
-        true_vertical_direction =  model.buoyancy.gravity_unit_vector
+        true_vertical_direction = .-model.buoyancy.gravity_unit_vector
     end
     return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid,
-                                                         u, v, w, b, Tuple(true_vertical_direction))
+                                                         u, v, w, b, true_vertical_direction)
 end
 #---
 
@@ -210,17 +212,17 @@ end
     dWdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᶜᶠᶠ, w) # C, C, F  → C, F, F  → F, F, F
     dVdz =  ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, C  → C, F, F  → F, F, F
     dbdx = ℑyzᵃᶠᶠ(i, j, k, grid, ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C  → F, F, F
-    pv_x = (params.fx + dWdy - dVdz) * dbdx # F, F, F
+    pv_x = (fx + dWdy - dVdz) * dbdx # F, F, F
 
     dUdz =  ℑyᵃᶠᵃ(i, j, k, grid, ∂zᶠᶜᶠ, u) # F, C, C  → F, C, F → F, F, F
     dWdx =  ℑyᵃᶠᵃ(i, j, k, grid, ∂xᶠᶜᶠ, w) # C, C, F  → F, C, F → F, F, F
     dbdy = ℑxzᶠᵃᶠ(i, j, k, grid, ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C → F, F, F
-    pv_y = (params.fy + dUdz - dWdx) * dbdy # F, F, F
+    pv_y = (fy + dUdz - dWdx) * dbdy # F, F, F
 
     dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # C, F, C  → F, F, C → F, F, F
     dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᶜ, u) # F, C, C  → F, F, C → F, F, F
     dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᶜᶜᶠ, b) # C, C, C  → C, C, F → F, F, F
-    pv_z = (params.fz + dVdx - dUdy) * dbdz
+    pv_z = (fz + dVdx - dUdy) * dbdz
 
     return pv_x + pv_y + pv_z
 end
