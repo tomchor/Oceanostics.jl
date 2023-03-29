@@ -246,21 +246,11 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
     b = model.tracers.b
 
     if model isa NonhydrostaticModel
-        if ~(model.background_fields.velocities.u isa ZeroField)
-            u += model.background_fields.velocities.u
-        end
-
-        if ~(model.background_fields.velocities.v isa ZeroField)
-            v += model.background_fields.velocities.v
-        end
-
-        if ~(model.background_fields.velocities.w isa ZeroField)
-            w += model.background_fields.velocities.w
-        end
-
-        if ~(model.background_fields.tracers.b isa ZeroField)
-            b += model.background_fields.tracers.b
-        end
+        full_fields = add_background_fields(model)
+        u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
+    else
+        u, v, w = model.velocities
+        b = model.tracers.b
     end
 
     coriolis = model.coriolis
