@@ -103,7 +103,7 @@ function RichardsonNumber(model; location = (Center, Center, Face), add_backgrou
         true_vertical_direction =  model.buoyancy.gravity_unit_vector
     end
     return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid;
-                                                         computed_dependencies=(u, v, w, b), parameters=Tuple(true_vertical_direction))
+                                                         u, v, w, b, Tuple(true_vertical_direction))
 end
 #---
 
@@ -161,23 +161,23 @@ function RossbyNumber(model; location = (Face, Face, Face),
 
     parameters = (; fx, fy, fz, dWdy_bg, dVdz_bg, dUdz_bg, dWdx_bg, dUdy_bg, dVdx_bg)
     return KernelFunctionOperation{Face, Face, Face}(rossby_number_fff, model.grid;
-                                                     computed_dependencies=(u, v, w), parameters=parameters)
+                                                     u, v, w, parameters)
 end
 #---
 
 #+++ Potential vorticity
-@inline function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, p)
+@inline function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, f)
 
     dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # F, F, C → F, F, F
     dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᶜ, u) # F, F, C → F, F, F
     dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᶜᶜᶠ, b) # C, C, F → F, F, F
 
-    pv_barot = (p.f + dVdx - dUdy) * dbdz
+    pv_barot = (f + dVdx - dUdy) * dbdz
 
     dUdz = ℑyᵃᶠᵃ(i, j, k, grid, ∂zᶠᶜᶠ, u) # F, C, F → F, F, F
     dVdz = ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, F → F, F, F
 
-    pv_baroc = -p.f * (dUdz^2 + dVdz^2)
+    pv_baroc = -f * (dUdz^2 + dVdz^2)
 
     return pv_barot + pv_baroc
 end
@@ -201,10 +201,10 @@ function ThermalWindPotentialVorticity(model; f=nothing)
         f = model.coriolis.f
     end
     return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid;
-                                                     computed_dependencies=(u, v, b), parameters= (; f,))
+                                                     u, v, b, f)
 end
 
-@inline function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
+@inline function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, fx, fy, fz)
     dWdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᶜᶠᶠ, w) # C, C, F  → C, F, F  → F, F, F
     dVdz =  ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, C  → C, F, F  → F, F, F
     dbdx = ℑyzᵃᶠᶠ(i, j, k, grid, ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C  → F, F, F
@@ -272,7 +272,7 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face))
     end
 
     return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid;
-                                                     computed_dependencies=(u, v, w, b), parameters=(; fx, fy, fz))
+                                                     u, v, w, b, fx, fy, fz)
 end
 
 @inline function directional_ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
@@ -345,7 +345,7 @@ function DirectionalErtelPotentialVorticity(model, direction; location = (Face, 
 
     dir_x, dir_y, dir_z = direction
     return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid;
-                                                     computed_dependencies=(u, v, w, b), parameters=(; f_dir, dir_x, dir_y, dir_z))
+                                                     u, v, w, b, (; f_dir, dir_x, dir_y, dir_z))
 end
 #---
 
@@ -372,10 +372,10 @@ end
 @inline χzᶜᶜᶠ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
     - Azᶜᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, c) * diffusive_flux_z(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
 
-@inline function tracer_variance_dissipation_rate_ccc(i, j, k, grid, diffusivity_fields, c, fields, p)
-return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, χxᶠᶜᶜ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # F, C, C  → C, C, C
-            ℑyᵃᶜᵃ(i, j, k, grid, χyᶜᶠᶜ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy) + # C, F, C  → C, C, C
-            ℑzᵃᵃᶜ(i, j, k, grid, χzᶜᶜᶠ, p.closure, diffusivity_fields, p.id, c, p.clock, fields, p.buoyancy)   # C, C, F  → C, C, C
+@inline function tracer_variance_dissipation_rate_ccc(i, j, k, grid, args...)
+return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, χxᶠᶜᶜ, args...) + # F, C, C  → C, C, C
+            ℑyᵃᶜᵃ(i, j, k, grid, χyᶜᶠᶜ, args...) + # C, F, C  → C, C, C
+            ℑzᵃᵃᶜ(i, j, k, grid, χzᶜᶜᶠ, args...)   # C, C, F  → C, C, C
             ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to δ above, ensures a derivative operation
 end
 
@@ -413,10 +413,14 @@ function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, loc
                   id = Val(tracer_index))
 
     tracer = tracer == nothing ? model.tracers[tracer_name] : tracer
-
     return KernelFunctionOperation{Center, Center, Center}(tracer_variance_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies=(model.diffusivity_fields, tracer, fields(model)),
-                                                           parameters=parameters)
+                                                           model.closure,
+                                                           model.diffusivity_fields,
+                                                           Val(tracer_index),
+                                                           tracer, 
+                                                           model.clock,
+                                                           fields(model),
+                                                           model.buoyancy)
 end
 #---
 
