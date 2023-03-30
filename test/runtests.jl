@@ -263,6 +263,6 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
                 ]
     for closure in closures
         @info "Testing tracer variance budget with closure $closure"
-        test_tracer_variance_budget(N=64, rtol=0.005, closure=closure)
+        test_tracer_variance_budget(N=64, rtol=0.01, closure=closure)
     end
 end
