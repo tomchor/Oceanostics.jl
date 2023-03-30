@@ -19,9 +19,9 @@ function periodic_locations(N_locations, flip_z=true)
     return x₀, y₀, z₀
 end
 
-function test_tracer_variance_budget(; N=8, rtol=0.01, closure = ScalarDiffusivity(κ=κ))
+function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusivity(κ=κ))
 
-    grid = RectilinearGrid(topology=(Periodic, Periodic, Periodic), size=(N,N,N), extent=(1,1,1))
+    grid = RectilinearGrid(topology=(Periodic, Flat, Periodic), size=(N,N), extent=(1,1))
     model = NonhydrostaticModel(grid=grid, tracers=:c, closure=closure)
 
     # A kind of convoluted way to create x-periodic, resolved initial noise
