@@ -15,7 +15,6 @@ function periodic_locations(N_locations, flip_z=true)
 end
 
 function test_tracer_variance_budget(; N=4, κ=1, rtol=0.01, closure = ScalarDiffusivity(HorizontalFormulation(), κ=κ))
-    closure = ScalarDiffusivity(κ=κ)
 
     grid = RectilinearGrid(topology=(Periodic, Periodic, Periodic), size=(N,N,N), extent=(1,1,1))
     model = NonhydrostaticModel(grid=grid, tracers=:c, closure=closure,
