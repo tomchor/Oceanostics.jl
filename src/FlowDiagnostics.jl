@@ -3,43 +3,14 @@ using DocStringExtensions
 
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
-export TracerVarianceDissipationRate
 
-using Oceanostics: validate_location, validate_dissipative_closure
+using Oceanostics: validate_location, validate_dissipative_closure, add_background_fields
 
-using Oceananigans
+using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyField, BuoyancyTracer
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceananigans.Grids: Center, Face
-using Oceananigans.Fields: ZeroField
-
-import Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
-
-#+++ Useful operators and functions
-"""
-    $(SIGNATURES)
-
-Add background fields (velocities and tracers only) to their perturbations.
-"""
-function add_background_fields(model)
-
-    velocities = model.velocities
-    # Adds background velocities to their perturbations only if background velocity isn't ZeroField
-    full_velocities = NamedTuple{keys(velocities)}((model.background_fields.velocities[key] isa ZeroField) ? 
-                                                   val : 
-                                                   val + model.background_fields.velocities[key] 
-                                                   for (key,val) in zip(keys(velocities), velocities))
-    tracers = model.tracers
-    # Adds background tracer fields to their perturbations only if background tracer field isn't ZeroField
-    full_tracers = NamedTuple{keys(tracers)}((model.background_fields.tracers[key] isa ZeroField) ? 
-                                                   val : 
-                                                   val + model.background_fields.tracers[key] 
-                                                   for (key,val) in zip(keys(tracers), tracers))
-
-    return merge(full_velocities, full_tracers)
-end
-#---
+using Oceananigans.Grids: Center, Face, NegativeZDirection, ZDirection
 
 #+++ Richardson number
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -99,9 +70,9 @@ function RichardsonNumber(model; location = (Center, Center, Face), add_backgrou
         b = model.tracers.b
     end
 
-    if model.buoyancy.gravity_unit_vector isa Oceananigans.Grids.NegativeZDirection
+    if model.buoyancy.gravity_unit_vector isa NegativeZDirection
         true_vertical_direction = (0, 0, 1)
-    elseif model.buoyancy.gravity_unit_vector isa Oceananigans.Grids.ZDirection
+    elseif model.buoyancy.gravity_unit_vector isa ZDirection
         true_vertical_direction = (0, 0, -1)
     else
         true_vertical_direction = .-model.buoyancy.gravity_unit_vector
@@ -198,7 +169,8 @@ is defined as
 where `f` is the Coriolis frequency, `ωᶻ` is the relative vorticity in the `z` direction, `b` is the buoyancy, and
 `∂U/∂z` and `∂V/∂z` comprise the thermal wind shear.
 """
-function ThermalWindPotentialVorticity(model; f=nothing)
+function ThermalWindPotentialVorticity(model; f=nothing, location = (Face, Face, Face))
+    validate_location(location, "ThermalWindPotentialVorticity", (Face, Face, Face))
     u, v, w = model.velocities
     b = BuoyancyField(model)
     if isnothing(f)
@@ -308,7 +280,7 @@ operator.
 function DirectionalErtelPotentialVorticity(model, direction; location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
 
-    if model.buoyancy == nothing || !(model.buoyancy.model isa Oceananigans.BuoyancyTracer)
+    if model.buoyancy == nothing || !(model.buoyancy.model isa BuoyancyTracer)
         throw(ArgumentError("`DirectionalErtelPotentialVorticity` is only implemented for `BuoyancyTracer`"))
     end
 
@@ -340,81 +312,6 @@ function DirectionalErtelPotentialVorticity(model, direction; location = (Face, 
     dir_x, dir_y, dir_z = direction
     return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid,
                                                      u, v, w, b, (; f_dir, dir_x, dir_y, dir_z))
-end
-#---
-
-#+++ Tracer variance dissipation
-for diff_flux in (:diffusive_flux_x, :diffusive_flux_y, :diffusive_flux_z)
-    # Unroll the loop over a tuple
-    @eval @inline $diff_flux(i, j, k, grid, closure_tuple::Tuple, diffusivity_fields, args...) = 
-        $diff_flux(i, j, k, grid, closure_tuple[1], diffusivity_fields[1], args...) + 
-        $diff_flux(i, j, k, grid, closure_tuple[2:end], diffusivity_fields[2:end], args...)
-
-    # End of the line
-    @eval @inline $diff_flux(i, j, k, grid, closure_tuple::Tuple{}, args...) = zero(grid)
-end
-
-# Variance dissipation at fcc
-@inline χxᶠᶜᶜ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
-    - Axᶠᶜᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, c) * diffusive_flux_x(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
-
-# Variance dissipation at cfc
-@inline χyᶜᶠᶜ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
-    - Ayᶜᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, c) * diffusive_flux_y(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
-
-# Variance dissipation at ccf
-@inline χzᶜᶜᶠ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
-    - Azᶜᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, c) * diffusive_flux_z(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
-
-@inline function tracer_variance_dissipation_rate_ccc(i, j, k, grid, args...)
-return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, χxᶠᶜᶜ, args...) + # F, C, C  → C, C, C
-            ℑyᵃᶜᵃ(i, j, k, grid, χyᶜᶠᶜ, args...) + # C, F, C  → C, C, C
-            ℑzᵃᵃᶜ(i, j, k, grid, χzᶜᶜᶠ, args...)   # C, C, F  → C, C, C
-            ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to δ above, ensures a derivative operation
-end
-
-"""
-    $(SIGNATURES)
-
-Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
-for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is defined as 
-
-    χ = 2 ∇c ⋅ F⃗
-
-where `F⃗` is the diffusive flux of `c` and `∇` is the gradient operator. `χ` is implemented in its
-conservative formulation based on the equation above. 
-
-Note that often χ is written as `χ = 2κ (∇c ⋅ ∇c)`, which is the special case for Fickian diffusion
-(`κ` is the tracer diffusivity).
-
-Here `tracer_name` is needed even when passing `tracer` in order to get the appropriate `tracer_index`.
-When passing `tracer`, this function should be used as
-
-```julia
-grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
-model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly())
-
-b̄ = Field(Average(model.tracers.b, dims=(1,2)))
-b′ = model.tracers.b - b̄
-
-χb = TracerVarianceDissipationRate(model, :b, tracer=b′)
-```
-"""
-function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))
-    tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
-
-    parameters = (; model.closure, model.clock, model.buoyancy,
-                  id = Val(tracer_index))
-
-    tracer = tracer == nothing ? model.tracers[tracer_name] : tracer
-    return KernelFunctionOperation{Center, Center, Center}(tracer_variance_dissipation_rate_ccc, model.grid,
-                                                           model.closure,
-                                                           model.diffusivity_fields,
-                                                           Val(tracer_index),
-                                                           tracer, 
-                                                           model.clock,
-                                                           fields(model),
-                                                           model.buoyancy)
 end
 #---
 
