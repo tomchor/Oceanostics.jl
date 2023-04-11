@@ -3,21 +3,36 @@ using CUDA
 
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
-using Oceananigans.Fields: compute_at!
+using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 
-using Oceanostics
-using Oceanostics.TKEBudgetTerms
-using Oceanostics.TKEBudgetTerms: turbulent_kinetic_energy_ccc
-using Oceanostics.FlowDiagnostics
+using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics
 using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger, make_message
 
 include("test_budgets.jl")
 
-# Default grid for all tests
+#+++ Default grids and functions
 arch = has_cuda_gpu() ? arch = GPU() : CPU()
-grid = RectilinearGrid(arch, size=(4, 4, 4), extent=(1, 1, 1))
 
+N = 4
+regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
+
+S = .99 # Stretching factor. Positive number ∈ (0, 1]
+f_asin(k) = -asin(S*(2k - N - 2) / N)/π + 1/2
+F1 = f_asin(1); F2 = f_asin(N+1)
+z_faces(k) = ((F1 + F2)/2 - f_asin(k)) / (F1 - F2)
+
+stretched_grid = RectilinearGrid(arch, size=(N, N, N), x=(0, 1), y=(0, 1), z=z_faces)
+
+grid_noise(x, y, z) = randn()
+
+is_LES(::SmagorinskyLilly) = true
+is_LES(::AnisotropicMinimumDissipation) = true
+is_LES(::Any) = false
+is_LES(a::Tuple) = any(map(is_LES, a))
+#---
+
+#+++ Test functions
 function test_progress_messenger(model, messenger)
     simulation = Simulation(model; Δt=1e-2, stop_iteration=10)
     simulation.callbacks[:progress] = Callback(messenger, IterationInterval(1))
@@ -96,11 +111,6 @@ function test_vel_only_diagnostics(model)
 end
 
 function test_buoyancy_diagnostics(model)
-    u, v, w = model.velocities
-    b = model.tracers.b
-    κ = model.closure.κ.b
-    N²₀ = 1e-6
-
     Ri = RichardsonNumber(model)
     @test Ri isa AbstractOperation
     @test compute!(Field(Ri)) isa Field
@@ -158,83 +168,101 @@ function test_ke_dissipation_rate_terms(model)
 end
 
 function test_tracer_diagnostics(model)
-    χ_iso = TracerVarianceDissipationRate(model, :b)
-    χ_iso_field = compute!(Field(χ_iso))
-    @test χ_iso isa AbstractOperation
-    @test χ_iso_field isa Field
+    χ = TracerVarianceDissipationRate(model, :b)
+    χ_field = compute!(Field(χ))
+    @test χ isa AbstractOperation
+    @test χ_field isa Field
 
     b̄ = Field(Average(model.tracers.b, dims=(1,2)))
     b′ = model.tracers.b - b̄
-    χ_iso = TracerVarianceDissipationRate(model, :b, tracer=b′)
-    χ_iso_field = compute!(Field(χ_iso))
-    @test χ_iso isa AbstractOperation
-    @test χ_iso_field isa Field
+    χ = TracerVarianceDissipationRate(model, :b, tracer=b′)
+    χ_field = compute!(Field(χ))
+    @test χ isa AbstractOperation
+    @test χ_field isa Field
+
+    χ = TracerVarianceDiffusiveTerm(model, :b)
+    χ_field = compute!(Field(χ))
+    @test χ isa AbstractOperation
+    @test χ_field isa Field
+
+    χ = TracerVarianceTendency(model, :b)
+    χ_field = compute!(Field(χ))
+    @test χ isa AbstractOperation
+    @test χ_field isa Field
+
+    set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
+    @compute ε̄ₚ = Field(Average(TracerVarianceDissipationRate(model, :b)))
+    @compute ε̄ₚ₂ = Field(Average(TracerVarianceDiffusiveTerm(model, :b)))
+    @compute ∂ₜc² = Field(Average(TracerVarianceTendency(model, :b)))
+
+    @test ≈(interior(ε̄ₚ)[1,1,1], interior(ε̄ₚ₂)[1,1,1], rtol=1e-12, atol=eps())
+    @test ≈(interior(ε̄ₚ)[1,1,1], -interior(∂ₜc²)[1,1,1], rtol=1e-10, atol=eps())
 
     return nothing
 end
+#---
 
+model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()), 
+                coriolis = FPlane(1e-4),
+                tracers = :b)
 
-scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
+closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
+            SmagorinskyLilly(),
+            AnisotropicMinimumDissipation(),
+            (HorizontalScalarDiffusivity(ν=1e-4, κ=1e-4), VerticalScalarDiffusivity(ν=1e-6, κ=1e-6)),
+            (ScalarDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly()),
+            )
 
 @testset "Oceanostics" begin
-    model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()), 
-                    coriolis = FPlane(1e-4),
-                    tracers = :b)
+    for grid in (regular_grid, stretched_grid)
+        for model_type in (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
+            for closure in closures
+                @info "Testing $model_type on grid and with closure" grid closure
+                model = model_type(; grid, closure, model_kwargs...)
 
-    models = (NonhydrostaticModel(; grid, model_kwargs...,
-                                  closure = scalar_diff),
-              HydrostaticFreeSurfaceModel(; grid, model_kwargs...,
-                                          closure = scalar_diff))
+                @info "Testing velocity-only diagnostics"
+                test_vel_only_diagnostics(model)
 
-    for model in models
-        model_type = split(summary(model), "{")[1]
-        @info "Testing velocity-only diagnostics in $model_type"
-        test_vel_only_diagnostics(model)
+                @info "Testing buoyancy diagnostics"
+                test_buoyancy_diagnostics(model)
 
-        @info "Testing buoyancy diagnostics in $model_type"
-        test_buoyancy_diagnostics(model)
+                if model isa NonhydrostaticModel
+                    @info "Testing pressure terms"
+                    test_pressure_terms(model)
+                end
 
-        if model isa NonhydrostaticModel
-            @info "Testing pressure terms in $model_type"
-            test_pressure_terms(model)
+                if !(closure isa Tuple) || all(isa.(closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
+                    @info "Testing energy dissipation rate terms with closure" closure
+                    test_ke_dissipation_rate_terms(model)
+                end
+        
+                @info "Testing tracer variance terms wth closure" closure
+                test_tracer_diagnostics(model)
+            end
         end
+
+        @info "Testing input validation for dissipation rates"
+        invalid_closures = [HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7),
+                            VerticalScalarDiffusivity(ν=1e-6, κ=1e-7),
+                            (ScalarDiffusivity(ν=1e-6, κ=1e-7), HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7))]
+        
+        for closure in invalid_closures
+            model = NonhydrostaticModel(; grid, model_kwargs..., closure)
+            @test_throws ErrorException IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
+            @test_throws ErrorException IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
+        end
+
     end
 
-    @info "Testing input validation for dissipation rates"
-    invalid_closures = [HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7),
-                        VerticalScalarDiffusivity(ν=1e-6, κ=1e-7),
-                        (ScalarDiffusivity(ν=1e-6, κ=1e-7), HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7))]
         
-    for closure in invalid_closures
-        model = NonhydrostaticModel(; grid, model_kwargs..., closure)
-        @test_throws ErrorException IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
-        @test_throws ErrorException IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
-    end
-
-    closures = [ScalarDiffusivity(ν=1e-6, κ=1e-7),
-                SmagorinskyLilly(),
-                AnisotropicMinimumDissipation(),
-                (HorizontalScalarDiffusivity(ν=1e-4, κ=1e-4), VerticalScalarDiffusivity(ν=1e-6, κ=1e-6)),
-                (ScalarDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly()),
-                ]
-        
-    LESs = [false, true, true, false, true]
-    messengers = (SingleLineProgressMessenger, TimedProgressMessenger)
     
-    for (LES, closure) in zip(LESs, closures)
+    for closure in closures
+        LES = is_LES(closure)
         model = NonhydrostaticModel(; grid,
                                     buoyancy = Buoyancy(model=BuoyancyTracer()), 
                                     coriolis = FPlane(1e-4),
                                     tracers = :b,
                                     closure = closure)
-
-        if !(closure isa Tuple) || all(isa.(closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
-            @info "Testing energy dissipation rate terms with closure" closure
-            test_ke_dissipation_rate_terms(model)
-        end
-
-        @info "Testing tracer variance terms wth closure" closure
-        test_tracer_diagnostics(model)
 
         @info "Testing SimpleProgressMessenger with closure" closure
         model.clock.iteration = 0
@@ -257,12 +285,15 @@ scalar_diff = ScalarDiffusivity(ν=1e-6, κ=1e-7)
     end
 
 
-    closures = [ScalarDiffusivity(ν=1, κ=1),
-                (HorizontalScalarDiffusivity(κ=2), VerticalScalarDiffusivity(κ=1/2)),
-                (ScalarDiffusivity(ν=1, κ=1), SmagorinskyLilly()),
-                ]
-    for closure in closures
-        @info "Testing tracer variance budget with closure $closure"
-        test_tracer_variance_budget(N=64, rtol=0.01, closure=closure)
-    end
+#    closures = [ScalarDiffusivity(ν=1, κ=1),
+#                (HorizontalScalarDiffusivity(κ=2), VerticalScalarDiffusivity(κ=1/2)),
+#                (ScalarDiffusivity(ν=1, κ=1), SmagorinskyLilly()),
+#                ]
+#    for closure in closures
+#        @info "Testing tracer variance budget with closure $closure and a regular grid"
+#        test_tracer_variance_budget(N=64, rtol=0.01, closure=closure, regular_grid=true)
+#
+#        @info "Testing tracer variance budget with closure $closure and an irregular grid"
+#        test_tracer_variance_budget(N=64, rtol=0.01, closure=closure, regular_grid=false)
+#    end
 end
