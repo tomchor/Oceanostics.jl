@@ -17,7 +17,7 @@ export TracerVarianceDissipationRate
 #+++ FlowDiagnostics exports
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity
-export IsotropicBuoyancyMixingRate
+export DirectionalErtelPotentialVorticity
 #---
 
 #+++ Utils for validation

@@ -6,6 +6,7 @@ using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 
+using Oceanostics
 using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics
 using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger, make_message
 
