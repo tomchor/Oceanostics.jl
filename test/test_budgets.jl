@@ -1,6 +1,6 @@
-using Oceananigans.TurbulenceClosures: HorizontalFormulation, VerticalFormulation
+using Oceananigans
 using Oceananigans.Fields: @compute
-using Oceananigans.Grids: min_Δx
+using Oceanostics
 using Random
 using Statistics
 
@@ -19,7 +19,7 @@ function periodic_locations(N_locations, flip_z=true)
     return x₀, y₀, z₀
 end
 
-function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusivity(κ=κ), regular_grid=true)
+function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusivity(ν=1, κ=1), regular_grid=true)
 
     if regular_grid
         grid = RectilinearGrid(topology=(Periodic, Flat, Periodic), size=(N,N), extent=(1,1))
@@ -56,20 +56,16 @@ function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusiv
     wizard = TimeStepWizard(cfl=0.1, diffusive_cfl=0.1)
     simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
 
-    χ  = Oceanostics.FlowDiagnostics.TracerVarianceDissipationRate(model, :c)
+    χ  = TracerVarianceDissipationRate(model, :c)
 
     ∫∫χdVdt = Ref(0.0)
-    ∫χdV_prev = Ref(0.0)
     @compute ∫χdV   = Field(Integral(χ))
     @compute ∫c²dV  = Field(Integral(c^2))
 
     ∫c²dV_t⁰ = parent(∫c²dV)[1,1,1]
     function accumulate_χ(sim)
-        increment = sim.Δt * ∫χdV_prev[]
-        ∫∫χdVdt[] += increment
-
         compute!(∫χdV)
-        ∫χdV_prev[] = parent(∫χdV)[1,1,1]
+        ∫∫χdVdt[] += sim.Δt * parent(∫χdV)[1,1,1] #∫χdV_prev[]
         return nothing
     end
     simulation.callbacks[:integrate_χ] = Callback(accumulate_χ)

@@ -283,16 +283,8 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
         test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
     end
 
+    rtol = 0.02; N = 64
+    @info "Testing tracer variance budget on and a regular grid with N=$N and tolerance $rtol"
+    test_tracer_variance_budget(N=N, rtol=rtol, regular_grid=true)
 
-#    closures = [ScalarDiffusivity(ν=1, κ=1),
-#                (HorizontalScalarDiffusivity(κ=2), VerticalScalarDiffusivity(κ=1/2)),
-#                (ScalarDiffusivity(ν=1, κ=1), SmagorinskyLilly()),
-#                ]
-#    for closure in closures
-#        @info "Testing tracer variance budget with closure $closure and a regular grid"
-#        test_tracer_variance_budget(N=64, rtol=0.01, closure=closure, regular_grid=true)
-#
-#        @info "Testing tracer variance budget with closure $closure and an irregular grid"
-#        test_tracer_variance_budget(N=64, rtol=0.01, closure=closure, regular_grid=false)
-#    end
 end
