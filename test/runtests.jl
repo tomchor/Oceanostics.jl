@@ -251,10 +251,8 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
                     test_pressure_terms(model)
                 end
 
-                if !(closure isa Tuple) || all(isa.(closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
-                    @info "Testing energy dissipation rate terms with closure" closure
-                    test_ke_dissipation_rate_terms(model)
-                end
+                @info "Testing energy dissipation rate terms"
+                test_ke_dissipation_rate_terms(model)
        
                 @info "Testing tracer variance terms wth closure" closure
                 test_tracer_diagnostics(model)
