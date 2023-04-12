@@ -14,9 +14,7 @@ using Oceananigans.TurbulenceClosures: ∇_dot_qᶜ
 
 import Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 
-
-
-#+++ Tracer vriance tendency
+#+++ Tracer variance tendency
 @inline function c∂ₜcᶜᶜᶜ(i, j, k, grid, val_tracer_index::Val{tracer_index},
                                         val_tracer_name,
                                         advection,
@@ -42,6 +40,23 @@ import Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diff
                                                                 args...)
 end
 
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` that computes the tracer variance tendency:
+
+    TEND = 2 c ∂ₜc
+
+where `c` is the tracer and `∂ₜc` is the tracer tendency (computed using
+Oceananigans' tracer tendency kernel).
+
+```julia
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
+model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly())
+
+DIFF = TracerVarianceTendency(model, :b)
+```
+"""
 function TracerVarianceTendency(model::NonhydrostaticModel, tracer_name; location = (Center, Center, Center))
     validate_location(location, "TracerVarianceTendency")
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
@@ -82,9 +97,13 @@ prognostic equation using Oceananigans' diffusive tracer flux divergence kernel:
 
     DIFF = c ∂ⱼFⱼ
 
-where `c` is the tracer, and `Fⱼ` is the tracer's diffusive flux.
+where `c` is the tracer, and `Fⱼ` is the tracer's diffusive flux in the `j`-th direction.
 
 ```julia
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
+model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly())
+
+DIFF = TracerVarianceDiffusiveTerm(model, :b)
 ```
 """
 function TracerVarianceDiffusiveTerm(model, tracer_name; location = (Center, Center, Center))
@@ -101,7 +120,6 @@ function TracerVarianceDiffusiveTerm(model, tracer_name; location = (Center, Cen
     return KernelFunctionOperation{Center, Center, Center}(c∇_dot_qᶜ, model.grid, dependencies...)
 end
 #---
-
 
 #+++ Tracer variance dissipation rate
 for diff_flux in (:diffusive_flux_x, :diffusive_flux_y, :diffusive_flux_z)
@@ -139,10 +157,10 @@ end
 Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
 for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is defined as 
 
-    χ = 2 ∇c ⋅ F⃗
+    χ = 2 ∂ⱼc ⋅ Fⱼ
 
-where `F⃗` is the diffusive flux of `c` and `∇` is the gradient operator. `χ` is implemented in its
-conservative formulation based on the equation above. 
+where `Fⱼ` is the diffusive flux of `c` in the `j`-th direction and `∂ⱼ` is the gradient operator.
+`χ` is implemented in its conservative formulation based on the equation above. 
 
 Note that often `χ` is written as `χ = 2κ (∇c ⋅ ∇c)`, which is the special case for Fickian diffusion
 (`κ` is the tracer diffusivity).
