@@ -2,18 +2,22 @@ module TKEBudgetTerms
 using DocStringExtensions
 
 export TurbulentKineticEnergy, KineticEnergy
-export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
+export KineticEnergyTendency, KineticEnergyDiffusiveTerm
+export IsotropicViscousDissipationRate, ViscousDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 
+using Oceananigans: NonhydrostaticModel, fields
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
+using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
 import Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz, 
                                         viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
                                         viscous_flux_wx, viscous_flux_wy, viscous_flux_wz
+using Oceananigans.TurbulenceClosures: ∂ⱼ_τ₁ⱼ, ∂ⱼ_τ₂ⱼ, ∂ⱼ_τ₃ⱼ
 
 using Oceanostics: _νᶜᶜᶜ
 using Oceanostics: validate_location, validate_dissipative_closure
@@ -133,7 +137,7 @@ end
 δʸwFwyᶜᶠᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = - Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, fields.w) * viscous_flux_wy(i, j, k, grid, closure, K_fields, clo, fields, b)
 δᶻwFwzᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = - Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, fields.w) * viscous_flux_wz(i, j, k, grid, closure, K_fields, clo, fields, b)
 
-@inline function isotropic_pseudo_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, diffusivity_fields, fields, p)
+@inline function viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, diffusivity_fields, fields, p)
 return (δˣuFuxᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, C, C
         ℑxyᶜᶜᵃ(i, j, k, grid, δʸuFuyᶠᶠᶜ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
         ℑxzᶜᵃᶜ(i, j, k, grid, δᶻuFuzᶠᶜᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
@@ -158,22 +162,130 @@ Calculate the pseudo viscous Dissipation Rate, defined as
 for a fluid with an isotropic turbulence closure (i.e., a 
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
-function IsotropicPseudoViscousDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
+function ViscousDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
                                                location = (Center, Center, Center))
 
-    validate_location(location, "IsotropicPseudoViscousDissipationRate")
+    validate_location(location, "ViscousDissipationRate")
 
     u, v, w = model.velocities
 
     parameters = (; model.closure, 
                   model.clock,
                   model.buoyancy)
-    computed_dependencies = (u - U, v - V, w - W, 
-                             model.diffusivity_fields,
-                             fields(model))
 
-    return KernelFunctionOperation{Center, Center, Center}(isotropic_pseudo_viscous_dissipation_rate_ccc, model.grid,
-                                                           (u - U), (v - V), (w - W), parameters)
+    return KernelFunctionOperation{Center, Center, Center}(viscous_dissipation_rate_ccc, model.grid,
+                                                           (u - U), (v - V), (w - W), model.diffusivity_fields, fields(model), parameters)
+end
+#---
+
+#+++ Kinetic energy tendency
+@inline ψf(i, j, k, grid, ψ, f, args...) = ψ[i, j, k] * f(i, j, k, grid, args...)
+@inline function uᵢ∂ₜuᵢᶜᶜᶜ(i, j, k, grid, advection,
+                                          coriolis,
+                                          stokes_drift,
+                                          closure,
+                                          immersed_bc,
+                                          buoyancy,
+                                          background_fields,
+                                          velocities,
+                                          tracers,
+                                          auxiliary_fields,
+                                          diffusivity_fields,
+                                          forcing,
+                                          pHY′,
+                                          clock)
+        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields,
+                                                                           velocities,
+                                                                           tracers,
+                                                                           auxiliary_fields,
+                                                                           diffusivity_fields,
+                                                                           forcing,
+                                                                           pHY′,
+                                                                           clock)
+
+        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields,
+                                                                           velocities,
+                                                                           tracers,
+                                                                           auxiliary_fields,
+                                                                           diffusivity_fields,
+                                                                           forcing,
+                                                                           pHY′,
+                                                                           clock)
+
+        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields,
+                                                                           velocities,
+                                                                           tracers,
+                                                                           auxiliary_fields,
+                                                                           diffusivity_fields,
+                                                                           forcing,
+                                                                           clock)
+    return u∂ₜu + v∂ₜv + w∂ₜw
+end
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` that computes the tendency of the KE except for the nonhydrostatic
+pressure:
+
+```julia
+```
+"""
+function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyTendency")
+    dependencies = (model.advection,
+                    model.coriolis,
+                    model.stokes_drift,
+                    model.closure,
+                    model.velocities.u.boundary_conditions.immersed,
+                    model.buoyancy,
+                    model.background_fields,
+                    model.velocities,
+                    model.tracers,
+                    model.auxiliary_fields,
+                    model.diffusivity_fields,
+                    model.forcing,
+                    model.pressures.pHY′,
+                    model.clock)
+    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ₜuᵢᶜᶜᶜ, model.grid, dependencies...)
+end
+#---
+
+#+++ Kinetic energy diffusive term
+@inline function uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ(i, j, k, grid, closure,
+                                            diffusivity_fields,
+                                            clock,
+                                            model_fields,
+                                            buoyancy)
+
+    u∂ⱼ_τ₁ⱼ = ℑxᶜᵃᵃ(i, j, k, grid, ψf, model_fields.u, ∂ⱼ_τ₁ⱼ, closure, diffusivity_fields, clock, model_fields, buoyancy)
+    v∂ⱼ_τ₂ⱼ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, model_fields.v, ∂ⱼ_τ₂ⱼ, closure, diffusivity_fields, clock, model_fields, buoyancy)
+    w∂ⱼ_τ₃ⱼ = ℑzᵃᵃᶜ(i, j, k, grid, ψf, model_fields.w, ∂ⱼ_τ₃ⱼ, closure, diffusivity_fields, clock, model_fields, buoyancy)
+
+    return u∂ⱼ_τ₁ⱼ+ v∂ⱼ_τ₂ⱼ + w∂ⱼ_τ₃ⱼ
+end
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` that computes the diffusive term the KE prognostic equation:
+
+    DIFF = uᵢ∂ⱼτᵢⱼ
+
+where `uᵢ` are the velocity components and `τᵢⱼ` is the diffusive flux of `i` momentum in the 
+`j`-th direction.
+
+```julia
+```
+"""
+function KineticEnergyDiffusiveTerm(model; location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyDiffusiveTerm")
+    dependencies = (model.closure,
+                    model.diffusivity_fields,
+                    model.clock,
+                    fields(model),
+                    model.buoyancy)
+    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ, model.grid, dependencies...)
 end
 #---
 

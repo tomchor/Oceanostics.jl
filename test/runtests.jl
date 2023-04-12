@@ -152,18 +152,38 @@ function test_pressure_terms(model)
 end
 
 function test_ke_dissipation_rate_terms(model)
-    u, v, w = model.velocities
-    b = model.tracers.b
 
-    ε_iso = IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
-    ε_iso_field = compute!(Field(ε_iso))
-    @test ε_iso isa AbstractOperation
-    @test ε_iso_field isa Field
+    if !(model.closure isa Tuple) || all(isa.(model.closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
+        ε_iso = IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
+        ε_iso_field = compute!(Field(ε_iso))
+        @test ε_iso isa AbstractOperation
+        @test ε_iso_field isa Field
+    end
 
-    ε_iso = IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
-    ε_iso_field = compute!(Field(ε_iso))
-    @test ε_iso isa AbstractOperation
-    @test ε_iso_field isa Field
+    ε = ViscousDissipationRate(model; U=0, V=0, W=0)
+    ε_field = compute!(Field(ε_iso))
+    @test ε isa AbstractOperation
+    @test ε_field isa Field
+
+    ε = KineticEnergyDiffusiveTerm(model)
+    ε_field = compute!(Field(ε_iso))
+    @test ε isa AbstractOperation
+    @test ε_field isa Field
+
+    set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
+    @compute ε̄ₖ = Field(Average(ViscousDissipationRate(model)))
+    @compute ε̄ₖ₂= Field(Average(KineticEnergyDiffusiveTerm(model)))
+    @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), Array(interior(ε̄ₖ₂, 1, 1, 1)), rtol=1e-10, atol=eps())
+
+    if model isa NonhydrostaticModel
+        ε = KineticEnergyTendency(model)
+        ε_field = compute!(Field(ε))
+        @test ε isa AbstractOperation
+        @test ε_field isa Field
+
+        @compute ∂ₜKE = Field(Average(TracerVarianceTendency(model, :b)))
+        @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), -Array(interior(∂ₜKE, 1, 1, 1)), rtol=1e-10, atol=eps())
+    end
 
     return nothing
 end
