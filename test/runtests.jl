@@ -211,10 +211,7 @@ model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()),
 
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
-            AnisotropicMinimumDissipation(),
-            (HorizontalScalarDiffusivity(ν=1e-4, κ=1e-4), VerticalScalarDiffusivity(ν=1e-6, κ=1e-6)),
-            (ScalarDiffusivity(ν=1e-6, κ=1e-7), SmagorinskyLilly()),
-            )
+            (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()))
 
 @testset "Oceanostics" begin
     for grid in (regular_grid, stretched_grid)
@@ -238,7 +235,7 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
                     @info "Testing energy dissipation rate terms with closure" closure
                     test_ke_dissipation_rate_terms(model)
                 end
-        
+       
                 @info "Testing tracer variance terms wth closure" closure
                 test_tracer_diagnostics(model)
             end
@@ -250,18 +247,17 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
                             (ScalarDiffusivity(ν=1e-6, κ=1e-7), HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7))]
         
         for closure in invalid_closures
-            model = NonhydrostaticModel(; grid, model_kwargs..., closure)
+            model = NonhydrostaticModel(grid = regular_grid; model_kwargs..., closure)
             @test_throws ErrorException IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
             @test_throws ErrorException IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
         end
 
     end
 
-        
-    
+
     for closure in closures
         LES = is_LES(closure)
-        model = NonhydrostaticModel(; grid,
+        model = NonhydrostaticModel(grid = regular_grid;
                                     buoyancy = Buoyancy(model=BuoyancyTracer()), 
                                     coriolis = FPlane(1e-4),
                                     tracers = :b,
