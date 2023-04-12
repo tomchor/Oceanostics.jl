@@ -6,7 +6,6 @@ export IsotropicViscousDissipationRate, IsotropicPseudoViscousDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 
-using Oceananigans
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -42,10 +41,10 @@ end
 Calculate the turbulent kinetic energy of `model` manually specifying `u`, `v`, `w` and optionally
 background velocities `U`, `V` and `W`.
 """
-function TurbulentKineticEnergy(model, u, v, w; U = 0, V = 0, W = 0, location = (Center, Center, Center))
+function TurbulentKineticEnergy(model, u, v, w; U=0, V=0, W=0, location = (Center, Center, Center))
     validate_location(location, "TurbulentKineticEnergy")
     return KernelFunctionOperation{Center, Center, Center}(turbulent_kinetic_energy_ccc, model.grid,
-                                                           computed_dependencies=(u, v, w, U, V, W))
+                                                           u, v, w, U, V, W)
 end
 
 """
@@ -97,7 +96,7 @@ Calculate the Viscous Dissipation Rate, defined as
 where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a 
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
-function IsotropicViscousDissipationRate(model; U=0, V=0, W=0, 
+function IsotropicViscousDissipationRate(model; U=0, V=0, W=0,
                                          location = (Center, Center, Center))
 
     validate_location(location, "IsotropicViscousDissipationRate")
@@ -109,9 +108,8 @@ function IsotropicViscousDissipationRate(model; U=0, V=0, W=0,
                   diffusivity_fields = model.diffusivity_fields,
                   clock = model.clock)
 
-    return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies=(u - U, v - V, w - W),
-                                                           parameters)
+    return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_ccc, model.grid,
+                                                           (u - U), (v - V), (w - W), parameters)
 end
 
 for viscous_flux in (:viscous_flux_ux, :viscous_flux_uy, :viscous_flux_uz,
@@ -174,8 +172,8 @@ function IsotropicPseudoViscousDissipationRate(model; U=ZeroField(), V=ZeroField
                              model.diffusivity_fields,
                              fields(model))
 
-    return KernelFunctionOperation{Center, Center, Center}(isotropic_pseudo_viscous_dissipation_rate_ccc, model.grid;
-                                                           computed_dependencies, parameters)
+    return KernelFunctionOperation{Center, Center, Center}(isotropic_pseudo_viscous_dissipation_rate_ccc, model.grid,
+                                                           (u - U), (v - V), (w - W), parameters)
 end
 #---
 
@@ -238,8 +236,8 @@ Calculate the shear production rate in the `model`'s `x` direction, considering 
 """
 function XShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
     validate_location(location, "XShearProductionRate")
-    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_x_ccc, model.grid;
-                                                           computed_dependencies=(u, v, w, U, V, W))
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_x_ccc, model.grid,
+                                                           u, v, w, U, V, W)
 end
 
 """
@@ -280,8 +278,8 @@ Calculate the shear production rate in the `model`'s `y` direction, considering 
 """
 function YShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
     validate_location(location, "YShearProductionRate")
-    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_y_ccc, model.grid;
-                                                           computed_dependencies=(u, v, w, U, V, W))
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_y_ccc, model.grid,
+                                                           u, v, w, U, V, W)
 end
 
 """
@@ -322,8 +320,8 @@ Calculate the shear production rate in the `model`'s `z` direction, considering 
 """
 function ZShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
     validate_location(location, "ZShearProductionRate")
-    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_z_ccc, model.grid;
-                                                           computed_dependencies=(u, v, w, U, V, W))
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_z_ccc, model.grid,
+                                                           u, v, w, U, V, W)
 end
 
 """
