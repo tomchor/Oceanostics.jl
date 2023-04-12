@@ -8,7 +8,7 @@ using Oceanostics: validate_location, validate_dissipative_closure, add_backgrou
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
-using Oceananigans: fields
+using Oceananigans: NonhydrostaticModel, fields
 using Oceananigans.Models.NonhydrostaticModels: tracer_tendency
 using Oceananigans.TurbulenceClosures: ∇_dot_qᶜ
 
@@ -42,7 +42,7 @@ import Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diff
                                                                 args...)
 end
 
-function TracerVarianceTendency(model, tracer_name; location = (Center, Center, Center))
+function TracerVarianceTendency(model::NonhydrostaticModel, tracer_name; location = (Center, Center, Center))
     validate_location(location, "TracerVarianceTendency")
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
 
