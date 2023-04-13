@@ -230,8 +230,7 @@ model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()),
 
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
-#            (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()))
-            )
+            (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()))
 
 grids = (regular_grid, stretched_grid)
 
