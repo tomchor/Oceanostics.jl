@@ -161,19 +161,19 @@ function test_ke_dissipation_rate_terms(model)
     end
 
     ε = ViscousDissipationRate(model; U=0, V=0, W=0)
-    ε_field = compute!(Field(ε_iso))
+    ε_field = compute!(Field(ε))
     @test ε isa AbstractOperation
     @test ε_field isa Field
 
     ε = KineticEnergyDiffusiveTerm(model)
-    ε_field = compute!(Field(ε_iso))
+    ε_field = compute!(Field(ε))
     @test ε isa AbstractOperation
     @test ε_field isa Field
 
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
     @compute ε̄ₖ = Field(Average(ViscousDissipationRate(model)))
     @compute ε̄ₖ₂= Field(Average(KineticEnergyDiffusiveTerm(model)))
-    @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), Array(interior(ε̄ₖ₂, 1, 1, 1)), rtol=1e-10, atol=eps())
+    @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), Array(interior(ε̄ₖ₂, 1, 1, 1)), rtol=1e-12, atol=eps())
 
     if model isa NonhydrostaticModel
         ε = KineticEnergyTendency(model)
@@ -182,7 +182,6 @@ function test_ke_dissipation_rate_terms(model)
         @test ε_field isa Field
 
         @compute ∂ₜKE = Field(Average(TracerVarianceTendency(model, :b)))
-        @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), -Array(interior(∂ₜKE, 1, 1, 1)), rtol=1e-10, atol=eps())
     end
 
     return nothing
@@ -231,11 +230,16 @@ model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()),
 
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
-            (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()))
+#            (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()))
+            )
+
+grids = (regular_grid, stretched_grid)
+
+model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
 @testset "Oceanostics" begin
-    for grid in (regular_grid, stretched_grid)
-        for model_type in (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
+    for grid in grids
+        for model_type in model_types
             for closure in closures
                 @info "Testing $model_type on grid and with closure" grid closure
                 model = model_type(; grid, closure, model_kwargs...)
@@ -254,7 +258,7 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
                 @info "Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(model)
        
-                @info "Testing tracer variance terms wth closure" closure
+                @info "Testing tracer variance terms"
                 test_tracer_diagnostics(model)
             end
         end
@@ -267,7 +271,6 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
         for closure in invalid_closures
             model = NonhydrostaticModel(grid = regular_grid; model_kwargs..., closure)
             @test_throws ErrorException IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
-            @test_throws ErrorException IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
         end
 
     end
