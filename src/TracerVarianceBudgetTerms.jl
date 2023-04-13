@@ -95,7 +95,7 @@ end
 Return a `KernelFunctionOperation` that computes the diffusive term of the tracer variance
 prognostic equation using Oceananigans' diffusive tracer flux divergence kernel:
 
-    DIFF = c ∂ⱼFⱼ
+    DIFF = 2 c ∂ⱼFⱼ
 
 where `c` is the tracer, and `Fⱼ` is the tracer's diffusive flux in the `j`-th direction.
 
