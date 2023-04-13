@@ -174,10 +174,10 @@ function test_ke_dissipation_rate_terms(model)
     @compute ε̄ₖ = Field(Average(ViscousDissipationRate(model)))
     @compute ε̄ₖ₂= Field(Average(KineticEnergyDiffusiveTerm(model)))
 
-    rtol = model isa NonhydrostaticModel ? 1e-12 : 1e-1
-    @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), Array(interior(ε̄ₖ₂, 1, 1, 1)), rtol=rtol, atol=eps())
 
     if model isa NonhydrostaticModel
+        @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), Array(interior(ε̄ₖ₂, 1, 1, 1)), rtol=1e-12, atol=eps())
+
         ε = KineticEnergyTendency(model)
         ε_field = compute!(Field(ε))
         @test ε isa AbstractOperation

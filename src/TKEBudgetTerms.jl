@@ -7,7 +7,7 @@ export IsotropicViscousDissipationRate, ViscousDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 
-using Oceananigans: NonhydrostaticModel, fields
+using Oceananigans: NonhydrostaticModel, HydrostaticFreeSurfaceModel, fields
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -286,6 +286,11 @@ where `uᵢ` are the velocity components and `τᵢⱼ` is the diffusive flux of
 """
 function KineticEnergyDiffusiveTerm(model; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyDiffusiveTerm")
+    model_fields = fields(model)
+
+    if model isa HydrostaticFreeSurfaceModel
+        model_fields = (; model_fields..., w=ZeroField())
+    end
     dependencies = (model.closure,
                     model.diffusivity_fields,
                     model.clock,
