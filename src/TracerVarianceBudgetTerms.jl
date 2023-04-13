@@ -132,23 +132,23 @@ for diff_flux in (:diffusive_flux_x, :diffusive_flux_y, :diffusive_flux_z)
     @eval @inline $diff_flux(i, j, k, grid, closure_tuple::Tuple{}, args...) = zero(grid)
 end
 
-# Variance dissipation at fcc
-@inline χxᶠᶜᶜ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
+# Variance dissipation rate at fcc
+@inline Axᶠᶜᶜ_δcᶠᶜᶜ_q₁ᶠᶜᶜ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
     - Axᶠᶜᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, c) * diffusive_flux_x(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
 
-# Variance dissipation at cfc
-@inline χyᶜᶠᶜ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
+# Variance dissipation rate at cfc
+@inline Ayᶜᶠᶜ_δcᶜᶠᶜ_q₂ᶜᶠᶜ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
     - Ayᶜᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, c) * diffusive_flux_y(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
 
-# Variance dissipation at ccf
-@inline χzᶜᶜᶠ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
+# Variance dissipation rate at ccf
+@inline Azᶜᶜᶠ_δcᶜᶜᶠ_q₃ᶜᶜᶠ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
     - Azᶜᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, c) * diffusive_flux_z(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
 
 @inline function tracer_variance_dissipation_rate_ccc(i, j, k, grid, args...)
-return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, χxᶠᶜᶜ, args...) + # F, C, C  → C, C, C
-            ℑyᵃᶜᵃ(i, j, k, grid, χyᶜᶠᶜ, args...) + # C, F, C  → C, C, C
-            ℑzᵃᵃᶜ(i, j, k, grid, χzᶜᶜᶠ, args...)   # C, C, F  → C, C, C
-            ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to δ above, ensures a derivative operation
+return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, Axᶠᶜᶜ_δcᶠᶜᶜ_q₁ᶠᶜᶜ, args...) + # F, C, C  → C, C, C
+            ℑyᵃᶜᵃ(i, j, k, grid, Ayᶜᶠᶜ_δcᶜᶠᶜ_q₂ᶜᶠᶜ, args...) + # C, F, C  → C, C, C
+            ℑzᵃᵃᶜ(i, j, k, grid, Azᶜᶜᶠ_δcᶜᶜᶠ_q₃ᶜᶜᶠ, args...)   # C, C, F  → C, C, C
+            ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δc above, ensures a derivative operation
 end
 
 """
