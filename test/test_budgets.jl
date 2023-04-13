@@ -56,7 +56,7 @@ function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusiv
     wizard = TimeStepWizard(cfl=0.1, diffusive_cfl=0.1)
     simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
 
-    ε  = ViscousDissipationRate(model)
+    ε  = KineticEnergyDissipationRate(model)
     @compute ∫εdV   = Field(Integral(ε))
     @compute ∫KEdV  = Field(Integral(KineticEnergy(model)))
     ∫∫εdVdt = Ref(0.0)

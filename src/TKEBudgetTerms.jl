@@ -3,7 +3,7 @@ using DocStringExtensions
 
 export TurbulentKineticEnergy, KineticEnergy
 export KineticEnergyTendency, KineticEnergyDiffusiveTerm
-export IsotropicViscousDissipationRate, ViscousDissipationRate
+export IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 
@@ -100,10 +100,10 @@ Calculate the Viscous Dissipation Rate, defined as
 where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a 
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
-function IsotropicViscousDissipationRate(model; U=0, V=0, W=0,
+function IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0,
                                          location = (Center, Center, Center))
 
-    validate_location(location, "IsotropicViscousDissipationRate")
+    validate_location(location, "IsotropicKineticEnergyDissipationRate")
     validate_dissipative_closure(model.closure)
 
     u, v, w = model.velocities
@@ -168,10 +168,10 @@ Calculate the pseudo viscous Dissipation Rate, defined as
 for a fluid with an isotropic turbulence closure (i.e., a 
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
-function ViscousDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
+function KineticEnergyDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
                                                location = (Center, Center, Center))
 
-    validate_location(location, "ViscousDissipationRate")
+    validate_location(location, "KineticEnergyDissipationRate")
 
     u, v, w = model.velocities
 

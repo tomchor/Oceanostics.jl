@@ -4,7 +4,7 @@ using DocStringExtensions
 #+++ TKEBudgetTerms exports
 export TurbulentKineticEnergy, KineticEnergy
 export KineticEnergyTendency, KineticEnergyDiffusiveTerm
-export IsotropicViscousDissipationRate, ViscousDissipationRate
+export IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 #---
