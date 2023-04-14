@@ -20,10 +20,7 @@ The keyword `rev` let's you pick which github branch you want.
 
 ## Simple example
 
-The example below is a simple illustration of the use of `TimedProgressMessenger` (which keeps track
-of how long each time step takes) and `KineticEnergy`, which computed the kinetic energy of a flow.
-
-(Note that `(; tke, ε)` is a shorthand for `(tke=tke, ε=ε)`.)
+The example below is a simple illustration of how to use a few of Oceanostics fearures:
 
 ```julia
 using Oceananigans
@@ -31,13 +28,16 @@ using Oceanostics
 
 grid = RectilinearGrid(size=(4, 5, 6), extent=(1, 1, 1))
 model = NonhydrostaticModel(grid=grid, closure=SmagorinskyLilly())
-simulation = Simulation(model, Δt=1, stop_iteration=10, progress=Oceanostics.TimedProgressMessenger(; LES=false))
+simulation = Simulation(model, Δt=1, stop_time=20)
+simulation.callbacks[:progress] = Callback(TimedProgressMessenger(LES=false), IterationInterval(5))
 
 ke = Field(KineticEnergy(model))
-ε = Field(IsotropicViscousDissipationRate(model))
-simulation.output_writers[:netcdf_writer] = NetCDFOutputWriter(model, (; ke, ε), filepath="out.nc", schedule=TimeInterval(2))
+ε = Field(KineticEnergyDissipationRate(model))
+simulation.output_writers[:netcdf_writer] = NetCDFOutputWriter(model, (; ke, ε), filename="out.nc", schedule=TimeInterval(2))
 run!(simulation)
 ```
+
+(Note that `(; tke, ε)` is a shorthand for `(tke=tke, ε=ε)`.)
 
 ## Caveats
 
