@@ -70,10 +70,10 @@ function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusiv
 
     function accumulate_χ(sim)
         compute!(∫εdV)
-        ∫∫εdVdt[] += sim.Δt * parent(∫εdV)[1,1,1]
+        ∫∫εdVdt[] += sim.Δt * only(interior(∫εdV, 1, 1, 1))
 
         compute!(∫χdV)
-        ∫∫χdVdt[] += sim.Δt * parent(∫χdV)[1,1,1]
+        ∫∫χdVdt[] += sim.Δt * only(interior(∫χdV, 1, 1, 1))
         return nothing
     end
     simulation.callbacks[:integrate_χ] = Callback(accumulate_χ)
