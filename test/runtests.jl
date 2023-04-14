@@ -239,71 +239,71 @@ grids = (regular_grid, stretched_grid)
 model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
 @testset "Oceanostics" begin
-#    for grid in grids
-#        for model_type in model_types
-#            for closure in closures
-#                @info "Testing $model_type on grid and with closure" grid closure
-#                model = model_type(; grid, closure, model_kwargs...)
-#
-#                @info "Testing velocity-only diagnostics"
-#                test_vel_only_diagnostics(model)
-#
-#                @info "Testing buoyancy diagnostics"
-#                test_buoyancy_diagnostics(model)
-#
-#                if model isa NonhydrostaticModel
-#                    @info "Testing pressure terms"
-#                    test_pressure_terms(model)
-#                end
-#
-#                @info "Testing energy dissipation rate terms"
-#                test_ke_dissipation_rate_terms(model)
-#       
-#                @info "Testing tracer variance terms"
-#                test_tracer_diagnostics(model)
-#            end
-#        end
-#
-#        @info "Testing input validation for dissipation rates"
-#        invalid_closures = [HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7),
-#                            VerticalScalarDiffusivity(ν=1e-6, κ=1e-7),
-#                            (ScalarDiffusivity(ν=1e-6, κ=1e-7), HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7))]
-#        
-#        for closure in invalid_closures
-#            model = NonhydrostaticModel(grid = regular_grid; model_kwargs..., closure)
-#            @test_throws ErrorException IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0)
-#        end
-#
-#    end
-#
-#
-#    for closure in closures
-#        LES = is_LES(closure)
-#        model = NonhydrostaticModel(grid = regular_grid;
-#                                    buoyancy = Buoyancy(model=BuoyancyTracer()), 
-#                                    coriolis = FPlane(1e-4),
-#                                    tracers = :b,
-#                                    closure = closure)
-#
-#        @info "Testing SimpleProgressMessenger with closure" closure
-#        model.clock.iteration = 0
-#        time_now = time_ns()*1e-9
-#        test_progress_messenger(model, SimpleProgressMessenger(initial_wall_time_seconds=1e-9*time_ns()))
-#
-#        @info "Testing SingleLineProgressMessenger with closure" closure
-#        model.clock.iteration = 0
-#        time_now = time_ns()*1e-9
-#        test_progress_messenger(model, SingleLineProgressMessenger(initial_wall_time_seconds=1e-9*time_ns()))
-#
-#        simulation = Simulation(model; Δt=1e-2, stop_iteration=1)
-#        msg = make_message(simulation, true)
-#        @test count(s -> s === '\n', msg) == 1
-#
-#        @info "Testing TimedProgressMessenger with closure" closure
-#        model.clock.iteration = 0
-#        time_now = time_ns()*1e-9
-#        test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
-#    end
+    for grid in grids
+        for model_type in model_types
+            for closure in closures
+                @info "Testing $model_type on grid and with closure" grid closure
+                model = model_type(; grid, closure, model_kwargs...)
+
+                @info "Testing velocity-only diagnostics"
+                test_vel_only_diagnostics(model)
+
+                @info "Testing buoyancy diagnostics"
+                test_buoyancy_diagnostics(model)
+
+                if model isa NonhydrostaticModel
+                    @info "Testing pressure terms"
+                    test_pressure_terms(model)
+                end
+
+                @info "Testing energy dissipation rate terms"
+                test_ke_dissipation_rate_terms(model)
+       
+                @info "Testing tracer variance terms"
+                test_tracer_diagnostics(model)
+            end
+        end
+
+        @info "Testing input validation for dissipation rates"
+        invalid_closures = [HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7),
+                            VerticalScalarDiffusivity(ν=1e-6, κ=1e-7),
+                            (ScalarDiffusivity(ν=1e-6, κ=1e-7), HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7))]
+        
+        for closure in invalid_closures
+            model = NonhydrostaticModel(grid = regular_grid; model_kwargs..., closure)
+            @test_throws ErrorException IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0)
+        end
+
+    end
+
+
+    for closure in closures
+        LES = is_LES(closure)
+        model = NonhydrostaticModel(grid = regular_grid;
+                                    buoyancy = Buoyancy(model=BuoyancyTracer()), 
+                                    coriolis = FPlane(1e-4),
+                                    tracers = :b,
+                                    closure = closure)
+
+        @info "Testing SimpleProgressMessenger with closure" closure
+        model.clock.iteration = 0
+        time_now = time_ns()*1e-9
+        test_progress_messenger(model, SimpleProgressMessenger(initial_wall_time_seconds=1e-9*time_ns()))
+
+        @info "Testing SingleLineProgressMessenger with closure" closure
+        model.clock.iteration = 0
+        time_now = time_ns()*1e-9
+        test_progress_messenger(model, SingleLineProgressMessenger(initial_wall_time_seconds=1e-9*time_ns()))
+
+        simulation = Simulation(model; Δt=1e-2, stop_iteration=1)
+        msg = make_message(simulation, true)
+        @test count(s -> s === '\n', msg) == 1
+
+        @info "Testing TimedProgressMessenger with closure" closure
+        model.clock.iteration = 0
+        time_now = time_ns()*1e-9
+        test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
+    end
 
     rtol = 0.02; N = 80
     @info "Testing tracer variance budget on and a regular grid with N=$N and tolerance $rtol"
