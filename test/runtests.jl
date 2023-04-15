@@ -152,18 +152,39 @@ function test_pressure_terms(model)
 end
 
 function test_ke_dissipation_rate_terms(model)
-    u, v, w = model.velocities
-    b = model.tracers.b
 
-    ε_iso = IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
-    ε_iso_field = compute!(Field(ε_iso))
-    @test ε_iso isa AbstractOperation
-    @test ε_iso_field isa Field
+    if !(model.closure isa Tuple) || all(isa.(model.closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
+        ε_iso = IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0)
+        ε_iso_field = compute!(Field(ε_iso))
+        @test ε_iso isa AbstractOperation
+        @test ε_iso_field isa Field
+    end
 
-    ε_iso = IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
-    ε_iso_field = compute!(Field(ε_iso))
-    @test ε_iso isa AbstractOperation
-    @test ε_iso_field isa Field
+    ε = KineticEnergyDissipationRate(model; U=0, V=0, W=0)
+    ε_field = compute!(Field(ε))
+    @test ε isa AbstractOperation
+    @test ε_field isa Field
+
+    ε = KineticEnergyDiffusiveTerm(model)
+    ε_field = compute!(Field(ε))
+    @test ε isa AbstractOperation
+    @test ε_field isa Field
+
+    set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
+    @compute ε̄ₖ = Field(Average(KineticEnergyDissipationRate(model)))
+    @compute ε̄ₖ₂= Field(Average(KineticEnergyDiffusiveTerm(model)))
+
+
+    if model isa NonhydrostaticModel
+        @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), Array(interior(ε̄ₖ₂, 1, 1, 1)), rtol=1e-12, atol=eps())
+
+        ε = KineticEnergyTendency(model)
+        ε_field = compute!(Field(ε))
+        @test ε isa AbstractOperation
+        @test ε_field isa Field
+
+        @compute ∂ₜKE = Field(Average(TracerVarianceTendency(model, :b)))
+    end
 
     return nothing
 end
@@ -213,9 +234,13 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()))
 
+grids = (regular_grid, stretched_grid)
+
+model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
+
 @testset "Oceanostics" begin
-    for grid in (regular_grid, stretched_grid)
-        for model_type in (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
+    for grid in grids
+        for model_type in model_types
             for closure in closures
                 @info "Testing $model_type on grid and with closure" grid closure
                 model = model_type(; grid, closure, model_kwargs...)
@@ -231,12 +256,10 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
                     test_pressure_terms(model)
                 end
 
-                if !(closure isa Tuple) || all(isa.(closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
-                    @info "Testing energy dissipation rate terms with closure" closure
-                    test_ke_dissipation_rate_terms(model)
-                end
+                @info "Testing energy dissipation rate terms"
+                test_ke_dissipation_rate_terms(model)
        
-                @info "Testing tracer variance terms wth closure" closure
+                @info "Testing tracer variance terms"
                 test_tracer_diagnostics(model)
             end
         end
@@ -248,8 +271,7 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
         
         for closure in invalid_closures
             model = NonhydrostaticModel(grid = regular_grid; model_kwargs..., closure)
-            @test_throws ErrorException IsotropicViscousDissipationRate(model; U=0, V=0, W=0)
-            @test_throws ErrorException IsotropicPseudoViscousDissipationRate(model; U=0, V=0, W=0)
+            @test_throws ErrorException IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0)
         end
 
     end
@@ -283,7 +305,7 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
         test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
     end
 
-    rtol = 0.02; N = 64
+    rtol = 0.02; N = 80
     @info "Testing tracer variance budget on and a regular grid with N=$N and tolerance $rtol"
     test_tracer_variance_budget(N=N, rtol=rtol, regular_grid=true)
 

@@ -56,27 +56,41 @@ function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusiv
     wizard = TimeStepWizard(cfl=0.1, diffusive_cfl=0.1)
     simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
 
-    χ  = TracerVarianceDissipationRate(model, :c)
+    ε  = KineticEnergyDissipationRate(model)
+    @compute ∫εdV   = Field(Integral(ε))
+    @compute ∫KEdV  = Field(Integral(KineticEnergy(model)))
+    ∫∫εdVdt = Ref(0.0)
+    ∫KEdV_t⁰ = parent(∫KEdV)[1,1,1]
 
-    ∫∫χdVdt = Ref(0.0)
+    χ  = TracerVarianceDissipationRate(model, :c)
     @compute ∫χdV   = Field(Integral(χ))
     @compute ∫c²dV  = Field(Integral(c^2))
-
+    ∫∫χdVdt = Ref(0.0)
     ∫c²dV_t⁰ = parent(∫c²dV)[1,1,1]
+
     function accumulate_χ(sim)
+        compute!(∫εdV)
+        ∫∫εdVdt[] += sim.Δt * only(interior(∫εdV, 1, 1, 1))
+
         compute!(∫χdV)
-        ∫∫χdVdt[] += sim.Δt * parent(∫χdV)[1,1,1] #∫χdV_prev[]
+        ∫∫χdVdt[] += sim.Δt * only(interior(∫χdV, 1, 1, 1))
         return nothing
     end
     simulation.callbacks[:integrate_χ] = Callback(accumulate_χ)
 
     run!(simulation)
 
+    compute!(∫KEdV)
+    ∫KEdV_tᶠ = parent(∫KEdV)[1,1,1]
+    ∫∫εdVdt_tᶠ = ∫KEdV_t⁰- ∫∫εdVdt[]
+    abs_error = (abs(∫∫εdVdt_tᶠ - ∫KEdV_tᶠ)/∫KEdV_t⁰)
+    @info "Error in KE decrease is $abs_error"
+    @test abs_error < rtol
+
     compute!(∫c²dV)
     ∫c²dV_tᶠ = parent(∫c²dV)[1,1,1]
     ∫∫χdVdt_tᶠ = ∫c²dV_t⁰- ∫∫χdVdt[]
     abs_error = (abs(∫∫χdVdt_tᶠ - ∫c²dV_tᶠ)/∫c²dV_t⁰)
-
     @info "Error in c² decrease is $abs_error"
     @test abs_error < rtol
 
