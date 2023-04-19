@@ -14,10 +14,10 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
 using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
-import Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz, 
-                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
-                                        viscous_flux_wx, viscous_flux_wy, viscous_flux_wz
-using Oceananigans.TurbulenceClosures: ∂ⱼ_τ₁ⱼ, ∂ⱼ_τ₂ⱼ, ∂ⱼ_τ₃ⱼ
+using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz, 
+                                       viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
+                                       viscous_flux_wx, viscous_flux_wy, viscous_flux_wz,
+                                       ∂ⱼ_τ₁ⱼ, ∂ⱼ_τ₂ⱼ, ∂ⱼ_τ₃ⱼ
 
 using Oceanostics: _νᶜᶜᶜ
 using Oceanostics: validate_location, validate_dissipative_closure

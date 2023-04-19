@@ -10,9 +10,7 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 using Oceananigans: NonhydrostaticModel, fields
 using Oceananigans.Models.NonhydrostaticModels: tracer_tendency
-using Oceananigans.TurbulenceClosures: ∇_dot_qᶜ
-
-import Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
+using Oceananigans.TurbulenceClosures: ∇_dot_qᶜ, diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 
 #+++ Tracer variance tendency
 @inline function c∂ₜcᶜᶜᶜ(i, j, k, grid, val_tracer_index::Val{tracer_index},
