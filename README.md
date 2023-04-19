@@ -1,6 +1,8 @@
 # Oceanostics
 
-Useful diagnostics to use with [Oceananigans](https://github.com/CliMA/Oceananigans.jl). Mostly `AbstractOperations`s and a few useful progress messengers.
+Useful diagnostics to use with [Oceananigans](https://github.com/CliMA/Oceananigans.jl). Mostly this
+repo contains `KernelFunctionOperation`s (which in turn return `AbstractOperation`s) and a few
+useful progress messengers.
 
 To add the latest registered version from Julia:
 ```julia

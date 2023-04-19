@@ -116,18 +116,6 @@ function IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0,
                                                            (u - U), (v - V), (w - W), parameters)
 end
 
-for viscous_flux in (:viscous_flux_ux, :viscous_flux_uy, :viscous_flux_uz,
-                     :viscous_flux_vx, :viscous_flux_vy, :viscous_flux_vz,
-                     :viscous_flux_wx, :viscous_flux_wy, :viscous_flux_wz)
-    @eval @inline $viscous_flux(i, j, k, grid, closure_tuple::Tuple, diffusivity_fields, args...) =
-        $viscous_flux(i, j, k, grid, closure_tuple[1], diffusivity_fields[1], args...) +
-        $viscous_flux(i, j, k, grid, closure_tuple[2:end], diffusivity_fields[2:end], args...)
-
-    # End of the line
-    @eval @inline $viscous_flux(i, j, k, grid, closure_tuple::Tuple{}, args...) = zero(grid)
-end
-
-
 # ∂ⱼu₁ ⋅ F₁ⱼ
 Axᶜᶜᶜ_δuᶜᶜᶜ_F₁₁ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, fields.u) * viscous_flux_ux(i, j, k, grid, closure, K_fields, clo, fields, b)
 Ayᶠᶠᶜ_δuᶠᶠᶜ_F₁₂ᶠᶠᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶠᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, fields.u) * viscous_flux_uy(i, j, k, grid, closure, K_fields, clo, fields, b)
