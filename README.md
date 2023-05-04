@@ -22,5 +22,3 @@ julia>]
 (@v1.8) pkg> add Oceanostics#main
 ```
 
-
-

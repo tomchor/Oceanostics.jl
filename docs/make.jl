@@ -26,3 +26,7 @@ makedocs(sitename = "Oceanostics.jl",
          clean = true,
          format = format,
          )
+
+deploydocs(repo = "github.com/tomchor/Oceanostics.jl.git",
+           push_preview = true,
+           )
