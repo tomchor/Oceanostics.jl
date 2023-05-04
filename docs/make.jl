@@ -13,7 +13,8 @@ pages = ["Home" => "index.md",
 
 format = Documenter.HTML(collapselevel = 1,
                          prettyurls = get(ENV, "CI", nothing) == "true", # Makes links work when building locally
-                         mathengine = MathJax3()
+                         mathengine = MathJax3(),
+                         warn_outdated = true,
                          )
 
 makedocs(sitename = "Oceanostics.jl",

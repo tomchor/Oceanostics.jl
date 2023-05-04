@@ -13,7 +13,7 @@ Markdown.parse_file(joinpath(@__DIR__, "..", "..", "README.md"))
 
 The example below is a simple illustration of how to use a few of Oceanostics features:
 
-```jldoctest
+```jldoctest; filter = r"┌ Info:.*"s
 julia> using Oceananigans
 
 julia> using Oceanostics
@@ -22,7 +22,7 @@ julia> grid = RectilinearGrid(size=(4, 5, 6), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(grid=grid, closure=SmagorinskyLilly());
 
-julia> simulation = Simulation(model, Δt=1, stop_time=20);
+julia> simulation = Simulation(model, Δt=1, stop_time=10);
 
 julia> simulation.callbacks[:progress] = Callback(TimedProgressMessenger(LES=false), IterationInterval(5));
 
@@ -42,20 +42,19 @@ julia> simulation.output_writers[:netcdf_writer] = NetCDFOutputWriter(model, (; 
 
 julia> run!(simulation)
 [ Info: Initializing simulation...
-┌ Info: [000.00%] iteration:      0, time:  0 seconds, Δt:   1 second, wall time: 7.418 seconds (0 seconds / time step)
+┌ Info: [000.00%] iteration:      0, time:  0 seconds, Δt:   1 second, wall time: 6.410 seconds (0 seconds / time step)
 └           └── max(|u⃗|): [0.00e+00, 0.00e+00, 0.00e+00] m/s, CFL: 0.00e+00
-[ Info:     ... simulation initialization complete (1.300 seconds)
+[ Info:     ... simulation initialization complete (10.662 ms)
 [ Info: Executing initial time step...
-[ Info:     ... initial time step complete (1.525 ms).
-┌ Info: [025.00%] iteration:      5, time:  5 seconds, Δt:   1 second, wall time: 8.689 seconds (254.179 ms / time step)
+[ Info:     ... initial time step complete (2.375 ms).
+┌ Info: [050.00%] iteration:      5, time:  5 seconds, Δt:   1 second, wall time: 6.431 seconds (4.288 ms / time step)
 └           └── max(|u⃗|): [0.00e+00, 0.00e+00, 0.00e+00] m/s, CFL: 0.00e+00
-┌ Info: [050.00%] iteration:     10, time: 10 seconds, Δt:   1 second, wall time: 8.699 seconds (2.101 ms / time step)
-└           └── max(|u⃗|): [0.00e+00, 0.00e+00, 0.00e+00] m/s, CFL: 0.00e+00
-┌ Info: [075.00%] iteration:     15, time: 15 seconds, Δt:   1 second, wall time: 8.714 seconds (2.981 ms / time step)
-└           └── max(|u⃗|): [0.00e+00, 0.00e+00, 0.00e+00] m/s, CFL: 0.00e+00
-[ Info: Simulation is stopping after running for 1.346 seconds.
-[ Info: Simulation time 20 seconds equals or exceeds stop time 20 seconds.
-┌ Info: [100.00%] iteration:     20, time: 20 seconds, Δt:   1 second, wall time: 8.725 seconds (2.222 ms / time step)
+[ Info: Simulation is stopping after running for 35.352 ms.
+[ Info: Simulation time 10 seconds equals or exceeds stop time 10 seconds.
+┌ Info: [100.00%] iteration:     10, time: 10 seconds, Δt:   1 second, wall time: 6.444 seconds (2.441 ms / time step)
 └           └── max(|u⃗|): [0.00e+00, 0.00e+00, 0.00e+00] m/s, CFL: 0.00e+00
 ```
 
+```@meta
+rm("out.nc")
+```
