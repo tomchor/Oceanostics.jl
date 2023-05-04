@@ -5,7 +5,16 @@ using Oceananigans
 using Oceanostics
 
 
-pages = ["Home" => "index.md",]
+pages = ["Home" => "index.md",
+         "Example" => "quick_start.md",
+         "Function library" => "library.md",
+        ]
+
+
+format = Documenter.HTML(collapselevel = 1,
+                         prettyurls = get(ENV, "CI", nothing) == "true", # Makes links work when building locally
+                         mathengine = MathJax3()
+                         )
 
 makedocs(sitename = "Oceanostics.jl",
          authors = "Tomas Chor and contributors",
@@ -13,4 +22,6 @@ makedocs(sitename = "Oceanostics.jl",
          modules = [Oceanostics],
          doctest = true,
          strict = :doctest,
+         clean = true,
+         format = format,
          )
