@@ -11,4 +11,6 @@ makedocs(sitename = "Oceanostics.jl",
          authors = "Tomas Chor and contributors",
          pages = pages,
          modules = [Oceanostics],
+         doctest = true,
+         strict = :doctest,
          )
