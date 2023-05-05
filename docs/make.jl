@@ -1,6 +1,10 @@
 pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..")) # add Oceanostics to environment
-using Documenter
+using Pkg
+CI = get(ENV, "CI", nothing) == "true" || get(ENV, "GITHUB_TOKEN", nothing) !== nothing
+CI && Pkg.activate(@__DIR__)
+CI && Pkg.instantiate()
 
+using Documenter
 using Oceananigans
 using Oceanostics
 
@@ -12,7 +16,7 @@ pages = ["Home" => "index.md",
 
 
 format = Documenter.HTML(collapselevel = 1,
-                         prettyurls = get(ENV, "CI", nothing) == "true", # Makes links work when building locally
+                         prettyurls = CI, # Makes links work when building locally
                          mathengine = MathJax3(),
                          warn_outdated = true,
                          )
@@ -27,6 +31,8 @@ makedocs(sitename = "Oceanostics.jl",
          format = format,
          )
 
-deploydocs(repo = "github.com/tomchor/Oceanostics.jl.git",
-           push_preview = true,
-           )
+if CI
+    deploydocs(repo = "github.com/tomchor/Oceanostics.jl.git",
+               push_preview = true,
+               )
+end
