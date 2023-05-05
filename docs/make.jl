@@ -1,7 +1,6 @@
 pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..")) # add Oceanostics to environment
 using Pkg
 CI = get(ENV, "CI", nothing) == "true" || get(ENV, "GITHUB_TOKEN", nothing) !== nothing
-CI && Pkg.activate(@__DIR__)
 CI && Pkg.instantiate()
 
 using Documenter
