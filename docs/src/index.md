@@ -11,7 +11,8 @@ Markdown.parse_file(joinpath(@__DIR__, "..", "..", "README.md"))
 
 ## Quick example
 
-The example below is a simple illustration of how to use a few of Oceanostics features:
+The example below illustrates a few of Oceanostics' features. Check the Examples for more detailed
+usage.
 
 ```jldoctest; filter = r"┌ Info:.*"s
 julia> using Oceananigans
