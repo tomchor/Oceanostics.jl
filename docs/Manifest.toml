@@ -2,7 +2,7 @@
 
 julia_version = "1.8.5"
 manifest_format = "2.0"
-project_hash = "3d7987143350a84d31ff9a36b9bf5bb302202fa8"
+project_hash = "e0c77beb18dc1f6cce661ebd60658c0c1a77390f"
 
 [[deps.ANSIColoredPrinters]]
 git-tree-sha1 = "574baf8110975760d391c710b6341da1afa48d8c"
@@ -27,11 +27,6 @@ deps = ["ANSIColoredPrinters", "Base64", "Dates", "DocStringExtensions", "IOCapt
 git-tree-sha1 = "58fea7c536acd71f3eef6be3b21c0df5f3df88fd"
 uuid = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 version = "0.27.24"
-
-[[deps.Example]]
-git-tree-sha1 = "46e44e869b4d90b96bd8ed1fdcf32244fddfb6cc"
-uuid = "7876af07-990d-54b4-ab0e-23690620f79a"
-version = "0.5.3"
 
 [[deps.IOCapture]]
 deps = ["Logging", "Random"]

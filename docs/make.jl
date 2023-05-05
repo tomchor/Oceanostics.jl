@@ -1,5 +1,5 @@
 pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..")) # add Oceanostics to environment
-using Documenter, Example
+using Documenter
 
 using Oceananigans
 using Oceanostics
