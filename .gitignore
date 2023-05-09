@@ -26,3 +26,7 @@ docs/src/generated
 
 # Ignore swap files used by VIM
 *.swp
+
+# No netcdf files or videos
+*.nc
+*.mp4
