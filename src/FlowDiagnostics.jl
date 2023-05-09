@@ -315,4 +315,41 @@ function DirectionalErtelPotentialVorticity(model, direction; location = (Face, 
 end
 #---
 
+#+++ Velocity gradient tensor
+@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
+
+function strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)
+    Sˣˣ² = ∂xᶜᶜᶜ(i, j, k, grid, u)^2
+    Sʸʸ² = ∂yᶜᶜᶜ(i, j, k, grid, v)^2
+    Sᶻᶻ² = ∂zᶜᶜᶜ(i, j, k, grid, w)^2
+
+    Sˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_plus_gφ², ∂yᶠᶠᶜ, u, ∂xᶠᶠᶜ, v) / 4
+    Sˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4
+    Sʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶜᶠᶠ, v, ∂yᶜᶠᶠ, w) / 4
+
+    return √(Sˣˣ² + Sʸʸ² + Sᶻᶻ² + 2 * (Sˣʸ² + Sˣᶻ² + Sʸᶻ²))
+end
+
+@inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2
+
+function vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)
+    Ωˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_minus_gφ², ∂yᶠᶠᶜ, u, ∂xᶠᶠᶜ, v) / 4
+    Ωˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_minus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4
+    Ωʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_minus_gφ², ∂zᶜᶠᶠ, v, ∂yᶜᶠᶠ, w) / 4
+
+    Ωʸˣ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_minus_gφ², ∂xᶠᶠᶜ, v, ∂yᶠᶠᶜ, u) / 4
+    Ωᶻˣ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_minus_gφ², ∂xᶠᶜᶠ, w, ∂zᶠᶜᶠ, u) / 4
+    Ωᶻʸ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_minus_gφ², ∂yᶜᶠᶠ, w, ∂zᶜᶠᶠ, v) / 4
+
+    return √(Ωˣʸ² + Ωˣᶻ² + Ωʸᶻ² + Ωʸˣ² + Ωᶻˣ² + Ωᶻʸ²)
+end
+
+# From 10.1063/1.5124245
+@inline function Q_ccc(i, j, k, grid, u, v, w)
+    S² = strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
+    Ω² = vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
+    return (Ω² - S²) / 2
+end
+#---
+
 end # module
