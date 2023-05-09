@@ -132,4 +132,4 @@ record(fig, filename * ".mp4", frames, framerate=24) do i
 end
 nothing #hide
 
-# ![](two_dim_turbulence.mp4)
+# ![](two_dimensional_turbulence.mp4)
