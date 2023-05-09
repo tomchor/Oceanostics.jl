@@ -3,6 +3,7 @@ using DocStringExtensions
 
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
+export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 
 using Oceanostics: validate_location, validate_dissipative_closure, add_background_fields
 
@@ -330,6 +331,16 @@ function strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)
     return √(Sˣˣ² + Sʸʸ² + Sᶻᶻ² + 2 * (Sˣʸ² + Sˣᶻ² + Sʸᶻ²))
 end
 
+"""
+    $(SIGNATURES)
+
+"""
+function StrainRateTensorModulus(model; location = (Center, Center, Center))
+    validate_location(location, "StrainRateTensorModulus", (Center, Center, Center))
+    return KernelFunctionOperation{Center, Center, Center}(strain_rate_tensor_modulus_ccc, model.grid, model.velocities...)
+end
+
+
 @inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2
 
 function vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)
@@ -344,12 +355,33 @@ function vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)
     return √(Ωˣʸ² + Ωˣᶻ² + Ωʸᶻ² + Ωʸˣ² + Ωᶻˣ² + Ωᶻʸ²)
 end
 
+"""
+    $(SIGNATURES)
+
+"""
+function VorticityTensorModulus(model; location = (Center, Center, Center))
+    validate_location(location, "VorticityTensorModulus", (Center, Center, Center))
+    return KernelFunctionOperation{Center, Center, Center}(vorticity_tensor_modulus_ccc, model.grid, model.velocities...)
+end
+
+
 # From 10.1063/1.5124245
-@inline function Q_ccc(i, j, k, grid, u, v, w)
+@inline function Q_velocity_gradient_tensor_invariant_ccc(i, j, k, grid, u, v, w)
     S² = strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
     Ω² = vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
     return (Ω² - S²) / 2
 end
+
+"""
+    $(SIGNATURES)
+
+"""
+function QVelocityGradientTensorInvariant(model; location = (Center, Center, Center))
+    validate_location(location, "QVelocityGradientTensorInvariant", (Center, Center, Center))
+    return KernelFunctionOperation{Center, Center, Center}(Q_velocity_gradient_tensor_invariant_ccc, model.grid, model.velocities...)
+end
+
+const Q = QVelocityGradientTensorInvariant
 #---
 
 end # module
