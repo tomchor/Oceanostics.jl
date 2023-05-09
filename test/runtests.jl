@@ -97,7 +97,6 @@ function test_vel_only_diagnostics(model)
     ZSP = Field(op)
     @test all(interior(compute!(ZSP)) .≈ 0)
 
-
     op = RossbyNumber(model;)
     @test op isa AbstractOperation
     Ro = Field(op)
@@ -107,6 +106,22 @@ function test_vel_only_diagnostics(model)
     @test op isa AbstractOperation
     Ro = Field(op)
     @test all(interior(compute!(Ro)) .≈ 0)
+
+    op = StrainRateTensorModulus(model)
+    @test op isa AbstractOperation
+    S = Field(op)
+    @test all(interior(compute!(S)) .≈ 0)
+
+    op = VorticityTensorModulus(model)
+    @test op isa AbstractOperation
+    Ω = Field(op)
+    @test all(interior(compute!(Ω)) .≈ 0)
+
+    op = QVelocityGradientTensorInvariant(model)
+    @test op == Q(model)
+    @test op isa AbstractOperation
+    Q = Field(op)
+    @test all(interior(compute!(Q)) .≈ 0)
 
     return nothing
 end
@@ -226,6 +241,29 @@ function test_tracer_diagnostics(model)
 end
 #---
 
+#+++ Known-vaue function tests
+function test_uniform_strain_flow(model; α=1)
+    u₀(x, y, z) = +α*x
+    v₀(x, y, z) = -α*y
+    set!(model, u=u₀, v=v₀, enforce_incompressibility=false)
+
+    u, v, w = model.velocities
+
+    @compute ε = Field(KineticEnergyDissipationRate(model))
+    @compute S = Field(StrainRateTensorModulus(model))
+    @compute Ω = Field(VorticityTensorModulus(model))
+
+    idxs = (4, 4, 1)
+    ν = viscosity(model.closure, model.diffusivity_fields)
+    ν = ν isa Number ? ν : getindex(ν, idxs...)
+    @test getindex(S, idxs...) ≈ √2*α
+    @test getindex(Ω, idxs...) ≈ 0
+    @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
+
+    return nothing
+end
+#---
+
 model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()), 
                 coriolis = FPlane(1e-4),
                 tracers = :b)
@@ -261,6 +299,9 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
        
                 @info "Testing tracer variance terms"
                 test_tracer_diagnostics(model)
+
+                @info "Testing uniform strain flow"
+                test_uniform_strain_flow(model, α=3)
             end
         end
 
