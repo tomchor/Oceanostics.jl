@@ -95,8 +95,7 @@ fig = Figure(resolution = (800, 500))
 
 axis_kwargs = (xlabel = "x",
                ylabel = "y",
-               limits = ((0, 2π), (0, 2π)),
-               aspect = AxisAspect(1))
+               aspect = DataAspect())
 
 
 ax1 = Axis(fig[2, 1]; title = "Kinetic energy", axis_kwargs...)
@@ -110,12 +109,16 @@ KEₙ = @lift ds.KE[:, :, 1, $n]
 εₙ = @lift ds.ε[:, :, 1, $n]
 
 hm_KE = heatmap!(ax1, KEₙ, colormap = :matter)
-hm_ε = heatmap!(ax2, KEₙ, colormap = :inferno)
+Colorbar(fig[3, 1], hm_KE; vertical=false, height=8, ticklabelsize=12)
+
+hm_ε = heatmap!(ax2, εₙ, colormap = :inferno)
+Colorbar(fig[3, 2], hm_ε; vertical=false, height=8, ticklabelsize=12)
 
 times = dims(ds, :Ti)
 title = @lift "t = " * string(round(times[$n], digits=2))
 Label(fig[1, 1:2], title, fontsize=24, tellwidth=false)
 
+resize_to_layout!(fig)
 current_figure() # hide
 fig
 
