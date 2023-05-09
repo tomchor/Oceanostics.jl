@@ -63,12 +63,11 @@ KE = KineticEnergy(model)
 # We output the previous quantities to a NetCDF file
 
 output_fields = (; KE, ε, ∫KE, ∫ε)
-filename = "two_dim_turbulence"
+filename = "two_dimensional_turbulence"
 simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
-                                                    filename = filename,
+                                                    filename = joinpath(@__DIR__, filename),
                                                     schedule = TimeInterval(0.6),
-                                                    overwrite_existing = true,
-                                                    )
+                                                    overwrite_existing = true)
 
 
 # ## Run the simulation and process results

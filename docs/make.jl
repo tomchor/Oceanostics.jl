@@ -50,6 +50,7 @@ makedocs(sitename = "Oceanostics.jl",
          strict = :doctest,
          clean = true,
          format = format,
+         checkdocs = :exports
          )
 
 if CI
