@@ -167,7 +167,7 @@ function test_pressure_terms(model)
 end
 
 function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1))
-    model = model_type(; grid, closure, tracers=:b)
+    model = model_type(; grid, closure, buoyancy=BuoyancyTracer(), tracers=:b)
 
     if !(model.closure isa Tuple) || all(isa.(model.closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
         ε_iso = IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0)
