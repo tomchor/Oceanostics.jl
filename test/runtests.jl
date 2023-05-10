@@ -15,7 +15,7 @@ include("test_budgets.jl")
 #+++ Default grids and functions
 arch = has_cuda_gpu() ? arch = GPU() : CPU()
 
-N = 4
+N = 6
 regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
 
 S = .99 # Stretching factor. Positive number ∈ (0, 1]
@@ -252,6 +252,7 @@ function test_uniform_strain_flow(model; α=1)
     @compute ε = Field(KineticEnergyDissipationRate(model))
     @compute S = Field(StrainRateTensorModulus(model))
     @compute Ω = Field(VorticityTensorModulus(model))
+    @compute q = Field(QVelocityGradientTensorInvariant(model))
 
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, 1) # Let's get somewhere far from boundaries
 
@@ -266,6 +267,7 @@ function test_uniform_strain_flow(model; α=1)
 
         @test getindex(S, idxs...) ≈ √2*α
         @test getindex(Ω, idxs...) ≈ 0
+        @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ -α^2
         @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
     end
 
@@ -282,6 +284,7 @@ function test_solid_body_rotation_flow(model; ζ=1)
     @compute ε = Field(KineticEnergyDissipationRate(model))
     @compute S = Field(StrainRateTensorModulus(model))
     @compute Ω = Field(VorticityTensorModulus(model))
+    @compute q = Field(QVelocityGradientTensorInvariant(model))
 
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, 1) # Let's get somewhere far from boundaries
 
@@ -296,7 +299,37 @@ function test_solid_body_rotation_flow(model; ζ=1)
 
         @test getindex(S, idxs...) ≈ 0
         @test getindex(Ω, idxs...) ≈ ζ/√2
+        @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ ζ^2/4
         @test getindex(ε, idxs...) ≈ 0
+    end
+end
+
+function test_uniform_shear_flow(model; σ=1)
+    u₀(x, y, z) = +σ * y
+    set!(model, u=u₀, v=0, w=0, enforce_incompressibility=false)
+
+    u, v, w = model.velocities
+
+    @compute ε = Field(KineticEnergyDissipationRate(model))
+    @compute S = Field(StrainRateTensorModulus(model))
+    @compute Ω = Field(VorticityTensorModulus(model))
+    @compute q = Field(QVelocityGradientTensorInvariant(model))
+
+    idxs = (model.grid.Nx÷2, model.grid.Ny÷2, 1) # Let's get somewhere far from boundaries
+
+    if model.closure isa Tuple
+        @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
+    else
+        ν_field = viscosity(model.closure, model.diffusivity_fields)
+    end
+
+    CUDA.@allowscalar begin
+        ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
+
+        @test getindex(S, idxs...) ≈ σ/√2
+        @test getindex(Ω, idxs...) ≈ σ/√2
+        @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ 0
+        @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
     end
 end
 #---
@@ -343,7 +376,10 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                     test_uniform_strain_flow(model, α=3)
 
                     @info "Testing solid body rotation flow"
-                    test_solid_body_rotation_flow(model, ζ=2)
+                    test_solid_body_rotation_flow(model, ζ=3)
+
+                    @info "Testing uniform shear flow"
+                    test_uniform_shear_flow(model, σ=3)
                 end
             end
         end
