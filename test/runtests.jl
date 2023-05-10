@@ -118,10 +118,10 @@ function test_vel_only_diagnostics(model)
     @test all(interior(compute!(Ω)) .≈ 0)
 
     op = QVelocityGradientTensorInvariant(model)
-    @test op == Q(model)
+    @test op == Oceanostics.Q(model)
     @test op isa AbstractOperation
-    Q = Field(op)
-    @test all(interior(compute!(Q)) .≈ 0)
+    q = Field(op)
+    @test all(interior(compute!(q)) .≈ 0)
 
     return nothing
 end
