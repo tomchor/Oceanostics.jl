@@ -271,6 +271,34 @@ function test_uniform_strain_flow(model; α=1)
 
     return nothing
 end
+
+function test_solid_body_rotation_flow(model, ζ=1)
+    u₀(x, y, z) = +ζ*y / 2
+    v₀(x, y, z) = -ζ*x / 2
+    set!(model, u=u₀, v=v₀, enforce_incompressibility=false)
+
+    u, v, w = model.velocities
+
+    @compute ε = Field(KineticEnergyDissipationRate(model))
+    @compute S = Field(StrainRateTensorModulus(model))
+    @compute Ω = Field(VorticityTensorModulus(model))
+
+    idxs = (model.grid.Nx÷2, model.grid.Ny÷2, 1) # Let's get somewhere far from boundaries
+
+    if model.closure isa Tuple
+        @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
+    else
+        ν_field = viscosity(model.closure, model.diffusivity_fields)
+    end
+
+    CUDA.@allowscalar begin
+        ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
+
+        @test getindex(S, idxs...) ≈ 0
+        @test getindex(Ω, idxs...) ≈ ζ/√2
+        @test getindex(ε, idxs...) ≈ 0
+    end
+end
 #---
 
 model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()), 
@@ -279,7 +307,8 @@ model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()),
 
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
-            (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()))
+            (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),
+            )
 
 grids = (regular_grid, stretched_grid)
 
@@ -312,6 +341,9 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 if model isa NonhydrostaticModel
                     @info "Testing uniform strain flow"
                     test_uniform_strain_flow(model, α=3)
+
+                    @info "Testing solid body rotation flow"
+                    test_solid_body_rotation_flow(model, ζ=2)
                 end
             end
         end
