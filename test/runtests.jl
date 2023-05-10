@@ -241,7 +241,7 @@ function test_tracer_diagnostics(model)
 end
 #---
 
-#+++ Known-vaue function tests
+#+++ Known-value function tests
 function test_uniform_strain_flow(model; α=1)
     u₀(x, y, z) = +α*x
     v₀(x, y, z) = -α*y
@@ -253,7 +253,7 @@ function test_uniform_strain_flow(model; α=1)
     @compute S = Field(StrainRateTensorModulus(model))
     @compute Ω = Field(VorticityTensorModulus(model))
 
-    idxs = (grid.Nx÷2, grid.Ny÷2, 1) # Let's get somewhere far from boundaries
+    idxs = (model.grid.Nx÷2, model.grid.Ny÷2, 1) # Let's get somewhere far from boundaries
 
     if model.closure isa Tuple
         @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
