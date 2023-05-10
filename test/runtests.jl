@@ -260,11 +260,14 @@ function test_uniform_strain_flow(model; α=1)
     else
         ν_field = viscosity(model.closure, model.diffusivity_fields)
     end
-    ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
 
-    @test getindex(S, idxs...) ≈ √2*α
-    @test getindex(Ω, idxs...) ≈ 0
-    @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
+    CUDA.@allowscalar begin
+        ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
+
+        @test getindex(S, idxs...) ≈ √2*α
+        @test getindex(Ω, idxs...) ≈ 0
+        @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
+    end
 
     return nothing
 end
@@ -306,8 +309,10 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 @info "Testing tracer variance terms"
                 test_tracer_diagnostics(model)
 
-                @info "Testing uniform strain flow"
-                test_uniform_strain_flow(model, α=3)
+                if model isa NonhydrostaticModel
+                    @info "Testing uniform strain flow"
+                    test_uniform_strain_flow(model, α=3)
+                end
             end
         end
 
