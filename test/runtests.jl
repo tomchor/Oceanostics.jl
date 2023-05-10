@@ -118,7 +118,7 @@ function test_vel_only_diagnostics(model)
     @test all(interior(compute!(Ω)) .≈ 0)
 
     op = QVelocityGradientTensorInvariant(model)
-    @test op == Oceanostics.Q(model)
+    CUDA.@allowscalar @test op == Oceanostics.Q(model)
     @test op isa AbstractOperation
     q = Field(op)
     @test all(interior(compute!(q)) .≈ 0)
