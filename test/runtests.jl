@@ -253,9 +253,15 @@ function test_uniform_strain_flow(model; α=1)
     @compute S = Field(StrainRateTensorModulus(model))
     @compute Ω = Field(VorticityTensorModulus(model))
 
-    idxs = (4, 4, 1)
-    ν = viscosity(model.closure, model.diffusivity_fields)
-    ν = ν isa Number ? ν : getindex(ν, idxs...)
+    idxs = (grid.Nx÷2, grid.Ny÷2, 1) # Let's get somewhere far from boundaries
+
+    if model.closure isa Tuple
+        @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
+    else
+        ν_field = viscosity(model.closure, model.diffusivity_fields)
+    end
+    ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
+
     @test getindex(S, idxs...) ≈ √2*α
     @test getindex(Ω, idxs...) ≈ 0
     @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
