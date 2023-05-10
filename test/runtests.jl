@@ -272,7 +272,7 @@ function test_uniform_strain_flow(model; α=1)
     return nothing
 end
 
-function test_solid_body_rotation_flow(model, ζ=1)
+function test_solid_body_rotation_flow(model; ζ=1)
     u₀(x, y, z) = +ζ*y / 2
     v₀(x, y, z) = -ζ*x / 2
     set!(model, u=u₀, v=v₀, enforce_incompressibility=false)
