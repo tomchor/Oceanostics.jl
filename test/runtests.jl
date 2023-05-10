@@ -245,7 +245,7 @@ end
 function test_uniform_strain_flow(model; α=1)
     u₀(x, y, z) = +α*x
     v₀(x, y, z) = -α*y
-    set!(model, u=u₀, v=v₀, enforce_incompressibility=false)
+    set!(model, u=u₀, v=v₀, w=0, enforce_incompressibility=false)
 
     u, v, w = model.velocities
 
@@ -275,7 +275,7 @@ end
 function test_solid_body_rotation_flow(model; ζ=1)
     u₀(x, y, z) = +ζ*y / 2
     v₀(x, y, z) = -ζ*x / 2
-    set!(model, u=u₀, v=v₀, enforce_incompressibility=false)
+    set!(model, u=u₀, v=v₀, w=0, enforce_incompressibility=false)
 
     u, v, w = model.velocities
 
