@@ -334,6 +334,15 @@ end
 """
     $(SIGNATURES)
 
+Calculate the modulus (absolute value) of the strain rate tensor `S`, which is defined as the
+symmetric part of the velocity gradient tensor:
+
+    Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)
+
+Its modulus is then defined (using Einstein summation notation) as
+
+    || Sᵢⱼ || = √( Sᵢⱼ Sᵢⱼ)
+
 """
 function StrainRateTensorModulus(model; location = (Center, Center, Center))
     validate_location(location, "StrainRateTensorModulus", (Center, Center, Center))
@@ -358,6 +367,15 @@ end
 """
     $(SIGNATURES)
 
+Calculate the modulus (absolute value) of the vorticity tensor `Ω`, which is defined as the
+antisymmetric part of the velocity gradient tensor:
+
+    Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)
+
+Its modulus is then defined (using Einstein summation notation) as
+
+    || Ωᵢⱼ || = √( Ωᵢⱼ Ωᵢⱼ)
+
 """
 function VorticityTensorModulus(model; location = (Center, Center, Center))
     validate_location(location, "VorticityTensorModulus", (Center, Center, Center))
@@ -375,6 +393,20 @@ end
 """
     $(SIGNATURES)
 
+Calculate the value of the `Q` velocity gradient tensor invariant. This is usually just called `Q`
+and it is generally used for identifying and visualizing vortices in fluid flow.
+
+The definition and nomenclature comes from the equation for the eigenvalues `λ` of the velocity
+gradient tensor `∂ⱼuᵢ`:
+
+    λ³ + P λ² + Q λ + T = 0
+
+from where `Q` is defined as
+
+    Q = ½ ( ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)
+
+and where `Sᵢⱼ= ½(∂ⱼuᵢ + ∂ᵢuⱼ)` and `Ωᵢⱼ= ½(∂ⱼuᵢ - ∂ᵢuⱼ)`. More info about it can be found in
+10.1063/1.5124245.
 """
 function QVelocityGradientTensorInvariant(model; location = (Center, Center, Center))
     validate_location(location, "QVelocityGradientTensorInvariant", (Center, Center, Center))
