@@ -350,7 +350,7 @@ function StrainRateTensorModulus(model; location = (Center, Center, Center))
 end
 
 
-@inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2
+@inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2
 
 function vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)
     Ωˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_minus_gφ², ∂yᶠᶠᶜ, u, ∂xᶠᶠᶜ, v) / 4
