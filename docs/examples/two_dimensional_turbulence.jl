@@ -125,7 +125,7 @@ fig
 
 frames = 1:length(times)
 
-@info "Making a neat animation of vorticity and speed..."
+@info "Making a neat animation of kinetic energy and dissipation rate..."
 
 record(fig, filename * ".mp4", frames, framerate=24) do i
     n[] = i
