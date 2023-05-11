@@ -317,7 +317,7 @@ end
 #---
 
 #+++ Velocity gradient tensor
-@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
+@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
 function strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)
     Sˣˣ² = ∂xᶜᶜᶜ(i, j, k, grid, u)^2
