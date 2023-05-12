@@ -198,7 +198,6 @@ end
                                           auxiliary_fields,
                                           diffusivity_fields,
                                           forcing,
-                                          pressure,
                                           clock)
         u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields,
                                                                            velocities,
@@ -206,7 +205,6 @@ end
                                                                            auxiliary_fields,
                                                                            diffusivity_fields,
                                                                            forcing,
-                                                                           pressure,
                                                                            clock)
 
         v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields,
@@ -215,7 +213,6 @@ end
                                                                            auxiliary_fields,
                                                                            diffusivity_fields,
                                                                            forcing,
-                                                                           pressure,
                                                                            clock)
 
         w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields,
@@ -251,7 +248,6 @@ function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, C
                     model.auxiliary_fields,
                     model.diffusivity_fields,
                     model.forcing,
-                    model.pressure,
                     model.clock)
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ₜuᵢᶜᶜᶜ, model.grid, dependencies...)
 end
