@@ -21,8 +21,7 @@ for example in examples
     Literate.markdown(example_filepath, OUTPUT_DIR; flavor = Literate.DocumenterFlavor())
 end
 
-example_pages = ["Quick start" => "quick_start.md",
-                 "Two-dimensional turbulence" => "generated/two_dimensional_turbulence.md",
+example_pages = ["Two-dimensional turbulence" => "generated/two_dimensional_turbulence.md",
                  ]
 #---
 
