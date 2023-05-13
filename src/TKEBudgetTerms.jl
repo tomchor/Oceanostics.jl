@@ -186,10 +186,18 @@ end
 
 #+++ Kinetic energy tendency
 @inline ψf(i, j, k, grid, ψ, f, args...) = ψ[i, j, k] * f(i, j, k, grid, args...)
-@inline function uᵢ∂ₜuᵢᶜᶜᶜ(i, j, k, grid, args...)
-        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, args...)
-        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, args...)
-        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, args...)
+@inline function uᵢ∂ₜuᵢᶜᶜᶜ(i, j, k, grid, advection,
+                                          coriolis,
+                                          stokes_drift,
+                                          closure,
+                                          immersed_bc,
+                                          buoyancy,
+                                          background_fields,
+                                          velocities,
+                                          args...)
+        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields, velocities, args...)
+        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields, velocities, args...)
+        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields, velocities, args...)
     return u∂ₜu + v∂ₜv + w∂ₜw
 end
 
