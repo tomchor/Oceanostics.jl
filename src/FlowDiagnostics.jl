@@ -3,6 +3,7 @@ using DocStringExtensions
 
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
+export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 
 using Oceanostics: validate_location, validate_dissipative_closure, add_background_fields
 
@@ -313,6 +314,106 @@ function DirectionalErtelPotentialVorticity(model, direction; location = (Face, 
     return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid,
                                                      u, v, w, b, (; f_dir, dir_x, dir_y, dir_z))
 end
+#---
+
+#+++ Velocity gradient tensor
+@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
+
+function strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)
+    Sˣˣ² = ∂xᶜᶜᶜ(i, j, k, grid, u)^2
+    Sʸʸ² = ∂yᶜᶜᶜ(i, j, k, grid, v)^2
+    Sᶻᶻ² = ∂zᶜᶜᶜ(i, j, k, grid, w)^2
+
+    Sˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_plus_gφ², ∂yᶠᶠᶜ, u, ∂xᶠᶠᶜ, v) / 4
+    Sˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4
+    Sʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶜᶠᶠ, v, ∂yᶜᶠᶠ, w) / 4
+
+    return √(Sˣˣ² + Sʸʸ² + Sᶻᶻ² + 2 * (Sˣʸ² + Sˣᶻ² + Sʸᶻ²))
+end
+
+"""
+    $(SIGNATURES)
+
+Calculate the modulus (absolute value) of the strain rate tensor `S`, which is defined as the
+symmetric part of the velocity gradient tensor:
+
+    Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)
+
+Its modulus is then defined (using Einstein summation notation) as
+
+    || Sᵢⱼ || = √( Sᵢⱼ Sᵢⱼ)
+
+"""
+function StrainRateTensorModulus(model; location = (Center, Center, Center))
+    validate_location(location, "StrainRateTensorModulus", (Center, Center, Center))
+    return KernelFunctionOperation{Center, Center, Center}(strain_rate_tensor_modulus_ccc, model.grid, model.velocities...)
+end
+
+
+@inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2
+
+function vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)
+    Ωˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_minus_gφ², ∂yᶠᶠᶜ, u, ∂xᶠᶠᶜ, v) / 4
+    Ωˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_minus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4
+    Ωʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_minus_gφ², ∂zᶜᶠᶠ, v, ∂yᶜᶠᶠ, w) / 4
+
+    Ωʸˣ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_minus_gφ², ∂xᶠᶠᶜ, v, ∂yᶠᶠᶜ, u) / 4
+    Ωᶻˣ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_minus_gφ², ∂xᶠᶜᶠ, w, ∂zᶠᶜᶠ, u) / 4
+    Ωᶻʸ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_minus_gφ², ∂yᶜᶠᶠ, w, ∂zᶜᶠᶠ, v) / 4
+
+    return √(Ωˣʸ² + Ωˣᶻ² + Ωʸᶻ² + Ωʸˣ² + Ωᶻˣ² + Ωᶻʸ²)
+end
+
+"""
+    $(SIGNATURES)
+
+Calculate the modulus (absolute value) of the vorticity tensor `Ω`, which is defined as the
+antisymmetric part of the velocity gradient tensor:
+
+    Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)
+
+Its modulus is then defined (using Einstein summation notation) as
+
+    || Ωᵢⱼ || = √( Ωᵢⱼ Ωᵢⱼ)
+
+"""
+function VorticityTensorModulus(model; location = (Center, Center, Center))
+    validate_location(location, "VorticityTensorModulus", (Center, Center, Center))
+    return KernelFunctionOperation{Center, Center, Center}(vorticity_tensor_modulus_ccc, model.grid, model.velocities...)
+end
+
+
+# From 10.1063/1.5124245
+@inline function Q_velocity_gradient_tensor_invariant_ccc(i, j, k, grid, u, v, w)
+    S² = strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
+    Ω² = vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
+    return (Ω² - S²) / 2
+end
+
+"""
+    $(SIGNATURES)
+
+Calculate the value of the `Q` velocity gradient tensor invariant. This is usually just called `Q`
+and it is generally used for identifying and visualizing vortices in fluid flow.
+
+The definition and nomenclature comes from the equation for the eigenvalues `λ` of the velocity
+gradient tensor `∂ⱼuᵢ`:
+
+    λ³ + P λ² + Q λ + T = 0
+
+from where `Q` is defined as
+
+    Q = ½ ( ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)
+
+and where `Sᵢⱼ= ½(∂ⱼuᵢ + ∂ᵢuⱼ)` and `Ωᵢⱼ= ½(∂ⱼuᵢ - ∂ᵢuⱼ)`. More info about it can be found in
+10.1063/1.5124245.
+"""
+function QVelocityGradientTensorInvariant(model; location = (Center, Center, Center))
+    validate_location(location, "QVelocityGradientTensorInvariant", (Center, Center, Center))
+    return KernelFunctionOperation{Center, Center, Center}(Q_velocity_gradient_tensor_invariant_ccc, model.grid, model.velocities...)
+end
+
+const Q = QVelocityGradientTensorInvariant
 #---
 
 end # module
