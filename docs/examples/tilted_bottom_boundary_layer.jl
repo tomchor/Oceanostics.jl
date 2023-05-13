@@ -17,7 +17,7 @@
 
 # ```julia
 # using Pkg
-# pkg"add Oceananigans, NCDatasets, CairoMakie"
+# pkg"add Oceananigans, Oceanostics, Rasters, CairoMakie"
 # ```
 #
 # ## The domain

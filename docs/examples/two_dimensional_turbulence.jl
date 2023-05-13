@@ -1,7 +1,7 @@
 # # Two dimensional turbulence example
 #
-# In this example (based on homonymous [Oceananigans
-# example](https://clima.github.io/OceananigansDocumentation/stable/generated/two_dimensional_turbulence/))
+# In this example (based on the homonymous [Oceananigans
+# one](https://clima.github.io/OceananigansDocumentation/stable/generated/two_dimensional_turbulence/))
 # we simulate a 2D flow initialized with random noise and observe the flow evolve.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
@@ -145,16 +145,16 @@ axis_kwargs = (xlabel = "Time",
                height=150, width=300)
 
 ax3 = Axis(fig[4, 1]; axis_kwargs...)
-lines!(ax3, ds.∫KE)
+times = dims(ds, :Ti)
+lines!(ax3, Array(times), ds.∫KE)
 
 ax4 = Axis(fig[4, 2]; axis_kwargs...)
-lines!(ax4, ds.∫ε, label="∫εdV")
-lines!(ax4, ds.∫εᴰ, label="∫εᴰdV", linestyle=:dash)
+lines!(ax4, Array(times), ds.∫ε, label="∫εdV")
+lines!(ax4, Array(times), ds.∫εᴰ, label="∫εᴰdV", linestyle=:dash)
 axislegend(ax4, labelsize=14)
 
 # Now we mark the time by placing a vertical line in the bottom plots:
 
-times = dims(ds, :Ti)
 tₙ = @lift times[$n]
 vlines!(ax3, tₙ, color=:black, linestyle=:dash)
 vlines!(ax4, tₙ, color=:black, linestyle=:dash)
@@ -172,10 +172,8 @@ fig
 
 # Finally, we record a movie.
 
-frames = 1:length(times)
-
 @info "Animating..."
-record(fig, filename * ".mp4", frames, framerate=24) do i
+record(fig, filename * ".mp4", 1:length(times), framerate=24) do i
     n[] = i
 end
 nothing #hide

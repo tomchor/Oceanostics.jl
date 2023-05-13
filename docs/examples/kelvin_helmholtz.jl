@@ -35,12 +35,18 @@ Ri₀ = 0.1; h = 1/4
 shear_flow(x, y, z, t) = tanh(z)
 stratification(x, y, z, t, p) = p.h * p.Ri₀ * tanh(z / p.h)
 
-noise(x, y, z) = 1e-2*randn()
+using Random: seed! #src
+seed!(2) #src
+
+noise(x, y, z) = 2e-2 * randn()
 shear_flow(x, y, z) = tanh(z) + noise(x, y, z)
 stratification(x, y, z) = h * Ri₀ * tanh(z / h)
 set!(model, u=shear_flow, b=stratification)
 
-# With the model above we create an adaptive-time-step simulation:
+# Note that we concentrate the noise above in the middle of the domain in order to center the
+# instability and make for a prettier visualization.
+#
+# Next create an adaptive-time-step simulation using the model above:
 
 simulation = Simulation(model, Δt=0.1, stop_time=100)
 
@@ -56,26 +62,37 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
 using Oceanostics
 
 progress = SimpleProgressMessenger()
-simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))
 
 
 # We can also define some useful diagnostics for of the flow, starting with the `RichardsonNumber`
 
 Ri = RichardsonNumber(model)
+
+# We also set-up the `QVelocityGradientTensorInvariant`, which is usually used for visualizing
+# vortices in the flow: 
 Q = QVelocityGradientTensorInvariant(model)
+
+# Q is one of the velocity gradient tensor invariants and it measures the amount of vorticity versus
+# the strain in the flow and, when it's positive, indicates a vortex. This method of vortex
+# visualization is called the [Q-criterion](https://tinyurl.com/mwv6fskc).
+#
+# Let's also keep track of the amount of buoyancy mixing by measuring the integrated buoyancy
+# variance dissipation rate and diffusive term. When volume-integrated, these two quantities should
+# be equal.
 
 ∫χᴰ = Integral(TracerVarianceDissipationRate(model, :b))
 ∫χ = Integral(TracerVarianceDiffusiveTerm(model, :b))
 
 
-# Outputs and NetCDFWriter
+# Now we write these quantities, along with `b`, to a NetCDF:
+
 output_fields = (; Ri, Q, model.tracers.b, ∫χ, ∫χᴰ)
 filename = "kelvin_helmholtz"
 simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
                                                     filename = joinpath(@__DIR__, filename),
-                                                    schedule = TimeInterval(0.6),
+                                                    schedule = TimeInterval(1),
                                                     overwrite_existing = true)
-
 
 
 # ## Run the simulation and process results
@@ -91,45 +108,58 @@ using Rasters
 
 ds = RasterStack(simulation.output_writers[:nc].filepath)
 
-# In order to plot results, we use Makie.jl, for which Rasters.jl already has some recipes
+# We now use Makie to create the figure and its axes
 
-using GLMakie
+using CairoMakie
+
+set_theme!(Theme(fontsize = 24))
+fig = Figure()
+
+kwargs = (xlabel="x", ylabel="z", height=150, width=250)
+ax1 = Axis(fig[2, 1]; title = "Ri", kwargs...)
+ax2 = Axis(fig[2, 2]; title = "Q", kwargs...)
+ax3 = Axis(fig[2, 3]; title = "b", kwargs...);
+
+# Next we use `Observable`s to lift the values and plot heatmaps and their colorbars
+
 n = Observable(1)
 
-uₙ = @lift ds.Ri[Ti=$n, yC=Near(0)]
-wₙ = @lift ds.Q[Ti=$n, yC=Near(0)]
+Riₙ = @lift ds.Ri[Ti=$n, yC=Near(0)]
+hm1 = heatmap!(ax1, Riₙ; colormap = :bwr, colorrange = (-1, +1))
+Colorbar(fig[3, 1], hm1, vertical=false, height=8)
+
+Qₙ = @lift ds.Q[Ti=$n, yC=Near(0)]
+hm2 = heatmap!(ax2, Qₙ; colormap = :inferno, colorrange = (0, 0.2))
+Colorbar(fig[3, 2], hm2, vertical=false, height=8)
+
 bₙ = @lift ds.b[Ti=$n, yC=Near(0)]
+hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-2.5e-2, +2.5e-2))
+Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
+# We now plot the time evolution of our integrated quantities
 
+axb = Axis(fig[4, 1:3]; xlabel="Time", height=100)
 times = dims(ds, :Ti)
-frames = 1:length(times)
+lines!(axb, Array(times), ds.∫χ,  label = "∫χdV")
+lines!(axb, Array(times), ds.∫χᴰ, label = "∫χᴰdV", linestyle=:dash)
+axislegend(position=:lb, labelsize=14)
+
+# Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
+
+tₙ = @lift times[$n]
+vlines!(axb, tₙ, color=:black, linestyle=:dash)
+
 title = @lift "Time = " * string(round(times[$n], digits=2))
+fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);
 
-fig = Figure(resolution=(800, 600))
+# Finally, we adjust the figure dimensions to fit all the panels and record a movie
 
-fig[1, 1:5] = Label(fig, title, fontsize=24, tellwidth=false)
-
-kwargs = (xlabel="x", ylabel="z",)
-ax1 = Axis(fig[2, 1]; title = "u", kwargs...)
-ax2 = Axis(fig[2, 2]; title = "w", kwargs...)
-ax3 = Axis(fig[2, 4]; title = "b", kwargs...)
-axb = Axis(fig[3, 1:5]; title = "KE", xlabel="Time")
-
-ulim = (-.75, +.75)
-
-hm1 = heatmap!(ax1, uₙ; colormap = :balance, colorrange = ulim)
-hm2 = heatmap!(ax2, wₙ; colormap = :balance, colorrange = ulim)
-Colorbar(fig[2, 3], hm2)
-
-hm3 = heatmap!(ax3, bₙ; colormap = :balance)
-Colorbar(fig[2, 5], hm3)
-
-lines!(axb, Array(times), Array(ds.∫χ), label="avg KE")
-lines!(axb, Array(times), Array(ds.∫χᴰ), label="∫ᵗ(uᵢ∂uᵢ/∂t)dt")
-vlines!(axb, @lift times[$n])
-axislegend(position=:lb)
+resize_to_layout!(fig)
 
 @info "Animating..."
-record(fig, filename * ".mp4", frames, framerate=10) do i
+record(fig, filename * ".mp4", 1:length(times), framerate=10) do i
        n[] = i
 end
+
+# ![](kelvin_helmholtz.mp4)
+#
