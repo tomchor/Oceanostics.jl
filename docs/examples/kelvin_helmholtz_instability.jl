@@ -1,111 +1,109 @@
-using Oceananigans
-using Oceananigans.Fields: @compute
+# # Two dimensional turbulence example
+#
+# This example simulates a simple 2D Kelvin-Helmholtz instability
+#
+# Before starting, make sure you have the required packages installed for this example, which can be
+# done with
+#
+# ```julia
+# using Pkg
+# pkg"add Oceananigans, Oceanostics, CairoMakie, Rasters"
+# ```
 
-grid = RectilinearGrid(size=(64, 64), x=(-5, 5), z=(-5, 5), topology=(Periodic, Flat, Bounded))
+# ## Model and simulation setup
+
+# We begin by creating a model with an isotropic diffusivity and fifth-order advection on a `xz`
+# 128² grid using a buoyancy `b` as the active scalar. We'll work here with nondimensional
+# quantities.
+
+using Oceananigans
+
+N = 128
+L = 10
+grid = RectilinearGrid(size=(N, N), x=(-L/2, +L/2), z=(-L/2, +L/2), topology=(Periodic, Flat, Bounded))
+
 model = NonhydrostaticModel(; grid, timestepper = :RungeKutta3,
                             advection = UpwindBiasedFifthOrder(),
                             closure = ScalarDiffusivity(ν=2e-5, κ=2e-5),
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
-# Initial conditions
-Ri= 0.1
-h = 1/4
+# We use hyperbolic tangent functions for the initial conditions and set the maximum Richardson
+# number below the threshold of 1/4. We also add some grid-scale small-amplitude noise to `u` to
+# kick the instability off:
+
+Ri₀ = 0.1; h = 1/4
 shear_flow(x, y, z, t) = tanh(z)
-stratification(x, y, z, t, p) = p.h * p.Ri * tanh(z / p.h)
+stratification(x, y, z, t, p) = p.h * p.Ri₀ * tanh(z / p.h)
 
 noise(x, y, z) = 1e-2*randn()
 shear_flow(x, y, z) = tanh(z) + noise(x, y, z)
-stratification(x, y, z) = h * Ri * tanh(z / h)
+stratification(x, y, z) = h * Ri₀ * tanh(z / h)
 set!(model, u=shear_flow, b=stratification)
 
-# Adaptive-time-step simulation
+# With the model above we create an adaptive-time-step simulation:
+
 simulation = Simulation(model, Δt=0.1, stop_time=100)
 
-wizard = TimeStepWizard(cfl=0.05, max_Δt=1)
+wizard = TimeStepWizard(cfl=0.8, max_Δt=1)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
 
-# KernelFunctionOperation for KE evolution
-using Oceananigans.Grids: Center
-using Oceananigans.Operators
-using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
 
-@inline ψf(i, j, k, grid, ψ, f, args...) = ψ[i, j, k] * f(i, j, k, grid, args...)
-@inline function uᵢ∂ₜuᵢᶜᶜᶜ(i, j, k, grid, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields,
-                                          velocities, tracers, auxiliary_fields, diffusivity_fields, forcing,
-                                          pHY′, clock)
-        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields,
-                                                                           velocities, tracers, auxiliary_fields, diffusivity_fields, forcing,
-                                                                           pHY′, clock)
+# ## Model diagnostics
+#
+# We set-up a progress messenger using the `SimpleProgressMessenger`, which, as the name suggests,
+# displays simple information about the simulation
 
-        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields,
-                                                                           velocities, tracers, auxiliary_fields, diffusivity_fields, forcing,
-                                                                           pHY′, clock)
+using Oceanostics
 
-        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields,
-                                                                           velocities, tracers, auxiliary_fields, diffusivity_fields, forcing,
-                                                                           clock)
+progress = SimpleProgressMessenger()
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 
-    return u∂ₜu + v∂ₜv + w∂ₜw
-end
 
-function KineticEnergyTendency(model)
-    dependencies = (model.advection, model.coriolis, model.stokes_drift, model.closure,
-                    model.velocities.u.boundary_conditions.immersed, model.buoyancy, model.background_fields,
-                    model.velocities, model.tracers, model.auxiliary_fields, model.diffusivity_fields, model.forcing,
-                    model.pressures.pHY′, model.clock)
-    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ₜuᵢᶜᶜᶜ, model.grid, dependencies...)
-end
+# We can also define some useful diagnostics for of the flow, starting with the `RichardsonNumber`
 
-ε = Field(Average(KineticEnergyTendency(model)))
-ε̄ = Field(Average(ε))
+Ri = RichardsonNumber(model)
+Q = QVelocityGradientTensorInvariant(model)
 
-# Diagnostics from state variables
-u, v, w = model.velocities
-b = model.tracers.b
-@compute K̄ = Field(Average(Field(@at (Center, Center, Center) (u^2 + v^2)/2)))
+∫χᴰ = Integral(TracerVarianceDissipationRate(model, :b))
+∫χ = Integral(TracerVarianceDiffusiveTerm(model, :b))
 
-# Time integration of evolution
-∫ε̄dt = Ref(parent(K̄)[1,1,1])
-function accumulate_integrals(sim)
-    compute!(ε̄)
-    increment = sim.Δt * parent(ε̄)[1,1,1]
-    ∫ε̄dt[] += increment
-    return nothing
-end
-simulation.callbacks[:time_integration] = Callback(accumulate_integrals)
 
 # Outputs and NetCDFWriter
-get_∫ε̄dt(model) = ∫ε̄dt[]
-outputs = (; u, w, b, K̄, ∫ε̄dt = get_∫ε̄dt)
-fname = "kh"
-simulation.output_writers[:nc] = NetCDFOutputWriter(model, outputs; filename = "$fname.nc",
-                                                    schedule = TimeInterval(1),
-                                                    dimensions = Dict("∫ε̄dt" => ()),
+output_fields = (; Ri, Q, model.tracers.b, ∫χ, ∫χᴰ)
+filename = "kelvin_helmholtz"
+simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
+                                                    filename = joinpath(@__DIR__, filename),
+                                                    schedule = TimeInterval(0.6),
                                                     overwrite_existing = true)
 
 
-# Nice progress message and run simulation
-using Printf
-progress(sim) = @printf("Iteration: %d, time: %.2f, Δt: %.4f\n", iteration(sim), sim.model.clock.time, sim.Δt)
-simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
+
+# ## Run the simulation and process results
+#
+# To run the simulation:
+
 run!(simulation)
 
+# Now we'll read the results using Rasters.jl, which works somewhat similarly to Python's Xarray and
+# can speed-up the work the workflow
 
-# Now we plot stuff
 using Rasters
+
 ds = RasterStack(simulation.output_writers[:nc].filepath)
+
+# In order to plot results, we use Makie.jl, for which Rasters.jl already has some recipes
 
 using GLMakie
 n = Observable(1)
 
-uₙ = @lift permutedims(ds[:u][Ti=$n, yC=Near(0)], (:xF, :zC))
-wₙ = @lift permutedims(ds[:w][Ti=$n, yC=Near(0)], (:xC, :zF))
-bₙ = @lift permutedims(ds[:b][Ti=$n, yC=Near(0)], (:xC, :zC))
+uₙ = @lift ds.Ri[Ti=$n, yC=Near(0)]
+wₙ = @lift ds.Q[Ti=$n, yC=Near(0)]
+bₙ = @lift ds.b[Ti=$n, yC=Near(0)]
 
 
 times = dims(ds, :Ti)
 frames = 1:length(times)
-title = @lift @sprintf "Time = %.2f" times[$n]
+title = @lift "Time = " * string(round(times[$n], digits=2))
 
 fig = Figure(resolution=(800, 600))
 
@@ -126,12 +124,12 @@ Colorbar(fig[2, 3], hm2)
 hm3 = heatmap!(ax3, bₙ; colormap = :balance)
 Colorbar(fig[2, 5], hm3)
 
-lines!(axb, Array(times), Array(ds[:K̄]), label="avg KE")
-lines!(axb, Array(times), Array(ds[:∫ε̄dt]), label="∫ᵗ(uᵢ∂uᵢ/∂t)dt")
+lines!(axb, Array(times), Array(ds.∫χ), label="avg KE")
+lines!(axb, Array(times), Array(ds.∫χᴰ), label="∫ᵗ(uᵢ∂uᵢ/∂t)dt")
 vlines!(axb, @lift times[$n])
 axislegend(position=:lb)
 
-record(fig, "$fname.mp4", frames, framerate=10) do i
-       @info "Plotting frame $i of $(frames[end])..."
+@info "Animating..."
+record(fig, filename * ".mp4", frames, framerate=10) do i
        n[] = i
 end

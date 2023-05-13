@@ -9,7 +9,7 @@
 #
 # ```julia
 # using Pkg
-# pkg"add Oceananigans, CairoMakie, Rasters"
+# pkg"add Oceananigans, Oceanostics, CairoMakie, Rasters"
 # ```
 
 # ## Model and simulation setup
@@ -175,7 +175,6 @@ fig
 frames = 1:length(times)
 
 @info "Animating..."
-
 record(fig, filename * ".mp4", frames, framerate=24) do i
     n[] = i
 end
