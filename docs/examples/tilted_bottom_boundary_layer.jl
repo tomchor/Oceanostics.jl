@@ -1,10 +1,9 @@
 # # Tilted bottom boundary layer example
 #
-# This example simulates a two-dimensional oceanic bottom boundary layer
-# in a domain that's tilted with respect to gravity. We simulate the perturbation
-# away from a constant along-slope (y-direction) velocity constant density stratification.
-# This perturbation develops into a turbulent bottom boundary layer due to momentum
-# loss at the bottom boundary modeled with a quadratic drag law.
+# This example simulates a two-dimensional oceanic bottom boundary layer in a domain that's tilted
+# with respect to gravity. We simulate the perturbation away from a constant along-slope
+# (y-direction) velocity constant density stratification.  This perturbation develops into a
+# turbulent bottom boundary layer due to momentum loss at the bottom boundary.
 # 
 #
 # First let's make sure we have all required packages installed.
@@ -14,9 +13,9 @@
 # pkg"add Oceananigans, Oceanostics, Rasters, CairoMakie"
 # ```
 #
-# ## Model and simulation setup
+# ## Grid
 #
-# We create a 2D ``x, z`` grid with 64² cells and finer resolution near the bottom:
+# We start by creating a ``x, z`` grid with 64² cells and finer resolution near the bottom:
 
 using Oceananigans
 using Oceananigans.Units
@@ -26,8 +25,6 @@ Lz = 100meters
 Nx = 64
 Nz = 64
 
-## Creates a grid with near-constant spacing `refinement * Lz / Nz`
-## near the bottom:
 refinement = 1.8 # controls spacing near surface (higher means finer spaced)
 stretching = 10  # controls rate of stretching at bottom 
 
@@ -39,47 +36,51 @@ z_faces(k) = - Lz * (ζ(k) * Σ(k) - 1)
 grid = RectilinearGrid(topology = (Periodic, Flat, Bounded), size = (Nx, Nz),
                        x = (0, Lx), z = z_faces)
 
+# Note that, with the `z` faces defined as above, the spacings near the bottom are approximately
+# constant, becoming progressively coarser moving up.
+#
 # ## Tilting the domain
 #
 # We use a domain that's tilted with respect to gravity by
 
-θ = 3 # degrees
+θ = 5; # degrees
 
 # so that ``x`` is the along-slope direction, ``z`` is the across-sloce direction that
 # is perpendicular to the bottom, and the unit vector anti-aligned with gravity is
 
 ĝ = [sind(θ), 0, cosd(θ)]
 
-# Changing the vertical direction impacts both the `gravity_unit_vector`
-# for `Buoyancy` as well as the `rotation_axis` for Coriolis forces,
+# Changing the vertical direction impacts both the `gravity_unit_vector` for `Buoyancy` as well as
+# the `rotation_axis` for Coriolis forces,
 
 buoyancy = Buoyancy(model = BuoyancyTracer(), gravity_unit_vector = -ĝ)
-coriolis = ConstantCartesianCoriolis(f = 1e-4, rotation_axis = ĝ)
 
-# where we have used a constant Coriolis parameter ``f = 10⁻⁴ \rm{s}⁻¹``.
-# The tilting also affects the kind of density stratified flows we can model.
-# In particular, a constant density stratification in the tilted
-# coordinate system
+f₀ = 1e-4/second
+coriolis = ConstantCartesianCoriolis(f = f₀, rotation_axis = ĝ)
 
-@inline constant_stratification(x, y, z, t, p) = p.N² * (x * p.ĝ[1] + z * p.ĝ[3])
+# The tilting also affects the kind of density stratified flows we can model. The simulate an
+# environment that's uniformly stratified, with a stratification frequency
 
-# is _not_ periodic in ``x``. Thus we cannot explicitly model a constant stratification
-# on an ``x``-periodic grid such as the one used here. Instead, we simulate periodic
-# _perturbations_ away from the constant density stratification by imposing
-# a constant stratification as a `BackgroundField`,
+N² = 1e-5/second^2;
 
-B_field = BackgroundField(constant_stratification, parameters=(; ĝ, N² = 1e-5))
+# In a tilted coordinate, this can be achieved with
 
-# where ``N² = 10⁻⁵ \rm{s}⁻¹`` is the background buoyancy gradient.
+@inline constant_stratification(x, y, z, t, p) = p.N² * (x * p.ĝ[1] + z * p.ĝ[3]);
+
+# However, this distribution is _not_ periodic in ``x`` and can't be explicitly modelled on an
+# ``x``-periodic grid such as the one used here. Instead, we simulate periodic _perturbations_ away
+# from the constant density stratification by imposing a constant stratification as a
+# `BackgroundField`,
+
+B_field = BackgroundField(constant_stratification, parameters=(; ĝ, N²))
 
 # ## Bottom drag
 #
-# We impose bottom drag that follows Monin-Obukhov theory.
-# We include the background flow in the drag calculation,
-# which is the only effect the background flow enters the problem,
+# We impose bottom drag that follows Monin-Obukhov theory and include the background flow in the
+# drag calculation, which is the only effect the background flow has on the problem
 
-V∞ = 0.1 # m s⁻¹
-z₀ = 0.1 # m (roughness length)
+V∞ = 0.1meters/second
+z₀ = 0.1meters # (roughness length)
 κ = 0.4 # von Karman constant
 z₁ = znodes(grid, Center())[1] # Closest grid center to the bottom
 cᴰ = (κ / log(z₁ / z₀))^2 # Drag coefficient
@@ -93,13 +94,13 @@ drag_bc_v = FluxBoundaryCondition(drag_v, field_dependencies=(:u, :v), parameter
 u_bcs = FieldBoundaryConditions(bottom = drag_bc_u)
 v_bcs = FieldBoundaryConditions(bottom = drag_bc_v)
 
-# ## Create the `NonhydrostaticModel`
+# ## Create model and simulation
 #
 # We are now ready to create the model. We create a `NonhydrostaticModel` with an
-# `UpwindBiasedFifthOrder` advection scheme, a `RungeKutta3` timestepper,
-# and a constant viscosity and diffusivity. Here we use a smallish value of ``10^{-4} m² s⁻¹``.
+# `UpwindBiasedFifthOrder` advection scheme, a `RungeKutta3` timestepper, and a constant viscosity
+# and diffusivity.
 
-closure = ScalarDiffusivity(ν=1e-4, κ=1e-4)
+closure = ScalarDiffusivity(ν=2e-4, κ=2e-4)
 
 model = NonhydrostaticModel(; grid, buoyancy, coriolis, closure,
                             timestepper = :RungeKutta3,
@@ -108,46 +109,58 @@ model = NonhydrostaticModel(; grid, buoyancy, coriolis, closure,
                             boundary_conditions = (u=u_bcs, v=v_bcs),
                             background_fields = (; b=B_field))
 
-# ## Create and run a simulation
+noise(x, y, z) = 1e-3 * randn() * exp(-(10z)^2/grid.Lz^2)
+set!(model, u=noise, w=noise)
+
+# The bottom-intensified noise above should accelerate the emergence of turbulence close to the
+# wall.
 #
 # We are now ready to create the simulation. We begin by setting the initial time step
 # conservatively, based on the smallest grid size of our domain and set-up a 
 
 using Oceananigans.Units
 
-simulation = Simulation(model, Δt = 0.5 * minimum_zspacing(grid) / V∞, stop_time = 2days)
+simulation = Simulation(model, Δt = 0.5 * minimum_zspacing(grid) / V∞, stop_time = 12hours)
 
-# We use `TimeStepWizard` to adapt our time-step and print a progress message,
-
-using Printf
+# We use `TimeStepWizard` to maximize Δt
 
 wizard = TimeStepWizard(max_change=1.1, cfl=0.7)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
 
 # ## Model diagnostics
 #
-# We set-up a progress messenger using the `SimpleProgressMessenger`, which, as the name suggests,
-# displays simple information about the simulation
+# We set-up a progress messenger using the `TimedProgressMessenger`, which displays, among other
+# information, the time step duration
 
 using Oceanostics
 
-progress = SimpleProgressMessenger()
-simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))
+progress = TimedProgressMessenger()
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(400))
 
 
-# We can also define some useful diagnostics for of the flow, starting with the `RichardsonNumber`
+# We now define some useful diagnostics for the flow. Namely, we define `RichardsonNumber`,
+# `RossbyNumber` and `ErtelPotentialVorticity`:
 
 Ri = RichardsonNumber(model, add_background=true)
+Ro = RossbyNumber(model)
 PV = ErtelPotentialVorticity(model, add_background=true)
-Ro = RossbyNumber(model, add_background=true)
 
-# Now we write these quantities, along with `b`, to a NetCDF:
+# Note that the calculation of these quantities depends on the alignment with the true (geophysical)
+# vertical and the rotation axis. Oceanostics already takes that into consideration by using
+# `model.buoyancy` and `model.coriolis`, making their calculation much easier. Furthermore, passing
+# the flag `add_background=true` automatically adds the `model`'s `BackgroundField`s to the resolved
+# perturbations, which is important in our case for the correct calculation of ``\nabla b`` with the
+# background stratification.
+#
+# Now we write these quantities, along with total `b`, to a NetCDF:
 
-output_fields = (; Ri, Ro, PV, model.tracers.b)
+b = model.tracers.b + model.background_fields.tracers.b
+output_fields = (; Ri, Ro, PV, b)
+
 filename = "tilted_bottom_boundary_layer"
 simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
                                                     filename = joinpath(@__DIR__, filename),
-                                                    schedule = TimeInterval(1),
+                                                    schedule = TimeInterval(20minutes),
                                                     overwrite_existing = true)
 
 # ## Run the simulation and process results
@@ -156,8 +169,7 @@ simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
 
 run!(simulation)
 
-# Now we'll read the results using Rasters.jl, which works somewhat similarly to Python's Xarray and
-# can speed-up the work the workflow
+# Now we'll read the results and plot an animation
 
 using Rasters
 
@@ -165,4 +177,60 @@ ds = RasterStack(simulation.output_writers[:nc].filepath)
 
 # We now use Makie to create the figure and its axes
 
+using GLMakie
 
+set_theme!(Theme(fontsize = 20))
+fig = Figure()
+
+kwargs = (xlabel="x", ylabel="z", height=150, width=250)
+ax1 = Axis(fig[2, 1]; title = "Ri", kwargs...)
+ax2 = Axis(fig[2, 2]; title = "Ro", kwargs...)
+ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
+
+# Next we use `Observable`s to lift the values and plot heatmaps and their colorbars
+
+n = Observable(1)
+
+Riₙ = @lift ds.Ri[Ti=$n, yC=Near(0)]
+hm1 = heatmap!(ax1, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
+Colorbar(fig[3, 1], hm1, vertical=false, height=8, ticklabelsize=14)
+
+Roₙ = @lift ds.Ro[Ti=$n, yF=Near(0)]
+hm2 = heatmap!(ax2, Roₙ; colormap = :balance, colorrange = (-10, +10))
+Colorbar(fig[3, 2], hm2, vertical=false, height=8, ticklabelsize=14)
+
+PVₙ = @lift ds.PV[Ti=$n, yF=Near(0)]
+hm3 = heatmap!(ax3, PVₙ; colormap = :coolwarm, colorrange = N²*f₀.*(-1.5, +1.5))
+Colorbar(fig[3, 3], hm3, vertical=false, height=8, ticklabelsize=14);
+
+# We can add isopycnals to our plots using `contour`
+
+bₙ = @lift ds.b[Ti=$n, yC=Near(0)]
+
+contour!(ax1, bₙ; levels=15, color=:white, linestyle=:dash, linewidth=0.5)
+contour!(ax2, bₙ; levels=15, color=:black, linestyle=:dash, linewidth=0.5)
+contour!(ax3, bₙ; levels=15, color=:white, linestyle=:dash, linewidth=0.5)
+
+# Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
+
+times = dims(ds, :Ti)
+title = @lift "Time = " * string(prettytime(times[$n]))
+fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);
+
+# Finally, we adjust the figure dimensions to fit all the panels and record a movie
+
+resize_to_layout!(fig)
+
+@info "Animating..."
+record(fig, filename * ".mp4", 1:length(times), framerate=10) do i
+       n[] = i
+end
+
+# ![](tilted_bottom_boundary_layer.mp4)
+#
+# The animation shows negative PV being produced at the bottom due to drag, which leads to the
+# emergence of centrifulgal-symmetric instabilities, which become turbulent and erode stratification
+# (as can be seen by inspecting ``Ri``). Note that there are some boundary effects on the upper
+# boundary, likely caused by interaction internal waves that are produced by the bottom turbulence.
+# These effects are, to some degree, expected, and a sponge/relaxation layer at the top is needed to
+# minimize them in a production-ready code.

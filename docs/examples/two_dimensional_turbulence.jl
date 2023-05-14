@@ -1,4 +1,4 @@
-# # Two dimensional turbulence example
+# # [Two-dimensional turbulence example](@id two_d_turbulence_example)
 #
 # In this example (based on the homonymous [Oceananigans
 # one](https://clima.github.io/OceananigansDocumentation/stable/generated/two_dimensional_turbulence/))

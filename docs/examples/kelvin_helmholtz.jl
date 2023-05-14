@@ -163,3 +163,7 @@ end
 
 # ![](kelvin_helmholtz.mp4)
 #
+# Similarly to the kinetic energy dissipation rate (see the [Two-dimensional turbulence example](@ref two_d_turbulence_example)), 
+# `TracerVarianceDissipationRate` and `TracerVarianceDiffusiveTerm` are implemented
+# with a energy-conserving formulation, which means that (for `NoFlux` boundary conditions) their
+# volume-integral should be exactly (up to machine precision) the same.
