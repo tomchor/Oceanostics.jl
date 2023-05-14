@@ -35,16 +35,16 @@ Ri₀ = 0.1; h = 1/4
 shear_flow(x, y, z, t) = tanh(z)
 stratification(x, y, z, t, p) = p.h * p.Ri₀ * tanh(z / p.h)
 
-using Random: seed! #src
-seed!(2) #src
+using Random: seed!
+seed!(2)
 
 noise(x, y, z) = 2e-2 * randn()
 shear_flow(x, y, z) = tanh(z) + noise(x, y, z)
 stratification(x, y, z) = h * Ri₀ * tanh(z / h)
 set!(model, u=shear_flow, b=stratification)
 
-# Note that we concentrate the noise above in the middle of the domain in order to center the
-# instability and make for a prettier visualization.
+# Note that the call to `seed!()` above is done only in order to center the instability and make for
+# a prettier visualization; it is not necessary at all.
 #
 # Next create an adaptive-time-step simulation using the model above:
 

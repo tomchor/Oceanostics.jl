@@ -6,29 +6,23 @@
 # This perturbation develops into a turbulent bottom boundary layer due to momentum
 # loss at the bottom boundary modeled with a quadratic drag law.
 # 
-# This example illustrates
-#
-#   * changing the direction of gravitational acceleration in the buoyancy model;
-#   * changing the axis of rotation for Coriolis forces.
-#
-# ## Install dependencies
 #
 # First let's make sure we have all required packages installed.
-
+#
 # ```julia
 # using Pkg
 # pkg"add Oceananigans, Oceanostics, Rasters, CairoMakie"
 # ```
 #
-# ## The domain
+# ## Model and simulation setup
 #
-# We create a ``400 × 100`` meter ``x, z`` grid with ``128 × 32`` cells
-# and finer resolution near the bottom,
+# We create a 2D ``x, z`` grid with 64² cells and finer resolution near the bottom:
 
 using Oceananigans
+using Oceananigans.Units
 
-Lx = 200 # m
-Lz = 100 # m
+Lx = 200meters
+Lz = 100meters
 Nx = 64
 Nz = 64
 
@@ -37,35 +31,13 @@ Nz = 64
 refinement = 1.8 # controls spacing near surface (higher means finer spaced)
 stretching = 10  # controls rate of stretching at bottom 
 
-## "Warped" height coordinate
 h(k) = (Nz + 1 - k) / Nz
-
-## Linear near-surface generator
 ζ(k) = 1 + (h(k) - 1) / refinement
-
-## Bottom-intensified stretching function 
 Σ(k) = (1 - exp(-stretching * h(k))) / (1 - exp(-stretching))
-
-## Generating function
 z_faces(k) = - Lz * (ζ(k) * Σ(k) - 1)
 
-grid = RectilinearGrid(topology = (Periodic, Flat, Bounded),
-                       size = (Nx, Nz),
-                       x = (0, Lx),
-                       z = z_faces,
-                       halo = (3, 3))
-
-# Let's make sure the grid spacing is both finer and near-uniform at the bottom,
-
-using CairoMakie
-
-lines(zspacings(grid, Center()), znodes(grid, Center()),
-      axis = (ylabel = "Depth (m)",
-              xlabel = "Vertical spacing (m)"))
-
-scatter!(zspacings(grid, Center()), znodes(grid, Center()))
-
-current_figure() # hide
+grid = RectilinearGrid(topology = (Periodic, Flat, Bounded), size = (Nx, Nz),
+                       x = (0, Lx), z = z_faces)
 
 # ## Tilting the domain
 #
@@ -152,96 +124,45 @@ using Printf
 wizard = TimeStepWizard(max_change=1.1, cfl=0.7)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
 
-start_time = time_ns() # so we can print the total elapsed wall time
-
-progress_message(sim) =
-    @printf("Iteration: %04d, time: %s, Δt: %s, max|w|: %.1e m s⁻¹, wall time: %s\n",
-            iteration(sim), prettytime(time(sim)),
-            prettytime(sim.Δt), maximum(abs, sim.model.velocities.w),
-            prettytime((time_ns() - start_time) * 1e-9))
-
-simulation.callbacks[:progress] = Callback(progress_message, IterationInterval(100))
-
-# ## Add outputs to the simulation
+# ## Model diagnostics
 #
-# We add outputs to our model using the `NetCDFOutputWriter`,
+# We set-up a progress messenger using the `SimpleProgressMessenger`, which, as the name suggests,
+# displays simple information about the simulation
 
-u, v, w = model.velocities
-b = model.tracers.b
-B∞ = model.background_fields.tracers.b
+using Oceanostics
 
-B = b + B∞
-V = v + V∞
-ωy = ∂z(u) - ∂x(w)
+progress = SimpleProgressMessenger()
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))
 
-outputs = (; u, V, w, B, ωy)
 
-simulation.output_writers[:fields] = NetCDFOutputWriter(model, outputs;
-                                                        filename = joinpath(@__DIR__, "tilted_bottom_boundary_layer.nc"),
-                                                        schedule = TimeInterval(20minutes),
-                                                        overwrite_existing = true)
+# We can also define some useful diagnostics for of the flow, starting with the `RichardsonNumber`
 
-# Now we just run it!
+Ri = RichardsonNumber(model, add_background=true)
+PV = ErtelPotentialVorticity(model, add_background=true)
+Ro = RossbyNumber(model, add_background=true)
+
+# Now we write these quantities, along with `b`, to a NetCDF:
+
+output_fields = (; Ri, Ro, PV, model.tracers.b)
+filename = "tilted_bottom_boundary_layer"
+simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
+                                                    filename = joinpath(@__DIR__, filename),
+                                                    schedule = TimeInterval(1),
+                                                    overwrite_existing = true)
+
+# ## Run the simulation and process results
+#
+# To run the simulation:
 
 run!(simulation)
 
-# ## Visualize the results
-#
-# First we load the required package to load NetCDF output files and define the coordinates for
-# plotting using existing objects:
+# Now we'll read the results using Rasters.jl, which works somewhat similarly to Python's Xarray and
+# can speed-up the work the workflow
 
-using NCDatasets, CairoMakie
+using Rasters
 
-xω, yω, zω = nodes(ωy)
-xv, yv, zv = nodes(V)
+ds = RasterStack(simulation.output_writers[:nc].filepath)
 
-# Read in the simulation's `output_writer` for the two-dimensional fields and then create an
-# animation showing the ``y``-component of vorticity.
+# We now use Makie to create the figure and its axes
 
-ds = NCDataset(simulation.output_writers[:fields].filepath, "r")
 
-fig = Figure(resolution = (800, 600))
-
-axis_kwargs = (xlabel = "Across-slope distance (x)",
-               ylabel = "Slope-normal\ndistance (z)",
-               limits = ((0, Lx), (0, Lz)),
-               )
-
-ax_ω = Axis(fig[2, 1]; title = "Along-slope vorticity", axis_kwargs...)
-ax_v = Axis(fig[3, 1]; title = "Along-slope velocity (v)", axis_kwargs...)
-
-n = Observable(1)
-
-ωy = @lift ds["ωy"][:, 1, :, $n]
-hm_ω = heatmap!(ax_ω, xω, zω, ωy, colorrange = (-0.015, +0.015), colormap = :balance)
-Colorbar(fig[2, 2], hm_ω; label = "m s⁻¹")
-
-V = @lift ds["V"][:, 1, :, $n]
-V_max = @lift maximum(abs, ds["V"][:, 1, :, $n])
-
-hm_v = heatmap!(ax_v, xv, zv, V, colorrange = (-V∞, +V∞), colormap = :balance)
-Colorbar(fig[3, 2], hm_v; label = "m s⁻¹")
-
-times = collect(ds["time"])
-title = @lift "t = " * string(prettytime(times[$n]))
-fig[1, :] = Label(fig, title, fontsize=20, tellwidth=false)
-
-current_figure() # hide
-fig
-
-# Finally, we record a movie.
-
-frames = 1:length(times)
-
-record(fig, "tilted_bottom_boundary_layer.mp4", frames, framerate=12) do i
-    msg = string("Plotting frame ", i, " of ", frames[end])
-    if i%5 == 0 print(msg * " \r") end
-    n[] = i
-end
-nothing #hide
-
-# ![](tilted_bottom_boundary_layer.mp4)
-
-# Don't forget to close the NetCDF file!
-
-close(ds)
