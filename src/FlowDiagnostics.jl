@@ -110,13 +110,13 @@ to `model.coriolis`. Rossby number is defined as
 
 where ωᶻ is the vorticity in the Coriolis axis of rotation and `f` is the Coriolis rotation frequency.
 """
-function RossbyNumber(model; location = (Face, Face, Face),
+function RossbyNumber(model; location = (Face, Face, Face), add_background = true,
                       dWdy_bg=0, dVdz_bg=0,
                       dUdz_bg=0, dWdx_bg=0,
                       dUdy_bg=0, dVdx_bg=0)
     validate_location(location, "RossbyNumber", (Face, Face, Face))
 
-    if model isa NonhydrostaticModel
+    if (model isa NonhydrostaticModel) & add_background
         full_fields = add_background_fields(model)
         u, v, w = full_fields.u, full_fields.v, full_fields.w
     else
@@ -212,13 +212,13 @@ is defined as
 where ωₜₒₜ is the total (relative + planetary) vorticity vector, `b` is the buoyancy and ∇ is the gradient
 operator.
 """
-function ErtelPotentialVorticity(model; location = (Face, Face, Face))
+function ErtelPotentialVorticity(model; location = (Face, Face, Face), add_background = true)
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
 
     u, v, w = model.velocities
     b = model.tracers.b
 
-    if model isa NonhydrostaticModel
+    if (model isa NonhydrostaticModel) & add_background
         full_fields = add_background_fields(model)
         u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
     else
