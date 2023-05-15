@@ -1,6 +1,8 @@
 # # Two dimensional turbulence example
 #
-# This example simulates a simple 2D Kelvin-Helmholtz instability
+# This example simulates a simple 2D Kelvin-Helmholtz instability and is based on the similar
+# [Oceananigans
+# example](https://clima.github.io/OceananigansDocumentation/stable/generated/kelvin_helmholtz_instability/).
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
