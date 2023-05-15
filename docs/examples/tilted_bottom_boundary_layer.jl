@@ -179,7 +179,7 @@ ds = RasterStack(simulation.output_writers[:nc].filepath)
 
 # We now use Makie to create the figure and its axes
 
-using GLMakie
+using CairoMakie
 
 set_theme!(Theme(fontsize = 20))
 fig = Figure()
