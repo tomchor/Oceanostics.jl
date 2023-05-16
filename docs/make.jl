@@ -1,8 +1,3 @@
-pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..")) # add Oceanostics environment to docs
-using Pkg
-CI = get(ENV, "CI", nothing) == "true" || get(ENV, "GITHUB_TOKEN", nothing) !== nothing
-CI && Pkg.instantiate()
-
 using Documenter
 using Literate
 
@@ -34,6 +29,7 @@ pages = ["Home" => "index.md",
          "Function library" => "library.md",
         ]
 
+CI = get(ENV, "CI", nothing) == "true" || get(ENV, "GITHUB_TOKEN", nothing) !== nothing
 
 format = Documenter.HTML(collapselevel = 1,
                          prettyurls = CI, # Makes links work when building locally
