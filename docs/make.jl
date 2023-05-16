@@ -1,7 +1,7 @@
 pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..")) # add Oceanostics environment to docs
 using Pkg
-CI = get(ENV, "CI", nothing) == "true" || get(ENV, "GITHUB_TOKEN", nothing) !== nothing
-CI && Pkg.instantiate()
+CI = get(ENV, "CI", nothing) == "true"
+(!CI) && Pkg.instantiate()
 
 using Documenter
 using Literate
