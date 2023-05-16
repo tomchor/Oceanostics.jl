@@ -1,4 +1,4 @@
-# # Two dimensional turbulence example
+# # Kelvin-Helmholtz instability
 #
 # This example simulates a simple 2D Kelvin-Helmholtz instability and is based on the similar
 # [Oceananigans
