@@ -29,7 +29,7 @@ pages = ["Home" => "index.md",
          "Function library" => "library.md",
         ]
 
-CI = get(ENV, "CI", nothing) == "true" || get(ENV, "GITHUB_TOKEN", nothing) !== nothing
+CI = get(ENV, "CI", nothing) == "true"
 
 format = Documenter.HTML(collapselevel = 1,
                          prettyurls = CI, # Makes links work when building locally
