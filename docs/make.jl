@@ -1,5 +1,6 @@
 using Documenter
 using Literate
+using Glob
 
 using Oceananigans
 using Oceanostics
@@ -38,7 +39,7 @@ format = Documenter.HTML(collapselevel = 1,
                          )
 #---
 
-#+++ Make and deploy docs
+#+++ Make the docs
 makedocs(sitename = "Oceanostics.jl",
          authors = "Tomas Chor and contributors",
          pages = pages,
@@ -49,7 +50,15 @@ makedocs(sitename = "Oceanostics.jl",
          format = format,
          checkdocs = :exports
          )
+#---
 
+#+++ Cleanup any output files, e.g., .jld2 or .nc, created by docs. Otherwise they are pushed up in the docs branch in the repo
+for file in vcat(glob("docs/*.jld2"), glob("docs/*.nc"))
+    rm(file)
+end
+#---
+
+#+++ Deploy thedocs
 if CI
     deploydocs(repo = "github.com/tomchor/Oceanostics.jl.git",
                push_preview = true,
