@@ -55,10 +55,11 @@ run!(simulation)
 
 <!-- ## Notes on notation and usage
 
-For now I'm assuming that lowercase variables are pertubations around a mean and uppercase
+For now I'm assuming that lowercase variables are perturbations around a mean and uppercase
 variables are the mean (any kind of mean or even background fields). So, for example,
 kinetic energy is calculated as (the following is a pseudo-code):
 
 ```julia
 ke(u, v, w) = 1/2*(u^2 + v^2 + w^2)
 ```
+-->
