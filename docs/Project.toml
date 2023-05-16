@@ -2,4 +2,5 @@
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
+Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 Rasters = "a3a2b9e3-a471-40c9-b274-f788e487c689"
