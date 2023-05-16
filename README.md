@@ -2,9 +2,9 @@
 
 Useful diagnostics to use with [Oceananigans](https://github.com/CliMA/Oceananigans.jl). Mostly `AbstractOperations`s and a few useful progress messengers.
 
-To add the latest registered version from Julia:
+To install the latest registered tagged version from Julia:
 ```julia
-julia>]
+julia> ]
 (@v1.8) pkg> add Oceanostics
 ```
 
@@ -20,7 +20,7 @@ The keyword `rev` let's you pick which github branch you want.
 
 ## Simple example
 
-The example below is a simple illustration of how to use a few of Oceanostics fearures:
+The example below is a simple illustration of how to use a few of Oceanostics features:
 
 ```julia
 using Oceananigans
@@ -42,7 +42,7 @@ run!(simulation)
 ## Caveats
 
 - Not every diagnostic has been thoroughly tested (we're still working on testing everything with CI).
-- Most diagnostics are written very generally since most uses of averages, etc. do not assume any
+- Most diagnostics are written very generally since most uses of averages, etc. Do not assume any
   specific kind of averaging procedure. Chances are it "wastes" computations for a given specific application.
 
 
