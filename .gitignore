@@ -22,7 +22,7 @@ docs/src/generated
 # It records a fixed state of all packages used by the project. As such, it should not be
 # committed for packages, but should be committed for applications that require a static
 # environment.
-#Manifest.toml
+docs/Manifest.toml
 
 # Ignore swap files used by VIM
 *.swp
