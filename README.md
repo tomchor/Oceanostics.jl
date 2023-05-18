@@ -13,7 +13,7 @@ before getting started with Oceanostics.
 
 ## Installation
 
-To install the latest registered tagged version from Julia:
+To install the latest stable version from Julia:
 ```julia
 julia> ]
 (@v1.8) pkg> add Oceanostics
