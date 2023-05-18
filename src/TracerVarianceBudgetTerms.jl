@@ -25,18 +25,18 @@ import Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diff
                                background_fields,
                                velocities,
                                tracers, args...) where tracer_index =
-    2 * tracers[tracer_index][i, j, k] * tracer_tendency(i, j, k, grid, 
-                                                         val_tracer_index, 
-                                                         val_tracer_name,
-                                                         advection,
-                                                         closure,
-                                                         c_immersed_bc,
-                                                         buoyancy,
-                                                         biogeochemistry,
-                                                         background_fields,
-                                                         velocities,
-                                                         tracers,
-                                                         args...)
+    @inbounds 2 * tracers[tracer_index][i, j, k] * tracer_tendency(i, j, k, grid,
+                                                                   val_tracer_index,
+                                                                   val_tracer_name,
+                                                                   advection,
+                                                                   closure,
+                                                                   c_immersed_bc,
+                                                                   buoyancy,
+                                                                   biogeochemistry,
+                                                                   background_fields,
+                                                                   velocities,
+                                                                   tracers,
+                                                                   args...)
 
 """
     $(SIGNATURES)
@@ -84,7 +84,7 @@ end
                                  val_tracer_index,
                                  tracer,
                                  args...) =
-    2 * tracer[i,j,k] * ∇_dot_qᶜ(i, j, k, grid, closure, diffusivities, val_tracer_index, tracer, args...)
+    @inbounds 2 * tracer[i, j, k] * ∇_dot_qᶜ(i, j, k, grid, closure, diffusivities, val_tracer_index, tracer, args...)
 
 """
     $(SIGNATURES)
@@ -92,8 +92,9 @@ end
 Return a `KernelFunctionOperation` that computes the diffusive term of the tracer variance
 prognostic equation using Oceananigans' diffusive tracer flux divergence kernel:
 
+```
     DIFF = 2 c ∂ⱼFⱼ
-
+```
 where `c` is the tracer, and `Fⱼ` is the tracer's diffusive flux in the `j`-th direction.
 
 ```julia
@@ -121,7 +122,7 @@ end
 #+++ Tracer variance dissipation rate
 for diff_flux in (:diffusive_flux_x, :diffusive_flux_y, :diffusive_flux_z)
     # Unroll the loop over a tuple
-    @eval @inline $diff_flux(i, j, k, grid, closure_tuple::Tuple, diffusivity_fields, args...) = 
+    @eval @inline $diff_flux(i, j, k, grid, closure_tuple::Tuple, diffusivity_fields, args...) =
         $diff_flux(i, j, k, grid, closure_tuple[1], diffusivity_fields[1], args...) + 
         $diff_flux(i, j, k, grid, closure_tuple[2:end], diffusivity_fields[2:end], args...)
 
