@@ -44,7 +44,7 @@ function make_message(simulation, single_line=false;
     if !single_line
         message *= @sprintf("\n          └── max(|u⃗|): [%.2e, %.2e, %.2e]%s", u_max, v_max, w_max, u_units)
     end
-                           
+
     message *= @sprintf(",     adv CFL: %.2e", AdvectiveCFL(Δt)(model))
 
     if !(model.closure isa Tuple) # Oceananigans bug
@@ -57,7 +57,6 @@ function make_message(simulation, single_line=false;
     end
 
     message *= "\n"
-    
 
     return message
 end
