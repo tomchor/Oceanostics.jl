@@ -1,7 +1,7 @@
 # Oceanostics
 
-Latest Documentation: [![Build Status](https://img.shields.io/badge/documentation-in%20development-orange)](https://tomchor.github.io/Oceanostics.jl/dev/)
-
+[![Build Status](https://img.shields.io/badge/documentation-in%20development-orange)](https://tomchor.github.io/Oceanostics.jl/dev/)
+[![Stable documentation](https://img.shields.io/badge/documentation-stable%20release-blue?style=flat-square)](https://tomchor.github.io/Oceanostics.jl/stable/)
 
 
 Oceanostics is a Julia package created to facilitate getting diagnostics quantities in
