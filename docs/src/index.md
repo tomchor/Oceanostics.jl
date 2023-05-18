@@ -4,7 +4,7 @@ Markdown.parse_file(joinpath(@__DIR__, "..", "..", "README.md"))
 ```
 
 !!! note "This documentation is still under construction"
-    We are still working on these docs. If you see any errors or if you have any helpful suggestions please 
+    We are still actively working on these docs. If you see any errors or if you have any helpful suggestions please 
     open [an issue](https://github.com/tomchor/Oceanostics.jl/issues/new) or
     [a pull request](https://github.com/tomchor/Oceanostics.jl/pulls) on github.
 
@@ -56,6 +56,3 @@ julia> run!(simulation)
 └           └── max(|u⃗|): [0.00e+00, 0.00e+00, 0.00e+00] m/s, CFL: 0.00e+00
 ```
 
-```@meta
-rm("out.nc")
-```
