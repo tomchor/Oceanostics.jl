@@ -44,7 +44,7 @@ function make_message(simulation, single_line=false;
     if !single_line
         message *= @sprintf("\n          └── max(|u⃗|): [%.2e, %.2e, %.2e]%s", u_max, v_max, w_max, u_units)
     end
-                           
+
     message *= @sprintf(",     adv CFL: %.2e", AdvectiveCFL(Δt)(model))
 
     if !(model.closure isa Tuple) # Oceananigans bug
@@ -57,7 +57,6 @@ function make_message(simulation, single_line=false;
     end
 
     message *= "\n"
-    
 
     return message
 end
@@ -96,14 +95,10 @@ Return a `TimedProgressMessenger`, where the time per model time step is calcula
 
 `kwargs` are passed to `make_message()`.
 """
-function TimedProgressMessenger(; LES=false, 
-                                wall_time₀=1e-9*time_ns(), 
-                                wall_time⁻=1e-9*time_ns(),
-                                iteration⁻=0)
-
-    return TimedProgressMessenger(wall_time₀, wall_time⁻, iteration⁻, LES)
-end
-
+TimedProgressMessenger(; LES=false, 
+                       wall_time₀=1e-9*time_ns(), 
+                       wall_time⁻=1e-9*time_ns(),
+                       iteration⁻=0) = TimedProgressMessenger(wall_time₀, wall_time⁻, iteration⁻, LES)
 
 function (pm::TimedProgressMessenger)(simulation)
     model = simulation.model
