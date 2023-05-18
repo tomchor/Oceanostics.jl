@@ -95,14 +95,10 @@ Return a `TimedProgressMessenger`, where the time per model time step is calcula
 
 `kwargs` are passed to `make_message()`.
 """
-function TimedProgressMessenger(; LES=false, 
-                                wall_time₀=1e-9*time_ns(), 
-                                wall_time⁻=1e-9*time_ns(),
-                                iteration⁻=0)
-
-    return TimedProgressMessenger(wall_time₀, wall_time⁻, iteration⁻, LES)
-end
-
+TimedProgressMessenger(; LES=false, 
+                       wall_time₀=1e-9*time_ns(), 
+                       wall_time⁻=1e-9*time_ns(),
+                       iteration⁻=0) = TimedProgressMessenger(wall_time₀, wall_time⁻, iteration⁻, LES)
 
 function (pm::TimedProgressMessenger)(simulation)
     model = simulation.model
