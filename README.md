@@ -50,20 +50,3 @@ run!(simulation)
 
 (Note that `(; tke, ε)` is a shorthand for `(tke=tke, ε=ε)`.)
 
-## Caveats
-
-- Not every diagnostic has been thoroughly tested (we're still working on testing everything with CI).
-- Most diagnostics are written very generally since most uses of averages, etc. Do not assume any
-  specific kind of averaging procedure. Chances are it "wastes" computations for a given specific application.
-
-
-<!-- ## Notes on notation and usage
-
-For now I'm assuming that lowercase variables are perturbations around a mean and uppercase
-variables are the mean (any kind of mean or even background fields). So, for example,
-kinetic energy is calculated as (the following is a pseudo-code):
-
-```julia
-ke(u, v, w) = 1/2*(u^2 + v^2 + w^2)
-```
--->
