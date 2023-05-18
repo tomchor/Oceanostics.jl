@@ -154,10 +154,9 @@ PV = ErtelPotentialVorticity(model, add_background=true)
 # perturbations, which is important in our case for the correct calculation of ``\nabla b`` with the
 # background stratification.
 #
-# Now we write these quantities, along with total `b`, to a NetCDF:
+# Now we write these quantities to a NetCDF file:
 
-b = model.tracers.b + model.background_fields.tracers.b
-output_fields = (; Ri, Ro, PV, b)
+output_fields = (; Ri, Ro, PV)
 
 filename = "tilted_bottom_boundary_layer"
 simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
@@ -204,14 +203,6 @@ Colorbar(fig[3, 2], hm2, vertical=false, height=8, ticklabelsize=14)
 PVₙ = @lift ds.PV[Ti=$n, yF=Near(0)]
 hm3 = heatmap!(ax3, PVₙ; colormap = :coolwarm, colorrange = N²*f₀.*(-1.5, +1.5))
 Colorbar(fig[3, 3], hm3, vertical=false, height=8, ticklabelsize=14);
-
-# We can add isopycnals to our plots using `contour`
-
-bₙ = @lift ds.b[Ti=$n, yC=Near(0)]
-
-contour!(ax1, bₙ; levels=15, color=:white, linestyle=:dash, linewidth=0.5)
-contour!(ax2, bₙ; levels=15, color=:black, linestyle=:dash, linewidth=0.5)
-contour!(ax3, bₙ; levels=15, color=:white, linestyle=:dash, linewidth=0.5)
 
 # Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
 
