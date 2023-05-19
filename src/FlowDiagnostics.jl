@@ -57,7 +57,11 @@ end
     $(SIGNATURES)
 
 Calculate the Richardson Number as
+
+```
     Ri = (∂b/∂z) / (|∂u⃗ₕ/∂z|²)
+```
+
 where `z` is the true vertical direction (ie anti-parallel to gravity).
 """
 function RichardsonNumber(model; location = (Center, Center, Face), add_background=true)
@@ -106,17 +110,18 @@ end
 Calculate the Rossby number using the vorticity in the rotation axis direction according
 to `model.coriolis`. Rossby number is defined as
 
+```
     Ro = ωᶻ / f
-
+```
 where ωᶻ is the vorticity in the Coriolis axis of rotation and `f` is the Coriolis rotation frequency.
 """
-function RossbyNumber(model; location = (Face, Face, Face),
+function RossbyNumber(model; location = (Face, Face, Face), add_background = true,
                       dWdy_bg=0, dVdz_bg=0,
                       dUdz_bg=0, dWdx_bg=0,
                       dUdy_bg=0, dVdx_bg=0)
     validate_location(location, "RossbyNumber", (Face, Face, Face))
 
-    if model isa NonhydrostaticModel
+    if (model isa NonhydrostaticModel) & add_background
         full_fields = add_background_fields(model)
         u, v, w = full_fields.u, full_fields.v, full_fields.w
     else
@@ -165,8 +170,9 @@ Calculate the Potential Vorticty assuming thermal wind balance for `model`, wher
 the Coriolis rotation are taken from `model.coriolis`. The Potential Vorticity in this case
 is defined as
 
+```
     TWPV = (f + ωᶻ) ∂b/∂z - f ((∂U/∂z)² + (∂V/∂z)²)
-
+```
 where `f` is the Coriolis frequency, `ωᶻ` is the relative vorticity in the `z` direction, `b` is the buoyancy, and
 `∂U/∂z` and `∂V/∂z` comprise the thermal wind shear.
 """
@@ -212,13 +218,13 @@ is defined as
 where ωₜₒₜ is the total (relative + planetary) vorticity vector, `b` is the buoyancy and ∇ is the gradient
 operator.
 """
-function ErtelPotentialVorticity(model; location = (Face, Face, Face))
+function ErtelPotentialVorticity(model; location = (Face, Face, Face), add_background = true)
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
 
     u, v, w = model.velocities
     b = model.tracers.b
 
-    if model isa NonhydrostaticModel
+    if (model isa NonhydrostaticModel) & add_background
         full_fields = add_background_fields(model)
         u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
     else
@@ -337,12 +343,14 @@ end
 Calculate the modulus (absolute value) of the strain rate tensor `S`, which is defined as the
 symmetric part of the velocity gradient tensor:
 
+```
     Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)
-
+```
 Its modulus is then defined (using Einstein summation notation) as
 
+```
     || Sᵢⱼ || = √( Sᵢⱼ Sᵢⱼ)
-
+```
 """
 function StrainRateTensorModulus(model; location = (Center, Center, Center))
     validate_location(location, "StrainRateTensorModulus", (Center, Center, Center))
@@ -370,12 +378,14 @@ end
 Calculate the modulus (absolute value) of the vorticity tensor `Ω`, which is defined as the
 antisymmetric part of the velocity gradient tensor:
 
+```
     Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)
-
+```
 Its modulus is then defined (using Einstein summation notation) as
 
+```
     || Ωᵢⱼ || = √( Ωᵢⱼ Ωᵢⱼ)
-
+```
 """
 function VorticityTensorModulus(model; location = (Center, Center, Center))
     validate_location(location, "VorticityTensorModulus", (Center, Center, Center))
@@ -383,7 +393,7 @@ function VorticityTensorModulus(model; location = (Center, Center, Center))
 end
 
 
-# From 10.1063/1.5124245
+# From doi:10.1063/1.5124245
 @inline function Q_velocity_gradient_tensor_invariant_ccc(i, j, k, grid, u, v, w)
     S² = strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
     Ω² = vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
@@ -399,14 +409,16 @@ and it is generally used for identifying and visualizing vortices in fluid flow.
 The definition and nomenclature comes from the equation for the eigenvalues `λ` of the velocity
 gradient tensor `∂ⱼuᵢ`:
 
+```
     λ³ + P λ² + Q λ + T = 0
-
+```
 from where `Q` is defined as
 
+```
     Q = ½ ( ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)
-
+```
 and where `Sᵢⱼ= ½(∂ⱼuᵢ + ∂ᵢuⱼ)` and `Ωᵢⱼ= ½(∂ⱼuᵢ - ∂ᵢuⱼ)`. More info about it can be found in
-10.1063/1.5124245.
+doi:10.1063/1.5124245.
 """
 function QVelocityGradientTensorInvariant(model; location = (Center, Center, Center))
     validate_location(location, "QVelocityGradientTensorInvariant", (Center, Center, Center))

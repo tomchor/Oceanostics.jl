@@ -15,30 +15,28 @@ using Oceananigans.TurbulenceClosures: ∇_dot_qᶜ
 import Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 
 #+++ Tracer variance tendency
-@inline function c∂ₜcᶜᶜᶜ(i, j, k, grid, val_tracer_index::Val{tracer_index},
-                                        val_tracer_name,
-                                        advection,
-                                        closure,
-                                        c_immersed_bc,
-                                        buoyancy,
-                                        biogeochemistry,
-                                        background_fields,
-                                        velocities,
-                                        tracers, args...) where tracer_index
-
-    return 2 * tracers[tracer_index][i, j, k] * tracer_tendency(i, j, k, grid, 
-                                                                val_tracer_index, 
-                                                                val_tracer_name,
-                                                                advection,
-                                                                closure,
-                                                                c_immersed_bc,
-                                                                buoyancy,
-                                                                biogeochemistry,
-                                                                background_fields,
-                                                                velocities,
-                                                                tracers,
-                                                                args...)
-end
+@inline c∂ₜcᶜᶜᶜ(i, j, k, grid, val_tracer_index::Val{tracer_index},
+                               val_tracer_name,
+                               advection,
+                               closure,
+                               c_immersed_bc,
+                               buoyancy,
+                               biogeochemistry,
+                               background_fields,
+                               velocities,
+                               tracers, args...) where tracer_index =
+    @inbounds 2 * tracers[tracer_index][i, j, k] * tracer_tendency(i, j, k, grid,
+                                                                   val_tracer_index,
+                                                                   val_tracer_name,
+                                                                   advection,
+                                                                   closure,
+                                                                   c_immersed_bc,
+                                                                   buoyancy,
+                                                                   biogeochemistry,
+                                                                   background_fields,
+                                                                   velocities,
+                                                                   tracers,
+                                                                   args...)
 
 """
     $(SIGNATURES)
@@ -81,13 +79,12 @@ end
 #---
 
 #+++ Tracer variance diffusive term
-@inline function c∇_dot_qᶜ(i, j, k, grid, closure,
-                                          diffusivities,
-                                          val_tracer_index,
-                                          tracer,
-                                          args...)
-    return 2 * tracer[i,j,k] * ∇_dot_qᶜ(i, j, k, grid, closure, diffusivities, val_tracer_index, tracer, args...)
-end
+@inline c∇_dot_qᶜ(i, j, k, grid, closure,
+                                 diffusivities,
+                                 val_tracer_index,
+                                 tracer,
+                                 args...) =
+    @inbounds 2 * tracer[i, j, k] * ∇_dot_qᶜ(i, j, k, grid, closure, diffusivities, val_tracer_index, tracer, args...)
 
 """
     $(SIGNATURES)
@@ -95,8 +92,9 @@ end
 Return a `KernelFunctionOperation` that computes the diffusive term of the tracer variance
 prognostic equation using Oceananigans' diffusive tracer flux divergence kernel:
 
+```
     DIFF = 2 c ∂ⱼFⱼ
-
+```
 where `c` is the tracer, and `Fⱼ` is the tracer's diffusive flux in the `j`-th direction.
 
 ```julia
@@ -124,7 +122,7 @@ end
 #+++ Tracer variance dissipation rate
 for diff_flux in (:diffusive_flux_x, :diffusive_flux_y, :diffusive_flux_z)
     # Unroll the loop over a tuple
-    @eval @inline $diff_flux(i, j, k, grid, closure_tuple::Tuple, diffusivity_fields, args...) = 
+    @eval @inline $diff_flux(i, j, k, grid, closure_tuple::Tuple, diffusivity_fields, args...) =
         $diff_flux(i, j, k, grid, closure_tuple[1], diffusivity_fields[1], args...) + 
         $diff_flux(i, j, k, grid, closure_tuple[2:end], diffusivity_fields[2:end], args...)
 
@@ -144,12 +142,11 @@ end
 @inline Azᶜᶜᶠ_δcᶜᶜᶠ_q₃ᶜᶜᶠ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
     - Azᶜᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, c) * diffusive_flux_z(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
 
-@inline function tracer_variance_dissipation_rate_ccc(i, j, k, grid, args...)
-return 2 * (ℑxᶜᵃᵃ(i, j, k, grid, Axᶠᶜᶜ_δcᶠᶜᶜ_q₁ᶠᶜᶜ, args...) + # F, C, C  → C, C, C
-            ℑyᵃᶜᵃ(i, j, k, grid, Ayᶜᶠᶜ_δcᶜᶠᶜ_q₂ᶜᶠᶜ, args...) + # C, F, C  → C, C, C
-            ℑzᵃᵃᶜ(i, j, k, grid, Azᶜᶜᶠ_δcᶜᶜᶠ_q₃ᶜᶜᶠ, args...)   # C, C, F  → C, C, C
-            ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δc above, ensures a derivative operation
-end
+@inline tracer_variance_dissipation_rate_ccc(i, j, k, grid, args...) =
+    2 * (ℑxᶜᵃᵃ(i, j, k, grid, Axᶠᶜᶜ_δcᶠᶜᶜ_q₁ᶠᶜᶜ, args...) + # F, C, C  → C, C, C
+         ℑyᵃᶜᵃ(i, j, k, grid, Ayᶜᶠᶜ_δcᶜᶠᶜ_q₂ᶜᶠᶜ, args...) + # C, F, C  → C, C, C
+         ℑzᵃᵃᶜ(i, j, k, grid, Azᶜᶜᶠ_δcᶜᶜᶠ_q₃ᶜᶜᶠ, args...)   # C, C, F  → C, C, C
+         ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δc above, ensures a derivative operation
 
 """
     $(SIGNATURES)
@@ -157,8 +154,9 @@ end
 Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
 for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is defined as 
 
+```
     χ = 2 ∂ⱼc ⋅ Fⱼ
-
+```
 where `Fⱼ` is the diffusive flux of `c` in the `j`-th direction and `∂ⱼ` is the gradient operator.
 `χ` is implemented in its conservative formulation based on the equation above. 
 
@@ -198,4 +196,3 @@ end
 #---
 
 end # module
-

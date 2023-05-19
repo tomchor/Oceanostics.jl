@@ -28,16 +28,14 @@ using Oceanostics: validate_location, validate_dissipative_closure
 @inline ψ′²(i, j, k, grid, ψ, Ψ) = @inbounds (ψ[i, j, k] - Ψ[i, j, k])^2
 @inline ψ′²(i, j, k, grid, ψ, Ψ::Number) = @inbounds (ψ[i, j, k] - Ψ)^2
 
-@inline fψ²(i, j, k, grid, f, ψ) = @inbounds f(i, j, k, grid, ψ)^2
+@inline fψ²(i, j, k, grid, f, ψ) = f(i, j, k, grid, ψ)^2
 
-@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = @inbounds (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
+@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
 #++++ Turbulent kinetic energy
-@inline function turbulent_kinetic_energy_ccc(i, j, k, grid, u, v, w, U, V, W)
-    return (ℑxᶜᵃᵃ(i, j, k, grid, ψ′², u, U) +
-            ℑyᵃᶜᵃ(i, j, k, grid, ψ′², v, V) +
-            ℑzᵃᵃᶜ(i, j, k, grid, ψ′², w, W)) / 2
-end
+@inline turbulent_kinetic_energy_ccc(i, j, k, grid, u, v, w, U, V, W) = (ℑxᶜᵃᵃ(i, j, k, grid, ψ′², u, U) +
+                                                                         ℑyᵃᶜᵃ(i, j, k, grid, ψ′², v, V) +
+                                                                         ℑzᵃᵃᶜ(i, j, k, grid, ψ′², w, W)) / 2
 
 """
     $(SIGNATURES)
@@ -143,20 +141,19 @@ Axᶠᶜᶠ_δwᶠᶜᶠ_F₃₁ᶠᶜᶠ(i, j, k, grid, closure, K_fields, clo,
 Ayᶜᶠᶠ_δwᶜᶠᶠ_F₃₂ᶜᶠᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, fields.w) * viscous_flux_wy(i, j, k, grid, closure, K_fields, clo, fields, b)
 Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, fields.w) * viscous_flux_wz(i, j, k, grid, closure, K_fields, clo, fields, b)
 
-@inline function viscous_dissipation_rate_ccc(i, j, k, grid, diffusivity_fields, fields, p)
-return (Axᶜᶜᶜ_δuᶜᶜᶜ_F₁₁ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, C, C
-        ℑxyᶜᶜᵃ(i, j, k, grid, Ayᶠᶠᶜ_δuᶠᶠᶜ_F₁₂ᶠᶠᶜ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
-        ℑxzᶜᵃᶜ(i, j, k, grid, Azᶠᶜᶠ_δuᶠᶜᶠ_F₁₃ᶠᶜᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
+@inline viscous_dissipation_rate_ccc(i, j, k, grid, diffusivity_fields, fields, p) =
+    (Axᶜᶜᶜ_δuᶜᶜᶜ_F₁₁ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, C, C
+     ℑxyᶜᶜᵃ(i, j, k, grid, Ayᶠᶠᶜ_δuᶠᶠᶜ_F₁₂ᶠᶠᶜ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
+     ℑxzᶜᵃᶜ(i, j, k, grid, Azᶠᶜᶠ_δuᶠᶜᶠ_F₁₃ᶠᶜᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
 
-        ℑxyᶜᶜᵃ(i, j, k, grid, Axᶠᶠᶜ_δvᶠᶠᶜ_F₂₁ᶠᶠᶜ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
-        Ayᶜᶜᶜ_δvᶜᶜᶜ_F₂₂ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, C, C
-        ℑyzᵃᶜᶜ(i, j, k, grid, Azᶜᶠᶠ_δvᶜᶠᶠ_F₂₃ᶜᶠᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
+     ℑxyᶜᶜᵃ(i, j, k, grid, Axᶠᶠᶜ_δvᶠᶠᶜ_F₂₁ᶠᶠᶜ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
+     Ayᶜᶜᶜ_δvᶜᶜᶜ_F₂₂ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, C, C
+     ℑyzᵃᶜᶜ(i, j, k, grid, Azᶜᶠᶠ_δvᶜᶠᶠ_F₂₃ᶜᶠᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
 
-        ℑxzᶜᵃᶜ(i, j, k, grid, Axᶠᶜᶠ_δwᶠᶜᶠ_F₃₁ᶠᶜᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
-        ℑyzᵃᶜᶜ(i, j, k, grid, Ayᶜᶠᶠ_δwᶜᶠᶠ_F₃₂ᶜᶠᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
-        Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy)   # C, C, C
-        ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δuᵢ above, ensures a derivative operation
-end
+     ℑxzᶜᵃᶜ(i, j, k, grid, Axᶠᶜᶠ_δwᶠᶜᶠ_F₃₁ᶠᶜᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
+     ℑyzᵃᶜᶜ(i, j, k, grid, Ayᶜᶠᶠ_δwᶜᶠᶠ_F₃₂ᶜᶠᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
+     Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy)   # C, C, C
+     ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δuᵢ above, ensures a derivative operation
 
 """
     $(SIGNATURES)
@@ -185,7 +182,8 @@ end
 #---
 
 #+++ Kinetic energy tendency
-@inline ψf(i, j, k, grid, ψ, f, args...) = ψ[i, j, k] * f(i, j, k, grid, args...)
+@inline ψf(i, j, k, grid, ψ, f, args...) = @inbounds ψ[i, j, k] * f(i, j, k, grid, args...)
+
 @inline function uᵢ∂ₜuᵢᶜᶜᶜ(i, j, k, grid, advection,
                                           coriolis,
                                           stokes_drift,
@@ -248,13 +246,12 @@ end
 
 Return a `KernelFunctionOperation` that computes the diffusive term the KE prognostic equation:
 
+```
     DIFF = uᵢ∂ⱼτᵢⱼ
+```
 
 where `uᵢ` are the velocity components and `τᵢⱼ` is the diffusive flux of `i` momentum in the 
 `j`-th direction.
-
-```julia
-```
 """
 function KineticEnergyDiffusiveTerm(model; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyDiffusiveTerm")
@@ -279,9 +276,7 @@ end
 Calculate the pressure redistribution term in the `x` direction. Here `u′` and `p′`
 are the fluctuations around a mean.
 """
-function XPressureRedistribution(model, u′, p′)
-    return ∂x(u′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
-end
+XPressureRedistribution(model, u′, p′) = ∂x(u′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
 
 """
     $(SIGNATURES)
@@ -289,9 +284,7 @@ end
 Calculate the pressure redistribution term in the `y` direction. Here `v′` and `p′`
 are the fluctuations around a mean.
 """
-function YPressureRedistribution(model, v′, p′)
-    return ∂y(v′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
-end
+YPressureRedistribution(model, v′, p′) = ∂y(v′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
 
 """
     $(SIGNATURES)
@@ -299,9 +292,8 @@ end
 Calculate the pressure redistribution term in the `z` direction. Here `w′` and `p′`
 are the fluctuations around a mean.
 """
-function ZPressureRedistribution(model, w′, p′)
-    return ∂z(w′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
-end
+ZPressureRedistribution(model, w′, p′) = ∂z(w′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
+
 #----
 
 #++++ Shear production terms
