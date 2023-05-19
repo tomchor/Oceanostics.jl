@@ -1,10 +1,10 @@
 # Oceanostics
 
-[![Dev documentation](https://img.shields.io/badge/documentation-in%20development-orange)](https://tomchor.github.io/Oceanostics.jl/dev/)
+[![Dev documentation](https://img.shields.io/badge/documentation-in%20development-orange?style=flat)](https://tomchor.github.io/Oceanostics.jl/dev/)
 
-[![Stable documentation](https://img.shields.io/badge/documentation-stable%20release-blue?style=flat-square)](https://tomchor.github.io/Oceanostics.jl/stable/)
+[![Stable documentation](https://img.shields.io/badge/documentation-stable%20release-blue?style=flat)](https://tomchor.github.io/Oceanostics.jl/stable/)
 
-[![Github repo](https://img.shields.io/github/stars/tomchor/Oceanostics.jl?style=social)](https://github.com/tomchor/Oceanostics.jl)
+[![Github repo](https://img.shields.io/badge/-Github-white?logo=github&logoColor=black)](https://github.com/tomchor/Oceanostics.jl)
 
 
 Oceanostics is a Julia package created to facilitate obtaining diagnostic quantities in
