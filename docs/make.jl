@@ -54,7 +54,7 @@ makedocs(sitename = "Oceanostics.jl",
 #---
 
 #+++ Cleanup any output files, e.g., .jld2 or .nc, created by docs. Otherwise they are pushed up in the docs branch in the repo
-for file in vcat(glob("docs/*.jld2"), glob("docs/*.nc"))
+for file in vcat(glob("docs/*.jld2"), glob("docs/*.nc"), glob("docs/generated/*.nc"), glob("docs/generated/*.nc"))
     rm(file)
 end
 #---
