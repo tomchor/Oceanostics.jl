@@ -14,10 +14,10 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
 using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
-import Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz, 
-                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
-                                        viscous_flux_wx, viscous_flux_wy, viscous_flux_wz
-using Oceananigans.TurbulenceClosures: ∂ⱼ_τ₁ⱼ, ∂ⱼ_τ₂ⱼ, ∂ⱼ_τ₃ⱼ
+using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz, 
+                                       viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
+                                       viscous_flux_wx, viscous_flux_wy, viscous_flux_wz,
+                                       ∂ⱼ_τ₁ⱼ, ∂ⱼ_τ₂ⱼ, ∂ⱼ_τ₃ⱼ
 
 using Oceanostics: _νᶜᶜᶜ
 using Oceanostics: validate_location, validate_dissipative_closure
@@ -113,18 +113,6 @@ function IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0,
     return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_ccc, model.grid,
                                                            (u - U), (v - V), (w - W), parameters)
 end
-
-for viscous_flux in (:viscous_flux_ux, :viscous_flux_uy, :viscous_flux_uz,
-                     :viscous_flux_vx, :viscous_flux_vy, :viscous_flux_vz,
-                     :viscous_flux_wx, :viscous_flux_wy, :viscous_flux_wz)
-    @eval @inline $viscous_flux(i, j, k, grid, closure_tuple::Tuple, diffusivity_fields, args...) =
-        $viscous_flux(i, j, k, grid, closure_tuple[1], diffusivity_fields[1], args...) +
-        $viscous_flux(i, j, k, grid, closure_tuple[2:end], diffusivity_fields[2:end], args...)
-
-    # End of the line
-    @eval @inline $viscous_flux(i, j, k, grid, closure_tuple::Tuple{}, args...) = zero(grid)
-end
-
 
 # ∂ⱼu₁ ⋅ F₁ⱼ
 Axᶜᶜᶜ_δuᶜᶜᶜ_F₁₁ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, fields.u) * viscous_flux_ux(i, j, k, grid, closure, K_fields, clo, fields, b)
