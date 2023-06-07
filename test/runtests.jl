@@ -357,7 +357,8 @@ function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=S
 
         @test getindex(S, idxs...) ≈ σ/√2
         @test getindex(Ω, idxs...) ≈ σ/√2
-        @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ 0
+        @test ≈(getindex(q, idxs...), (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2, atol=eps())
+        @test ≈(getindex(q, idxs...), 0, atol=eps())
         @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
     end
 end
