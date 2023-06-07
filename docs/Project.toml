@@ -7,4 +7,4 @@ Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 Rasters = "a3a2b9e3-a471-40c9-b274-f788e487c689"
 
 [compat]
-Oceananigans = "0.80, 0.81"
+Oceananigans = "0.80, 0.81, 0.82"
