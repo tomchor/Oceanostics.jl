@@ -223,6 +223,7 @@ function test_tracer_diagnostics(model)
     @test χ isa AbstractOperation
     @test χ_field isa Field
 
+    # Some of the models have LES closure, which means they don't have dissipation if u=v=w=0
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
     @compute ε̄ₚ = Field(Average(TracerVarianceDissipationRate(model, :b)))
     @compute ε̄ₚ₂ = Field(Average(TracerVarianceDiffusiveTerm(model, :b)))
