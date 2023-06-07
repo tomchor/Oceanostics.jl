@@ -62,6 +62,8 @@ end
 #+++ Deploy thedocs
 if CI
     deploydocs(repo = "github.com/tomchor/Oceanostics.jl.git",
+               versions = ["stable" => "v^", "v#.#.#", "dev" => "dev"],
+               devbranch = "main",
                push_preview = true,
                )
 end
