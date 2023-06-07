@@ -222,10 +222,10 @@ function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
     @test ε isa AbstractOperation
     @test ε_field isa Field
 
-    CUDA.@allowscalar @show interior(model.velocities.u)[1, 1, 1]
-    CUDA.@allowscalar correct_value = -0.1 * interior(model.velocities.u)[1, 1, 1]^2
-                                      -0.2 * interior(model.velocities.v)[1, 1, 1]^2
-                                      -0.3 * interior(model.velocities.w)[1, 1, 1]^2
+    @compute ε_truth = Field(@at (Center, Center, Center) (-0.1 * model.velocities.u^2 -0.2 * model.velocities.v^2 -0.3 * model.velocities.w^2))
+
+    @test ≈(Array(interior(ε_field, 1, 1, 1)), Array(interior(ε_truth, 1, 1, 1)), rtol=1e-12, atol=eps())
+
     return nothing
 end
 
@@ -395,8 +395,12 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
                 @info "Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(grid; model_type, closure)
+
        
                 if model_type == NonhydrostaticModel
+                    @info "Testing energy dissipation rate terms"
+                    test_ke_forcing_term(grid; model_type)
+
                     @info "Testing uniform strain flow"
                     test_uniform_strain_flow(grid; model_type, closure, α=3)
 
