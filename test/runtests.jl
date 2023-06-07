@@ -195,13 +195,37 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
         @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), Array(interior(ε̄ₖ₂, 1, 1, 1)), rtol=1e-12, atol=eps())
 
         ε = KineticEnergyTendency(model)
-        ε_field = compute!(Field(ε))
+        @compute ε_field = Field(ε)
         @test ε isa AbstractOperation
         @test ε_field isa Field
 
         @compute ∂ₜKE = Field(Average(TracerVarianceTendency(model, :b)))
     end
 
+    return nothing
+end
+
+function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
+    Fᵘ_func(x, y, z, t, u) = -0.1 * u
+    Fᵛ_func(x, y, z, t, v) = -0.2 * v
+    Fʷ_func(x, y, z, t, w) = -0.3 * w
+
+    Fᵘ = Forcing(Fᵘ_func, field_dependencies = :u)
+    Fᵛ = Forcing(Fᵛ_func, field_dependencies = :v)
+    Fʷ = Forcing(Fʷ_func, field_dependencies = :w)
+
+    model = model_type(; grid, forcing = (u=Fᵘ, v=Fᵛ, w=Fʷ))
+    set!(model, u=grid_noise, v=grid_noise, w=grid_noise)
+
+    ε = KineticEnergyForcingTerm(model)
+    @compute ε_field = Field(ε)
+    @test ε isa AbstractOperation
+    @test ε_field isa Field
+
+    CUDA.@allowscalar @show interior(model.velocities.u)[1, 1, 1]
+    CUDA.@allowscalar correct_value = -0.1 * interior(model.velocities.u)[1, 1, 1]^2
+                                      -0.2 * interior(model.velocities.v)[1, 1, 1]^2
+                                      -0.3 * interior(model.velocities.w)[1, 1, 1]^2
     return nothing
 end
 

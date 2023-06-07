@@ -309,7 +309,7 @@ Return a `KernelFunctionOperation` that computes the forcing term of the KE prog
 where `uᵢ` are the velocity components and `Fᵤᵢ` is the forcing term(s) in the `uᵢ`
 prognostic equation (i.e. the forcing for `uᵢ`).
 """
-function KineticEnergyForcingTerm(model; location = (Center, Center, Center))
+function KineticEnergyForcingTerm(model::NonhydrostaticModel; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyForcingTerm")
     model_fields = fields(model)
 
