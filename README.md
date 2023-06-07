@@ -29,4 +29,3 @@ version from Github in the `main` branch:
 julia> ]
 (@v1.8) pkg> add Oceanostics#main
 ```
-
