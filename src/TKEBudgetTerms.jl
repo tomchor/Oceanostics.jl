@@ -313,9 +313,6 @@ function KineticEnergyForcingTerm(model::NonhydrostaticModel; location = (Center
     validate_location(location, "KineticEnergyForcingTerm")
     model_fields = fields(model)
 
-    if model isa HydrostaticFreeSurfaceModel
-        model_fields = (; model_fields..., w=ZeroField())
-    end
     dependencies = (model.forcing,
                     model.clock,
                     fields(model))
