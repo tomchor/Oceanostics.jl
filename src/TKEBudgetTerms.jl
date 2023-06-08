@@ -294,7 +294,7 @@ end
     vFᵛ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, model_fields.v, forcings.v, clock, model_fields)
     wFʷ = ℑzᵃᵃᶜ(i, j, k, grid, ψf, model_fields.w, forcings.w, clock, model_fields)
 
-    return uFᵘ+ vFᵛⱼ + wFʷ
+    return uFᵘ+ vFᵛ + wFʷ
 end
 
 """
