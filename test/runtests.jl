@@ -224,7 +224,7 @@ function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
 
     @compute ε_truth = Field(@at (Center, Center, Center) (-0.1 * model.velocities.u^2 -0.2 * model.velocities.v^2 -0.3 * model.velocities.w^2))
 
-    @test ≈(Array(interior(ε_field, 1, 1, 1)), Array(interior(ε_truth, 1, 1, 1)), rtol=1e-12, atol=eps())
+    @test isapprox(Array(interior(ε_field, 1, 1, 1)), Array(interior(ε_truth, 1, 1, 1)), rtol=1e-12, atol=eps())
 
     return nothing
 end
