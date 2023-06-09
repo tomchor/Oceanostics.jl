@@ -2,7 +2,7 @@ module TKEBudgetTerms
 using DocStringExtensions
 
 export TurbulentKineticEnergy, KineticEnergy
-export KineticEnergyTendency, KineticEnergyDiffusiveTerm
+export KineticEnergyTendency, KineticEnergyDiffusiveTerm, KineticEnergyForcingTerm
 export IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate
 export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
@@ -25,8 +25,8 @@ using Oceanostics: validate_location, validate_dissipative_closure
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
 
-@inline ψ′²(i, j, k, grid, ψ, Ψ) = @inbounds (ψ[i, j, k] - Ψ[i, j, k])^2
-@inline ψ′²(i, j, k, grid, ψ, Ψ::Number) = @inbounds (ψ[i, j, k] - Ψ)^2
+@inline ψ′²(i, j, k, grid, ψ, ψ̄) = @inbounds (ψ[i, j, k] - ψ̄[i, j, k])^2
+@inline ψ′²(i, j, k, grid, ψ, ψ̄::Number) = @inbounds (ψ[i, j, k] - ψ̄)^2
 
 @inline fψ²(i, j, k, grid, f, ψ) = f(i, j, k, grid, ψ)^2
 
@@ -260,7 +260,7 @@ end
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` that computes the diffusive term the KE prognostic equation:
+Return a `KernelFunctionOperation` that computes the diffusive term of the KE prognostic equation:
 
 ```
     DIFF = uᵢ∂ⱼτᵢⱼ
@@ -282,6 +282,41 @@ function KineticEnergyDiffusiveTerm(model; location = (Center, Center, Center))
                     fields(model),
                     model.buoyancy)
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ, model.grid, dependencies...)
+end
+#---
+
+#--- Kinetic energy forcing term
+@inline function uᵢFᵤᵢᶜᶜᶜ(i, j, k, grid, forcings,
+                                         clock,
+                                         model_fields)
+
+    uFᵘ = ℑxᶜᵃᵃ(i, j, k, grid, ψf, model_fields.u, forcings.u, clock, model_fields)
+    vFᵛ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, model_fields.v, forcings.v, clock, model_fields)
+    wFʷ = ℑzᵃᵃᶜ(i, j, k, grid, ψf, model_fields.w, forcings.w, clock, model_fields)
+
+    return uFᵘ+ vFᵛ + wFʷ
+end
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` that computes the forcing term of the KE prognostic equation:
+
+```
+    FORC = uᵢFᵤᵢ
+```
+
+where `uᵢ` are the velocity components and `Fᵤᵢ` is the forcing term(s) in the `uᵢ`
+prognostic equation (i.e. the forcing for `uᵢ`).
+"""
+function KineticEnergyForcingTerm(model::NonhydrostaticModel; location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyForcingTerm")
+    model_fields = fields(model)
+
+    dependencies = (model.forcing,
+                    model.clock,
+                    fields(model))
+    return KernelFunctionOperation{Center, Center, Center}(uᵢFᵤᵢᶜᶜᶜ, model.grid, dependencies...)
 end
 #---
 

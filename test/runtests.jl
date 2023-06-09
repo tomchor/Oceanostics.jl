@@ -195,12 +195,36 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
         @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), Array(interior(ε̄ₖ₂, 1, 1, 1)), rtol=1e-12, atol=eps())
 
         ε = KineticEnergyTendency(model)
-        ε_field = compute!(Field(ε))
+        @compute ε_field = Field(ε)
         @test ε isa AbstractOperation
         @test ε_field isa Field
 
         @compute ∂ₜKE = Field(Average(TracerVarianceTendency(model, :b)))
     end
+
+    return nothing
+end
+
+function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
+    Fᵘ_func(x, y, z, t, u) = -0.1 * u
+    Fᵛ_func(x, y, z, t, v) = -0.2 * v
+    Fʷ_func(x, y, z, t, w) = -0.3 * w
+
+    Fᵘ = Forcing(Fᵘ_func, field_dependencies = :u)
+    Fᵛ = Forcing(Fᵛ_func, field_dependencies = :v)
+    Fʷ = Forcing(Fʷ_func, field_dependencies = :w)
+
+    model = model_type(; grid, forcing = (u=Fᵘ, v=Fᵛ, w=Fʷ))
+    set!(model, u=grid_noise, v=grid_noise, w=grid_noise)
+
+    ε = KineticEnergyForcingTerm(model)
+    @compute ε_field = Field(ε)
+    @test ε isa AbstractOperation
+    @test ε_field isa Field
+
+    @compute ε_truth = Field(@at (Center, Center, Center) (-0.1 * model.velocities.u^2 -0.2 * model.velocities.v^2 -0.3 * model.velocities.w^2))
+
+    @test isapprox(Array(interior(ε_field, 1, 1, 1)), Array(interior(ε_truth, 1, 1, 1)), rtol=1e-12, atol=eps())
 
     return nothing
 end
@@ -223,6 +247,7 @@ function test_tracer_diagnostics(model)
     @test χ isa AbstractOperation
     @test χ_field isa Field
 
+    # Some of the models have LES closure, which means they don't have dissipation if u=v=w=0
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
     @compute ε̄ₚ = Field(Average(TracerVarianceDissipationRate(model, :b)))
     @compute ε̄ₚ₂ = Field(Average(TracerVarianceDiffusiveTerm(model, :b)))
@@ -332,7 +357,8 @@ function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=S
 
         @test getindex(S, idxs...) ≈ σ/√2
         @test getindex(Ω, idxs...) ≈ σ/√2
-        @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ 0
+        @test ≈(getindex(q, idxs...), (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2, atol=eps())
+        @test ≈(getindex(q, idxs...), 0, atol=eps())
         @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
     end
 end
@@ -370,8 +396,12 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
                 @info "Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(grid; model_type, closure)
+
        
                 if model_type == NonhydrostaticModel
+                    @info "Testing energy dissipation rate terms"
+                    test_ke_forcing_term(grid; model_type)
+
                     @info "Testing uniform strain flow"
                     test_uniform_strain_flow(grid; model_type, closure, α=3)
 
