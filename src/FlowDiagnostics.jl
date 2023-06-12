@@ -145,10 +145,9 @@ function RossbyNumber(model, u, v, w, coriolis; location = (Face, Face, Face),
                       dUdy_bg=0, dVdx_bg=0)
     validate_location(location, "RossbyNumber", (Face, Face, Face))
 
-    coriolis = model.coriolis
     if coriolis isa FPlane
         fx = fy = 0
-        fz = model.coriolis.f
+        fz = coriolis.f
     elseif coriolis isa ConstantCartesianCoriolis
         fx = coriolis.fx
         fy = coriolis.fy
@@ -249,7 +248,12 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face), add_backg
         b = model.tracers.b
     end
 
-    coriolis = model.coriolis
+    return ErtelPotentialVorticity(model, u, v, w, b, model.coriolis; location)
+end
+
+function ErtelPotentialVorticity(model, u, v, w, b, coriolis; location = (Face, Face, Face))
+    validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
+
     if coriolis isa FPlane
         fx = fy = 0
         fz = model.coriolis.f
@@ -257,8 +261,10 @@ function ErtelPotentialVorticity(model; location = (Face, Face, Face), add_backg
         fx = coriolis.fx
         fy = coriolis.fy
         fz = coriolis.fz
+    elseif coriolis == nothing
+        fx = fy = fz = 0
     else
-        throw(ArgumentError("ErtelPotentialVorticity only implemented for FPlane and ConstantCartesianCoriolis"))
+        throw(ArgumentError("ErtelPotentialVorticity is only implemented for FPlane and ConstantCartesianCoriolis"))
     end
 
     return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid,
