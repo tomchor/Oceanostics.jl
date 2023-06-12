@@ -85,6 +85,21 @@ function RichardsonNumber(model; location = (Center, Center, Face), add_backgrou
     return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid,
                                                          u, v, w, b, true_vertical_direction)
 end
+
+
+function RichardsonNumber(model, u, v, w, b; location = (Center, Center, Face))
+    validate_location(location, "RichardsonNumber", (Center, Center, Face))
+
+    if model.buoyancy.gravity_unit_vector isa NegativeZDirection
+        true_vertical_direction = (0, 0, 1)
+    elseif model.buoyancy.gravity_unit_vector isa ZDirection
+        true_vertical_direction = (0, 0, -1)
+    else
+        true_vertical_direction = .-model.buoyancy.gravity_unit_vector
+    end
+    return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid,
+                                                         u, v, w, b, true_vertical_direction)
+end
 #---
 
 #+++ Rossby number
