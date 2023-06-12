@@ -133,7 +133,7 @@ end
 
 function test_buoyancy_diagnostics(model)
     u, v, w = model.velocities
-    b = model.tracer.b
+    b = model.tracers.b
 
     Ri = RichardsonNumber(model)
     @test Ri isa AbstractOperation
