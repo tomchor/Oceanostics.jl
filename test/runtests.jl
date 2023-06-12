@@ -102,6 +102,11 @@ function test_vel_only_diagnostics(model)
     Ro = Field(op)
     @test all(interior(compute!(Ro)) .≈ 0)
 
+    op = RossbyNumber(model, model.velocities..., model.coriolis)
+    @test op isa AbstractOperation
+    Ro = Field(op)
+    @test all(interior(compute!(Ro)) .≈ 0)
+
     op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1)
     @test op isa AbstractOperation
     Ro = Field(op)
@@ -127,11 +132,22 @@ function test_vel_only_diagnostics(model)
 end
 
 function test_buoyancy_diagnostics(model)
+    u, v, w = model.velocities
+    b = model.tracer.b
+
     Ri = RichardsonNumber(model)
     @test Ri isa AbstractOperation
     @test compute!(Field(Ri)) isa Field
 
+    Ri = RichardsonNumber(model, u, v, w, b)
+    @test Ri isa AbstractOperation
+    @test compute!(Field(Ri)) isa Field
+
     PVe = ErtelPotentialVorticity(model)
+    @test PVe isa AbstractOperation
+    @test compute!(Field(PVe)) isa Field
+
+    PVe = ErtelPotentialVorticity(model, u, v, w, b, model.coriolis)
     @test PVe isa AbstractOperation
     @test compute!(Field(PVe)) isa Field
 
@@ -144,6 +160,10 @@ function test_buoyancy_diagnostics(model)
     @test compute!(Field(PVtw)) isa Field
 
     DEPV = DirectionalErtelPotentialVorticity(model, (0, 0, 1))
+    @test DEPV isa AbstractOperation
+    @test compute!(Field(DEPV)) isa Field
+
+    DEPV = DirectionalErtelPotentialVorticity(model, (0, 0, 1), u, v, w, b, model.coriolis)
     @test DEPV isa AbstractOperation
     @test compute!(Field(DEPV)) isa Field
 
