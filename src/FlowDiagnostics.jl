@@ -237,6 +237,10 @@ operator.
 function ErtelPotentialVorticity(model; location = (Face, Face, Face), add_background = true)
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
 
+    if model.buoyancy == nothing || !(model.buoyancy.model isa BuoyancyTracer)
+        throw(ArgumentError("`ErtelPotentialVorticity` is only implemented for `BuoyancyTracer` at the moment."))
+    end
+
     u, v, w = model.velocities
     b = model.tracers.b
 
@@ -311,7 +315,7 @@ function DirectionalErtelPotentialVorticity(model, direction; location = (Face, 
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
 
     if model.buoyancy == nothing || !(model.buoyancy.model isa BuoyancyTracer)
-        throw(ArgumentError("`DirectionalErtelPotentialVorticity` is only implemented for `BuoyancyTracer`"))
+        throw(ArgumentError("`DirectionalErtelPotentialVorticity` is only implemented for `BuoyancyTracer` at the moment."))
     end
 
     if model isa NonhydrostaticModel
@@ -323,6 +327,31 @@ function DirectionalErtelPotentialVorticity(model, direction; location = (Face, 
     end
 
     coriolis = model.coriolis
+    if coriolis != nothing
+        if coriolis isa FPlane
+            fx = fy = 0
+            fz = coriolis.f
+        elseif coriolis isa ConstantCartesianCoriolis
+            fx = coriolis.fx
+            fy = coriolis.fy
+            fz = coriolis.fz
+        else
+        throw(ArgumentError("`DirectionalErtelPotentialVorticity` only implemented for `FPlane` and `ConstantCartesianCoriolis`"))
+        end
+        f_dir = sum([fx, fy, fz] .* direction)
+    else
+        f_dir = 0
+    end
+
+    dir_x, dir_y, dir_z = direction
+    return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid,
+                                                     u, v, w, b, (; f_dir, dir_x, dir_y, dir_z))
+end
+
+
+function DirectionalErtelPotentialVorticity(model, direction, u, v, w, b, coriolis; location = (Face, Face, Face))
+    validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
+
     if coriolis != nothing
         if coriolis isa FPlane
             fx = fy = 0
