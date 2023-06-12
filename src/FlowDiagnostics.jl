@@ -75,15 +75,7 @@ function RichardsonNumber(model; location = (Center, Center, Face), add_backgrou
         b = model.tracers.b
     end
 
-    if model.buoyancy.gravity_unit_vector isa NegativeZDirection
-        true_vertical_direction = (0, 0, 1)
-    elseif model.buoyancy.gravity_unit_vector isa ZDirection
-        true_vertical_direction = (0, 0, -1)
-    else
-        true_vertical_direction = .-model.buoyancy.gravity_unit_vector
-    end
-    return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid,
-                                                         u, v, w, b, true_vertical_direction)
+    return RichardsonNumber(model, u, v, w, b; location)
 end
 
 
@@ -142,6 +134,16 @@ function RossbyNumber(model; location = (Face, Face, Face), add_background = tru
     else
         u, v, w = model.velocities
     end
+
+    return RossbyNumber(model, u, v, w, model.coriolis; location, 
+                        dWdy_bg, dVdz_bg, dUdz_bg, dWdx_bg, dUdy_bg, dVdx_bg)
+end
+
+function RossbyNumber(model, u, v, w, coriolis; location = (Face, Face, Face),
+                      dWdy_bg=0, dVdz_bg=0,
+                      dUdz_bg=0, dWdx_bg=0,
+                      dUdy_bg=0, dVdx_bg=0)
+    validate_location(location, "RossbyNumber", (Face, Face, Face))
 
     coriolis = model.coriolis
     if coriolis isa FPlane
