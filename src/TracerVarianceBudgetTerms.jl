@@ -3,7 +3,7 @@ using DocStringExtensions
 
 export TracerVarianceDissipationRate, TracerVarianceTendency, TracerVarianceDiffusiveTerm
 
-using Oceanostics: validate_location, validate_dissipative_closure, add_background_fields
+using Oceanostics: validate_location, validate_dissipative_closure
 
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations: KernelFunctionOperation

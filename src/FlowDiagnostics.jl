@@ -260,7 +260,7 @@ function ErtelPotentialVorticity(model, u, v, w, b, coriolis; location = (Face, 
 
     if coriolis isa FPlane
         fx = fy = 0
-        fz = model.coriolis.f
+        fz = coriolis.f
     elseif coriolis isa ConstantCartesianCoriolis
         fx = coriolis.fx
         fy = coriolis.fy
@@ -326,47 +326,26 @@ function DirectionalErtelPotentialVorticity(model, direction; location = (Face, 
         b = model.tracers.b
     end
 
-    coriolis = model.coriolis
-    if coriolis != nothing
-        if coriolis isa FPlane
-            fx = fy = 0
-            fz = coriolis.f
-        elseif coriolis isa ConstantCartesianCoriolis
-            fx = coriolis.fx
-            fy = coriolis.fy
-            fz = coriolis.fz
-        else
-        throw(ArgumentError("`DirectionalErtelPotentialVorticity` only implemented for `FPlane` and `ConstantCartesianCoriolis`"))
-        end
-        f_dir = sum([fx, fy, fz] .* direction)
-    else
-        f_dir = 0
-    end
-
-    dir_x, dir_y, dir_z = direction
-    return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid,
-                                                     u, v, w, b, (; f_dir, dir_x, dir_y, dir_z))
+    return DirectionalErtelPotentialVorticity(model, direction, u, v, w, b, model.coriolis; location)
 end
 
 
 function DirectionalErtelPotentialVorticity(model, direction, u, v, w, b, coriolis; location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
 
-    if coriolis != nothing
-        if coriolis isa FPlane
-            fx = fy = 0
-            fz = coriolis.f
-        elseif coriolis isa ConstantCartesianCoriolis
-            fx = coriolis.fx
-            fy = coriolis.fy
-            fz = coriolis.fz
-        else
-        throw(ArgumentError("`DirectionalErtelPotentialVorticity` only implemented for `FPlane` and `ConstantCartesianCoriolis`"))
-        end
-        f_dir = sum([fx, fy, fz] .* direction)
+    if coriolis isa FPlane
+        fx = fy = 0
+        fz = coriolis.f
+    elseif coriolis isa ConstantCartesianCoriolis
+        fx = coriolis.fx
+        fy = coriolis.fy
+        fz = coriolis.fz
+    elseif coriolis == nothing
+        fx = fy = fz = 0
     else
-        f_dir = 0
+        throw(ArgumentError("ErtelPotentialVorticity is only implemented for FPlane and ConstantCartesianCoriolis"))
     end
+    f_dir = sum([fx, fy, fz] .* direction)
 
     dir_x, dir_y, dir_z = direction
     return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid,
