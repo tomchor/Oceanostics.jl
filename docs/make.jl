@@ -67,7 +67,7 @@ if CI
                versions = ["stable" => "v^", "v#.#.#", "dev" => "dev"],
                devbranch = "main",
                push_preview = true,
-               repo_previews = "doc-previews",
+               repo_previews = "github.com/tomchor/Oceanostics.jl.git:doc-previews",
                )
 end
 #---
