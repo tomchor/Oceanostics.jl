@@ -1,3 +1,5 @@
+pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..")) # add Oceananigans to environment stack
+
 using Documenter
 using Literate
 using Glob
@@ -65,6 +67,7 @@ if CI
                versions = ["stable" => "v^", "v#.#.#", "dev" => "dev"],
                devbranch = "main",
                push_preview = true,
+               repo_previews = "doc-previews",
                )
 end
 #---
