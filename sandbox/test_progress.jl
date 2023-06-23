@@ -8,15 +8,12 @@ model = NonhydrostaticModel(; grid)
 simulation = Simulation(model, Δt=1, stop_time=10);
 
 
-using Oceanostics.ProgressMessengers
+@show max_u = MaxUVelocity(with_units=true)
+@show max_v = MaxVVelocity(with_units=true)
+@show max_w = MaxWVelocity(with_units=true)
 
-@show mu = MaxUVelocity(with_units=true)
-@show mv = MaxVVelocity(with_units=true)
-@show mw = MaxWVelocity(with_units=true)
-
-mv = MaximumVelocities()
-
-
+dpause
+mv = MaximumVelocities(formatted=true)
 pm = mv
-pm(simulation)
+mv(simulation)
 
