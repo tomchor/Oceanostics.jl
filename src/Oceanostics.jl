@@ -86,8 +86,9 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, calc_nonlinear_κᶜᶜᶜ
 include("TKEBudgetTerms.jl")
 include("TracerVarianceBudgetTerms.jl")
 include("FlowDiagnostics.jl")
+include("ProgressMessengers.jl")
 include("progress_messengers.jl")
 
-using .TKEBudgetTerms, .TracerVarianceBudgetTerms, .FlowDiagnostics
+using .TKEBudgetTerms, .TracerVarianceBudgetTerms, .FlowDiagnostics, .ProgressMessengers
 
 end # module

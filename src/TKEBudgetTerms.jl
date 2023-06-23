@@ -285,7 +285,7 @@ function KineticEnergyDiffusiveTerm(model; location = (Center, Center, Center))
 end
 #---
 
-#--- Kinetic energy forcing term
+#+++ Kinetic energy forcing term
 @inline function uᵢFᵤᵢᶜᶜᶜ(i, j, k, grid, forcings,
                                          clock,
                                          model_fields)
