@@ -11,14 +11,19 @@ export FunctionMessenger
 abstract type AbstractProgressMessenger end
 
 @inline +(a::AbstractProgressMessenger,   b::AbstractProgressMessenger)   = sim -> a(sim) * ",    " * b(sim)
+@inline *(a::AbstractProgressMessenger,   b::AbstractProgressMessenger)   = sim -> a(sim) * " " * b(sim)
 
 const FunctionOrProgressMessenger = Union{Function, AbstractProgressMessenger}
 @inline +(a::AbstractProgressMessenger,   b::FunctionOrProgressMessenger) = sim -> a(sim) * ",    " * b(sim)
 @inline +(a::FunctionOrProgressMessenger, b::AbstractProgressMessenger)   = sim -> a(sim) * ",    " * b(sim)
+@inline *(a::AbstractProgressMessenger,   b::FunctionOrProgressMessenger) = sim -> a(sim) * " " * b(sim)
+@inline *(a::FunctionOrProgressMessenger, b::AbstractProgressMessenger)   = sim -> a(sim) * " " * b(sim)
 
 const StringOrProgressMessenger = Union{String, AbstractProgressMessenger}
 @inline +(a::AbstractProgressMessenger, b::StringOrProgressMessenger) = sim -> a(sim) * ",    $b"
 @inline +(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = sim -> "$a,    " * b(sim)
+@inline *(a::AbstractProgressMessenger, b::StringOrProgressMessenger) = sim -> a(sim) * " $b"
+@inline *(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = sim -> "$a " * b(sim)
 #---
 
 #+++ Basic definitions
