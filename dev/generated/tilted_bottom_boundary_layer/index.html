@@ -93,47 +93,47 @@ simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
 ├── dimensions: zC(64), zF(65), xC(64), yF(1), xF(64), yC(1), time(0)
 ├── 3 outputs: (Ri, PV, Ro)
 └── array type: Array{Float64}</code></pre><h2 id="Run-the-simulation-and-process-results"><a class="docs-heading-anchor" href="#Run-the-simulation-and-process-results">Run the simulation and process results</a><a id="Run-the-simulation-and-process-results-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-simulation-and-process-results" title="Permalink"></a></h2><p>To run the simulation:</p><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">[ Info: Initializing simulation...
-┌ Info: [000.00%] iteration:      0, time:  0 seconds, Δt: 4.778 seconds, wall time: 26.884 seconds (0 seconds / time step)
-└           └── max(|u⃗|): [2.59e-03, 0.00e+00, 9.62e-04] m/s, CFL: 7.09e-03
-[ Info:     ... simulation initialization complete (10.288 seconds)
+┌ Info: [000.00%] iteration:      0, time:  0 seconds, Δt: 4.778 seconds, wall time: 31.731 seconds (0 seconds / time step)
+└           └── max(|u⃗|): [2.55e-03, 0.00e+00, 1.21e-03] m/s, CFL: 8.86e-03
+[ Info:     ... simulation initialization complete (12.918 seconds)
 [ Info: Executing initial time step...
-[ Info:     ... initial time step complete (15.700 seconds).
-┌ Info: [007.44%] iteration:    400, time: 53.576 minutes, Δt: 7.798 seconds, wall time: 56.848 seconds (74.908 ms / time step)
-└           └── max(|u⃗|): [6.49e-03, 8.78e-02, 2.63e-04] m/s, CFL: 7.00e-01
-┌ Info: [014.54%] iteration:    800, time: 1.745 hours, Δt: 7.635 seconds, wall time: 1.055 minutes (16.143 ms / time step)
-└           └── max(|u⃗|): [1.05e-02, 8.95e-02, 1.78e-04] m/s, CFL: 7.00e-01
-┌ Info: [021.57%] iteration:   1200, time: 2.588 hours, Δt: 7.584 seconds, wall time: 1.163 minutes (16.212 ms / time step)
-└           └── max(|u⃗|): [1.07e-02, 9.03e-02, 1.70e-04] m/s, CFL: 7.00e-01
-┌ Info: [028.55%] iteration:   1600, time: 3.426 hours, Δt: 7.547 seconds, wall time: 1.271 minutes (16.231 ms / time step)
-└           └── max(|u⃗|): [9.31e-03, 9.15e-02, 1.16e-03] m/s, CFL: 7.00e-01
-┌ Info: [035.46%] iteration:   2000, time: 4.255 hours, Δt: 7.426 seconds, wall time: 1.380 minutes (16.362 ms / time step)
-└           └── max(|u⃗|): [9.03e-03, 9.41e-02, 7.04e-03] m/s, CFL: 7.00e-01
-┌ Info: [042.42%] iteration:   2400, time: 5.091 hours, Δt: 7.590 seconds, wall time: 1.489 minutes (16.262 ms / time step)
-└           └── max(|u⃗|): [9.99e-03, 9.18e-02, 2.20e-03] m/s, CFL: 7.00e-01
-┌ Info: [049.37%] iteration:   2800, time: 5.924 hours, Δt: 7.422 seconds, wall time: 1.598 minutes (16.416 ms / time step)
-└           └── max(|u⃗|): [8.82e-03, 9.41e-02, 1.53e-03] m/s, CFL: 7.00e-01
-┌ Info: [056.17%] iteration:   3200, time: 6.740 hours, Δt: 7.310 seconds, wall time: 1.707 minutes (16.326 ms / time step)
-└           └── max(|u⃗|): [6.59e-03, 9.51e-02, 1.50e-03] m/s, CFL: 7.00e-01
-┌ Info: [062.90%] iteration:   3600, time: 7.548 hours, Δt: 7.285 seconds, wall time: 1.816 minutes (16.259 ms / time step)
-└           └── max(|u⃗|): [7.45e-03, 9.50e-02, 1.59e-03] m/s, CFL: 7.00e-01
-┌ Info: [069.63%] iteration:   4000, time: 8.356 hours, Δt: 7.319 seconds, wall time: 1.924 minutes (16.225 ms / time step)
-└           └── max(|u⃗|): [9.94e-03, 9.51e-02, 2.86e-03] m/s, CFL: 7.00e-01
-┌ Info: [076.33%] iteration:   4400, time: 9.159 hours, Δt: 7.220 seconds, wall time: 2.031 minutes (16.026 ms / time step)
-└           └── max(|u⃗|): [9.56e-03, 9.62e-02, 6.67e-03] m/s, CFL: 7.00e-01
-┌ Info: [083.00%] iteration:   4800, time: 9.960 hours, Δt: 7.332 seconds, wall time: 2.138 minutes (16.145 ms / time step)
-└           └── max(|u⃗|): [1.31e-02, 9.38e-02, 6.70e-03] m/s, CFL: 7.00e-01
-┌ Info: [089.81%] iteration:   5200, time: 10.778 hours, Δt: 7.389 seconds, wall time: 2.246 minutes (16.127 ms / time step)
-└           └── max(|u⃗|): [1.39e-02, 9.36e-02, 4.09e-03] m/s, CFL: 7.00e-01
-┌ Info: [096.60%] iteration:   5600, time: 11.593 hours, Δt: 7.349 seconds, wall time: 2.353 minutes (16.123 ms / time step)
-└           └── max(|u⃗|): [1.21e-02, 9.52e-02, 3.37e-03] m/s, CFL: 7.00e-01
-[ Info: Simulation is stopping after running for 2.001 minutes.
+[ Info:     ... initial time step complete (19.556 seconds).
+┌ Info: [007.44%] iteration:    400, time: 53.563 minutes, Δt: 7.777 seconds, wall time: 1.132 minutes (90.474 ms / time step)
+└           └── max(|u⃗|): [6.39e-03, 8.81e-02, 3.21e-04] m/s, CFL: 7.00e-01
+┌ Info: [014.54%] iteration:    800, time: 1.745 hours, Δt: 7.627 seconds, wall time: 1.249 minutes (17.524 ms / time step)
+└           └── max(|u⃗|): [1.05e-02, 8.96e-02, 1.79e-04] m/s, CFL: 7.00e-01
+┌ Info: [021.55%] iteration:   1200, time: 2.586 hours, Δt: 7.581 seconds, wall time: 1.365 minutes (17.470 ms / time step)
+└           └── max(|u⃗|): [1.08e-02, 9.03e-02, 2.12e-04] m/s, CFL: 7.00e-01
+┌ Info: [028.51%] iteration:   1600, time: 3.421 hours, Δt: 7.538 seconds, wall time: 1.482 minutes (17.568 ms / time step)
+└           └── max(|u⃗|): [9.54e-03, 9.18e-02, 1.46e-03] m/s, CFL: 7.00e-01
+┌ Info: [035.44%] iteration:   2000, time: 4.252 hours, Δt: 7.539 seconds, wall time: 1.600 minutes (17.634 ms / time step)
+└           └── max(|u⃗|): [9.04e-03, 9.23e-02, 6.99e-03] m/s, CFL: 7.00e-01
+┌ Info: [042.35%] iteration:   2400, time: 5.082 hours, Δt: 7.558 seconds, wall time: 1.718 minutes (17.640 ms / time step)
+└           └── max(|u⃗|): [8.56e-03, 9.23e-02, 5.18e-03] m/s, CFL: 7.00e-01
+┌ Info: [049.32%] iteration:   2800, time: 5.919 hours, Δt: 7.488 seconds, wall time: 1.834 minutes (17.430 ms / time step)
+└           └── max(|u⃗|): [9.54e-03, 9.32e-02, 1.72e-03] m/s, CFL: 7.00e-01
+┌ Info: [056.17%] iteration:   3200, time: 6.741 hours, Δt: 7.395 seconds, wall time: 1.952 minutes (17.702 ms / time step)
+└           └── max(|u⃗|): [6.62e-03, 9.39e-02, 1.47e-03] m/s, CFL: 7.00e-01
+┌ Info: [062.99%] iteration:   3600, time: 7.559 hours, Δt: 7.358 seconds, wall time: 2.070 minutes (17.662 ms / time step)
+└           └── max(|u⃗|): [8.55e-03, 9.44e-02, 1.60e-03] m/s, CFL: 7.00e-01
+┌ Info: [069.77%] iteration:   4000, time: 8.372 hours, Δt: 7.282 seconds, wall time: 2.186 minutes (17.495 ms / time step)
+└           └── max(|u⃗|): [1.07e-02, 9.56e-02, 3.46e-03] m/s, CFL: 7.00e-01
+┌ Info: [076.44%] iteration:   4400, time: 9.173 hours, Δt: 7.238 seconds, wall time: 2.304 minutes (17.700 ms / time step)
+└           └── max(|u⃗|): [1.08e-02, 9.59e-02, 6.55e-03] m/s, CFL: 7.00e-01
+┌ Info: [083.14%] iteration:   4800, time: 9.977 hours, Δt: 7.420 seconds, wall time: 2.422 minutes (17.645 ms / time step)
+└           └── max(|u⃗|): [1.13e-02, 9.33e-02, 7.29e-03] m/s, CFL: 7.00e-01
+┌ Info: [089.95%] iteration:   5200, time: 10.794 hours, Δt: 7.396 seconds, wall time: 2.539 minutes (17.505 ms / time step)
+└           └── max(|u⃗|): [1.43e-02, 9.41e-02, 3.98e-03] m/s, CFL: 7.00e-01
+┌ Info: [096.73%] iteration:   5600, time: 11.607 hours, Δt: 7.284 seconds, wall time: 2.656 minutes (17.640 ms / time step)
+└           └── max(|u⃗|): [1.32e-02, 9.54e-02, 3.11e-03] m/s, CFL: 7.00e-01
+[ Info: Simulation is stopping after running for 2.238 minutes.
 [ Info: Simulation time 12 hours equals or exceeds stop time 12 hours.</code></pre><p>Now we&#39;ll read the results and plot an animation</p><pre><code class="language-julia hljs">using Rasters
 
 ds = RasterStack(simulation.output_writers[:nc].filepath)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">RasterStack with dimensions: 
   Dim{:xC} Sampled{Float64} Float64[1.5625, 4.6875, …, 195.3125, 198.4375] ForwardOrdered Regular Points,
   Dim{:yC} Sampled{Float64} Float64[1.0] ForwardOrdered Regular Points,
   Dim{:zF} Sampled{Float64} Float64[-0.0, 0.8688167217695386, …, 93.44503754878271, 100.0] ForwardOrdered Irregular Points,
-  Ti Sampled{Float64} Float64[0.0, 1200.0, …, 42000.0, 43200.0] ForwardOrdered Regular Points,
+  Ti Sampled{Float64} Float64[0.0, 1200.0000000000002, …, 42000.0, 43200.0] ForwardOrdered Regular Points,
   Dim{:xF} Sampled{Float64} Float64[0.0, 3.125, …, 193.75, 196.875] ForwardOrdered Regular Points,
   Dim{:yF} Sampled{Float64} Float64[1.0] ForwardOrdered Regular Points
 and 3 layers:
@@ -146,7 +146,7 @@ with metadata Metadata{Rasters.NCDsource} of Dict{String, Any} with 6 entries:
   &quot;Oceananigans&quot;         =&gt; &quot;This file was generated using &quot;
   &quot;Julia&quot;                =&gt; &quot;This file was generated using Julia Version 1.8.5\…
   &quot;output time interval&quot; =&gt; &quot;Output was saved every 20 minutes.&quot;
-  &quot;date&quot;                 =&gt; &quot;This file was generated on 2023-06-27T23:22:51.386…
+  &quot;date&quot;                 =&gt; &quot;This file was generated on 2023-06-29T02:57:19.940…
   &quot;schedule&quot;             =&gt; &quot;TimeInterval&quot;</code></pre><p>We now use Makie to create the figure and its axes</p><pre><code class="language-julia hljs">using CairoMakie
 
 set_theme!(Theme(fontsize = 20))
@@ -174,4 +174,4 @@ fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);</code></pre><p>Fi
 @info &quot;Animating...&quot;
 record(fig, filename * &quot;.mp4&quot;, 1:length(times), framerate=10) do i
        n[] = i
-end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;tilted_bottom_boundary_layer.mp4&quot;</code></pre><p><video src="../tilted_bottom_boundary_layer.mp4" controls="true" title><a href="../tilted_bottom_boundary_layer.mp4"></a></video></p><p>The animation shows negative PV being produced at the bottom due to drag, which leads to the emergence of centrifulgal-symmetric instabilities, which become turbulent and erode stratification (as can be seen by inspecting <span>$Ri$</span>). Note that there are some boundary effects on the upper boundary, likely caused by interaction internal waves that are produced by the bottom turbulence. These effects are, to some degree, expected, and a sponge/relaxation layer at the top is needed to minimize them in a production-ready code.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../kelvin_helmholtz/">« Kelvin-Helmholtz instability</a><a class="docs-footer-nextpage" href="../../library/">Function library »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Tuesday 27 June 2023 23:27">Tuesday 27 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;tilted_bottom_boundary_layer.mp4&quot;</code></pre><p><video src="../tilted_bottom_boundary_layer.mp4" controls="true" title><a href="../tilted_bottom_boundary_layer.mp4"></a></video></p><p>The animation shows negative PV being produced at the bottom due to drag, which leads to the emergence of centrifulgal-symmetric instabilities, which become turbulent and erode stratification (as can be seen by inspecting <span>$Ri$</span>). Note that there are some boundary effects on the upper boundary, likely caused by interaction internal waves that are produced by the bottom turbulence. These effects are, to some degree, expected, and a sponge/relaxation layer at the top is needed to minimize them in a production-ready code.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../kelvin_helmholtz/">« Kelvin-Helmholtz instability</a><a class="docs-footer-nextpage" href="../../library/">Function library »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 29 June 2023 03:02">Thursday 29 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

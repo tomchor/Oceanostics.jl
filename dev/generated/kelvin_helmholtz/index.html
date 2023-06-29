@@ -46,30 +46,30 @@ simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
 ├── dimensions: zC(128), zF(129), xC(128), yF(1), xF(128), yC(1), time(0)
 ├── 5 outputs: (Q, ∫χᴰ, Ri, b, ∫χ)
 └── array type: Array{Float64}</code></pre><h2 id="Run-the-simulation-and-process-results"><a class="docs-heading-anchor" href="#Run-the-simulation-and-process-results">Run the simulation and process results</a><a id="Run-the-simulation-and-process-results-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-simulation-and-process-results" title="Permalink"></a></h2><p>To run the simulation:</p><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">[ Info: Initializing simulation...
-┌ Info: [000.00%] iter:      0,     time:  0 seconds,     Δt:  59.135 ms,     wall time: 500.000 ns
-└           └── max(|u⃗|): [1.04e+00, 0.00e+00, 3.74e-02] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.94e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
-[ Info:     ... simulation initialization complete (14.637 seconds)
+┌ Info: [000.00%] iter:      0,     time:  0 seconds,     Δt:  58.807 ms,     wall time: 9.300 μs
+└           └── max(|u⃗|): [1.03e+00, 0.00e+00, 3.30e-02] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.93e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
+[ Info:     ... simulation initialization complete (18.027 seconds)
 [ Info: Executing initial time step...
-[ Info:     ... initial time step complete (16.773 seconds).
-┌ Info: [011.61%] iter:    200,     time: 11.608 seconds,     Δt:  60.822 ms,     wall time: 700.000 ns
-└           └── max(|u⃗|): [1.03e+00, 0.00e+00, 3.29e-02] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.99e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
-┌ Info: [023.31%] iter:    400,     time: 23.306 seconds,     Δt:  61.133 ms,     wall time: 300.000 ns
-└           └── max(|u⃗|): [1.02e+00, 0.00e+00, 2.67e-02] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 2.00e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
-┌ Info: [035.06%] iter:    600,     time: 35.061 seconds,     Δt:  61.436 ms,     wall time: 300.000 ns
-└           └── max(|u⃗|): [1.02e+00, 0.00e+00, 1.88e-02] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 2.01e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
-┌ Info: [046.86%] iter:    800,     time: 46.857 seconds,     Δt:  61.237 ms,     wall time: 601.000 ns
-└           └── max(|u⃗|): [1.02e+00, 0.00e+00, 2.63e-02] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 2.01e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
-┌ Info: [058.61%] iter:   1000,     time: 58.605 seconds,     Δt:  60.480 ms,     wall time: 600.000 ns
-└           └── max(|u⃗|): [1.02e+00, 0.00e+00, 7.01e-02] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.98e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
-┌ Info: [070.00%] iter:   1200,     time: 1.167 minutes,     Δt:  56.010 ms,     wall time: 300.000 ns
-└           └── max(|u⃗|): [1.07e+00, 0.00e+00, 1.88e-01] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.84e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
-┌ Info: [080.20%] iter:   1400,     time: 1.337 minutes,     Δt:  49.453 ms,     wall time: 200.000 ns
-└           └── max(|u⃗|): [1.17e+00, 0.00e+00, 3.76e-01] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.62e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
-┌ Info: [089.69%] iter:   1600,     time: 1.495 minutes,     Δt:  49.497 ms,     wall time: 200.000 ns
-└           └── max(|u⃗|): [1.16e+00, 0.00e+00, 3.71e-01] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.62e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
-┌ Info: [099.58%] iter:   1800,     time: 1.660 minutes,     Δt:  52.895 ms,     wall time: 200.000 ns
-└           └── max(|u⃗|): [1.11e+00, 0.00e+00, 2.88e-01] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.73e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
-[ Info: Simulation is stopping after running for 2.944 minutes.
+[ Info:     ... initial time step complete (21.190 seconds).
+┌ Info: [011.73%] iter:    200,     time: 11.733 seconds,     Δt:  61.070 ms,     wall time: 800.000 ns
+└           └── max(|u⃗|): [1.02e+00, 0.00e+00, 3.08e-02] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 2.00e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
+┌ Info: [023.49%] iter:    400,     time: 23.489 seconds,     Δt:  61.179 ms,     wall time: 700.000 ns
+└           └── max(|u⃗|): [1.02e+00, 0.00e+00, 4.44e-02] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 2.00e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
+┌ Info: [035.18%] iter:    600,     time: 35.178 seconds,     Δt:  59.219 ms,     wall time: 400.000 ns
+└           └── max(|u⃗|): [1.04e+00, 0.00e+00, 9.89e-02] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.94e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
+┌ Info: [046.16%] iter:    800,     time: 46.159 seconds,     Δt:  52.723 ms,     wall time: 500.000 ns
+└           └── max(|u⃗|): [1.11e+00, 0.00e+00, 2.77e-01] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.73e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
+┌ Info: [055.83%] iter:   1000,     time: 55.826 seconds,     Δt:  48.634 ms,     wall time: 300.000 ns
+└           └── max(|u⃗|): [1.17e+00, 0.00e+00, 3.84e-01] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.59e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
+┌ Info: [065.25%] iter:   1200,     time: 1.088 minutes,     Δt:  50.388 ms,     wall time: 400.000 ns
+└           └── max(|u⃗|): [1.15e+00, 0.00e+00, 3.39e-01] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.65e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
+┌ Info: [075.43%] iter:   1400,     time: 1.257 minutes,     Δt:  53.254 ms,     wall time: 300.000 ns
+└           └── max(|u⃗|): [1.10e+00, 0.00e+00, 2.73e-01] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.75e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
+┌ Info: [085.65%] iter:   1600,     time: 1.428 minutes,     Δt:  50.139 ms,     wall time: 400.000 ns
+└           └── max(|u⃗|): [1.14e+00, 0.00e+00, 3.34e-01] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.64e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
+┌ Info: [095.25%] iter:   1800,     time: 1.588 minutes,     Δt:  50.106 ms,     wall time: 600.000 ns
+└           └── max(|u⃗|): [1.15e+00, 0.00e+00, 3.44e-01] m s⁻¹,     adv CFL: 8.00e-01,     diff CFL: 1.64e-04,     νₘₐₓ: 2.00e-05m² s⁻¹
+[ Info: Simulation is stopping after running for 3.643 minutes.
 [ Info: Simulation time 1.667 minutes equals or exceeds stop time 1.667 minutes.</code></pre><p>Now we&#39;ll read the results using Rasters.jl, which works somewhat similarly to Python&#39;s Xarray and can speed-up the work the workflow</p><pre><code class="language-julia hljs">using Rasters
 
 ds = RasterStack(simulation.output_writers[:nc].filepath)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">RasterStack with dimensions: 
@@ -90,7 +90,7 @@ with metadata Metadata{Rasters.NCDsource} of Dict{String, Any} with 6 entries:
   &quot;Oceananigans&quot;         =&gt; &quot;This file was generated using &quot;
   &quot;Julia&quot;                =&gt; &quot;This file was generated using Julia Version 1.8.5\…
   &quot;output time interval&quot; =&gt; &quot;Output was saved every 1 second.&quot;
-  &quot;date&quot;                 =&gt; &quot;This file was generated on 2023-06-27T23:16:19.090…
+  &quot;date&quot;                 =&gt; &quot;This file was generated on 2023-06-29T02:49:16.004…
   &quot;schedule&quot;             =&gt; &quot;TimeInterval&quot;</code></pre><p>We now use Makie to create the figure and its axes</p><pre><code class="language-julia hljs">using CairoMakie
 
 set_theme!(Theme(fontsize = 24))
@@ -124,4 +124,4 @@ fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);</code></pre><p>Fi
 @info &quot;Animating...&quot;
 record(fig, filename * &quot;.mp4&quot;, 1:length(times), framerate=10) do i
        n[] = i
-end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;kelvin_helmholtz.mp4&quot;</code></pre><p><video src="../kelvin_helmholtz.mp4" controls="true" title><a href="../kelvin_helmholtz.mp4"></a></video></p><p>Similarly to the kinetic energy dissipation rate (see the <a href="../two_dimensional_turbulence/#two_d_turbulence_example">Two-dimensional turbulence example</a>), <code>TracerVarianceDissipationRate</code> and <code>TracerVarianceDiffusiveTerm</code> are implemented with a energy-conserving formulation, which means that (for <code>NoFlux</code> boundary conditions) their volume-integral should be exactly (up to machine precision) the same.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../two_dimensional_turbulence/">« Two-dimensional turbulence</a><a class="docs-footer-nextpage" href="../tilted_bottom_boundary_layer/">Tilted bottom boundary layer »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Tuesday 27 June 2023 23:27">Tuesday 27 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;kelvin_helmholtz.mp4&quot;</code></pre><p><video src="../kelvin_helmholtz.mp4" controls="true" title><a href="../kelvin_helmholtz.mp4"></a></video></p><p>Similarly to the kinetic energy dissipation rate (see the <a href="../two_dimensional_turbulence/#two_d_turbulence_example">Two-dimensional turbulence example</a>), <code>TracerVarianceDissipationRate</code> and <code>TracerVarianceDiffusiveTerm</code> are implemented with a energy-conserving formulation, which means that (for <code>NoFlux</code> boundary conditions) their volume-integral should be exactly (up to machine precision) the same.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../two_dimensional_turbulence/">« Two-dimensional turbulence</a><a class="docs-footer-nextpage" href="../tilted_bottom_boundary_layer/">Tilted bottom boundary layer »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.24 on <span class="colophon-date" title="Thursday 29 June 2023 03:02">Thursday 29 June 2023</span>. Using Julia version 1.8.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
