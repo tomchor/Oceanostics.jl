@@ -4,10 +4,22 @@ import Base: +
 
 export AbstractProgressMessenger
 export MaxUVelocity, MaxVVelocity, MaxWVelocity
-export MaxVelocities
+export FunctionMessenger
 
 
+#+++ Basic type and addition operations with functions and strings
 abstract type AbstractProgressMessenger end
+
+@inline +(a::AbstractProgressMessenger,   b::AbstractProgressMessenger)   = sim -> a(sim) * ",    " * b(sim)
+
+const FunctionOrProgressMessenger = Union{Function, AbstractProgressMessenger}
+@inline +(a::AbstractProgressMessenger,   b::FunctionOrProgressMessenger) = sim -> a(sim) * ",    " * b(sim)
+@inline +(a::FunctionOrProgressMessenger, b::AbstractProgressMessenger)   = sim -> a(sim) * ",    " * b(sim)
+
+const StringOrProgressMessenger = Union{String, AbstractProgressMessenger}
+@inline +(a::AbstractProgressMessenger, b::StringOrProgressMessenger) = sim -> a(sim) * ",    $b"
+@inline +(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = sim -> "$a,    " + b(sim)
+#---
 
 #+++ Basic definitions
 Base.@kwdef struct MaxUVelocity <: AbstractProgressMessenger
@@ -44,34 +56,15 @@ end
 end
 #---
  
-#+++ MaxVelocities
-Base.@kwdef struct MaxVelocities{F} <: AbstractProgressMessenger
+#+++ FunctionMessenger
+Base.@kwdef struct FunctionMessenger{F} <: AbstractProgressMessenger
     func :: F
-    with_units :: Bool = false
 end
 
-function MaxVelocities(; with_units=false)
-    max_u = MaxUVelocity(with_units = false)
-    max_v = MaxVVelocity(with_units = false)
-    max_w = MaxWVelocity(with_units = false)
-    return MaxVelocities(max_u + max_v + max_w, with_units)
-end
-
-function (muvw::MaxVelocities)(sim)
+function (muvw::FunctionMessenger)(sim)
     message = muvw.func(sim)
-    muvw.with_units && (message = message * " m/s")
     return message
 end
 #---
-
-@inline +(a::AbstractProgressMessenger,   b::AbstractProgressMessenger)   = sim -> a(sim) * ",    " * b(sim)
-
-const FunctionOrProgressMessenger = Union{Function, AbstractProgressMessenger}
-@inline +(a::AbstractProgressMessenger,   b::FunctionOrProgressMessenger) = sim -> a(sim) * ",    " * b(sim)
-@inline +(a::FunctionOrProgressMessenger, b::AbstractProgressMessenger)   = sim -> a(sim) * ",    " * b(sim)
-
-const StringOrProgressMessenger = Union{String, AbstractProgressMessenger}
-@inline +(a::AbstractProgressMessenger, b::StringOrProgressMessenger) = sim -> a(sim) * ",    $b"
-@inline +(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = sim -> "$a,    " + b(sim)
 
 end # module
