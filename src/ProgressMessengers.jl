@@ -1,6 +1,6 @@
 module ProgressMessengers
 using Printf
-import Base: +
+import Base: +, *
 
 export AbstractProgressMessenger
 export MaxUVelocity, MaxVVelocity, MaxWVelocity
@@ -18,39 +18,45 @@ const FunctionOrProgressMessenger = Union{Function, AbstractProgressMessenger}
 
 const StringOrProgressMessenger = Union{String, AbstractProgressMessenger}
 @inline +(a::AbstractProgressMessenger, b::StringOrProgressMessenger) = sim -> a(sim) * ",    $b"
-@inline +(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = sim -> "$a,    " + b(sim)
+@inline +(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = sim -> "$a,    " * b(sim)
 #---
 
 #+++ Basic definitions
 Base.@kwdef struct MaxUVelocity <: AbstractProgressMessenger
-    with_units :: Bool = false
+    prefix     :: Bool = true
+    with_units :: Bool = true
 end
 
 Base.@kwdef struct MaxVVelocity <: AbstractProgressMessenger
-    with_units :: Bool = false
+    prefix     :: Bool = true
+    with_units :: Bool = true
 end
 
 Base.@kwdef struct MaxWVelocity <: AbstractProgressMessenger
-    with_units :: Bool = false
+    prefix     :: Bool = true
+    with_units :: Bool = true
 end
 
 @inline function (mu::MaxUVelocity)(sim)
     u_max = maximum(abs, sim.model.velocities.u)
-    message = @sprintf("|u|ₘₐₓ = %.2e", u_max)
+    message = @sprintf("%.2e", u_max)
+    mu.prefix     && (message = "|u|ₘₐₓ = " * message)
     mu.with_units && (message = message * " m/s")
     return message
 end
 
 @inline function (mv::MaxVVelocity)(sim)
     v_max = maximum(abs, sim.model.velocities.v)
-    message = @sprintf("|v|ₘₐₓ = %.2e", v_max)
+    message = @sprintf("%.2e", v_max)
+    mv.prefix     && (message = "|v|ₘₐₓ = " * message)
     mv.with_units && (message = message * " m/s")
     return message
 end
 
 @inline function (mw::MaxWVelocity)(sim)
     w_max = maximum(abs, sim.model.velocities.w)
-    message = @sprintf("|w|ₘₐₓ = %.2e", w_max)
+    message = @sprintf("%.2e", w_max)
+    mw.prefix     && (message = "|w|ₘₐₓ = " * message)
     mw.with_units && (message = message * " m/s")
     return message
 end
