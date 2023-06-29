@@ -1,3 +1,5 @@
+pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..")) # add Oceanostics environment
+
 using Documenter
 using Literate
 using Glob
@@ -54,7 +56,22 @@ makedocs(sitename = "Oceanostics.jl",
 #---
 
 #+++ Cleanup any output files, e.g., .jld2 or .nc, created by docs. Otherwise they are pushed up in the docs branch in the repo
-for file in vcat(glob("docs/*.jld2"), glob("docs/*.nc"), glob("docs/generated/*.nc"), glob("docs/generated/*.nc"))
+"""
+    recursive_find(directory, pattern)
+
+Return list of filepaths within `directory` that contains the `pattern::Regex`.
+"""
+recursive_find(directory, pattern) =
+    mapreduce(vcat, walkdir(directory)) do (root, dirs, files)
+        joinpath.(root, filter(contains(pattern), files))
+    end
+
+files = []
+for pattern in [r"\.jld2", r"\.nc"]
+    global files = vcat(files, recursive_find(@__DIR__, pattern))
+end
+
+for file in files
     rm(file)
 end
 #---
@@ -65,6 +82,7 @@ if CI
                versions = ["stable" => "v^", "v#.#.#", "dev" => "dev"],
                devbranch = "main",
                push_preview = true,
+               branch_previews = "doc-previews",
                )
 end
 #---
