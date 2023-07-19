@@ -513,9 +513,9 @@ version = "2.7.1"
 
 [[deps.PencilArrays]]
 deps = ["Adapt", "JSON3", "LinearAlgebra", "MPI", "OffsetArrays", "Random", "Reexport", "StaticArrayInterface", "StaticArrays", "StaticPermutations", "Strided", "TimerOutputs", "VersionParsing"]
-git-tree-sha1 = "c1d2b659ce423897de45e998f49f77e789e1859d"
+git-tree-sha1 = "c30a7fb1e424ea572962dac493ad6c3f556695e0"
 uuid = "0e08944d-e94e-41b1-9406-dcf66b6a9d2e"
-version = "0.18.1"
+version = "0.19.0"
 
     [deps.PencilArrays.extensions]
     PencilArraysDiffEqExt = ["DiffEqBase"]
@@ -690,9 +690,9 @@ weakdeps = ["Statistics"]
     StaticArraysStatisticsExt = "Statistics"
 
 [[deps.StaticArraysCore]]
-git-tree-sha1 = "1d5708d926c76a505052d0d24a846d5da08bc3a4"
+git-tree-sha1 = "36b3d696ce6366023a0ea192b4cd442268995a0d"
 uuid = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
-version = "1.4.1"
+version = "1.4.2"
 
 [[deps.StaticPermutations]]
 git-tree-sha1 = "193c3daa18ff3e55c1dae66acb6a762c4a3bdb0b"
