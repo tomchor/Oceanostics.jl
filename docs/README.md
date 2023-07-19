@@ -10,7 +10,7 @@ To build the docs locally, from the main directory of a local clone of the repos
 
 
 ```
-julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'; JULIA_DEBUG=Documenter julia --color=yes --project=docs docs/make.jl
+julia --color=yes --project -e 'using Pkg; Pkg.instantiate()'; julia --color=yes --project=docs/ -e 'using Pkg; Pkg.instantiate()'; JULIA_DEBUG=Documenter julia --color=yes --project=docs docs/make.jl
 ```
 
 If the docs are built successfully you can view them by opening `docs/build/index.html` from
