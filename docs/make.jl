@@ -2,7 +2,6 @@ pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..")) # add Oceanostics environment
 
 using Documenter
 using Literate
-using Glob
 
 using Oceananigans
 using Oceanostics

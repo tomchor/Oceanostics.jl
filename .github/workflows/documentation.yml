@@ -11,7 +11,7 @@ jobs:
   build:
     permissions:
       contents: write
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.11.0
@@ -22,10 +22,10 @@ jobs:
         with:
           version: '1.9'
       - name: Install dependencies
-        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+        run: julia --color=yes --project -e 'using Pkg; Pkg.instantiate()'; julia --color=yes --project=docs/ -e 'using Pkg; Pkg.instantiate()'
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
           JULIA_DEBUG: Documenter
-        run: julia --project=docs/ docs/make.jl
+        run: julia --color=yes --project=docs/ docs/make.jl
