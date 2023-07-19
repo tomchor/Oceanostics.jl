@@ -18,14 +18,14 @@ jobs:
         with:
           access_token: ${{ github.token }}
       - uses: actions/checkout@v3
-      - uses: julia-actions/setup-julia@v1.8
+      - uses: julia-actions/setup-julia@v1.9
         with:
-          version: '1.8'
+          version: '1.9'
       - name: Install dependencies
-        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+        run: julia --color=yes --project -e 'using Pkg; Pkg.instantiate()'; julia --color=yes --project=docs/ -e 'using Pkg; Pkg.instantiate()'
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
           JULIA_DEBUG: Documenter
-        run: julia --project=docs/ docs/make.jl
+        run: julia --color=yes --project=docs/ docs/make.jl
