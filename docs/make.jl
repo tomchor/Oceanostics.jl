@@ -49,7 +49,6 @@ makedocs(sitename = "Oceanostics.jl",
          doctest = true,
          strict = :doctest,
          clean = true,
-         forcepush = true,
          format = format,
          checkdocs = :exports
          )
@@ -81,6 +80,7 @@ if CI
     deploydocs(repo = "github.com/tomchor/Oceanostics.jl.git",
                versions = ["stable" => "v^", "v#.#.#", "dev" => "dev"],
                devbranch = "main",
+               forcepush = true,
                push_preview = true,
                branch_previews = "doc-previews",
                )
