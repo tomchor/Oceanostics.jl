@@ -19,7 +19,7 @@ before getting started with Oceanostics.
 To install the latest stable version from Julia:
 ```julia
 julia> ]
-(@v1.8) pkg> add Oceanostics
+(@v1.9) pkg> add Oceanostics
 ```
 
 If you want the latest developments (which may or may not be unstable) you can add the latest
@@ -27,5 +27,5 @@ version from Github in the `main` branch:
 
 ```julia
 julia> ]
-(@v1.8) pkg> add Oceanostics#main
+(@v1.9) pkg> add Oceanostics#main
 ```
