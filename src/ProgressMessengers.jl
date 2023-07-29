@@ -1,4 +1,6 @@
 module ProgressMessengers
+using DocStringExtensions
+
 using Printf
 import Base: +, *
 
