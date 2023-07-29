@@ -81,7 +81,7 @@ end
 end
 #---
 
-#+++
+#+++ MaxVelocities
 function MaxVelocities(; with_prefix = true, with_units = true)
     max_u = MaxUVelocity(with_prefix = false, with_units = false)
     max_v = MaxVVelocity(with_prefix = false, with_units = false)
@@ -93,5 +93,35 @@ function MaxVelocities(; with_prefix = true, with_units = true)
     return message
 end
 #---
+
+#+++ Stopwatch
+Base.@kwdef mutable struct Stopwatch{T, I, L} <: AbstractProgressMessenger
+    wall_time₀  :: T  # Wall time at simulation start
+    wall_time⁻  :: T  # Wall time at previous calback
+    iteration⁻  :: I  # Iteration at previous calback
+    with_prefix :: Bool = true
+    with_units  :: Bool = true
+end
+
+"""
+    $(SIGNATURES)
+
+Return a `Stopwatch`, where the time per model time step is calculated.
+"""
+Stopwatch(; wall_time₀ = 1e-9*time_ns(), 
+            wall_time⁻ = 1e-9*time_ns(),
+            iteration⁻ = 0) = Stopwatch(wall_time₀, wall_time⁻, iteration⁻, LES)
+
+function (pm::Stopwatch)(simulation)
+    iter = iteration(simulation)
+
+    time_since_last_callback = 1e-9 * time_ns() - pm.wall_time⁻
+    iterations_since_last_callback = iter==0 ? Inf : iter - pm.iteration⁻
+    wall_time_per_step = time_since_last_callback / iterations_since_last_callback
+    pm.wall_time⁻ = 1e-9 * time_ns()
+    pm.iteration⁻ = iter
+end
+#---
+
 
 end # module
