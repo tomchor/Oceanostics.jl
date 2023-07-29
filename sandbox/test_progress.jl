@@ -28,5 +28,19 @@ st2 = WalltimePerTimestep()
 time_step!(model, 1)
 @show st2(simulation)
 
+wt = Walltime()
+@show wt(simulation)
+time_step!(model, 1)
+@show wt(simulation)
+time_step!(model, 1)
+@show wt(simulation)
 
+acfl = AdvectiveCFLNumber()
+@show acfl(simulation)
+
+dcfl = DiffusiveCFLNumber()
+@show dcfl(simulation)
+
+mν = MaxViscosity()
+@show mν(simulation)
 

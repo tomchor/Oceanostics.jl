@@ -1,4 +1,5 @@
 import Oceananigans.Diagnostics
+using Oceananigans.TurbulenceClosures: viscosity, diffusivity
 
 #+++ AdvectiveCFLNumber
 Base.@kwdef struct AdvectiveCFLNumber <: AbstractProgressMessenger
@@ -33,6 +34,10 @@ Base.@kwdef struct MaxViscosity <: AbstractProgressMessenger
 end
 
 @inline function (maxν::MaxViscosity)(simulation)
-    ν_max = maximum(abs, viscosity(model.closure, model.diffusivity_fields))
+    ν_max = maximum(abs, viscosity(simulation.model.closure, simulation.model.diffusivity_fields))
+    message = @sprintf("%.2g", ν_max)
+    maxν.with_prefix && (message = "νₘₐₓ = " * message)
+    maxν.with_units  && (message = message * " m²/s")
+    return message
 end
 #---
