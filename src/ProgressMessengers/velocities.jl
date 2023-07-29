@@ -40,14 +40,26 @@ end
 #---
 
 #+++ MaxVelocities
-function MaxVelocities(; with_prefix = true, with_units = true)
-    max_u = MaxUVelocity(with_prefix = false, with_units = false)
-    max_v = MaxVVelocity(with_prefix = false, with_units = false)
-    max_w = MaxWVelocity(with_prefix = false, with_units = false)
+Base.@kwdef struct MaxVelocities{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
+    max_u       :: PM
+    max_v       :: PM
+    max_w       :: PM
+    with_prefix :: Bool = true
+    with_units  :: Bool = true
+    print       :: Bool = true
+end
 
-    message = "[" * max_u + max_v + max_w * "]"
-    with_prefix && (message = "|u⃗|ₘₐₓ =" * message)
-    with_units  && (message = message * "m/s")
-    return_or_print(message, max_u)
+MaxVelocities(; max_u = MaxUVelocity(with_prefix = false, with_units = false),
+                max_v = MaxVVelocity(with_prefix = false, with_units = false),
+                max_w = MaxWVelocity(with_prefix = false, with_units = false),
+                with_prefix = true,
+                with_units = true,
+                print = true) = MaxVelocities{AbstractProgressMessenger}(max_u, max_v, max_w, with_prefix, with_units, print)
+
+function (maxvel::MaxVelocities)(simulation)
+    message = ("[" * maxvel.max_u + maxvel.max_v + maxvel.max_w * "]")(simulation)
+    maxvel.with_prefix && (message = "|u⃗|ₘₐₓ = " * message)
+    maxvel.with_units  && (message = message * " m/s")
+    return_or_print(message, maxvel)
 end
 #---
