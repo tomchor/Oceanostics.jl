@@ -2,11 +2,15 @@ module ProgressMessengers
 using DocStringExtensions
 
 using Printf
+using Oceananigans.Utils: prettytime
+using Oceananigans.Simulations: iteration
+
 import Base: +, *
 
 export AbstractProgressMessenger
 export MaxUVelocity, MaxVVelocity, MaxWVelocity
 export MaxVelocities
+export WalltimePerTimestep, Stopwatch
 export FunctionMessenger
 
 abstract type AbstractProgressMessenger end
@@ -96,8 +100,36 @@ function MaxVelocities(; with_prefix = true, with_units = true)
 end
 #---
 
-#+++ Stopwatch
-Base.@kwdef mutable struct Stopwatch{T, I, L} <: AbstractProgressMessenger
+#+++ WalltimePerTimestep
+Base.@kwdef mutable struct WalltimePerTimestep{T, I} <: AbstractProgressMessenger
+    wall_seconds⁻  :: T  # Wall time at previous calback
+    iteration⁻     :: I  # Iteration at previous calback
+    with_prefix    :: Bool = true
+    with_units     :: Bool = true
+end
+
+function WalltimePerTimestep(; wall_seconds⁻ = 1e-9*time_ns(),
+                               iteration⁻ = 0,
+                               with_prefix = true,
+                               with_units = true)
+    return WalltimePerTimestep(wall_seconds⁻, iteration⁻, with_prefix, with_units)
+end
+
+function (pm::WalltimePerTimestep)(simulation)
+    iter = iteration(simulation)
+
+    seconds_since_last_callback = 1e-9 * time_ns() - pm.wall_seconds⁻
+    iterations_since_last_callback = iter == 0 ? Inf : iter - pm.iteration⁻
+
+    wall_time_per_step = seconds_since_last_callback / iterations_since_last_callback
+    pm.wall_seconds⁻ = 1e-9 * time_ns()
+    pm.iteration⁻ = iter
+
+    message = pm.with_units ? prettytime(wall_time_per_step) : string(wall_time_per_step)
+    pm.with_prefix && (message = "walltime / timestep = " * message)
+end
+
+Base.@kwdef mutable struct Stopwatch{T, I} <: AbstractProgressMessenger
     wall_time₀  :: T  # Wall time at simulation start
     wall_time⁻  :: T  # Wall time at previous calback
     iteration⁻  :: I  # Iteration at previous calback
@@ -105,14 +137,19 @@ Base.@kwdef mutable struct Stopwatch{T, I, L} <: AbstractProgressMessenger
     with_units  :: Bool = true
 end
 
+
 """
     $(SIGNATURES)
 
 Return a `Stopwatch`, where the time per model time step is calculated.
 """
-Stopwatch(; wall_time₀ = 1e-9*time_ns(), 
-            wall_time⁻ = 1e-9*time_ns(),
-            iteration⁻ = 0) = Stopwatch(wall_time₀, wall_time⁻, iteration⁻, LES)
+function Stopwatch(; wall_time₀ = 1e-9*time_ns(), 
+                     wall_time⁻ = 1e-9*time_ns(),
+                     iteration⁻ = 0,
+                     with_prefix = true,
+                     with_units = true)
+    return Stopwatch(wall_time₀, wall_time⁻, iteration⁻, with_prefix, with_units)
+end
 
 function (pm::Stopwatch)(simulation)
     iter = iteration(simulation)

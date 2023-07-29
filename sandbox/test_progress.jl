@@ -22,27 +22,11 @@ max_vels = Oceanostics.ProgressMessengers.MaxVelocities()
 
 @show max_vels(simulation)
 
+st2 = WalltimePerTimestep()
+@show st2(simulation)
 
-pause
-function MaxVelocities(; with_units=false)
-    max_u = MaxUVelocity(with_units = false)
-    max_v = MaxVVelocity(with_units = false)
-    max_w = MaxWVelocity(with_units = false)
-    max_vels = "|u⃗|ₘₐₓ = (" * max_u + max_v + max_w * ") m/s"
-    return test(max_u + max_v + max_w, with_units)
-end
+time_step!(model, 1)
+@show st2(simulation)
 
 
-function (muvw::test)(sim)
-    message = muvw.func(sim)
-    muvw.with_units && (message = message * " m/s")
-    return message
-end
-
-
-mv = test(with_units=true)
-
-pm = mv
-
-pm(simulation)
 
