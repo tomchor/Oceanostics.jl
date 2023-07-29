@@ -8,7 +8,8 @@ import Base: +, *
 export AbstractProgressMessenger
 export MaxUVelocity, MaxVVelocity, MaxWVelocity
 export MaxVelocities
-export Iteration, WalltimePerTimestep, Walltime
+export Iteration, Time, WalltimePerTimestep, Walltime
+export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber
 export FunctionMessenger
 
 abstract type AbstractProgressMessenger end
@@ -46,5 +47,6 @@ const StringOrProgressMessenger = Union{String, AbstractProgressMessenger}
 
 include("velocities.jl")
 include("timing.jl")
+include("cfl.jl")
 
 end # module
