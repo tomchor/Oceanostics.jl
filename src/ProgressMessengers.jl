@@ -10,7 +10,7 @@ import Base: +, *
 export AbstractProgressMessenger
 export MaxUVelocity, MaxVVelocity, MaxWVelocity
 export MaxVelocities
-export WalltimePerTimestep, Stopwatch
+export WalltimePerTimestep, Walltime
 export FunctionMessenger
 
 abstract type AbstractProgressMessenger end
@@ -115,50 +115,39 @@ function WalltimePerTimestep(; wall_seconds⁻ = 1e-9*time_ns(),
     return WalltimePerTimestep(wall_seconds⁻, iteration⁻, with_prefix, with_units)
 end
 
-function (pm::WalltimePerTimestep)(simulation)
+function (wpt::WalltimePerTimestep)(simulation)
     iter = iteration(simulation)
 
-    seconds_since_last_callback = 1e-9 * time_ns() - pm.wall_seconds⁻
-    iterations_since_last_callback = iter == 0 ? Inf : iter - pm.iteration⁻
+    seconds_since_last_callback = 1e-9 * time_ns() - wpt.wall_seconds⁻
+    iterations_since_last_callback = iter == 0 ? Inf : iter - wpt.iteration⁻
 
     wall_time_per_step = seconds_since_last_callback / iterations_since_last_callback
-    pm.wall_seconds⁻ = 1e-9 * time_ns()
-    pm.iteration⁻ = iter
+    wpt.wall_seconds⁻ = 1e-9 * time_ns()
+    wpt.iteration⁻ = iter
 
-    message = pm.with_units ? prettytime(wall_time_per_step) : string(wall_time_per_step)
-    pm.with_prefix && (message = "walltime / timestep = " * message)
-end
-
-Base.@kwdef mutable struct Stopwatch{T, I} <: AbstractProgressMessenger
-    wall_time₀  :: T  # Wall time at simulation start
-    wall_time⁻  :: T  # Wall time at previous calback
-    iteration⁻  :: I  # Iteration at previous calback
-    with_prefix :: Bool = true
-    with_units  :: Bool = true
+    message = wpt.with_units ? prettytime(wall_time_per_step) : string(wall_time_per_step)
+    wpt.with_prefix && (message = "walltime / timestep = " * message)
+    return message
 end
 
 
-"""
-    $(SIGNATURES)
-
-Return a `Stopwatch`, where the time per model time step is calculated.
-"""
-function Stopwatch(; wall_time₀ = 1e-9*time_ns(), 
-                     wall_time⁻ = 1e-9*time_ns(),
-                     iteration⁻ = 0,
-                     with_prefix = true,
-                     with_units = true)
-    return Stopwatch(wall_time₀, wall_time⁻, iteration⁻, with_prefix, with_units)
+Base.@kwdef mutable struct Walltime{T} <: AbstractProgressMessenger
+    wall_seconds⁰  :: T  # Wall time at previous calback
+    with_prefix    :: Bool = true
+    with_units     :: Bool = true
 end
 
-function (pm::Stopwatch)(simulation)
-    iter = iteration(simulation)
+function Walltime(; wall_seconds⁰ = 1e-9*time_ns(),
+                    with_prefix = true,
+                    with_units = true)
+    return Walltime(wall_seconds⁰, with_prefix, with_units)
+end
 
-    time_since_last_callback = 1e-9 * time_ns() - pm.wall_time⁻
-    iterations_since_last_callback = iter==0 ? Inf : iter - pm.iteration⁻
-    wall_time_per_step = time_since_last_callback / iterations_since_last_callback
-    pm.wall_time⁻ = 1e-9 * time_ns()
-    pm.iteration⁻ = iter
+function (wt::Walltime)(simulation)
+    current_wall_seconds = 1e-9 * time_ns() - wt.wall_seconds⁰
+    message = wt.with_units ? prettytime(current_wall_seconds) : string(current_wall_seconds)
+    wt.with_prefix && (message = "walltime = " * message)
+    return message
 end
 #---
 
