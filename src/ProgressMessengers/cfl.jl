@@ -10,7 +10,7 @@ end
     cfl = Diagnostics.AdvectiveCFL(simulation.Δt)(simulation.model)
     message = @sprintf("%.2g", cfl)
     acfl.with_prefix && (message = "Advective CFL = " * message)
-    return message
+    return_or_print(message, acfl)
 end
 #---
 
@@ -23,7 +23,7 @@ end
     cfl = Diagnostics.DiffusiveCFL(simulation.Δt)(simulation.model)
     message = @sprintf("%.2g", cfl)
     dcfl.with_prefix && (message = "Diffusive CFL = " * message)
-    return message
+    return_or_print(message, dcfl)
 end
 #---
 
@@ -38,6 +38,6 @@ end
     message = @sprintf("%.2g", ν_max)
     maxν.with_prefix && (message = "νₘₐₓ = " * message)
     maxν.with_units  && (message = message * " m²/s")
-    return message
+    return_or_print(message, maxν)
 end
 #---

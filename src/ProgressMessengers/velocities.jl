@@ -19,7 +19,7 @@ end
     message = @sprintf("%.2e", u_max)
     mu.with_prefix     && (message = "|u|ₘₐₓ = " * message)
     mu.with_units && (message = message * " m/s")
-    return message
+    return_or_print(message, mu)
 end
 
 @inline function (mv::MaxVVelocity)(sim)
@@ -27,7 +27,7 @@ end
     message = @sprintf("%.2e", v_max)
     mv.with_prefix     && (message = "|v|ₘₐₓ = " * message)
     mv.with_units && (message = message * " m/s")
-    return message
+    return_or_print(message, mv)
 end
 
 @inline function (mw::MaxWVelocity)(sim)
@@ -35,7 +35,7 @@ end
     message = @sprintf("%.2e", w_max)
     mw.with_prefix     && (message = "|w|ₘₐₓ = " * message)
     mw.with_units && (message = message * " m/s")
-    return message
+    return_or_print(message, mw)
 end
 #---
 
@@ -48,6 +48,6 @@ function MaxVelocities(; with_prefix = true, with_units = true)
     message = "[" * max_u + max_v + max_w * "]"
     with_prefix && (message = "|u⃗|ₘₐₓ =" * message)
     with_units  && (message = message * "m/s")
-    return message
+    return_or_print(message, max_u)
 end
 #---

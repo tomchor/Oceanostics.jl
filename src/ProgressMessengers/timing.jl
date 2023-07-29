@@ -24,7 +24,7 @@ end
     t = time(simulation)
     message = tm.with_units ? prettytime(t) : @sprintf("%.2g", current_wall_seconds)
     tm.with_prefix && (message = "time = " * message)
-    return message
+    return_or_print(message, tm)
 end
 #---
 
@@ -46,7 +46,7 @@ end
         pp.with_units  && (message = message * " by iteration")
     end
     pp.with_prefix && (message = "progress = " * message)
-    return message
+    return_or_print(message, pp)
 end
 #---
 
@@ -77,7 +77,7 @@ function (wpt::WalltimePerTimestep)(simulation)
 
     message = wpt.with_units ? prettytime(wall_time_per_step) : @sprintf("%.2g", wall_time_per_step)
     wpt.with_prefix && (message = "walltime / timestep = " * message)
-    return message
+    return_or_print(message, wpt)
 end
 #---
 
@@ -98,6 +98,6 @@ function (wt::Walltime)(simulation)
     current_wall_seconds = 1e-9 * time_ns() - wt.wall_seconds⁰
     message = wt.with_units ? prettytime(current_wall_seconds) : @sprintf("%.2g", current_wall_seconds)
     wt.with_prefix && (message = "walltime = " * message)
-    return message
+    return_or_print(message, wt)
 end
 #---
