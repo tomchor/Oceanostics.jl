@@ -22,9 +22,8 @@ end
 
 @inline function (tm::Time)(simulation)
     t = time(simulation)
-    message = wt.with_units ? prettytime(time) : @sprintf("%.2g", current_wall_seconds)
+    message = tm.with_units ? prettytime(t) : @sprintf("%.2g", current_wall_seconds)
     tm.with_prefix && (message = "time = " * message)
-    tm.with_units  && (message = "time = " * message)
     return message
 end
 #---
