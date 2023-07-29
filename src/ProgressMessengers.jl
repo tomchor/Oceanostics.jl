@@ -6,24 +6,38 @@ export AbstractProgressMessenger
 export MaxUVelocity, MaxVVelocity, MaxWVelocity
 export FunctionMessenger
 
-
-#+++ Basic type and addition operations with functions and strings
 abstract type AbstractProgressMessenger end
+ 
+const comma = ", "
+const space = space
 
-@inline +(a::AbstractProgressMessenger,   b::AbstractProgressMessenger)   = sim -> a(sim) * ",    " * b(sim)
-@inline *(a::AbstractProgressMessenger,   b::AbstractProgressMessenger)   = sim -> a(sim) * " " * b(sim)
+#+++ FunctionMessenger
+Base.@kwdef struct FunctionMessenger{F} <: AbstractProgressMessenger
+    func :: F
+end
+
+function (fmessenger::FunctionMessenger)(sim)
+    message = fmessenger.func(sim)
+    return message
+end
+#---
+
+
+#+++ Basic operations with functions and strings
+@inline +(a::AbstractProgressMessenger,   b::AbstractProgressMessenger)   = FunctionMessenger(sim -> a(sim) * comma * b(sim))
+@inline *(a::AbstractProgressMessenger,   b::AbstractProgressMessenger)   = FunctionMessenger(sim -> a(sim) * space * b(sim))
 
 const FunctionOrProgressMessenger = Union{Function, AbstractProgressMessenger}
-@inline +(a::AbstractProgressMessenger,   b::FunctionOrProgressMessenger) = sim -> a(sim) * ",    " * b(sim)
-@inline +(a::FunctionOrProgressMessenger, b::AbstractProgressMessenger)   = sim -> a(sim) * ",    " * b(sim)
-@inline *(a::AbstractProgressMessenger,   b::FunctionOrProgressMessenger) = sim -> a(sim) * " " * b(sim)
-@inline *(a::FunctionOrProgressMessenger, b::AbstractProgressMessenger)   = sim -> a(sim) * " " * b(sim)
+@inline +(a::AbstractProgressMessenger,   b::FunctionOrProgressMessenger) = FunctionMessenger(sim -> a(sim) * comma * b(sim))
+@inline +(a::FunctionOrProgressMessenger, b::AbstractProgressMessenger)   = FunctionMessenger(sim -> a(sim) * comma * b(sim))
+@inline *(a::AbstractProgressMessenger,   b::FunctionOrProgressMessenger) = FunctionMessenger(sim -> a(sim) * space * b(sim))
+@inline *(a::FunctionOrProgressMessenger, b::AbstractProgressMessenger)   = FunctionMessenger(sim -> a(sim) * space * b(sim))
 
 const StringOrProgressMessenger = Union{String, AbstractProgressMessenger}
-@inline +(a::AbstractProgressMessenger, b::StringOrProgressMessenger) = sim -> a(sim) * ",    $b"
-@inline +(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = sim -> "$a,    " * b(sim)
-@inline *(a::AbstractProgressMessenger, b::StringOrProgressMessenger) = sim -> a(sim) * " $b"
-@inline *(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = sim -> "$a " * b(sim)
+@inline +(a::AbstractProgressMessenger, b::StringOrProgressMessenger) = FunctionMessenger(sim -> a(sim) * ",    $b")
+@inline +(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = FunctionMessenger(sim -> "$a,    " * b(sim))
+@inline *(a::AbstractProgressMessenger, b::StringOrProgressMessenger) = FunctionMessenger(sim -> a(sim) * " $b")
+@inline *(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = FunctionMessenger(sim -> "$a " * b(sim))
 #---
 
 #+++ Basic definitions
@@ -63,17 +77,6 @@ end
     message = @sprintf("%.2e", w_max)
     mw.prefix     && (message = "|w|ₘₐₓ = " * message)
     mw.with_units && (message = message * " m/s")
-    return message
-end
-#---
- 
-#+++ FunctionMessenger
-Base.@kwdef struct FunctionMessenger{F} <: AbstractProgressMessenger
-    func :: F
-end
-
-function (muvw::FunctionMessenger)(sim)
-    message = muvw.func(sim)
     return message
 end
 #---
