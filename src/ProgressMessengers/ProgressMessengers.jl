@@ -24,7 +24,7 @@ end
 
 function (fmessenger::FunctionMessenger)(sim)
     message = fmessenger.func(sim)
-    return_or_print(message, fmessenger)
+    return_or_print(message)
 end
 #---
 
@@ -45,7 +45,8 @@ const StringOrProgressMessenger = Union{String, AbstractProgressMessenger}
 @inline *(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = FunctionMessenger(sim -> a      * space * b(sim))
 #---
 
-return_or_print(message, pm::AbstractProgressMessenger) = true ? (return message) : (@info message)
+return_or_print(message, pm::AbstractProgressMessenger) = pm.print ? (@info message) : (return message)
+return_or_print(message) = return message
 
 include("velocities.jl")
 include("timing.jl")

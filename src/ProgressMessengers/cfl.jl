@@ -4,6 +4,7 @@ using Oceananigans.TurbulenceClosures: viscosity, diffusivity
 #+++ AdvectiveCFLNumber
 Base.@kwdef struct AdvectiveCFLNumber <: AbstractProgressMessenger
     with_prefix :: Bool = true
+    print       :: Bool = false
 end
 
 @inline function (acfl::AdvectiveCFLNumber)(simulation)
@@ -17,6 +18,7 @@ end
 #+++ DiffusiveCFLNumber
 Base.@kwdef struct DiffusiveCFLNumber <: AbstractProgressMessenger
     with_prefix :: Bool = true
+    print       :: Bool = false
 end
 
 @inline function (dcfl::DiffusiveCFLNumber)(simulation)
@@ -31,6 +33,7 @@ end
 Base.@kwdef struct MaxViscosity <: AbstractProgressMessenger
     with_prefix :: Bool = true
     with_units  :: Bool = true
+    print       :: Bool = false
 end
 
 @inline function (maxν::MaxViscosity)(simulation)

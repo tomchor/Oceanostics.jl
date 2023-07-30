@@ -4,13 +4,14 @@ using Oceananigans.Simulations: iteration, time
 #+++ Iteration
 Base.@kwdef struct Iteration <: AbstractProgressMessenger
     with_prefix :: Bool = true
+    print       :: Bool = false
 end
 
 @inline function (itm::Iteration)(simulation)
     iter = iteration(simulation)
     message = @sprintf("%6d", iter)
     itm.with_prefix && (message = "iter = " * message)
-    return message
+    return_or_print(message, itm)
 end
 #---
 
@@ -18,6 +19,7 @@ end
 Base.@kwdef struct Time <: AbstractProgressMessenger
     with_prefix :: Bool = true
     with_units ::  Bool = true
+    print       :: Bool = false
 end
 
 @inline function (tm::Time)(simulation)
@@ -32,6 +34,7 @@ end
 Base.@kwdef struct PercentageProgress <: AbstractProgressMessenger
     with_prefix :: Bool = true
     with_units  :: Bool = true
+    print       :: Bool = false
 end
 
 @inline function (pp::PercentageProgress)(simulation)
@@ -52,17 +55,19 @@ end
 
 #+++ WalltimePerTimestep
 Base.@kwdef mutable struct WalltimePerTimestep{T, I} <: AbstractProgressMessenger
-    wall_seconds⁻  :: T  # Wall time at previous calback
-    iteration⁻     :: I  # Iteration at previous calback
-    with_prefix    :: Bool = true
-    with_units     :: Bool = true
+    wall_seconds⁻ :: T  # Wall time at previous calback
+    iteration⁻    :: I  # Iteration at previous calback
+    with_prefix   :: Bool = true
+    with_units    :: Bool = true
+    print         :: Bool = false
 end
 
 function WalltimePerTimestep(; wall_seconds⁻ = 1e-9*time_ns(),
                                iteration⁻ = 0,
                                with_prefix = true,
-                               with_units = true)
-    return WalltimePerTimestep(wall_seconds⁻, iteration⁻, with_prefix, with_units)
+                               with_units = true,
+                               print =  false)
+    return WalltimePerTimestep(wall_seconds⁻, iteration⁻, with_prefix, with_units, print)
 end
 
 function (wpt::WalltimePerTimestep)(simulation)
@@ -86,12 +91,14 @@ Base.@kwdef mutable struct Walltime{T} <: AbstractProgressMessenger
     wall_seconds⁰  :: T  # Wall time at previous calback
     with_prefix    :: Bool = true
     with_units     :: Bool = true
+    print          :: Bool = false
 end
 
 function Walltime(; wall_seconds⁰ = 1e-9*time_ns(),
                     with_prefix = true,
-                    with_units = true)
-    return Walltime(wall_seconds⁰, with_prefix, with_units)
+                    with_units = true,
+                    print = false)
+    return Walltime(wall_seconds⁰, with_prefix, with_units, print)
 end
 
 function (wt::Walltime)(simulation)

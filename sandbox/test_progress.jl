@@ -12,13 +12,13 @@ simulation = Simulation(model, Δt=1, stop_time=10);
 mv = MaxVelocities(with_units=true)
 @show mv(simulation)
 
-pause
 
-
-
-progress_messenger(simulation) = @info (Iteration() + Time()
-                                        + Walltime() + MaxVelocities() + AdvectiveCFLNumber() 
-                                        + DiffusiveCFLNumber() + MaxViscosity() + WalltimePerTimestep()
+progress_messenger(simulation) = @info (Iteration()
+                                        + Time()
+                                        + Walltime() + MaxVelocities()
+                                        + AdvectiveCFLNumber()
+                                        + DiffusiveCFLNumber() 
+                                        + MaxViscosity() + WalltimePerTimestep()
                                         )(simulation)
 simulation.callbacks[:progress] = Callback(progress_messenger)
 
