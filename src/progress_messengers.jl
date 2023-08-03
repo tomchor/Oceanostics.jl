@@ -83,8 +83,6 @@ end
     $(SIGNATURES)
 
 Return a `TimedProgressMessenger`, where the time per model time step is calculated.
-
-`kwargs` are passed to `make_message()`.
 """
 TimedProgressMessenger(; LES=false, 
                        wall_time₀=1e-9*time_ns(), 
