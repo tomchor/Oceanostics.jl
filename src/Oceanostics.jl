@@ -22,6 +22,10 @@ export DirectionalErtelPotentialVorticity
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 #---
 
+#+++ ProgressMessengers
+export ProgressMessengers
+#---
+
 #+++ Utils for validation
 # Right now, all kernels must be located at ccc
 using Oceananigans.TurbulenceClosures: AbstractScalarDiffusivity, ThreeDimensionalFormulation
