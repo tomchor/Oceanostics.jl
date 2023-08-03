@@ -15,7 +15,7 @@ export BasicMessenger, SingleLineMessenger, TimedMessenger
 
 abstract type AbstractProgressMessenger end
 
-const comma = ", "
+const comma = ",  "
 const space = ""
 
 #+++ FunctionMessenger
@@ -59,18 +59,16 @@ const NormalizedMaxViscosity = DiffusiveCFLNumber
 #+++ BasicMessenger
 struct BasicMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
     basic_time_messenger      :: PM
-    maxvels                    :: PM
     basic_stability_messenger :: PM
-    print                      :: Bool
+    print                     :: Bool
 end
 
 BasicMessenger(; basic_time_messenger = BasicTimeMessenger(print = false),
-                  maxvels = MaxVelocities(with_prefix = true, with_units = true, print = false),
-                  basic_stability_messenger = BasicStabilityMessenger(print = false),
-                  print = true) = BasicMessenger{AbstractProgressMessenger}(basic_time_messenger, maxvels, basic_stability_messenger, print)
+                 basic_stability_messenger = BasicStabilityMessenger(print = false),
+                 print = true) = BasicMessenger{AbstractProgressMessenger}(basic_time_messenger, basic_stability_messenger, print)
 
 function (sm::BasicMessenger)(simulation)
-    message = (sm.basic_time_messenger + sm.maxvels + sm.basic_stability_messenger)(simulation)
+    message = (sm.basic_time_messenger + sm.basic_stability_messenger)(simulation)
     return_or_print(message, sm)
 end
 #---

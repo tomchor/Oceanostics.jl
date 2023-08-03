@@ -22,7 +22,6 @@ progress_messenger(simulation) = @info (Iteration()
                                         )(simulation)
 simulation.callbacks[:progress0] = Callback(SingleLineProgressMessenger())
 simulation.callbacks[:progress1] = Callback(SingleLineMessenger())
-#simulation.callbacks[:progress3] = Callback(StopwatchMessenger())
 #simulation.callbacks[:progress4] = Callback(BasicStabilityMessenger())
 
 run!(simulation)
