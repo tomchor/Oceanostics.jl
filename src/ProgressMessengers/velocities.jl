@@ -5,18 +5,6 @@ Base.@kwdef struct MaxUVelocity <: AbstractProgressMessenger
     print       :: Bool = false
 end
 
-Base.@kwdef struct MaxVVelocity <: AbstractProgressMessenger
-    with_prefix :: Bool = true
-    with_units  :: Bool = true
-    print       :: Bool = false
-end
-
-Base.@kwdef struct MaxWVelocity <: AbstractProgressMessenger
-    with_prefix :: Bool = true
-    with_units  :: Bool = true
-    print       :: Bool = false
-end
-
 @inline function (mu::MaxUVelocity)(sim)
     u_max = maximum(abs, sim.model.velocities.u)
     message = @sprintf("%.2e", u_max)
@@ -25,12 +13,24 @@ end
     return_or_print(message, mu)
 end
 
+Base.@kwdef struct MaxVVelocity <: AbstractProgressMessenger
+    with_prefix :: Bool = true
+    with_units  :: Bool = true
+    print       :: Bool = false
+end
+
 @inline function (mv::MaxVVelocity)(sim)
     v_max = maximum(abs, sim.model.velocities.v)
     message = @sprintf("%.2e", v_max)
     mv.with_prefix     && (message = "|v|ₘₐₓ = " * message)
     mv.with_units && (message = message * " m/s")
     return_or_print(message, mv)
+end
+
+Base.@kwdef struct MaxWVelocity <: AbstractProgressMessenger
+    with_prefix :: Bool = true
+    with_units  :: Bool = true
+    print       :: Bool = false
 end
 
 @inline function (mw::MaxWVelocity)(sim)
@@ -43,13 +43,13 @@ end
 #---
 
 #+++ MaxVelocities
-Base.@kwdef struct MaxVelocities{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
+struct MaxVelocities{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
     max_u       :: PM
     max_v       :: PM
     max_w       :: PM
-    with_prefix :: Bool = true
-    with_units  :: Bool = true
-    print       :: Bool = false
+    with_prefix :: Bool
+    with_units  :: Bool
+    print       :: Bool
 end
 
 MaxVelocities(; max_u = MaxUVelocity(with_prefix = false, with_units = false, print = false),
