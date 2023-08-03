@@ -70,19 +70,11 @@ end
 
 #+++ WalltimePerTimestep
 Base.@kwdef mutable struct WalltimePerTimestep{T, I} <: AbstractProgressMessenger
-    wall_seconds⁻ :: T  # Wall time at previous calback
-    iteration⁻    :: I  # Iteration at previous calback
+    wall_seconds⁻ :: T    = 1e-9*time_ns() # Wall time at previous calback
+    iteration⁻    :: I    = 0 # Iteration at previous calback
     with_prefix   :: Bool = true
     with_units    :: Bool = true
     print         :: Bool = false
-end
-
-function WalltimePerTimestep(; wall_seconds⁻ = 1e-9*time_ns(),
-                               iteration⁻ = 0,
-                               with_prefix = true,
-                               with_units = true,
-                               print =  false)
-    return WalltimePerTimestep(wall_seconds⁻, iteration⁻, with_prefix, with_units, print)
 end
 
 function (wpt::WalltimePerTimestep)(simulation)
@@ -103,17 +95,10 @@ end
 
 #+++ Walltime
 Base.@kwdef mutable struct Walltime{T} <: AbstractProgressMessenger
-    wall_seconds⁰  :: T  # Wall time at previous calback
+    wall_seconds⁰  :: T    = 1e-9*time_ns() # Wall time at previous calback
     with_prefix    :: Bool = true
     with_units     :: Bool = true
     print          :: Bool = false
-end
-
-function Walltime(; wall_seconds⁰ = 1e-9*time_ns(),
-                    with_prefix = true,
-                    with_units = true,
-                    print = false)
-    return Walltime(wall_seconds⁰, with_prefix, with_units, print)
 end
 
 function (wt::Walltime)(simulation)
@@ -146,10 +131,10 @@ end
 #---
 
 #+++ TimeMessenger
-Base.@kwdef struct TimeMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
+struct TimeMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
     iteration             :: PM
     simple_time_messenger :: PM
-    print                 :: Bool = true
+    print                 :: Bool
 end
 
 TimeMessenger(; iteration = Iteration(with_prefix = false, print = false),
