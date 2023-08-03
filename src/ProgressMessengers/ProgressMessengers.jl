@@ -6,11 +6,12 @@ using Printf
 import Base: +, *
 
 export AbstractProgressMessenger
+export FunctionMessenger
 export MaxUVelocity, MaxVVelocity, MaxWVelocity
 export MaxVelocities
-export Iteration, Time, WalltimePerTimestep, Walltime
+export Iteration, Time, TimeStep, PercentageProgress, WalltimePerTimestep, Walltime
 export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber
-export FunctionMessenger
+export SimpleMessenger
 
 abstract type AbstractProgressMessenger end
 

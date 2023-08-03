@@ -24,8 +24,23 @@ end
 
 @inline function (tm::Time)(simulation)
     t = time(simulation)
-    message = tm.with_units ? prettytime(t) : @sprintf("%.2g", current_wall_seconds)
+    message = tm.with_units ? prettytime(t) : @sprintf("%.2g", t)
     tm.with_prefix && (message = "time = " * message)
+    return_or_print(message, tm)
+end
+#---
+
+#+++ TimeStep
+Base.@kwdef struct TimeStep <: AbstractProgressMessenger
+    with_prefix :: Bool = true
+    with_units ::  Bool = true
+    print       :: Bool = false
+end
+
+@inline function (tm::TimeStep)(simulation)
+    Δt = simulation.Δt
+    message = tm.with_units ? prettytime(Δt) : @sprintf("%.2g", Δt)
+    tm.with_prefix && (message = "Δt = " * message)
     return_or_print(message, tm)
 end
 #---
