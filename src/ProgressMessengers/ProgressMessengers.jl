@@ -9,14 +9,13 @@ export AbstractProgressMessenger
 export FunctionMessenger
 export MaxUVelocity, MaxVVelocity, MaxWVelocity
 export MaxVelocities
-export Iteration, Time, TimeStep, PercentageProgress, WalltimePerTimestep, Walltime
+export Iteration, Time, TimeStep, PercentageProgress, WalltimePerTimestep, Walltime, SimpleTimeMessenger, TimeMessenger, StopwatchMessenger
 export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber
-export SimpleMessenger
 
 abstract type AbstractProgressMessenger end
 
 const comma = ", "
-const space = " "
+const space = ""
 
 #+++ FunctionMessenger
 Base.@kwdef struct FunctionMessenger{F} <: AbstractProgressMessenger

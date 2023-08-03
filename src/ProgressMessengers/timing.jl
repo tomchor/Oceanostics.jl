@@ -123,3 +123,58 @@ function (wt::Walltime)(simulation)
     return_or_print(message, wt)
 end
 #---
+
+#+++ SimpleTimeMessenger
+struct SimpleTimeMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
+    percentage  :: PM
+    time        :: PM
+    Δt          :: PM
+    walltime    :: PM
+    print       :: Bool
+end
+
+SimpleTimeMessenger(; percentage = PercentageProgress(with_prefix = false, with_units = false, print = false),
+                      time = Time(with_prefix = true, with_units = true, print = false),
+                      Δt = TimeStep(with_prefix = true, with_units = true, print = false),
+                      walltime = Walltime(with_prefix = true, with_units = true, print = false),
+                      print = true) = SimpleTimeMessenger{AbstractProgressMessenger}(percentage, time, Δt, walltime, print)
+
+function (tm::SimpleTimeMessenger)(simulation)
+    message = ("["*tm.percentage*"] " * tm.time + tm.Δt + tm.walltime)(simulation)
+    return_or_print(message, tm)
+end
+#---
+
+#+++ TimeMessenger
+Base.@kwdef struct TimeMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
+    iteration             :: PM
+    simple_time_messenger :: PM
+    print                 :: Bool = true
+end
+
+TimeMessenger(; iteration = Iteration(with_prefix = false, print = false),
+                simple_time_messenger = SimpleTimeMessenger(print = false),
+                print = true) = TimeMessenger{AbstractProgressMessenger}(iteration, simple_time_messenger, print)
+
+function (tm::TimeMessenger)(simulation)
+    message = ("iter = " * tm.iteration + tm.simple_time_messenger)(simulation)
+    return_or_print(message, tm)
+end
+#---
+
+#+++ StopwatchMessenger
+struct StopwatchMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
+    time_messenger        :: PM
+    walltime_per_timestep :: PM
+    print                 :: Bool
+end
+
+StopwatchMessenger(; time_messenger = TimeMessenger(print = false),
+                     walltime_per_timestep = WalltimePerTimestep(with_prefix = true, with_units = true, print = false),
+                     print = true) = StopwatchMessenger{AbstractProgressMessenger}(time_messenger, walltime_per_timestep, print)
+
+function (tm::StopwatchMessenger)(simulation)
+    message = (tm.time_messenger + tm.walltime_per_timestep)(simulation)
+    return_or_print(message, tm)
+end
+#---
