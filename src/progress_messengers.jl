@@ -7,62 +7,6 @@ using Printf
 
 export TimedProgressMessenger
 
-tuple_to_op(ν) = ν
-tuple_to_op(::Nothing) = nothing
-tuple_to_op(ν_tuple::Tuple) = sum(ν_tuple)
-
-"""
-    $(SIGNATURES)
-
-Builds the message displayed by the progress messenger.
-"""
-function make_message(simulation, single_line=false; 
-                      ν = viscosity(simulation.model.closure, simulation.model.diffusivity_fields),
-                      SI_units = true,
-                      initial_wall_time_seconds = 1e-9*time_ns())
-
-    model = simulation.model
-    Δt = simulation.Δt
-    ν = tuple_to_op(ν)
-
-    iter, t = iteration(simulation), time(simulation)
-    progress = 100 * (t / simulation.stop_time)
-    current_wall_time = 1e-9 * time_ns() - initial_wall_time_seconds
-
-    u_max = maximum(abs, model.velocities.u)
-    v_max = maximum(abs, model.velocities.v)
-    w_max = maximum(abs, model.velocities.w)
-
-    # Units
-    u_units = SI_units ? " m s⁻¹" : ""
-    ν_units = SI_units ? "m² s⁻¹" : ""
-    t2str(t) = SI_units ? prettytime(t) : @sprintf("%13.2f", t)
-
-    message = @sprintf("[%06.2f%%] iter: % 6d,     time: % 10s,     Δt: % 10s,     wall time: % 8s",
-                      progress, iter, t2str(t), t2str(Δt), prettytime(current_wall_time))
-
-    if !single_line
-        message *= @sprintf("\n          └── max(|u⃗|): [%.2e, %.2e, %.2e]%s", u_max, v_max, w_max, u_units)
-    end
-
-    message *= @sprintf(",     adv CFL: %.2e", AdvectiveCFL(Δt)(model))
-
-    if !(model.closure isa Tuple) # Oceananigans bug
-        message *= @sprintf(",     diff CFL: %.2e", DiffusiveCFL(Δt)(model))
-    end
-
-    if !isnothing(ν)
-        ν_max = maximum(abs, ν)
-        message *= @sprintf(",     νₘₐₓ: %.2e%s", ν_max, ν_units)
-    end
-
-    message *= "\n"
-
-    return message
-end
-
-print_message(args...; kw...) = @info make_message(args...; kw...)
-
 mutable struct TimedProgressMessenger{T, I, L} <: Function
     wall_time₀ :: T  # Wall time at simulation start
     wall_time⁻ :: T  # Wall time at previous calback
