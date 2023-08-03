@@ -45,18 +45,18 @@ end
 end
 #---
 
-#+++ SimpleStabilityMessenger
-struct SimpleStabilityMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
+#+++ BasicStabilityMessenger
+struct BasicStabilityMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
     advective_cfl :: PM
     diffusive_cfl :: PM
     print         :: Bool
 end
 
-SimpleStabilityMessenger(; advective_cfl = AdvectiveCFLNumber(with_prefix = true, print = false),
+BasicStabilityMessenger(; advective_cfl = AdvectiveCFLNumber(with_prefix = true, print = false),
                            diffusive_cfl = DiffusiveCFLNumber(with_prefix = true, print = false),
-                           print = true) = SimpleStabilityMessenger{AbstractProgressMessenger}(advective_cfl, diffusive_cfl, print)
+                           print = true) = BasicStabilityMessenger{AbstractProgressMessenger}(advective_cfl, diffusive_cfl, print)
 
-function (ssm::SimpleStabilityMessenger)(simulation)
+function (ssm::BasicStabilityMessenger)(simulation)
     message = (ssm.advective_cfl + ssm.diffusive_cfl)(simulation)
     return_or_print(message, ssm)
 end

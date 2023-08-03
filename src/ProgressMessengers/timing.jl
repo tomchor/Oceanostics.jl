@@ -109,8 +109,8 @@ function (wt::Walltime)(simulation)
 end
 #---
 
-#+++ SimpleTimeMessenger
-struct SimpleTimeMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
+#+++ BasicTimeMessenger
+struct BasicTimeMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
     percentage  :: PM
     time        :: PM
     Δt          :: PM
@@ -118,13 +118,13 @@ struct SimpleTimeMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressM
     print       :: Bool
 end
 
-SimpleTimeMessenger(; percentage = PercentageProgress(with_prefix = false, with_units = false, print = false),
+BasicTimeMessenger(; percentage = PercentageProgress(with_prefix = false, with_units = false, print = false),
                       time = Time(with_prefix = true, with_units = true, print = false),
                       Δt = TimeStep(with_prefix = true, with_units = true, print = false),
                       walltime = Walltime(with_prefix = true, with_units = true, print = false),
-                      print = true) = SimpleTimeMessenger{AbstractProgressMessenger}(percentage, time, Δt, walltime, print)
+                      print = true) = BasicTimeMessenger{AbstractProgressMessenger}(percentage, time, Δt, walltime, print)
 
-function (stm::SimpleTimeMessenger)(simulation)
+function (stm::BasicTimeMessenger)(simulation)
     message = ("["*stm.percentage*"] " * stm.time + stm.Δt + stm.walltime)(simulation)
     return_or_print(message, stm)
 end
@@ -138,7 +138,7 @@ struct TimeMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMesseng
 end
 
 TimeMessenger(; iteration = Iteration(with_prefix = false, print = false),
-                simple_time_messenger = SimpleTimeMessenger(print = false),
+                simple_time_messenger = BasicTimeMessenger(print = false),
                 print = true) = TimeMessenger{AbstractProgressMessenger}(iteration, simple_time_messenger, print)
 
 function (tm::TimeMessenger)(simulation)

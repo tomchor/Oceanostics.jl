@@ -9,8 +9,9 @@ export AbstractProgressMessenger
 export FunctionMessenger
 export MaxUVelocity, MaxVVelocity, MaxWVelocity
 export MaxVelocities
-export Iteration, Time, TimeStep, PercentageProgress, WalltimePerTimestep, Walltime, SimpleTimeMessenger, TimeMessenger, StopwatchMessenger
-export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber, SimpleStabilityMessenger
+export Iteration, Time, TimeStep, PercentageProgress, WalltimePerTimestep, Walltime, BasicTimeMessenger, TimeMessenger, StopwatchMessenger
+export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber, BasicStabilityMessenger
+export BasicMessenger
 
 abstract type AbstractProgressMessenger end
 
@@ -54,5 +55,24 @@ include("cfl.jl")
 
 const CourantNumber = AdvectiveCFLNumber
 const NormalizedMaxViscosity = DiffusiveCFLNumber
+
+#+++ BasicMessenger
+struct BasicMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
+    simple_time_messenger      :: PM
+    maxvels                    :: PM
+    simple_stability_messenger :: PM
+    print                      :: Bool
+end
+
+BasicMessenger(; simple_time_messenger = BasicTimeMessenger(print = false),
+                  maxvels = MaxVelocities(with_prefix = true, with_units = true, print = false),
+                  simple_stability_messenger = BasicStabilityMessenger(print = false),
+                  print = true) = BasicMessenger{AbstractProgressMessenger}(simple_time_messenger, maxvels, simple_stability_messenger, print)
+
+function (sm::BasicMessenger)(simulation)
+    message = (sm.simple_time_messenger + sm.maxvels + sm.simple_stability_messenger)(simulation)
+    return_or_print(message, sm)
+end
+#---
 
 end # module
