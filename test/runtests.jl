@@ -8,7 +8,8 @@ using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 
 using Oceanostics
 using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics
-using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger, make_message
+using Oceanostics.ProgressMessengers: BasicMessenger
+using Oceanostics: SingleLineProgressMessenger, make_message
 
 include("test_budgets.jl")
 
@@ -460,10 +461,10 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                                     tracers = :b,
                                     closure = closure)
 
-        @info "Testing SimpleProgressMessenger with closure" closure
+        @info "Testing BasicMessenger with closure" closure
         model.clock.iteration = 0
         time_now = time_ns()*1e-9
-        test_progress_messenger(model, SimpleProgressMessenger(initial_wall_time_seconds=1e-9*time_ns()))
+        test_progress_messenger(model, BasicMessenger(initial_wall_time_seconds=1e-9*time_ns()))
 
         @info "Testing SingleLineProgressMessenger with closure" closure
         model.clock.iteration = 0
