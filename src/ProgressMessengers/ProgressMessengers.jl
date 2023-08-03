@@ -10,7 +10,7 @@ export FunctionMessenger
 export MaxUVelocity, MaxVVelocity, MaxWVelocity
 export MaxVelocities
 export Iteration, Time, TimeStep, PercentageProgress, WalltimePerTimestep, Walltime, SimpleTimeMessenger, TimeMessenger, StopwatchMessenger
-export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber
+export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber, SimpleStabilityMessenger
 
 abstract type AbstractProgressMessenger end
 
@@ -51,5 +51,8 @@ return_or_print(message) = return message
 include("velocities.jl")
 include("timing.jl")
 include("cfl.jl")
+
+const CourantNumber = AdvectiveCFLNumber
+const NormalizedMaxViscosity = DiffusiveCFLNumber
 
 end # module

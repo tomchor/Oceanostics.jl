@@ -37,11 +37,11 @@ Base.@kwdef struct TimeStep <: AbstractProgressMessenger
     print       :: Bool = false
 end
 
-@inline function (tm::TimeStep)(simulation)
+@inline function (ts::TimeStep)(simulation)
     Δt = simulation.Δt
-    message = tm.with_units ? prettytime(Δt) : @sprintf("%.2g", Δt)
-    tm.with_prefix && (message = "Δt = " * message)
-    return_or_print(message, tm)
+    message = ts.with_units ? prettytime(Δt) : @sprintf("%.2g", Δt)
+    ts.with_prefix && (message = "Δt = " * message)
+    return_or_print(message, ts)
 end
 #---
 
@@ -124,9 +124,9 @@ SimpleTimeMessenger(; percentage = PercentageProgress(with_prefix = false, with_
                       walltime = Walltime(with_prefix = true, with_units = true, print = false),
                       print = true) = SimpleTimeMessenger{AbstractProgressMessenger}(percentage, time, Δt, walltime, print)
 
-function (tm::SimpleTimeMessenger)(simulation)
-    message = ("["*tm.percentage*"] " * tm.time + tm.Δt + tm.walltime)(simulation)
-    return_or_print(message, tm)
+function (stm::SimpleTimeMessenger)(simulation)
+    message = ("["*stm.percentage*"] " * stm.time + stm.Δt + stm.walltime)(simulation)
+    return_or_print(message, stm)
 end
 #---
 
@@ -158,8 +158,8 @@ StopwatchMessenger(; time_messenger = TimeMessenger(print = false),
                      walltime_per_timestep = WalltimePerTimestep(with_prefix = true, with_units = true, print = false),
                      print = true) = StopwatchMessenger{AbstractProgressMessenger}(time_messenger, walltime_per_timestep, print)
 
-function (tm::StopwatchMessenger)(simulation)
-    message = (tm.time_messenger + tm.walltime_per_timestep)(simulation)
-    return_or_print(message, tm)
+function (swm::StopwatchMessenger)(simulation)
+    message = (swm.time_messenger + swm.walltime_per_timestep)(simulation)
+    return_or_print(message, swm)
 end
 #---
