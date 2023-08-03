@@ -56,8 +56,25 @@ BasicStabilityMessenger(; advective_cfl = AdvectiveCFLNumber(with_prefix = true,
                            diffusive_cfl = DiffusiveCFLNumber(with_prefix = true, print = false),
                            print = true) = BasicStabilityMessenger{AbstractProgressMessenger}(advective_cfl, diffusive_cfl, print)
 
-function (ssm::BasicStabilityMessenger)(simulation)
-    message = (ssm.advective_cfl + ssm.diffusive_cfl)(simulation)
-    return_or_print(message, ssm)
+function (bsm::BasicStabilityMessenger)(simulation)
+    message = (bsm.advective_cfl + bsm.diffusive_cfl)(simulation)
+    return_or_print(message, bsm)
+end
+#---
+
+#+++ StabilityMessenger
+struct StabilityMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
+    basic_stab_messenger :: PM
+    max_viscosity        :: PM
+    print                :: Bool
+end
+
+StabilityMessenger(; basic_stab_messenger = BasicStabilityMessenger(print = false),
+                     max_viscosity = MaxViscosity(with_prefix = true, with_units = true, print = false),
+                     print = true) = StabilityMessenger{AbstractProgressMessenger}(basic_stab_messenger, max_viscosity, print)
+
+function (sm::StabilityMessenger)(simulation)
+    message = (sm.basic_stab_messenger + sm.max_viscosity)(simulation)
+    return_or_print(message, sm)
 end
 #---

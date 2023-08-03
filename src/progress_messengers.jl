@@ -5,7 +5,7 @@ using Oceananigans.Utils: prettytime
 using Oceananigans: iteration, time
 using Printf
 
-export SingleLineProgressMessenger, TimedProgressMessenger
+export TimedProgressMessenger
 
 tuple_to_op(ν) = ν
 tuple_to_op(::Nothing) = nothing
@@ -62,15 +62,6 @@ function make_message(simulation, single_line=false;
 end
 
 print_message(args...; kw...) = @info make_message(args...; kw...)
-
-"""
-    $(SIGNATURES)
-
-Return a `SingleLineProgressMessenger`, where the messenger output fits in one line.
-
-`kwargs` are passed to `make_message()`.
-"""
-SingleLineProgressMessenger(; kwargs...) = simulation -> print_message(simulation, true; kwargs...)
 
 mutable struct TimedProgressMessenger{T, I, L} <: Function
     wall_time₀ :: T  # Wall time at simulation start

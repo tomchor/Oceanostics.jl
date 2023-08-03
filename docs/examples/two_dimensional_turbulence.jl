@@ -48,12 +48,12 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
 # ## Model diagnostics
 #
 # Up until now we have only used Oceananigans, but we can make use of Oceanostics for the first
-# diagnostic we'll set-up: a progress messenger. Here we use a `SingleLineProgressMessenger`, which
+# diagnostic we'll set-up: a progress messenger. Here we use a `SingleLineMessenger`, which
 # displays relevant information in only one line.
 
 using Oceanostics
 
-progress = SingleLineProgressMessenger()
+progress = ProgressMessengers.SingleLineMessenger()
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 
 

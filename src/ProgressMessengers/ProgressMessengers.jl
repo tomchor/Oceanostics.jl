@@ -10,7 +10,7 @@ export FunctionMessenger
 export MaxUVelocity, MaxVVelocity, MaxWVelocity
 export MaxVelocities
 export Iteration, Time, TimeStep, PercentageProgress, WalltimePerTimestep, Walltime, BasicTimeMessenger, TimeMessenger, StopwatchMessenger
-export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber, BasicStabilityMessenger
+export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber, BasicStabilityMessenger, StabilityMessenger
 export BasicMessenger, SingleLineMessenger, TimedMessenger
 
 abstract type AbstractProgressMessenger end
@@ -67,28 +67,26 @@ BasicMessenger(; basic_time_messenger = BasicTimeMessenger(print = false),
                  basic_stability_messenger = BasicStabilityMessenger(print = false),
                  print = true) = BasicMessenger{AbstractProgressMessenger}(basic_time_messenger, basic_stability_messenger, print)
 
-function (sm::BasicMessenger)(simulation)
-    message = (sm.basic_time_messenger + sm.basic_stability_messenger)(simulation)
-    return_or_print(message, sm)
+function (pm::BasicMessenger)(simulation)
+    message = (pm.basic_time_messenger + pm.basic_stability_messenger)(simulation)
+    return_or_print(message, pm)
 end
 #---
 
 #+++ SingleLineMessenger
 struct SingleLineMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
-    time_messenger            :: PM
-    maxvels                   :: PM
-    basic_stability_messenger :: PM
-    print                     :: Bool
+    time_messenger      :: PM
+    stability_messenger :: PM
+    print               :: Bool
 end
 
 SingleLineMessenger(; time_messenger = TimeMessenger(print = false),
-                      maxvels = MaxVelocities(with_prefix = true, with_units = true, print = false),
-                      basic_stability_messenger = BasicStabilityMessenger(print = false),
-                      print = true) = SingleLineMessenger{AbstractProgressMessenger}(time_messenger, maxvels, basic_stability_messenger, print)
+                      stability_messenger = StabilityMessenger(print = false),
+                      print = true) = SingleLineMessenger{AbstractProgressMessenger}(time_messenger, stability_messenger, print)
 
-function (sm::SingleLineMessenger)(simulation)
-    message = (sm.time_messenger + sm.maxvels + sm.basic_stability_messenger)(simulation)
-    return_or_print(message, sm)
+function (pm::SingleLineMessenger)(simulation)
+    message = (pm.time_messenger + pm.stability_messenger)(simulation)
+    return_or_print(message, pm)
 end
 #---
 
@@ -105,9 +103,9 @@ TimedMessenger(; basic_time_messenger = BasicTimeMessenger(print = false),
                   basic_stability_messenger = BasicStabilityMessenger(print = false),
                   print = true) = TimedMessenger{AbstractProgressMessenger}(basic_time_messenger, maxvels, basic_stability_messenger, print)
 
-function (sm::TimedMessenger)(simulation)
-    message = (sm.basic_time_messenger + sm.maxvels + sm.basic_stability_messenger)(simulation)
-    return_or_print(message, sm)
+function (pm::TimedMessenger)(simulation)
+    message = (pm.basic_time_messenger + pm.maxvels + pm.basic_stability_messenger)(simulation)
+    return_or_print(message, pm)
 end
 #---
 
