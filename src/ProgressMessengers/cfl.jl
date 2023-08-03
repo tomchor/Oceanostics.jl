@@ -36,8 +36,13 @@ Base.@kwdef struct MaxViscosity <: AbstractProgressMessenger
     print       :: Bool = false
 end
 
+tuple_to_op(ν) = ν
+tuple_to_op(::Nothing) = nothing
+tuple_to_op(ν_tuple::Tuple) = sum(ν_tuple)
+
 @inline function (maxν::MaxViscosity)(simulation)
-    ν_max = maximum(abs, viscosity(simulation.model.closure, simulation.model.diffusivity_fields))
+    ν = tuple_to_op(viscosity(simulation.model.closure, simulation.model.diffusivity_fields))
+    ν_max = maximum(abs, ν)
     message = @sprintf("%.2g", ν_max)
     maxν.with_prefix && (message = "νₘₐₓ = " * message)
     maxν.with_units  && (message = message * " m²/s")
