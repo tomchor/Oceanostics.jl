@@ -20,7 +20,6 @@ progress_messenger(simulation) = @info (Iteration()
                                         + DiffusiveCFLNumber() 
                                         + MaxViscosity() + WalltimePerTimestep()
                                         )(simulation)
-simulation.callbacks[:progress0] = Callback(TimedProgressMessenger())
-simulation.callbacks[:progress1] = Callback(SingleLineMessenger())
+simulation.callbacks[:progress1] = Callback(TimedMessenger())
 
 run!(simulation)

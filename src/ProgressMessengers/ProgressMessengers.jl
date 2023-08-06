@@ -15,8 +15,9 @@ export BasicMessenger, SingleLineMessenger, TimedMessenger
 
 abstract type AbstractProgressMessenger end
 
-const comma = ",  "
-const space = ""
+comma = ",  "
+space = ""
+indented_newline = "\n          "
 
 #+++ FunctionMessenger
 Base.@kwdef struct FunctionMessenger{F} <: AbstractProgressMessenger
@@ -92,19 +93,19 @@ end
 
 #+++ TimedMessenger
 struct TimedMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMessenger
-    basic_time_messenger      :: PM
-    maxvels                    :: PM
-    basic_stability_messenger :: PM
-    print                      :: Bool
+    stopwatch_messenger :: PM
+    maxvels             :: PM
+    stability_messenger :: PM
+    print               :: Bool
 end
 
-TimedMessenger(; basic_time_messenger = BasicTimeMessenger(print = false),
-                  maxvels = MaxVelocities(with_prefix = true, with_units = true, print = false),
-                  basic_stability_messenger = BasicStabilityMessenger(print = false),
-                  print = true) = TimedMessenger{AbstractProgressMessenger}(basic_time_messenger, maxvels, basic_stability_messenger, print)
+TimedMessenger(; stopwatch_messenger = StopwatchMessenger(print = false),
+                 maxvels = MaxVelocities(with_prefix = true, with_units = true, print = false),
+                 stability_messenger = StabilityMessenger(print = false),
+                 print = true) = TimedMessenger{AbstractProgressMessenger}(stopwatch_messenger, maxvels, stability_messenger, print)
 
 function (pm::TimedMessenger)(simulation)
-    message = (pm.basic_time_messenger + pm.maxvels + pm.basic_stability_messenger)(simulation)
+    message = (pm.stopwatch_messenger * indented_newline * pm.maxvels + pm.stability_messenger)(simulation)
     return_or_print(message, pm)
 end
 #---
