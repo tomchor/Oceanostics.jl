@@ -8,7 +8,7 @@ using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 
 using Oceanostics
 using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics
-using Oceanostics.ProgressMessengers: BasicMessenger, SingleLineMessenger
+using Oceanostics.ProgressMessengers: BasicMessenger, SingleLineMessenger, TimedMessenger
 
 include("test_budgets.jl")
 
@@ -462,12 +462,10 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
         @info "Testing BasicMessenger with closure" closure
         model.clock.iteration = 0
-        time_now = time_ns()*1e-9
         test_progress_messenger(model, BasicMessenger())
 
         @info "Testing SingleLineMessenger with closure" closure
         model.clock.iteration = 0
-        time_now = time_ns()*1e-9
         test_progress_messenger(model, SingleLineMessenger())
 
         # Test that SingleLineMessenger is indeed a single line
@@ -475,10 +473,16 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
         msg = SingleLineMessenger(print=false)(simulation)
         @test countlines(IOBuffer(msg)) == 1
 
-        @info "Testing TimedProgressMessenger with closure" closure
+        @info "Testing TimedMessenger with closure" closure
         model.clock.iteration = 0
-        time_now = time_ns()*1e-9
-        test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
+        test_progress_messenger(model, TimedMessenger())
+
+        @info "Testing custom progress messenger with closure" closure
+        model.clock.iteration = 0
+        progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false)
+                                      + Time() + TimeStep() + MaxVelocities()
+                                      + AdvectiveCFLNumber() + WalltimePerTimestep())(simulation)
+        test_progress_messenger(model, progress)
     end
 
     rtol = 0.02; N = 80
