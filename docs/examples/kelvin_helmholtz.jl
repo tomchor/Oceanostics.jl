@@ -53,12 +53,12 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
 
 # ## Model diagnostics
 #
-# We set-up a progress messenger using the `BasicMessenger`, which, as the name suggests,
-# displays basic information about the simulation
+# We set-up a progress messenger using the `TimedMessenger`, which displays, among other
+# information, the time step duration
 
 using Oceanostics
 
-progress = ProgressMessengers.BasicMessenger()
+progress = ProgressMessengers.TimedMessenger()
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))
 
 
