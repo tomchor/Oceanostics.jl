@@ -134,14 +134,17 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
 # We set-up a custom progress messenger using the Oceanostics`TimedMessenger`, which displays, among other
 # information, the time step duration
 
-using Oceanostics
+using Oceanostics.ProgressMessengers
 
-progress = ProgressMessengers.TimedMessenger()
+progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false) + Time() + TimeStep() + MaxVelocities() + AdvectiveCFLNumber() + WalltimePerTimestep())(simulation)
+
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(400))
 
 
 # We now define some useful diagnostics for the flow. Namely, we define `RichardsonNumber`,
 # `RossbyNumber` and `ErtelPotentialVorticity`:
+
+using Oceanostics
 
 Ri = RichardsonNumber(model, add_background=true)
 Ro = RossbyNumber(model)
