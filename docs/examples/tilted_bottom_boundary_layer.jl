@@ -195,15 +195,15 @@ ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
 
 n = Observable(1)
 
-Riₙ = @lift ds.Ri[Ti=$n, yC=Near(0)]
+Riₙ = @lift set(ds.Ri[Ti=$n, yC=Near(0)], :xC => X, :zF => Z)
 hm1 = heatmap!(ax1, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
 Colorbar(fig[3, 1], hm1, vertical=false, height=8, ticklabelsize=14)
 
-Roₙ = @lift ds.Ro[Ti=$n, yF=Near(0)]
+Roₙ = @lift set(ds.Ro[Ti=$n, yF=Near(0)], :xF => X, :zF => Z)
 hm2 = heatmap!(ax2, Roₙ; colormap = :balance, colorrange = (-10, +10))
 Colorbar(fig[3, 2], hm2, vertical=false, height=8, ticklabelsize=14)
 
-PVₙ = @lift ds.PV[Ti=$n, yF=Near(0)]
+PVₙ = @lift set(ds.PV[Ti=$n, yF=Near(0)], :xF => X, :zF => Z)
 hm3 = heatmap!(ax3, PVₙ; colormap = :coolwarm, colorrange = N²*f₀.*(-1.5, +1.5))
 Colorbar(fig[3, 3], hm3, vertical=false, height=8, ticklabelsize=14);
 

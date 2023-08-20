@@ -127,8 +127,8 @@ n = Observable(1)
 # `n` above is a [`Makie.Observable`](https://docs.makie.org/stable/documentation/nodes/index.html),
 # which allows us to animate things easily. Creating observable `KE` and `ε` can be done simply with
 
-KEₙ = @lift ds.KE[zC=1, Ti=$n]
-εₙ = @lift ds.ε[zC=1, Ti=$n]
+KEₙ = @lift set(ds.KE[zC=1, Ti=$n], :xC => X, :yC => Y)
+εₙ  = @lift set(ds.ε[zC=1, Ti=$n],  :xC => X, :yC => Y)
 
 # Note that, in Rasters, the `time` coordinate gets shortened to `Ti`.
 #
