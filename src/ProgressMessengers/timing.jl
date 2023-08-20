@@ -68,6 +68,22 @@ end
 end
 #---
 
+#+++ Walltime
+Base.@kwdef mutable struct Walltime{T} <: AbstractProgressMessenger
+    wall_seconds⁰  :: T    = 1e-9*time_ns() # Wall time at previous calback
+    with_prefix    :: Bool = true
+    with_units     :: Bool = true
+    print          :: Bool = false
+end
+
+function (wt::Walltime)(simulation)
+    current_wall_seconds = 1e-9 * time_ns() - wt.wall_seconds⁰
+    message = wt.with_units ? prettytime(current_wall_seconds) : @sprintf("%.2g", current_wall_seconds)
+    wt.with_prefix && (message = "walltime = " * message)
+    return_or_print(message, wt)
+end
+#---
+
 #+++ WalltimePerTimestep
 Base.@kwdef mutable struct WalltimePerTimestep{T, I} <: AbstractProgressMessenger
     wall_seconds⁻ :: T    = 1e-9*time_ns() # Wall time at previous calback
@@ -90,22 +106,6 @@ function (wpt::WalltimePerTimestep)(simulation)
     message = wpt.with_units ? prettytime(wall_time_per_step) : @sprintf("%.2g", wall_time_per_step)
     wpt.with_prefix && (message = "walltime / timestep = " * message)
     return_or_print(message, wpt)
-end
-#---
-
-#+++ Walltime
-Base.@kwdef mutable struct Walltime{T} <: AbstractProgressMessenger
-    wall_seconds⁰  :: T    = 1e-9*time_ns() # Wall time at previous calback
-    with_prefix    :: Bool = true
-    with_units     :: Bool = true
-    print          :: Bool = false
-end
-
-function (wt::Walltime)(simulation)
-    current_wall_seconds = 1e-9 * time_ns() - wt.wall_seconds⁰
-    message = wt.with_units ? prettytime(current_wall_seconds) : @sprintf("%.2g", current_wall_seconds)
-    wt.with_prefix && (message = "walltime = " * message)
-    return_or_print(message, wt)
 end
 #---
 

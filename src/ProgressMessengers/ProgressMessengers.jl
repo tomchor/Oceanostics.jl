@@ -9,7 +9,7 @@ export AbstractProgressMessenger
 export FunctionMessenger
 export MaxUVelocity, MaxVVelocity, MaxWVelocity
 export MaxVelocities
-export Iteration, Time, TimeStep, PercentageProgress, WalltimePerTimestep, Walltime, BasicTimeMessenger, TimeMessenger, StopwatchMessenger
+export Iteration, Time, TimeStep, PercentageProgress, Walltime, WalltimePerTimestep, BasicTimeMessenger, TimeMessenger, StopwatchMessenger
 export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber, BasicStabilityMessenger, StabilityMessenger
 export BasicMessenger, SingleLineMessenger, TimedMessenger
 
