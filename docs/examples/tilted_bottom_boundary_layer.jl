@@ -192,7 +192,8 @@ ax1 = Axis(fig[2, 1]; title = "Ri", kwargs...)
 ax2 = Axis(fig[2, 2]; title = "Ro", kwargs...)
 ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
 
-# Next we use `Observable`s to lift the values and plot heatmaps and their colorbars
+# Next we an `Observable` to lift the values at each specific time and plot
+# heatmaps, along with their colorbars, with buoyancy contours on top
 
 n = Observable(1)
 

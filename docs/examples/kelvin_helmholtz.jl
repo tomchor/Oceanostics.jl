@@ -74,7 +74,7 @@ Q = QVelocityGradientTensorInvariant(model)
 # the strain in the flow and, when it's positive, indicates a vortex. This method of vortex
 # visualization is called the [Q-criterion](https://tinyurl.com/mwv6fskc).
 #
-# Let's also keep track of the amount of buoyancy mixing by measuring the integrated buoyancy
+# Let's also keep track of the amount of buoyancy mixing by measuring the buoyancy
 # variance dissipation rate and diffusive term. When volume-integrated, these two quantities should
 # be equal.
 
