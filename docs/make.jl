@@ -80,7 +80,7 @@ if CI
                versions = ["stable" => "v^", "v#.#.#", "dev" => "dev"],
                devbranch = "main",
                forcepush = true,
-               push_preview = false,
+               push_preview = true,
                branch_previews = "doc-previews",
                )
 end
