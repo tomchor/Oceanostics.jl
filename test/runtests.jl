@@ -8,7 +8,7 @@ using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 
 using Oceanostics
 using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics
-using Oceanostics.ProgressMessengers: BasicMessenger, SingleLineMessenger, TimedMessenger
+using Oceanostics: ProgressMessengers
 
 include("test_budgets.jl")
 
