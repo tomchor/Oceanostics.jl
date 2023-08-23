@@ -84,8 +84,8 @@ function (wt::Walltime)(simulation)
 end
 #---
 
-#+++ WalltimePerTimestep
-Base.@kwdef mutable struct WalltimePerTimestep{T, I} <: AbstractProgressMessenger
+#+++ StepDuration
+Base.@kwdef mutable struct StepDuration{T, I} <: AbstractProgressMessenger
     wall_seconds⁻ :: T    = 1e-9*time_ns() # Wall time at previous calback
     iteration⁻    :: I    = 0 # Iteration at previous calback
     with_prefix   :: Bool = true
@@ -93,7 +93,7 @@ Base.@kwdef mutable struct WalltimePerTimestep{T, I} <: AbstractProgressMessenge
     print         :: Bool = false
 end
 
-function (wpt::WalltimePerTimestep)(simulation)
+function (wpt::StepDuration)(simulation)
     iter = iteration(simulation)
 
     seconds_since_last_callback = 1e-9 * time_ns() - wpt.wall_seconds⁻
@@ -155,7 +155,7 @@ struct StopwatchMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMe
 end
 
 StopwatchMessenger(; time_messenger = TimeMessenger(print = false),
-                     walltime_per_timestep = WalltimePerTimestep(with_prefix = true, with_units = true, print = false),
+                     walltime_per_timestep = StepDuration(with_prefix = true, with_units = true, print = false),
                      print = true) = StopwatchMessenger{AbstractProgressMessenger}(time_messenger, walltime_per_timestep, print)
 
 function (swm::StopwatchMessenger)(simulation)

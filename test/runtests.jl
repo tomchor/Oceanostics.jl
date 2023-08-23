@@ -479,7 +479,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
         @info "Testing custom progress messenger with closure" closure
         model.clock.iteration = 0
-        step_duration = WalltimePerTimestep()
+        step_duration = StepDuration()
         progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false)
                                       + Time() + TimeStep() + MaxVelocities()
                                       + AdvectiveCFLNumber() + step_duration)(simulation)
