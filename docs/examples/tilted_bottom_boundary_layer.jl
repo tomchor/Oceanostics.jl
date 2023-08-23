@@ -131,17 +131,21 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
 
 # ## Model diagnostics
 #
-# We set-up a progress messenger using the `TimedProgressMessenger`, which displays, among other
-# information, the time step duration
+# We set-up a custom progress messenger using `Oceanostics.ProgressMessengers`, which allows
+# us to combine different `ProgressMessenger`s into one:
 
-using Oceanostics
+using Oceanostics.ProgressMessengers
 
-progress = TimedProgressMessenger()
+walltime_per_timestep = StepDuration() # This needs to instantiated here, and not in the function below
+progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false) + Time() + TimeStep() + MaxVelocities() + AdvectiveCFLNumber() + walltime_per_timestep)(simulation)
+
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(400))
 
 
 # We now define some useful diagnostics for the flow. Namely, we define `RichardsonNumber`,
 # `RossbyNumber` and `ErtelPotentialVorticity`:
+
+using Oceanostics
 
 Ri = RichardsonNumber(model, add_background=true)
 Ro = RossbyNumber(model)
@@ -156,7 +160,7 @@ PV = ErtelPotentialVorticity(model, add_background=true)
 #
 # Now we write these quantities to a NetCDF file:
 
-output_fields = (; Ri, Ro, PV)
+output_fields = (; Ri, Ro, PV, b = model.tracers.b + model.background_fields.tracers.b)
 
 filename = "tilted_bottom_boundary_layer"
 simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
@@ -188,20 +192,26 @@ ax1 = Axis(fig[2, 1]; title = "Ri", kwargs...)
 ax2 = Axis(fig[2, 2]; title = "Ro", kwargs...)
 ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
 
-# Next we use `Observable`s to lift the values and plot heatmaps and their colorbars
+# Next we an `Observable` to lift the values at each specific time and plot
+# heatmaps, along with their colorbars, with buoyancy contours on top
 
 n = Observable(1)
 
-Riₙ = @lift ds.Ri[Ti=$n, yC=Near(0)]
+bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
+
+Riₙ = @lift set(ds.Ri[Ti=$n, yC=Near(0)], :xC => X, :zF => Z)
 hm1 = heatmap!(ax1, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
+contour!(ax1, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
 Colorbar(fig[3, 1], hm1, vertical=false, height=8, ticklabelsize=14)
 
-Roₙ = @lift ds.Ro[Ti=$n, yF=Near(0)]
+Roₙ = @lift set(ds.Ro[Ti=$n, yF=Near(0)], :xF => X, :zF => Z)
 hm2 = heatmap!(ax2, Roₙ; colormap = :balance, colorrange = (-10, +10))
+contour!(ax2, bₙ; levels=10, color=:black, linestyle=:dash, linewidth=0.5)
 Colorbar(fig[3, 2], hm2, vertical=false, height=8, ticklabelsize=14)
 
-PVₙ = @lift ds.PV[Ti=$n, yF=Near(0)]
+PVₙ = @lift set(ds.PV[Ti=$n, yF=Near(0)], :xF => X, :zF => Z)
 hm3 = heatmap!(ax3, PVₙ; colormap = :coolwarm, colorrange = N²*f₀.*(-1.5, +1.5))
+contour!(ax3, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
 Colorbar(fig[3, 3], hm3, vertical=false, height=8, ticklabelsize=14);
 
 # Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title

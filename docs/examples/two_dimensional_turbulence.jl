@@ -48,12 +48,13 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
 # ## Model diagnostics
 #
 # Up until now we have only used Oceananigans, but we can make use of Oceanostics for the first
-# diagnostic we'll set-up: a progress messenger. Here we use a `SingleLineProgressMessenger`, which
-# displays relevant information in only one line.
+# diagnostic we'll set-up: a progress messenger. Here we use a `BasicMessenger`, which,
+# as the name suggests, displays basic information about the simulation
 
 using Oceanostics
 
-progress = SingleLineProgressMessenger()
+progress = ProgressMessengers.BasicMessenger()
+
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 
 
@@ -99,7 +100,7 @@ simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
 run!(simulation)
 
 # Now we'll read the results using Rasters.jl, which works somewhat similarly to Python's Xarray and
-# can speed-up the work the workflow
+# can speed-up the workflow
 
 using Rasters
 
@@ -126,8 +127,8 @@ n = Observable(1)
 # `n` above is a [`Makie.Observable`](https://docs.makie.org/stable/documentation/nodes/index.html),
 # which allows us to animate things easily. Creating observable `KE` and `ε` can be done simply with
 
-KEₙ = @lift ds.KE[zC=1, Ti=$n]
-εₙ = @lift ds.ε[zC=1, Ti=$n]
+KEₙ = @lift set(ds.KE[zC=1, Ti=$n], :xC => X, :yC => Y);
+εₙ  = @lift set(ds.ε[zC=1, Ti=$n],  :xC => X, :yC => Y);
 
 # Note that, in Rasters, the `time` coordinate gets shortened to `Ti`.
 #

@@ -22,6 +22,10 @@ export DirectionalErtelPotentialVorticity
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 #---
 
+#+++ ProgressMessengers
+export ProgressMessengers
+#---
+
 #+++ Utils for validation
 # Right now, all kernels must be located at ccc
 using Oceananigans.TurbulenceClosures: AbstractScalarDiffusivity, ThreeDimensionalFormulation
@@ -74,20 +78,18 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, calc_nonlinear_κᶜᶜᶜ
 @inline _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple{}, args...) = zero(grid)
 
 # Unroll the loop over a tuple
-@inline _νᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple, K::Tuple, clock) =
-     νᶜᶜᶜ(i, j, k, grid, closure_tuple[1],     K[1],     clock) + 
-    _νᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], K[2:end], clock)
+@inline _νᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple, K::Tuple, clock) = νᶜᶜᶜ(i, j, k, grid, closure_tuple[1],     K[1],     clock) + 
+                                                                     _νᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], K[2:end], clock)
 
-@inline _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple, args...) =
-    calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple[1], args...) +
-    _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], args...)
+@inline _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple, args...) = calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple[1], args...) +
+                                                                            _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], args...)
 #---
 
 include("TKEBudgetTerms.jl")
 include("TracerVarianceBudgetTerms.jl")
 include("FlowDiagnostics.jl")
-include("progress_messengers.jl")
+include("ProgressMessengers/ProgressMessengers.jl")
 
-using .TKEBudgetTerms, .TracerVarianceBudgetTerms, .FlowDiagnostics
+using .TKEBudgetTerms, .TracerVarianceBudgetTerms, .FlowDiagnostics, .ProgressMessengers
 
 end # module
