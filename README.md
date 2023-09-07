@@ -6,6 +6,7 @@
 
 [![Github repo](https://img.shields.io/badge/-Github-white?logo=github&logoColor=black)](https://github.com/tomchor/Oceanostics.jl)
 
+[![DOI](https://zenodo.org/badge/333787438.svg)](https://zenodo.org/badge/latestdoi/333787438)
 
 Oceanostics is a Julia package created to facilitate obtaining diagnostic quantities in
 [Oceananigans](https://github.com/CliMA/Oceananigans.jl) simulations. It was created solely as a
