@@ -67,22 +67,17 @@ end
 #---
 
 #+++ A few utils for closure tuples:
-using Oceananigans.TurbulenceClosures: νᶜᶜᶜ, calc_nonlinear_κᶜᶜᶜ
+using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
 
 # Fallbacks that capture "single closure" case
 @inline _νᶜᶜᶜ(args...) = νᶜᶜᶜ(args...)
-@inline _calc_nonlinear_κᶜᶜᶜ(args...) = calc_nonlinear_κᶜᶜᶜ(args...)
 
 # End point
 @inline _νᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple{}, K::Tuple{}, clock) = zero(grid)
-@inline _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple{}, args...) = zero(grid)
 
 # Unroll the loop over a tuple
 @inline _νᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple, K::Tuple, clock) = νᶜᶜᶜ(i, j, k, grid, closure_tuple[1],     K[1],     clock) + 
                                                                      _νᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], K[2:end], clock)
-
-@inline _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple::Tuple, args...) = calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple[1], args...) +
-                                                                            _calc_nonlinear_κᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], args...)
 #---
 
 include("TKEBudgetTerms.jl")
