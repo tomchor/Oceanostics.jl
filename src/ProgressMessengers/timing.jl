@@ -15,14 +15,14 @@ end
 end
 #---
 
-#+++ Time
-Base.@kwdef struct Time <: AbstractProgressMessenger
+#+++ SimulationTime
+Base.@kwdef struct SimulationTime <: AbstractProgressMessenger
     with_prefix :: Bool = true
     with_units ::  Bool = true
     print       :: Bool = false
 end
 
-@inline function (tm::Time)(simulation)
+@inline function (tm::SimulationTime)(simulation)
     t = time(simulation)
     message = tm.with_units ? prettytime(t) : @sprintf("%.2g", t)
     tm.with_prefix && (message = "time = " * message)
@@ -119,10 +119,10 @@ struct BasicTimeMessenger{PM <: AbstractProgressMessenger} <: AbstractProgressMe
 end
 
 BasicTimeMessenger(; percentage = PercentageProgress(with_prefix = false, with_units = false, print = false),
-                      time = Time(with_prefix = true, with_units = true, print = false),
-                      Δt = TimeStep(with_prefix = true, with_units = true, print = false),
-                      walltime = Walltime(with_prefix = true, with_units = true, print = false),
-                      print = true) = BasicTimeMessenger{AbstractProgressMessenger}(percentage, time, Δt, walltime, print)
+                     time = SimulationTime(with_prefix = true, with_units = true, print = false),
+                     Δt = TimeStep(with_prefix = true, with_units = true, print = false),
+                     walltime = Walltime(with_prefix = true, with_units = true, print = false),
+                     print = true) = BasicTimeMessenger{AbstractProgressMessenger}(percentage, time, Δt, walltime, print)
 
 function (stm::BasicTimeMessenger)(simulation)
     message = ("["*stm.percentage*"] " * stm.time + stm.Δt + stm.walltime)(simulation)
