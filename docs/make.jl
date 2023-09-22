@@ -46,7 +46,6 @@ makedocs(sitename = "Oceanostics.jl",
          pages = pages,
          modules = [Oceanostics],
          doctest = true,
-         strict = :doctest,
          clean = true,
          format = format,
          checkdocs = :exports
