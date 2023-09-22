@@ -137,7 +137,7 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
 using Oceanostics.ProgressMessengers
 
 walltime_per_timestep = StepDuration() # This needs to instantiated here, and not in the function below
-progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false) + Time() + TimeStep() + MaxVelocities() + AdvectiveCFLNumber() + walltime_per_timestep)(simulation)
+progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false) + SimulationTime() + TimeStep() + MaxVelocities() + AdvectiveCFLNumber() + walltime_per_timestep)(simulation)
 
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(400))
 

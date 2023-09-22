@@ -481,7 +481,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
         model.clock.iteration = 0
         step_duration = StepDuration()
         progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false)
-                                      + Time() + TimeStep() + MaxVelocities()
+                                      + SimulationTime() + TimeStep() + MaxVelocities()
                                       + AdvectiveCFLNumber() + step_duration)(simulation)
         test_progress_messenger(model, progress)
     end
