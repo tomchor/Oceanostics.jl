@@ -11,7 +11,6 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 [compat]
 DocStringExtensions = "0.9"
 Oceananigans = "0.85, 0.86, 0.87, 0.88"
-Documenter = "1"
 julia = "1.9"
 
 [extras]
