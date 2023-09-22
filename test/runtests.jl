@@ -8,7 +8,7 @@ using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 
 using Oceanostics
 using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics
-using Oceanostics: SimpleProgressMessenger, SingleLineProgressMessenger, make_message
+using Oceanostics.ProgressMessengers
 
 include("test_budgets.jl")
 
@@ -460,24 +460,30 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                                     tracers = :b,
                                     closure = closure)
 
-        @info "Testing SimpleProgressMessenger with closure" closure
+        @info "Testing BasicMessenger with closure" closure
         model.clock.iteration = 0
-        time_now = time_ns()*1e-9
-        test_progress_messenger(model, SimpleProgressMessenger(initial_wall_time_seconds=1e-9*time_ns()))
+        test_progress_messenger(model, BasicMessenger())
 
-        @info "Testing SingleLineProgressMessenger with closure" closure
+        @info "Testing SingleLineMessenger with closure" closure
         model.clock.iteration = 0
-        time_now = time_ns()*1e-9
-        test_progress_messenger(model, SingleLineProgressMessenger(initial_wall_time_seconds=1e-9*time_ns()))
+        test_progress_messenger(model, SingleLineMessenger())
 
+        # Test that SingleLineMessenger is indeed a single line
         simulation = Simulation(model; Δt=1e-2, stop_iteration=1)
-        msg = make_message(simulation, true)
-        @test count(s -> s === '\n', msg) == 1
+        msg = SingleLineMessenger(print=false)(simulation)
+        @test countlines(IOBuffer(msg)) == 1
 
-        @info "Testing TimedProgressMessenger with closure" closure
+        @info "Testing TimedMessenger with closure" closure
         model.clock.iteration = 0
-        time_now = time_ns()*1e-9
-        test_progress_messenger(model, TimedProgressMessenger(; LES=LES))
+        test_progress_messenger(model, TimedMessenger())
+
+        @info "Testing custom progress messenger with closure" closure
+        model.clock.iteration = 0
+        step_duration = StepDuration()
+        progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false)
+                                      + SimulationTime() + TimeStep() + MaxVelocities()
+                                      + AdvectiveCFLNumber() + step_duration)(simulation)
+        test_progress_messenger(model, progress)
     end
 
     rtol = 0.02; N = 80

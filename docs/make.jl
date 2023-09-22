@@ -46,7 +46,6 @@ makedocs(sitename = "Oceanostics.jl",
          pages = pages,
          modules = [Oceanostics],
          doctest = true,
-         strict = :doctest,
          clean = true,
          format = format,
          checkdocs = :exports
@@ -80,7 +79,7 @@ if CI
                versions = ["stable" => "v^", "v#.#.#", "dev" => "dev"],
                devbranch = "main",
                forcepush = true,
-               push_preview = true,
+               push_preview = false,
                branch_previews = "doc-previews",
                )
 end

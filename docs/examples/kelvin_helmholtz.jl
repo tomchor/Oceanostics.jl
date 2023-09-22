@@ -53,12 +53,12 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
 
 # ## Model diagnostics
 #
-# We set-up a progress messenger using the `SimpleProgressMessenger`, which, as the name suggests,
-# displays simple information about the simulation
+# We set-up a progress messenger using the `TimedMessenger`, which displays, among other
+# information, the time step duration
 
 using Oceanostics
 
-progress = SimpleProgressMessenger()
+progress = ProgressMessengers.TimedMessenger()
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))
 
 
@@ -74,7 +74,7 @@ Q = QVelocityGradientTensorInvariant(model)
 # the strain in the flow and, when it's positive, indicates a vortex. This method of vortex
 # visualization is called the [Q-criterion](https://tinyurl.com/mwv6fskc).
 #
-# Let's also keep track of the amount of buoyancy mixing by measuring the integrated buoyancy
+# Let's also keep track of the amount of buoyancy mixing by measuring the buoyancy
 # variance dissipation rate and diffusive term. When volume-integrated, these two quantities should
 # be equal.
 
@@ -121,15 +121,15 @@ ax3 = Axis(fig[2, 3]; title = "b", kwargs...);
 
 n = Observable(1)
 
-Riₙ = @lift ds.Ri[Ti=$n, yC=Near(0)]
+Riₙ = @lift set(ds.Ri[Ti=$n, yC=Near(0)], :xC => X, :zF => Z)
 hm1 = heatmap!(ax1, Riₙ; colormap = :bwr, colorrange = (-1, +1))
 Colorbar(fig[3, 1], hm1, vertical=false, height=8)
 
-Qₙ = @lift ds.Q[Ti=$n, yC=Near(0)]
+Qₙ = @lift set(ds.Q[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
 hm2 = heatmap!(ax2, Qₙ; colormap = :inferno, colorrange = (0, 0.2))
 Colorbar(fig[3, 2], hm2, vertical=false, height=8)
 
-bₙ = @lift ds.b[Ti=$n, yC=Near(0)]
+bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
 hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-2.5e-2, +2.5e-2))
 Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 

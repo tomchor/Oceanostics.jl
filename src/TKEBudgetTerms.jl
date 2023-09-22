@@ -176,14 +176,16 @@ end
                                           coriolis,
                                           stokes_drift,
                                           closure,
-                                          immersed_bc,
+                                          u_immersed_bc,
+                                          v_immersed_bc,
+                                          w_immersed_bc,
                                           buoyancy,
                                           background_fields,
                                           velocities,
                                           args...)
-        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields, velocities, args...)
-        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields, velocities, args...)
-        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, immersed_bc, buoyancy, background_fields, velocities, args...)
+        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, u_immersed_bc, buoyancy, background_fields, velocities, args...)
+        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, args...)
+        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, args...)
     return u∂ₜu + v∂ₜv + w∂ₜw
 end
 
@@ -202,7 +204,9 @@ function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, C
                     model.coriolis,
                     model.stokes_drift,
                     model.closure,
-                    model.velocities.u.boundary_conditions.immersed,
+                    u_immersed_bc = model.velocities.u.boundary_conditions.immersed,
+                    v_immersed_bc = model.velocities.v.boundary_conditions.immersed,
+                    w_immersed_bc = model.velocities.w.boundary_conditions.immersed,
                     model.buoyancy,
                     model.background_fields,
                     model.velocities,
@@ -257,7 +261,7 @@ function KineticEnergyDiffusiveTerm(model; location = (Center, Center, Center))
 end
 #---
 
-#--- Kinetic energy forcing term
+#+++ Kinetic energy forcing term
 @inline function uᵢFᵤᵢᶜᶜᶜ(i, j, k, grid, forcings,
                                          clock,
                                          model_fields)

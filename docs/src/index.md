@@ -25,7 +25,7 @@ julia> model = NonhydrostaticModel(grid=grid, closure=SmagorinskyLilly());
 
 julia> simulation = Simulation(model, Δt=1, stop_time=10);
 
-julia> simulation.callbacks[:progress] = Callback(TimedProgressMessenger(LES=false), IterationInterval(5));
+julia> simulation.callbacks[:progress] = Callback(ProgressMessengers.TimedMessenger(), IterationInterval(5));
 
 julia> ke = KineticEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -43,16 +43,16 @@ julia> simulation.output_writers[:netcdf_writer] = NetCDFOutputWriter(model, (; 
 
 julia> run!(simulation)
 [ Info: Initializing simulation...
-┌ Info: [000.00%] iteration:      0, time:  0 seconds, Δt:   1 second, wall time: 6.410 seconds (0 seconds / time step)
-└           └── max(|u⃗|): [0.00e+00, 0.00e+00, 0.00e+00] m/s, CFL: 0.00e+00
-[ Info:     ... simulation initialization complete (10.662 ms)
+┌ Info: iter =      0,  [000.00%] time = 0 seconds,  Δt = 1 second,  walltime = 621.022 ms,  walltime / timestep = 0 seconds
+└           |u⃗|ₘₐₓ = [0.00e+00,  0.00e+00,  0.00e+00] m/s,  advective CFL = 0,  diffusive CFL = 0,  νₘₐₓ = 0 m²/s
+[ Info:     ... simulation initialization complete (8.970 seconds)
 [ Info: Executing initial time step...
-[ Info:     ... initial time step complete (2.375 ms).
-┌ Info: [050.00%] iteration:      5, time:  5 seconds, Δt:   1 second, wall time: 6.431 seconds (4.288 ms / time step)
-└           └── max(|u⃗|): [0.00e+00, 0.00e+00, 0.00e+00] m/s, CFL: 0.00e+00
-[ Info: Simulation is stopping after running for 35.352 ms.
+[ Info:     ... initial time step complete (3.415 ms).
+┌ Info: iter =      5,  [050.00%] time = 5 seconds,  Δt = 1 second,  walltime = 9.035 seconds,  walltime / timestep = 1.683 seconds
+└           |u⃗|ₘₐₓ = [0.00e+00,  0.00e+00,  0.00e+00] m/s,  advective CFL = 0,  diffusive CFL = 0,  νₘₐₓ = 0 m²/s
+[ Info: Simulation is stopping after running for 9.030 seconds.
 [ Info: Simulation time 10 seconds equals or exceeds stop time 10 seconds.
-┌ Info: [100.00%] iteration:     10, time: 10 seconds, Δt:   1 second, wall time: 6.444 seconds (2.441 ms / time step)
-└           └── max(|u⃗|): [0.00e+00, 0.00e+00, 0.00e+00] m/s, CFL: 0.00e+00
+┌ Info: iter =     10,  [100.00%] time = 10 seconds,  Δt = 1 second,  walltime = 9.052 seconds,  walltime / timestep = 3.340 ms
+└           |u⃗|ₘₐₓ = [0.00e+00,  0.00e+00,  0.00e+00] m/s,  advective CFL = 0,  diffusive CFL = 0,  νₘₐₓ = 0 m²/s
 ```
 
