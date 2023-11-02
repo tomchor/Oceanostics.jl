@@ -67,7 +67,7 @@ N² = 1e-5/second^2;
 
 # In a tilted coordinate, this can be achieved with
 
-@inline constant_stratification(x, y, z, t, p) = p.N² * (x * p.ĝ[1] + z * p.ĝ[3]);
+@inline constant_stratification(x, z, t, p) = p.N² * (x * p.ĝ[1] + z * p.ĝ[3]);
 
 # However, this distribution is _not_ periodic in ``x`` and can't be explicitly modelled on an
 # ``x``-periodic grid such as the one used here. Instead, we simulate periodic _perturbations_ away
@@ -87,8 +87,8 @@ z₀ = 0.1meters # (roughness length)
 z₁ = znodes(grid, Center())[1] # Closest grid center to the bottom
 cᴰ = (κ / log(z₁ / z₀))^2 # Drag coefficient
 
-@inline drag_u(x, y, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * u
-@inline drag_v(x, y, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * (v + p.V∞)
+@inline drag_u(x, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * u
+@inline drag_v(x, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * (v + p.V∞)
 
 drag_bc_u = FluxBoundaryCondition(drag_u, field_dependencies=(:u, :v), parameters=(; cᴰ, V∞))
 drag_bc_v = FluxBoundaryCondition(drag_v, field_dependencies=(:u, :v), parameters=(; cᴰ, V∞))
@@ -111,7 +111,7 @@ model = NonhydrostaticModel(; grid, buoyancy, coriolis, closure,
                             boundary_conditions = (u=u_bcs, v=v_bcs),
                             background_fields = (; b=B_field))
 
-noise(x, y, z) = 1e-3 * randn() * exp(-(10z)^2/grid.Lz^2)
+noise(x, z) = 1e-3 * randn() * exp(-(10z)^2/grid.Lz^2)
 set!(model, u=noise, w=noise)
 
 # The bottom-intensified noise above should accelerate the emergence of turbulence close to the

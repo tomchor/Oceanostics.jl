@@ -31,7 +31,7 @@ using Statistics
 
 u, v, w = model.velocities
 
-noise(x, y, z) = rand()
+noise(x, y) = rand()
 set!(model, u=noise, v=noise)
 
 u .-= mean(u)
