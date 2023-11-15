@@ -201,17 +201,17 @@ bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
 
 Riₙ = @lift set(ds.Ri[Ti=$n, yC=Near(0)], :xC => X, :zF => Z)
 hm1 = heatmap!(ax1, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
-contour!(ax1, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
+#contour!(ax1, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
 Colorbar(fig[3, 1], hm1, vertical=false, height=8, ticklabelsize=14)
 
 Roₙ = @lift set(ds.Ro[Ti=$n, yF=Near(0)], :xF => X, :zF => Z)
 hm2 = heatmap!(ax2, Roₙ; colormap = :balance, colorrange = (-10, +10))
-contour!(ax2, bₙ; levels=10, color=:black, linestyle=:dash, linewidth=0.5)
+#contour!(ax2, bₙ; levels=10, color=:black, linestyle=:dash, linewidth=0.5)
 Colorbar(fig[3, 2], hm2, vertical=false, height=8, ticklabelsize=14)
 
 PVₙ = @lift set(ds.PV[Ti=$n, yF=Near(0)], :xF => X, :zF => Z)
 hm3 = heatmap!(ax3, PVₙ; colormap = :coolwarm, colorrange = N²*f₀.*(-1.5, +1.5))
-contour!(ax3, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
+#contour!(ax3, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
 Colorbar(fig[3, 3], hm3, vertical=false, height=8, ticklabelsize=14);
 
 # Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
