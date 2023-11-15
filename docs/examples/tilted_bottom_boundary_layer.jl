@@ -195,8 +195,8 @@ ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
 # Next we an `Observable` to lift the values at each specific time and plot
 # heatmaps, along with their colorbars, with buoyancy contours on top
 
-#n = Observable(1)
-#
+n = Observable(1)
+
 #bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
 #
 #Riₙ = @lift set(ds.Ri[Ti=$n, yC=Near(0)], :xC => X, :zF => Z)
@@ -216,7 +216,7 @@ ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
 #
 ## Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
 #
-#times = dims(ds, :Ti)
+times = dims(ds, :Ti)
 #title = @lift "Time = " * string(prettytime(times[$n]))
 #fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);
 #
@@ -224,16 +224,16 @@ ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
 #
 #resize_to_layout!(fig)
 #
-#@info "Animating..."
-#record(fig, filename * ".mp4", 1:length(times), framerate=10) do i
-#       n[] = i
-#end
+@info "Animating..."
+record(fig, filename * ".mp4", 1:length(times), framerate=10) do i
+       n[] = i
+end
+
+# ![](tilted_bottom_boundary_layer.mp4)
 #
-## ![](tilted_bottom_boundary_layer.mp4)
-##
-## The animation shows negative PV being produced at the bottom due to drag, which leads to the
-## emergence of centrifulgal-symmetric instabilities, which become turbulent and erode stratification
-## (as can be seen by inspecting ``Ri``). Note that there are some boundary effects on the upper
-## boundary, likely caused by interaction internal waves that are produced by the bottom turbulence.
-## These effects are, to some degree, expected, and a sponge/relaxation layer at the top is needed to
-## minimize them in a production-ready code.
+# The animation shows negative PV being produced at the bottom due to drag, which leads to the
+# emergence of centrifulgal-symmetric instabilities, which become turbulent and erode stratification
+# (as can be seen by inspecting ``Ri``). Note that there are some boundary effects on the upper
+# boundary, likely caused by interaction internal waves that are produced by the bottom turbulence.
+# These effects are, to some degree, expected, and a sponge/relaxation layer at the top is needed to
+# minimize them in a production-ready code.
