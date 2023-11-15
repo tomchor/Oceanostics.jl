@@ -184,17 +184,17 @@ ds = RasterStack(simulation.output_writers[:nc].filepath)
 
 using CairoMakie
 
-#set_theme!(Theme(fontsize = 20))
-#fig = Figure()
-#
-#kwargs = (xlabel="x", ylabel="z", height=150, width=250)
-#ax1 = Axis(fig[2, 1]; title = "Ri", kwargs...)
-#ax2 = Axis(fig[2, 2]; title = "Ro", kwargs...)
-#ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
-#
-## Next we an `Observable` to lift the values at each specific time and plot
-## heatmaps, along with their colorbars, with buoyancy contours on top
-#
+set_theme!(Theme(fontsize = 20))
+fig = Figure()
+
+kwargs = (xlabel="x", ylabel="z", height=150, width=250)
+ax1 = Axis(fig[2, 1]; title = "Ri", kwargs...)
+ax2 = Axis(fig[2, 2]; title = "Ro", kwargs...)
+ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
+
+# Next we an `Observable` to lift the values at each specific time and plot
+# heatmaps, along with their colorbars, with buoyancy contours on top
+
 #n = Observable(1)
 #
 #bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
