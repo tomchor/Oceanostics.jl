@@ -197,10 +197,10 @@ ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
 
 n = Observable(1)
 
-bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
-
+#bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
+#
 Riₙ = @lift set(ds.Ri[Ti=$n, yC=Near(0)], :xC => X, :zF => Z)
-hm1 = heatmap!(ax1, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
+#hm1 = heatmap!(ax1, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
 #contour!(ax1, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
 #Colorbar(fig[3, 1], hm1, vertical=false, height=8, ticklabelsize=14)
 #
