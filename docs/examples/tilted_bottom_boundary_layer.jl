@@ -176,64 +176,64 @@ run!(simulation)
 
 # Now we'll read the results and plot an animation
 
-using Rasters
-
-ds = RasterStack(simulation.output_writers[:nc].filepath)
-
-# We now use Makie to create the figure and its axes
-
-using CairoMakie
-
-set_theme!(Theme(fontsize = 20))
-fig = Figure()
-
-kwargs = (xlabel="x", ylabel="z", height=150, width=250)
-ax1 = Axis(fig[2, 1]; title = "Ri", kwargs...)
-ax2 = Axis(fig[2, 2]; title = "Ro", kwargs...)
-ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
-
-# Next we an `Observable` to lift the values at each specific time and plot
-# heatmaps, along with their colorbars, with buoyancy contours on top
-
-n = Observable(1)
-
-#bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
+#using Rasters
 #
-Riₙ = @lift set(ds.Ri[Ti=$n, yC=Near(0)], :xC => X, :zF => Z)
-#hm1 = heatmap!(ax1, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
-#contour!(ax1, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
-#Colorbar(fig[3, 1], hm1, vertical=false, height=8, ticklabelsize=14)
+#ds = RasterStack(simulation.output_writers[:nc].filepath)
 #
-#Roₙ = @lift set(ds.Ro[Ti=$n, yF=Near(0)], :xF => X, :zF => Z)
-#hm2 = heatmap!(ax2, Roₙ; colormap = :balance, colorrange = (-10, +10))
-#contour!(ax2, bₙ; levels=10, color=:black, linestyle=:dash, linewidth=0.5)
-#Colorbar(fig[3, 2], hm2, vertical=false, height=8, ticklabelsize=14)
+## We now use Makie to create the figure and its axes
 #
-PVₙ = @lift set(ds.PV[Ti=$n, yF=Near(0)], :xF => X, :zF => Z)
-hm3 = heatmap!(ax3, PVₙ; colormap = :coolwarm, colorrange = N²*f₀.*(-1.5, +1.5))
-#contour!(ax3, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
-#Colorbar(fig[3, 3], hm3, vertical=false, height=8, ticklabelsize=14);
+#using CairoMakie
 #
-## Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
+#set_theme!(Theme(fontsize = 20))
+#fig = Figure()
 #
-times = dims(ds, :Ti)
-#title = @lift "Time = " * string(prettytime(times[$n]))
-#fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);
+#kwargs = (xlabel="x", ylabel="z", height=150, width=250)
+#ax1 = Axis(fig[2, 1]; title = "Ri", kwargs...)
+#ax2 = Axis(fig[2, 2]; title = "Ro", kwargs...)
+#ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
 #
-## Finally, we adjust the figure dimensions to fit all the panels and record a movie
+## Next we an `Observable` to lift the values at each specific time and plot
+## heatmaps, along with their colorbars, with buoyancy contours on top
 #
-#resize_to_layout!(fig)
+#n = Observable(1)
 #
-@info "Animating..."
-record(fig, filename * ".mp4", 1:length(times), framerate=10) do i
-       n[] = i
-end
-
-# ![](tilted_bottom_boundary_layer.mp4)
+##bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
+##
+#Riₙ = @lift set(ds.Ri[Ti=$n, yC=Near(0)], :xC => X, :zF => Z)
+##hm1 = heatmap!(ax1, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
+##contour!(ax1, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
+##Colorbar(fig[3, 1], hm1, vertical=false, height=8, ticklabelsize=14)
+##
+##Roₙ = @lift set(ds.Ro[Ti=$n, yF=Near(0)], :xF => X, :zF => Z)
+##hm2 = heatmap!(ax2, Roₙ; colormap = :balance, colorrange = (-10, +10))
+##contour!(ax2, bₙ; levels=10, color=:black, linestyle=:dash, linewidth=0.5)
+##Colorbar(fig[3, 2], hm2, vertical=false, height=8, ticklabelsize=14)
+##
+##PVₙ = @lift set(ds.PV[Ti=$n, yF=Near(0)], :xF => X, :zF => Z)
+##hm3 = heatmap!(ax3, PVₙ; colormap = :coolwarm, colorrange = N²*f₀.*(-1.5, +1.5))
+##contour!(ax3, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
+##Colorbar(fig[3, 3], hm3, vertical=false, height=8, ticklabelsize=14);
+##
+### Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
+##
+#times = dims(ds, :Ti)
+##title = @lift "Time = " * string(prettytime(times[$n]))
+##fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);
+##
+### Finally, we adjust the figure dimensions to fit all the panels and record a movie
+##
+##resize_to_layout!(fig)
+##
+#@info "Animating..."
+#record(fig, filename * ".mp4", 1:length(times), framerate=10) do i
+#       n[] = i
+#end
 #
-# The animation shows negative PV being produced at the bottom due to drag, which leads to the
-# emergence of centrifulgal-symmetric instabilities, which become turbulent and erode stratification
-# (as can be seen by inspecting ``Ri``). Note that there are some boundary effects on the upper
-# boundary, likely caused by interaction internal waves that are produced by the bottom turbulence.
-# These effects are, to some degree, expected, and a sponge/relaxation layer at the top is needed to
-# minimize them in a production-ready code.
+## ![](tilted_bottom_boundary_layer.mp4)
+##
+## The animation shows negative PV being produced at the bottom due to drag, which leads to the
+## emergence of centrifulgal-symmetric instabilities, which become turbulent and erode stratification
+## (as can be seen by inspecting ``Ri``). Note that there are some boundary effects on the upper
+## boundary, likely caused by interaction internal waves that are produced by the bottom turbulence.
+## These effects are, to some degree, expected, and a sponge/relaxation layer at the top is needed to
+## minimize them in a production-ready code.
