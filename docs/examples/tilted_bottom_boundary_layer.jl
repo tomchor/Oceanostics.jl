@@ -174,6 +174,76 @@ simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
 
 run!(simulation)
 
+
+
+using Rasters
+
+ds = RasterStack(simulation.output_writers[:nc].filepath)
+
+# We now use Makie to create the figure and its axes
+
+using CairoMakie
+
+set_theme!(Theme(fontsize = 24))
+fig = Figure()
+
+kwargs = (xlabel="x", ylabel="z", height=150, width=250)
+ax1 = Axis(fig[2, 1]; title = "Ri", kwargs...)
+ax2 = Axis(fig[2, 2]; title = "Q", kwargs...)
+ax3 = Axis(fig[2, 3]; title = "b", kwargs...);
+
+# Next we use `Observable`s to lift the values and plot heatmaps and their colorbars
+
+n = Observable(1)
+
+Riₙ = @lift set(ds.Ri[Ti=$n, yC=Near(0)], :xC => X, :zF => Z)
+hm1 = heatmap!(ax1, Riₙ; colormap = :bwr, colorrange = (-1, +1))
+Colorbar(fig[3, 1], hm1, vertical=false, height=8)
+
+Qₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
+hm2 = heatmap!(ax2, Qₙ; colormap = :inferno, colorrange = (0, 0.2))
+Colorbar(fig[3, 2], hm2, vertical=false, height=8)
+
+bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
+hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-2.5e-2, +2.5e-2))
+Colorbar(fig[3, 3], hm3, vertical=false, height=8);
+
+# We now plot the time evolution of our integrated quantities
+
+axb = Axis(fig[4, 1:3]; xlabel="Time", height=100)
+times = dims(ds, :Ti)
+#lines!(axb, Array(times), ds.∫χ,  label = "∫χdV")
+#lines!(axb, Array(times), ds.∫χᴰ, label = "∫χᴰdV", linestyle=:dash)
+axislegend(position=:lb, labelsize=14)
+
+# Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
+
+tₙ = @lift times[$n]
+vlines!(axb, tₙ, color=:black, linestyle=:dash)
+
+title = @lift "Time = " * string(round(times[$n], digits=2))
+fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);
+
+# Finally, we adjust the figure dimensions to fit all the panels and record a movie
+
+resize_to_layout!(fig)
+
+@info "Animating..."
+record(fig, filename * ".mp4", 1:length(times), framerate=10) do i
+       n[] = i
+end
+
+# ![](kelvin_helmholtz.mp4)
+#
+# Similarly to the kinetic energy dissipation rate (see the [Two-dimensional turbulence example](@ref two_d_turbulence_example)), 
+# `TracerVarianceDissipationRate` and `TracerVarianceDiffusiveTerm` are implemented
+# with a energy-conserving formulation, which means that (for `NoFlux` boundary conditions) their
+# volume-integral should be exactly (up to machine precision) the same.
+
+
+
+###############
+
 # Now we'll read the results and plot an animation
 
 #using Rasters
