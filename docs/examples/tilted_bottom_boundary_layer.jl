@@ -79,7 +79,7 @@ Q = QVelocityGradientTensorInvariant(model)
 # be equal.
 
 ∫χᴰ = Integral(TracerVarianceDissipationRate(model, :b))
-∫χ = Integral(TracerVarianceDiffusiveTerm(model, :b))
+ Integral(TracerVarianceDiffusiveTerm(model, :b))
 
 
 # Now we write these quantities, along with `b`, to a NetCDF:
@@ -133,7 +133,7 @@ Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
 axb = Axis(fig[4, 1:3]; xlabel="Time", height=100)
 times = dims(ds, :Ti)
-axislegend(position=:lb, labelsize=14)
+#axislegend(position=:lb, labelsize=14)
 
 # Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
 
