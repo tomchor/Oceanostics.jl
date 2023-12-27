@@ -19,24 +19,24 @@
 #
 # We start by creating a ``x, z`` grid with 64² cells and finer resolution near the bottom:
 
-using Oceananigans
-using Oceananigans.Units
-
-Lx = 200meters
-Lz = 100meters
-Nx = 64
-Nz = 64
-
-refinement = 1.8 # controls spacing near surface (higher means finer spaced)
-stretching = 10  # controls rate of stretching at bottom 
-
-h(k) = (Nz + 1 - k) / Nz
-ζ(k) = 1 + (h(k) - 1) / refinement
-Σ(k) = (1 - exp(-stretching * h(k))) / (1 - exp(-stretching))
-z_faces(k) = - Lz * (ζ(k) * Σ(k) - 1)
-
-grid = RectilinearGrid(topology = (Periodic, Flat, Bounded), size = (Nx, Nz),
-                       x = (0, Lx), z = z_faces)
+#using Oceananigans
+#using Oceananigans.Units
+#
+#Lx = 200meters
+#Lz = 100meters
+#Nx = 64
+#Nz = 64
+#
+#refinement = 1.8 # controls spacing near surface (higher means finer spaced)
+#stretching = 10  # controls rate of stretching at bottom 
+#
+#h(k) = (Nz + 1 - k) / Nz
+#ζ(k) = 1 + (h(k) - 1) / refinement
+#Σ(k) = (1 - exp(-stretching * h(k))) / (1 - exp(-stretching))
+#z_faces(k) = - Lz * (ζ(k) * Σ(k) - 1)
+#
+#grid = RectilinearGrid(topology = (Periodic, Flat, Bounded), size = (Nx, Nz),
+#                       x = (0, Lx), z = (0, Lz))
 
 ## Note that, with the `z` faces defined as above, the spacings near the bottom are approximately
 ## constant, becoming progressively coarser moving up.
@@ -138,13 +138,13 @@ grid = RectilinearGrid(topology = (Periodic, Flat, Bounded), size = (Nx, Nz),
 ## We begin by creating a model with an isotropic diffusivity and fifth-order advection on a `xz`
 ## 128² grid using a buoyancy `b` as the active scalar. We'll work here with nondimensional
 ## quantities.
-#
-#using Oceananigans
-#
-#N = 128
-#L = 10
-#grid = RectilinearGrid(size=(N, N), x=(-L/2, +L/2), z=(-L/2, +L/2), topology=(Periodic, Flat, Bounded))
-#
+
+using Oceananigans
+
+N = 128
+L = 10
+grid = RectilinearGrid(size=(N, N), x=(-L/2, +L/2), z=(-L/2, +L/2), topology=(Periodic, Flat, Bounded))
+
 model = NonhydrostaticModel(; grid, timestepper = :RungeKutta3,
                             advection = UpwindBiasedFifthOrder(),
                             closure = ScalarDiffusivity(ν=2e-5, κ=2e-5),
