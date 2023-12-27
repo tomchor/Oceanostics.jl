@@ -38,113 +38,100 @@ z_faces(k) = - Lz * (ζ(k) * Σ(k) - 1)
 grid = RectilinearGrid(topology = (Periodic, Flat, Bounded), size = (Nx, Nz),
                        x = (0, Lx), z = z_faces)
 
-# Note that, with the `z` faces defined as above, the spacings near the bottom are approximately
-# constant, becoming progressively coarser moving up.
-#
-# ## Tilting the domain
-#
-# We use a domain that's tilted with respect to gravity by
-
-θ = 5; # degrees
-
-# so that ``x`` is the along-slope direction, ``z`` is the across-sloce direction that
-# is perpendicular to the bottom, and the unit vector anti-aligned with gravity is
-
-ĝ = [sind(θ), 0, cosd(θ)]
-
-# Changing the vertical direction impacts both the `gravity_unit_vector` for `Buoyancy` as well as
-# the `rotation_axis` for Coriolis forces,
-
-buoyancy = Buoyancy(model = BuoyancyTracer(), gravity_unit_vector = -ĝ)
-
-f₀ = 1e-4/second
-coriolis = ConstantCartesianCoriolis(f = f₀, rotation_axis = ĝ)
-
-# The tilting also affects the kind of density stratified flows we can model. The simulate an
-# environment that's uniformly stratified, with a stratification frequency
-
-N² = 1e-5/second^2;
-
-# In a tilted coordinate, this can be achieved with
-
-@inline constant_stratification(x, z, t, p) = p.N² * (x * p.ĝ[1] + z * p.ĝ[3]);
-
-# However, this distribution is _not_ periodic in ``x`` and can't be explicitly modelled on an
-# ``x``-periodic grid such as the one used here. Instead, we simulate periodic _perturbations_ away
-# from the constant density stratification by imposing a constant stratification as a
-# `BackgroundField`,
-
-B_field = BackgroundField(constant_stratification, parameters=(; ĝ, N²))
-
-# ## Bottom drag
-#
-# We impose bottom drag that follows Monin-Obukhov theory and include the background flow in the
-# drag calculation, which is the only effect the background flow has on the problem
-
-V∞ = 0.1meters/second
-z₀ = 0.1meters # (roughness length)
-κ = 0.4 # von Karman constant
-z₁ = znodes(grid, Center())[1] # Closest grid center to the bottom
-cᴰ = (κ / log(z₁ / z₀))^2 # Drag coefficient
-
-@inline drag_u(x, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * u
-@inline drag_v(x, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * (v + p.V∞)
-
-drag_bc_u = FluxBoundaryCondition(drag_u, field_dependencies=(:u, :v), parameters=(; cᴰ, V∞))
-drag_bc_v = FluxBoundaryCondition(drag_v, field_dependencies=(:u, :v), parameters=(; cᴰ, V∞))
-
-u_bcs = FieldBoundaryConditions(bottom = drag_bc_u)
-v_bcs = FieldBoundaryConditions(bottom = drag_bc_v)
-
-# ## Create model and simulation
-#
-# We are now ready to create the model. We create a `NonhydrostaticModel` with an
-# `UpwindBiasedFifthOrder` advection scheme, a `RungeKutta3` timestepper, and a constant viscosity
-# and diffusivity.
-
-closure = ScalarDiffusivity(ν=2e-4, κ=2e-4)
-
-model = NonhydrostaticModel(; grid, buoyancy, coriolis, closure,
-                            timestepper = :RungeKutta3,
-                            advection = UpwindBiasedFifthOrder(),
-                            tracers = :b,
-                            boundary_conditions = (u=u_bcs, v=v_bcs),
-                            background_fields = (; b=B_field))
-
-noise(x, z) = 1e-3 * randn() * exp(-(10z)^2/grid.Lz^2)
-set!(model, u=noise, w=noise)
-
-# The bottom-intensified noise above should accelerate the emergence of turbulence close to the
-# wall.
-#
-# We are now ready to create the simulation. We begin by setting the initial time step
-# conservatively, based on the smallest grid size of our domain and set-up a 
-
-using Oceananigans.Units
-
-simulation = Simulation(model, Δt = 0.5 * minimum_zspacing(grid) / V∞, stop_time = 12hours)
-
-# We use `TimeStepWizard` to maximize Δt
-
-wizard = TimeStepWizard(max_change=1.1, cfl=0.7)
-simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
-
-
-
-
-## # Kelvin-Helmholtz instability
+## Note that, with the `z` faces defined as above, the spacings near the bottom are approximately
+## constant, becoming progressively coarser moving up.
 ##
-## This example simulates a simple 2D Kelvin-Helmholtz instability and is based on the similar
-## [Oceananigans
-## example](https://clima.github.io/OceananigansDocumentation/stable/generated/kelvin_helmholtz_instability/).
+## ## Tilting the domain
 ##
-## Before starting, make sure you have the required packages installed for this example, which can be
-## done with
+## We use a domain that's tilted with respect to gravity by
+#
+#θ = 5; # degrees
+#
+## so that ``x`` is the along-slope direction, ``z`` is the across-sloce direction that
+## is perpendicular to the bottom, and the unit vector anti-aligned with gravity is
+#
+#ĝ = [sind(θ), 0, cosd(θ)]
+#
+## Changing the vertical direction impacts both the `gravity_unit_vector` for `Buoyancy` as well as
+## the `rotation_axis` for Coriolis forces,
+#
+#buoyancy = Buoyancy(model = BuoyancyTracer(), gravity_unit_vector = -ĝ)
+#
+#f₀ = 1e-4/second
+#coriolis = ConstantCartesianCoriolis(f = f₀, rotation_axis = ĝ)
+#
+## The tilting also affects the kind of density stratified flows we can model. The simulate an
+## environment that's uniformly stratified, with a stratification frequency
+#
+#N² = 1e-5/second^2;
+#
+## In a tilted coordinate, this can be achieved with
+#
+#@inline constant_stratification(x, z, t, p) = p.N² * (x * p.ĝ[1] + z * p.ĝ[3]);
+#
+## However, this distribution is _not_ periodic in ``x`` and can't be explicitly modelled on an
+## ``x``-periodic grid such as the one used here. Instead, we simulate periodic _perturbations_ away
+## from the constant density stratification by imposing a constant stratification as a
+## `BackgroundField`,
+#
+#B_field = BackgroundField(constant_stratification, parameters=(; ĝ, N²))
+#
+## ## Bottom drag
 ##
-## ```julia
-## using Pkg
-## pkg"add Oceananigans, Oceanostics, CairoMakie, Rasters"
-## ```
+## We impose bottom drag that follows Monin-Obukhov theory and include the background flow in the
+## drag calculation, which is the only effect the background flow has on the problem
+#
+#V∞ = 0.1meters/second
+#z₀ = 0.1meters # (roughness length)
+#κ = 0.4 # von Karman constant
+#z₁ = znodes(grid, Center())[1] # Closest grid center to the bottom
+#cᴰ = (κ / log(z₁ / z₀))^2 # Drag coefficient
+#
+#@inline drag_u(x, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * u
+#@inline drag_v(x, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * (v + p.V∞)
+#
+#drag_bc_u = FluxBoundaryCondition(drag_u, field_dependencies=(:u, :v), parameters=(; cᴰ, V∞))
+#drag_bc_v = FluxBoundaryCondition(drag_v, field_dependencies=(:u, :v), parameters=(; cᴰ, V∞))
+#
+#u_bcs = FieldBoundaryConditions(bottom = drag_bc_u)
+#v_bcs = FieldBoundaryConditions(bottom = drag_bc_v)
+#
+## ## Create model and simulation
+##
+## We are now ready to create the model. We create a `NonhydrostaticModel` with an
+## `UpwindBiasedFifthOrder` advection scheme, a `RungeKutta3` timestepper, and a constant viscosity
+## and diffusivity.
+#
+#closure = ScalarDiffusivity(ν=2e-4, κ=2e-4)
+#
+#model = NonhydrostaticModel(; grid, buoyancy, coriolis, closure,
+#                            timestepper = :RungeKutta3,
+#                            advection = UpwindBiasedFifthOrder(),
+#                            tracers = :b,
+#                            boundary_conditions = (u=u_bcs, v=v_bcs),
+#                            background_fields = (; b=B_field))
+#
+#noise(x, z) = 1e-3 * randn() * exp(-(10z)^2/grid.Lz^2)
+#set!(model, u=noise, w=noise)
+#
+## The bottom-intensified noise above should accelerate the emergence of turbulence close to the
+## wall.
+##
+## We are now ready to create the simulation. We begin by setting the initial time step
+## conservatively, based on the smallest grid size of our domain and set-up a 
+#
+#using Oceananigans.Units
+#
+#simulation = Simulation(model, Δt = 0.5 * minimum_zspacing(grid) / V∞, stop_time = 12hours)
+#
+## We use `TimeStepWizard` to maximize Δt
+#
+#wizard = TimeStepWizard(max_change=1.1, cfl=0.7)
+#simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
+
+
+
+
 #
 ## ## Model and simulation setup
 #
@@ -158,31 +145,31 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
 #L = 10
 #grid = RectilinearGrid(size=(N, N), x=(-L/2, +L/2), z=(-L/2, +L/2), topology=(Periodic, Flat, Bounded))
 #
-#model = NonhydrostaticModel(; grid, timestepper = :RungeKutta3,
-#                            advection = UpwindBiasedFifthOrder(),
-#                            closure = ScalarDiffusivity(ν=2e-5, κ=2e-5),
-#                            buoyancy = BuoyancyTracer(), tracers = :b)
+model = NonhydrostaticModel(; grid, timestepper = :RungeKutta3,
+                            advection = UpwindBiasedFifthOrder(),
+                            closure = ScalarDiffusivity(ν=2e-5, κ=2e-5),
+                            buoyancy = BuoyancyTracer(), tracers = :b)
+
+# We use hyperbolic tangent functions for the initial conditions and set the maximum Richardson
+# number below the threshold of 1/4. We also add some grid-scale small-amplitude noise to `u` to
+# kick the instability off:
+
+
+noise(x, z) = 2e-2 * randn()
+shear_flow(x, z) = tanh(z) + noise(x, z)
+
+Ri₀ = 0.1; h = 1/4
+stratification(x, z) = h * Ri₀ * tanh(z / h)
+
+set!(model, u=shear_flow, b=stratification)
+
 #
-## We use hyperbolic tangent functions for the initial conditions and set the maximum Richardson
-## number below the threshold of 1/4. We also add some grid-scale small-amplitude noise to `u` to
-## kick the instability off:
-#
-#
-#noise(x, z) = 2e-2 * randn()
-#shear_flow(x, z) = tanh(z) + noise(x, z)
-#
-#Ri₀ = 0.1; h = 1/4
-#stratification(x, z) = h * Ri₀ * tanh(z / h)
-#
-#set!(model, u=shear_flow, b=stratification)
-#
-##
-## Next create an adaptive-time-step simulation using the model above:
-#
-#simulation = Simulation(model, Δt=0.1, stop_time=100)
-#
-#wizard = TimeStepWizard(cfl=0.8, max_Δt=1)
-#simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
+# Next create an adaptive-time-step simulation using the model above:
+
+simulation = Simulation(model, Δt=0.1, stop_time=100)
+
+wizard = TimeStepWizard(cfl=0.8, max_Δt=1)
+simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
 
 
 # ## Model diagnostics
