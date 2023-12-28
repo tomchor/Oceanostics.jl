@@ -17,7 +17,7 @@
 #
 # ## Grid
 #
-# We start by creating a ``x, z`` grid with 64² cells and finer resolution near the bottom:
+# We start by creating a ``x, z`` grid with 64² cells:
 
 using Oceananigans
 using Oceananigans.Units
@@ -27,20 +27,9 @@ Lz = 100meters
 Nx = 64
 Nz = 64
 
-refinement = 1.8 # controls spacing near surface (higher means finer spaced)
-stretching = 10  # controls rate of stretching at bottom 
-
-h(k) = (Nz + 1 - k) / Nz
-ζ(k) = 1 + (h(k) - 1) / refinement
-Σ(k) = (1 - exp(-stretching * h(k))) / (1 - exp(-stretching))
-z_faces(k) = - Lz * (ζ(k) * Σ(k) - 1)
-
 grid = RectilinearGrid(topology = (Periodic, Flat, Bounded), size = (Nx, Nz),
-                       x = (0, Lx), z = z_faces)
+                       x = (0, Lx), z = (0, Lz))
 
-# Note that, with the `z` faces defined as above, the spacings near the bottom are approximately
-# constant, becoming progressively coarser moving up.
-#
 # ## Tilting the domain
 #
 # We use a domain that's tilted with respect to gravity by
@@ -67,7 +56,7 @@ N² = 1e-5/second^2;
 
 # In a tilted coordinate, this can be achieved with
 
-@inline constant_stratification(x, y, z, t, p) = p.N² * (x * p.ĝ[1] + z * p.ĝ[3]);
+@inline constant_stratification(x, z, t, p) = p.N² * (x * p.ĝ[1] + z * p.ĝ[3]);
 
 # However, this distribution is _not_ periodic in ``x`` and can't be explicitly modelled on an
 # ``x``-periodic grid such as the one used here. Instead, we simulate periodic _perturbations_ away
@@ -87,8 +76,8 @@ z₀ = 0.1meters # (roughness length)
 z₁ = znodes(grid, Center())[1] # Closest grid center to the bottom
 cᴰ = (κ / log(z₁ / z₀))^2 # Drag coefficient
 
-@inline drag_u(x, y, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * u
-@inline drag_v(x, y, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * (v + p.V∞)
+@inline drag_u(x, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * u
+@inline drag_v(x, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * (v + p.V∞)
 
 drag_bc_u = FluxBoundaryCondition(drag_u, field_dependencies=(:u, :v), parameters=(; cᴰ, V∞))
 drag_bc_v = FluxBoundaryCondition(drag_v, field_dependencies=(:u, :v), parameters=(; cᴰ, V∞))
@@ -111,7 +100,7 @@ model = NonhydrostaticModel(; grid, buoyancy, coriolis, closure,
                             boundary_conditions = (u=u_bcs, v=v_bcs),
                             background_fields = (; b=B_field))
 
-noise(x, y, z) = 1e-3 * randn() * exp(-(10z)^2/grid.Lz^2)
+noise(x, z) = 1e-3 * randn() * exp(-(10z)^2/grid.Lz^2)
 set!(model, u=noise, w=noise)
 
 # The bottom-intensified noise above should accelerate the emergence of turbulence close to the
@@ -140,7 +129,6 @@ walltime_per_timestep = StepDuration() # This needs to instantiated here, and no
 progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false) + SimulationTime() + TimeStep() + MaxVelocities() + AdvectiveCFLNumber() + walltime_per_timestep)(simulation)
 
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(400))
-
 
 # We now define some useful diagnostics for the flow. Namely, we define `RichardsonNumber`,
 # `RossbyNumber` and `ErtelPotentialVorticity`:

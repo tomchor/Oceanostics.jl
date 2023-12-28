@@ -39,7 +39,7 @@ function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusiv
     Random.seed!(772)
     xₚ, yₚ, zₚ = periodic_locations(N_gaussians)
 
-    resolved_noise(x, y, z) = sum(@. exp(-(x-xₚ)^2/σx^2 -(y-yₚ)^2/σy^2 -(z-zₚ)^2/σz^2))
+    resolved_noise(x, z) = sum(@. exp(-(x-xₚ)^2/σx^2 -(z-zₚ)^2/σz^2))
     set!(model, u=resolved_noise, c=resolved_noise)
 
     u, v, w = model.velocities
