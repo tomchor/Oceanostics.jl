@@ -17,7 +17,7 @@
 #
 # ## Grid
 #
-# We start by creating a ``x, z`` grid with 64² cells and finer resolution near the bottom:
+# We start by creating a ``x, z`` grid with 64² cells:
 
 using Oceananigans
 using Oceananigans.Units
@@ -30,9 +30,6 @@ Nz = 64
 grid = RectilinearGrid(topology = (Periodic, Flat, Bounded), size = (Nx, Nz),
                        x = (0, Lx), z = (0, Lz))
 
-# Note that, with the `z` faces defined as above, the spacings near the bottom are approximately
-# constant, becoming progressively coarser moving up.
-#
 # ## Tilting the domain
 #
 # We use a domain that's tilted with respect to gravity by
