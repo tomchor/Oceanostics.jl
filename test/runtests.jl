@@ -213,14 +213,14 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     @test ε isa AbstractOperation
     @test ε_field isa Field
 
-    ε = KineticEnergyDiffusiveTerm(model)
+    ε = KineticEnergyStressTerm(model)
     ε_field = compute!(Field(ε))
     @test ε isa AbstractOperation
     @test ε_field isa Field
 
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
     @compute ε̄ₖ = Field(Average(KineticEnergyDissipationRate(model)))
-    @compute ε̄ₖ₂= Field(Average(KineticEnergyDiffusiveTerm(model)))
+    @compute ε̄ₖ₂= Field(Average(KineticEnergyStressTerm(model)))
 
 
     if model isa NonhydrostaticModel

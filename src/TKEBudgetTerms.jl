@@ -4,7 +4,8 @@ using DocStringExtensions
 export TurbulentKineticEnergy, KineticEnergy
 export KineticEnergyTendency
 export AdvectionTerm
-export KineticEnergyDiffusiveTerm, KineticEnergyForcingTerm
+export KineticEnergyStressTerm, KinericEnergyImmersedBoundaryStressTerm
+export KineticEnergyForcingTerm
 export IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate
 export PressureRedistributionTerm
 export BuoyancyProductionTerm
@@ -18,11 +19,12 @@ using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
 using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
 using Oceananigans.Advection: div_𝐯u, div_𝐯v, div_𝐯w
-using Oceananigans.BuoyancyModels: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
 using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz, 
                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
                                        viscous_flux_wx, viscous_flux_wy, viscous_flux_wz,
                                        ∂ⱼ_τ₁ⱼ, ∂ⱼ_τ₂ⱼ, ∂ⱼ_τ₃ⱼ
+using Oceananigans.TurbulenceClosures: immersed_∂ⱼ_τ₁ⱼ, immersed_∂ⱼ_τ₂ⱼ, immersed_∂ⱼ_τ₃ⱼ
+using Oceananigans.BuoyancyModels: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
 
 using Oceanostics: _νᶜᶜᶜ
 using Oceanostics: validate_location, validate_dissipative_closure
@@ -166,7 +168,7 @@ end
 """
     $(SIGNATURES)
 
-Calculate the advection term, defined as
+Return a `KernelFunctionOperation` that computes the advection term, defined as
 
     ADV = uᵢ∂ⱼ(uᵢuⱼ)
 
@@ -316,8 +318,8 @@ Return a `KernelFunctionOperation` that computes the diffusive term of the KE pr
 where `uᵢ` are the velocity components and `τᵢⱼ` is the diffusive flux of `i` momentum in the 
 `j`-th direction.
 """
-function KineticEnergyDiffusiveTerm(model; location = (Center, Center, Center))
-    validate_location(location, "KineticEnergyDiffusiveTerm")
+function KineticEnergyStressTerm(model; location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyStressTerm")
     model_fields = fields(model)
 
     if model isa HydrostaticFreeSurfaceModel
@@ -329,6 +331,51 @@ function KineticEnergyDiffusiveTerm(model; location = (Center, Center, Center))
                     fields(model),
                     model.buoyancy)
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ, model.grid, dependencies...)
+end
+#---
+
+#+++ Immersed boundary stress term
+@inline function immersed_uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ(i, j, k, grid,
+                                            velocities,
+                                            immersed_bcs,
+                                            closure,
+                                            diffusivity_fields,
+                                            clock,
+                                            model_fields)
+
+    u∂ⱼ_τ₁ⱼ = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, immersed_∂ⱼ_τ₁ⱼ, velocities, immersed_bcs.u, closure, diffusivity_fields, clock, model_fields)
+    v∂ⱼ_τ₂ⱼ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, immersed_∂ⱼ_τ₂ⱼ, velocities, immersed_bcs.v, closure, diffusivity_fields, clock, model_fields)
+    w∂ⱼ_τ₃ⱼ = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, immersed_∂ⱼ_τ₃ⱼ, velocities, immersed_bcs.w, closure, diffusivity_fields, clock, model_fields)
+
+    return u∂ⱼ_τ₁ⱼ+ v∂ⱼ_τ₂ⱼ + w∂ⱼ_τ₃ⱼ
+end
+
+"""
+Return a `KernelFunctionOperation` that computes the immersed boundary stress term in the kinetic energy equation
+
+```
+    IM = uᵢ∂ⱼτᵇᵢⱼ
+```
+
+where `uᵢ` are the velocity components and `τᵇᵢⱼ` is immersed boundary stress tensor (`i` momentum
+in the `j`-th direction).
+"""
+function KinericEnergyImmersedBoundaryStressTerm(model; location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyImmersedBoundaryTerm")
+    model_fields = fields(model)
+
+    if model isa HydrostaticFreeSurfaceModel
+        model_fields = (; model_fields..., w=ZeroField())
+    end
+
+    dependencies = (model.velocities, (u = model.velocities.u.boundary_conditions.immersed,
+                                       v = model.velocities.v.boundary_conditions.immersed,
+                                       w = model.velocities.w.boundary_conditions.immersed),
+                    model.closure,
+                    model.diffusivity_fields,
+                    model.clock,
+                    model_fields)
+    return KernelFunctionOperation{Center, Center, Center}(immersed_uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ, model.grid, dependencies...)
 end
 #---
 
@@ -378,7 +425,7 @@ end
 """
     $(SIGNATURES)
 
-Calculate the pressure redistribution term:
+Return a `KernelFunctionOperation` that computes the pressure redistribution term:
 
     PR = uᵢ∂ᵢp
 
@@ -429,7 +476,7 @@ end
 """
     $(SIGNATURES)
 
-Calculate the buoyancy production term, defined as
+Return a `KernelFunctionOperation` that computes the buoyancy production term, defined as
 
     BP = uᵢbᵢ
 
