@@ -163,6 +163,33 @@ end
     return u∂ⱼuⱼu + v∂ⱼuⱼv + w∂ⱼuⱼw
 end
 
+"""
+    $(SIGNATURES)
+
+Calculate the advection term, defined as
+
+    ADV = uᵢ∂ⱼ(uᵢuⱼ)
+
+By default, the buoyancy production will be calculated using the resolved `velocities` and
+it is up to the users to use the keyword `velocities` to modify that behavior:
+
+```jldoctest
+julia> using Oceananigans
+
+julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia> model = NonhydrostaticModel(grid=grid);
+
+julia> using Oceanostics.TKEBudgetTerms: BuoyancyProductionTerm
+
+julia> using Oceanostics.TKEBudgetTerms: AdvectionTerm
+
+julia> ADV = AdvectionTerm(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: uᵢ∂ⱼuⱼuᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "Centered reconstruction order 2")
+"""
 function AdvectionTerm(model::NonhydrostaticModel; velocities = model.velocities, location = (Center, Center, Center))
     validate_location(location, "AdvectionTerm")
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ, model.grid, velocities, model.advection)
