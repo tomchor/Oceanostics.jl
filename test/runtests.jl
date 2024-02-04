@@ -454,11 +454,11 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 @info "Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(grid; model_type, closure)
 
-                @info "Testing energy dissipation rate terms"
-                test_momentum_advection_term(grid; model_type)
-
        
                 if model_type == NonhydrostaticModel
+                    @info "Testing energy dissipation rate terms"
+                    test_momentum_advection_term(grid; model_type)
+
                     @info "Testing energy dissipation rate terms"
                     test_ke_forcing_term(grid; model_type)
 

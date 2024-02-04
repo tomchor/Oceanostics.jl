@@ -171,7 +171,7 @@ Calculate the advection term, defined as
     ADV = uᵢ∂ⱼ(uᵢuⱼ)
 
 By default, the buoyancy production will be calculated using the resolved `velocities` and
-it is up to the users to use the keyword `velocities` to modify that behavior:
+users cab use the keyword `velocities` to modify that behavior:
 
 ```jldoctest
 julia> using Oceananigans
