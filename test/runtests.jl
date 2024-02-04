@@ -170,18 +170,14 @@ function test_buoyancy_diagnostics(model)
     return nothing
 end
 
-function test_pressure_terms(model)
-    ∂x_up = XPressureRedistribution(model, model.velocities.u, sum(model.pressures))
-    @test ∂x_up isa AbstractOperation
-    @test compute!(Field(∂x_up)) isa Field
+function test_pressure_term(model)
+    u⃗∇p = PressureRedistributionTerm(model)
+    @test u⃗∇p isa AbstractOperation
+    @test compute!(Field(u⃗∇p)) isa Field
 
-    ∂y_vp = YPressureRedistribution(model, model.velocities.v, sum(model.pressures))
-    @test ∂y_vp isa AbstractOperation
-    @test compute!(Field(∂y_vp)) isa Field
-
-    ∂z_wp = ZPressureRedistribution(model, model.velocities.w, sum(model.pressures))
-    @test ∂z_wp isa AbstractOperation
-    @test compute!(Field(∂z_wp)) isa Field
+    u⃗∇pNHS = PressureRedistributionTerm(model, pressure=model.pressures.pNHS)
+    @test u⃗∇pNHS isa AbstractOperation
+    @test compute!(Field(u⃗∇pNHS)) isa Field
 
     return nothing
 end
@@ -433,7 +429,10 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
                 if model isa NonhydrostaticModel
                     @info "Testing pressure terms"
-                    test_pressure_terms(model)
+                    test_pressure_term(model)
+
+                    @info "Testing buoyancy production term"
+                    test_buoyancy_production_term(grid; model_type)
                 end
 
                 @info "Testing energy dissipation rate terms"
@@ -452,8 +451,6 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
                     @info "Testing uniform shear flow"
                     test_uniform_shear_flow(grid; model_type, closure, σ=3)
-                    @info "Testing buoyancy production term"
-                    test_buoyancy_production_term(grid; model_type)
                 end
 
                 @info "Testing tracer variance terms"
