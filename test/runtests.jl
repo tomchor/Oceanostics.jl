@@ -7,7 +7,7 @@ using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 
 using Oceanostics
-using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics
+using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, BuoyancyProductionTerm
 using Oceanostics.ProgressMessengers
 
 include("test_budgets.jl")
@@ -249,6 +249,28 @@ function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
     return nothing
 end
 
+function test_buoyancy_production_term(grid; model_type=NonhydrostaticModel)
+    model = model_type(grid=grid, buoyancy=BuoyancyTracer(), tracers=:b)
+    w₀ = 2; b₀ = 3
+    set!(model, w=w₀, b=b₀, enforce_incompressibility=false)
+
+    wb = BuoyancyProductionTerm(model)
+    @compute wb_field = Field(wb)
+    @test wb isa AbstractOperation
+    @test wb_field isa Field
+    @test Array(interior(wb_field, 1, 1, 2)) .== w₀ * b₀
+
+    w′ = model.velocities.w - Field(Average(model.velocities.w))
+    b′ = model.tracers.b - Field(Average(model.tracers.b))
+    w′b′ = BuoyancyProductionTerm(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
+    @compute w′b′_field = Field(w′b′)
+    @test w′b′ isa AbstractOperation
+    @test w′b′_field isa Field
+    @test Array(interior(w′b′_field, 1, 1, 2)) .== 0
+
+    return nothing
+end
+
 function test_tracer_diagnostics(model)
     χ = TracerVarianceDissipationRate(model, :b)
     χ_field = compute!(Field(χ))
@@ -430,6 +452,8 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
                     @info "Testing uniform shear flow"
                     test_uniform_shear_flow(grid; model_type, closure, σ=3)
+                    @info "Testing buoyancy production term"
+                    test_buoyancy_production_term(grid; model_type)
                 end
 
                 @info "Testing tracer variance terms"
