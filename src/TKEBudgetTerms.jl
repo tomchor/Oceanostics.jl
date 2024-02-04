@@ -2,7 +2,9 @@ module TKEBudgetTerms
 using DocStringExtensions
 
 export TurbulentKineticEnergy, KineticEnergy
-export KineticEnergyTendency, KineticEnergyDiffusiveTerm, KineticEnergyForcingTerm
+export KineticEnergyTendency
+export AdvectionTerm
+export KineticEnergyDiffusiveTerm, KineticEnergyForcingTerm
 export IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate
 export PressureRedistributionTerm
 export BuoyancyProductionTerm
@@ -15,6 +17,7 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
 using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
+using Oceananigans.Advection: div_𝐯u, div_𝐯v, div_𝐯w
 using Oceananigans.BuoyancyModels: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
 using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz, 
                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
@@ -149,6 +152,20 @@ function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, C
                     model.pressures.pHY′,
                     model.clock)
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ₜuᵢᶜᶜᶜ, model.grid, dependencies...)
+end
+#---
+
+#+++ Advection term
+@inline function uᵢ∂ⱼuⱼuᵢᶜᶜᶜ(i, j, k, grid, velocities, advection)
+    u∂ⱼuⱼu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, div_𝐯u, advection, velocities, velocities.u)
+    v∂ⱼuⱼv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, div_𝐯v, advection, velocities, velocities.v)
+    w∂ⱼuⱼw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, div_𝐯w, advection, velocities, velocities.w)
+    return u∂ⱼuⱼu + v∂ⱼuⱼv + w∂ⱼuⱼw
+end
+
+function AdvectionTerm(model::NonhydrostaticModel; velocities = model.velocities, location = (Center, Center, Center))
+    validate_location(location, "AdvectionTerm")
+    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ, model.grid, velocities, model.advection)
 end
 #---
 

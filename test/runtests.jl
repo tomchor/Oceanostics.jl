@@ -7,7 +7,8 @@ using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 
 using Oceanostics
-using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, PressureRedistributionTerm, BuoyancyProductionTerm
+using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, PressureRedistributionTerm, BuoyancyProductionTerm, AdvectionTerm
+using Oceanostics.TKEBudgetTerms
 using Oceanostics.ProgressMessengers
 
 include("test_budgets.jl")
@@ -182,6 +183,21 @@ function test_pressure_term(model)
     return nothing
 end
 
+function test_momentum_advection_term(grid; model_type=NonhydrostaticModel)
+    model = model_type(; grid)
+    C₁ = 2; C₂ = 3
+    set!(model, u=(x, y, z) -> C₁*y, v=C₂)
+
+    ADV = AdvectionTerm(model)
+    @compute ADV_field = Field(ADV)
+    @test ADV isa AbstractOperation
+    @test ADV_field isa Field
+
+    # Test excluding the grid boundaries
+    @test Array(interior(ADV_field, 1, 2:grid.Ny-1, 1)) ≈ collect(C₁^2*C₂*grid.yᵃᶜᵃ[2:grid.Ny-1])
+
+    return nothing
+end
 function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1))
     model = model_type(; grid, closure, buoyancy=BuoyancyTracer(), tracers=:b)
 
@@ -437,6 +453,9 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
                 @info "Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(grid; model_type, closure)
+
+                @info "Testing energy dissipation rate terms"
+                test_momentum_advection_term(grid; model_type)
 
        
                 if model_type == NonhydrostaticModel
