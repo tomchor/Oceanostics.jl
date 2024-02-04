@@ -7,7 +7,7 @@ using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 
 using Oceanostics
-using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, BuoyancyProductionTerm
+using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, PressureRedistributionTerm, BuoyancyProductionTerm
 using Oceanostics.ProgressMessengers
 
 include("test_budgets.jl")

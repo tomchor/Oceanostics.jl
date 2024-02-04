@@ -4,7 +4,7 @@ using DocStringExtensions
 export TurbulentKineticEnergy, KineticEnergy
 export KineticEnergyTendency, KineticEnergyDiffusiveTerm, KineticEnergyForcingTerm
 export IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate
-export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
+export PressureRedistributionTerm
 export BuoyancyProductionTerm
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 
@@ -323,30 +323,55 @@ function KineticEnergyForcingTerm(model::NonhydrostaticModel; location = (Center
 end
 #---
 
-#+++ Pressure redistribution terms
-"""
-    $(SIGNATURES)
-
-Calculate the pressure redistribution term in the `x` direction. Here `u′` and `p′`
-are the fluctuations around a mean.
-"""
-XPressureRedistribution(model, u′, p′) = ∂x(u′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
-
-"""
-    $(SIGNATURES)
-
-Calculate the pressure redistribution term in the `y` direction. Here `v′` and `p′`
-are the fluctuations around a mean.
-"""
-YPressureRedistribution(model, v′, p′) = ∂y(v′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
+#+++ Pressure redistribution term
+@inline function uᵢ∂ᵢpᶜᶜᶜ(i, j, k, grid, velocities, pressure)
+    u∂x_p = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, ∂xᶠᶜᶜ, pressure)
+    v∂y_p = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, ∂yᶜᶠᶜ, pressure)
+    w∂z_p = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, ∂zᶜᶜᶠ, pressure)
+    return u∂x_p + v∂y_p + w∂z_p
+end
 
 """
     $(SIGNATURES)
 
-Calculate the pressure redistribution term in the `z` direction. Here `w′` and `p′`
-are the fluctuations around a mean.
+Calculate the pressure redistribution term:
+
+    PR = uᵢ∂ᵢp
+
+where `p` is the pressure. By default `p` is taken to be the total pressure (nonhydrostatic + hydrostatic):
+
+```jldoctest ∇u⃗p_example
+julia> using Oceananigans
+
+julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia> model = NonhydrostaticModel(grid=grid);
+
+julia> using Oceanostics.TKEBudgetTerms: PressureRedistributionTerm
+
+julia> ∇u⃗p = PressureRedistributionTerm(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
+└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "BinaryOperation at (Center, Center, Center)")
+```
+
+We can also pass `velocities` and `pressure` keywords to perform more specific calculations. The
+example below illustrates calculation of the nonhydrostatic contribution to the pressure
+redistrubution term:
+
+```jldoctest ∇u⃗p_example
+julia> ∇u⃗pNHS = PressureRedistributionTerm(model, pressure=model.pressures.pNHS)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
+└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU")
+```
 """
-ZPressureRedistribution(model, w′, p′) = ∂z(w′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
+function PressureRedistributionTerm(model::NonhydrostaticModel; velocities = model.velocities, pressure = sum(model.pressures), location = (Center, Center, Center))
+    validate_location(location, "PressureRedistributionTerm")
+    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
+end
 #---
 
 #+++ Buoyancy conversion term
