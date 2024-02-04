@@ -260,8 +260,8 @@ function test_buoyancy_production_term(grid; model_type=NonhydrostaticModel)
     @test wb_field isa Field
     @test Array(interior(wb_field, 1, 1, 2)) .== w₀ * b₀
 
-    w′ = model.velocities.w - Field(Average(model.velocities.w))
-    b′ = model.tracers.b - Field(Average(model.tracers.b))
+    w′ = Field(model.velocities.w - Field(Average(model.velocities.w)))
+    b′ = Field(model.tracers.b - Field(Average(model.tracers.b)))
     w′b′ = BuoyancyProductionTerm(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
     @compute w′b′_field = Field(w′b′)
     @test w′b′ isa AbstractOperation

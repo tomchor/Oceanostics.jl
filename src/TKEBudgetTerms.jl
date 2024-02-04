@@ -389,12 +389,12 @@ KernelFunctionOperation at (Center, Center, Center)
 ```
 
 If we want to calculate only the _turbulent_ buoyancy production rate, we can do so by passing
-turbulent perturbations (as `Field`s) to the `velocities` and/or `tracers` options):
+turbulent perturbations to the `velocities` and/or `tracers` options):
 
 ```jldoctest wb_example
-julia> w′ = model.velocities.w - Field(Average(model.velocities.w));
+julia> w′ = Field(model.velocities.w - Field(Average(model.velocities.w)));
 
-julia> b′ = model.tracers.b - Field(Average(model.tracers.b));
+julia> b′ = Field(model.tracers.b - Field(Average(model.tracers.b)));
 
 julia> w′b′ = BuoyancyProductionTerm(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
 KernelFunctionOperation at (Center, Center, Center)
@@ -403,11 +403,8 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=BinaryOperation at (Center, Center, Face))", "BuoyancyTracer with ĝ = NegativeZDirection()", "(b=BinaryOperation at (Center, Center, Center),)")
 ```
 """
-function BuoyancyProductionTerm(model::NonhydrostaticModel; velocities = nothing, tracers = nothing, location = (Center, Center, Center))
+function BuoyancyProductionTerm(model::NonhydrostaticModel; velocities = model.velocities, tracers = model.tracers, location = (Center, Center, Center))
     validate_location(location, "BuoyancyProductionTerm")
-    velocities = velocities == nothing ? model.velocities : velocities
-    tracers    = tracers    == nothing ? model.tracers    : tracers
-    @show tracers
     return KernelFunctionOperation{Center, Center, Center}(uᵢbᵢᶜᶜᶜ, model.grid, velocities, model.buoyancy, tracers)
 end
 #---
