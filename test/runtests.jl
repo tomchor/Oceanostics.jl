@@ -239,9 +239,9 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 end
 
 function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
-    Fᵘ_func(x, y, z, t, u) = -0.1 * u
-    Fᵛ_func(x, y, z, t, v) = -0.2 * v
-    Fʷ_func(x, y, z, t, w) = -0.3 * w
+    Fᵘ_func(x, y, z, t, u) = -u
+    Fᵛ_func(x, y, z, t, v) = -v
+    Fʷ_func(x, y, z, t, w) = -w
 
     Fᵘ = Forcing(Fᵘ_func, field_dependencies = :u)
     Fᵛ = Forcing(Fᵛ_func, field_dependencies = :v)
@@ -255,7 +255,7 @@ function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
     @test ε isa AbstractOperation
     @test ε_field isa Field
 
-    @compute ε_truth = Field(@at (Center, Center, Center) (-0.1 * model.velocities.u^2 -0.2 * model.velocities.v^2 -0.3 * model.velocities.w^2))
+    @compute ε_truth = Field(@at (Center, Center, Center) (-model.velocities.u^2 -model.velocities.v^2 -model.velocities.w^2))
 
     @test isapprox(Array(interior(ε_field, 1, 1, 1)), Array(interior(ε_truth, 1, 1, 1)), rtol=1e-12, atol=eps())
 
@@ -460,7 +460,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                     @info "Testing energy dissipation rate terms"
                     test_momentum_advection_term(grid; model_type)
 
-                    @info "Testing energy dissipation rate terms"
+                    @info "Testing forcing terms"
                     test_ke_forcing_term(grid; model_type)
 
                     @info "Testing uniform strain flow"
