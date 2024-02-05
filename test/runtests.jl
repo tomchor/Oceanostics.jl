@@ -8,7 +8,7 @@ using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 
 using Oceanostics
 using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, PressureRedistributionTerm, BuoyancyProductionTerm, AdvectionTerm
-using Oceanostics.TKEBudgetTerms
+using Oceanostics.TKEBudgetTerms: AdvectionTerm
 using Oceanostics.ProgressMessengers
 
 include("test_budgets.jl")
@@ -198,6 +198,7 @@ function test_momentum_advection_term(grid; model_type=NonhydrostaticModel)
 
     return nothing
 end
+
 function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1))
     model = model_type(; grid, closure, buoyancy=BuoyancyTracer(), tracers=:b)
 

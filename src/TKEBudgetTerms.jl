@@ -4,7 +4,7 @@ using DocStringExtensions
 export TurbulentKineticEnergy, KineticEnergy
 export KineticEnergyTendency
 export AdvectionTerm
-export KineticEnergyStressTerm, KinericEnergyImmersedBoundaryStressTerm
+export KineticEnergyStressTerm
 export KineticEnergyForcingTerm
 export IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate
 export PressureRedistributionTerm
@@ -331,51 +331,6 @@ function KineticEnergyStressTerm(model; location = (Center, Center, Center))
                     fields(model),
                     model.buoyancy)
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ, model.grid, dependencies...)
-end
-#---
-
-#+++ Immersed boundary stress term
-@inline function immersed_uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ(i, j, k, grid,
-                                            velocities,
-                                            immersed_bcs,
-                                            closure,
-                                            diffusivity_fields,
-                                            clock,
-                                            model_fields)
-
-    u∂ⱼ_τ₁ⱼ = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, immersed_∂ⱼ_τ₁ⱼ, velocities, immersed_bcs.u, closure, diffusivity_fields, clock, model_fields)
-    v∂ⱼ_τ₂ⱼ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, immersed_∂ⱼ_τ₂ⱼ, velocities, immersed_bcs.v, closure, diffusivity_fields, clock, model_fields)
-    w∂ⱼ_τ₃ⱼ = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, immersed_∂ⱼ_τ₃ⱼ, velocities, immersed_bcs.w, closure, diffusivity_fields, clock, model_fields)
-
-    return u∂ⱼ_τ₁ⱼ+ v∂ⱼ_τ₂ⱼ + w∂ⱼ_τ₃ⱼ
-end
-
-"""
-Return a `KernelFunctionOperation` that computes the immersed boundary stress term in the kinetic energy equation
-
-```
-    IM = uᵢ∂ⱼτᵇᵢⱼ
-```
-
-where `uᵢ` are the velocity components and `τᵇᵢⱼ` is immersed boundary stress tensor (`i` momentum
-in the `j`-th direction).
-"""
-function KinericEnergyImmersedBoundaryStressTerm(model; location = (Center, Center, Center))
-    validate_location(location, "KineticEnergyImmersedBoundaryTerm")
-    model_fields = fields(model)
-
-    if model isa HydrostaticFreeSurfaceModel
-        model_fields = (; model_fields..., w=ZeroField())
-    end
-
-    dependencies = (model.velocities, (u = model.velocities.u.boundary_conditions.immersed,
-                                       v = model.velocities.v.boundary_conditions.immersed,
-                                       w = model.velocities.w.boundary_conditions.immersed),
-                    model.closure,
-                    model.diffusivity_fields,
-                    model.clock,
-                    model_fields)
-    return KernelFunctionOperation{Center, Center, Center}(immersed_uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ, model.grid, dependencies...)
 end
 #---
 
