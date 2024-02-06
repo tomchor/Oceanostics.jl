@@ -7,7 +7,8 @@ using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 
 using Oceanostics
-using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics
+using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, PressureRedistributionTerm, BuoyancyProductionTerm, AdvectionTerm
+using Oceanostics.TKEBudgetTerms: AdvectionTerm
 using Oceanostics.ProgressMessengers
 
 include("test_budgets.jl")
@@ -170,18 +171,30 @@ function test_buoyancy_diagnostics(model)
     return nothing
 end
 
-function test_pressure_terms(model)
-    ∂x_up = XPressureRedistribution(model, model.velocities.u, sum(model.pressures))
-    @test ∂x_up isa AbstractOperation
-    @test compute!(Field(∂x_up)) isa Field
+function test_pressure_term(model)
+    u⃗∇p = PressureRedistributionTerm(model)
+    @test u⃗∇p isa AbstractOperation
+    @test compute!(Field(u⃗∇p)) isa Field
 
-    ∂y_vp = YPressureRedistribution(model, model.velocities.v, sum(model.pressures))
-    @test ∂y_vp isa AbstractOperation
-    @test compute!(Field(∂y_vp)) isa Field
+    u⃗∇pNHS = PressureRedistributionTerm(model, pressure=model.pressures.pNHS)
+    @test u⃗∇pNHS isa AbstractOperation
+    @test compute!(Field(u⃗∇pNHS)) isa Field
 
-    ∂z_wp = ZPressureRedistribution(model, model.velocities.w, sum(model.pressures))
-    @test ∂z_wp isa AbstractOperation
-    @test compute!(Field(∂z_wp)) isa Field
+    return nothing
+end
+
+function test_momentum_advection_term(grid; model_type=NonhydrostaticModel)
+    model = model_type(; grid)
+    C₁ = 2; C₂ = 3
+    set!(model, u=(x, y, z) -> C₁*y, v=C₂)
+
+    ADV = AdvectionTerm(model)
+    @compute ADV_field = Field(ADV)
+    @test ADV isa AbstractOperation
+    @test ADV_field isa Field
+
+    # Test excluding the grid boundaries
+    @test Array(interior(ADV_field, 1, 2:grid.Ny-1, 1)) ≈ collect(C₁^2*C₂*grid.yᵃᶜᵃ[2:grid.Ny-1])
 
     return nothing
 end
@@ -201,14 +214,14 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     @test ε isa AbstractOperation
     @test ε_field isa Field
 
-    ε = KineticEnergyDiffusiveTerm(model)
+    ε = KineticEnergyStressTerm(model)
     ε_field = compute!(Field(ε))
     @test ε isa AbstractOperation
     @test ε_field isa Field
 
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
     @compute ε̄ₖ = Field(Average(KineticEnergyDissipationRate(model)))
-    @compute ε̄ₖ₂= Field(Average(KineticEnergyDiffusiveTerm(model)))
+    @compute ε̄ₖ₂= Field(Average(KineticEnergyStressTerm(model)))
 
 
     if model isa NonhydrostaticModel
@@ -226,9 +239,9 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 end
 
 function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
-    Fᵘ_func(x, y, z, t, u) = -0.1 * u
-    Fᵛ_func(x, y, z, t, v) = -0.2 * v
-    Fʷ_func(x, y, z, t, w) = -0.3 * w
+    Fᵘ_func(x, y, z, t, u) = -u
+    Fᵛ_func(x, y, z, t, v) = -v
+    Fʷ_func(x, y, z, t, w) = -w
 
     Fᵘ = Forcing(Fᵘ_func, field_dependencies = :u)
     Fᵛ = Forcing(Fᵛ_func, field_dependencies = :v)
@@ -242,9 +255,31 @@ function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
     @test ε isa AbstractOperation
     @test ε_field isa Field
 
-    @compute ε_truth = Field(@at (Center, Center, Center) (-0.1 * model.velocities.u^2 -0.2 * model.velocities.v^2 -0.3 * model.velocities.w^2))
+    @compute ε_truth = Field(@at (Center, Center, Center) (-model.velocities.u^2 -model.velocities.v^2 -model.velocities.w^2))
 
     @test isapprox(Array(interior(ε_field, 1, 1, 1)), Array(interior(ε_truth, 1, 1, 1)), rtol=1e-12, atol=eps())
+
+    return nothing
+end
+
+function test_buoyancy_production_term(grid; model_type=NonhydrostaticModel)
+    model = model_type(grid=grid, buoyancy=BuoyancyTracer(), tracers=:b)
+    w₀ = 2; b₀ = 3
+    set!(model, w=w₀, b=b₀, enforce_incompressibility=false)
+
+    wb = BuoyancyProductionTerm(model)
+    @compute wb_field = Field(wb)
+    @test wb isa AbstractOperation
+    @test wb_field isa Field
+    @test Array(interior(wb_field, 1, 1, 2)) .== w₀ * b₀
+
+    w′ = Field(model.velocities.w - Field(Average(model.velocities.w)))
+    b′ = Field(model.tracers.b - Field(Average(model.tracers.b)))
+    w′b′ = BuoyancyProductionTerm(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
+    @compute w′b′_field = Field(w′b′)
+    @test w′b′ isa AbstractOperation
+    @test w′b′_field isa Field
+    @test Array(interior(w′b′_field, 1, 1, 2)) .== 0
 
     return nothing
 end
@@ -411,7 +446,10 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
                 if model isa NonhydrostaticModel
                     @info "Testing pressure terms"
-                    test_pressure_terms(model)
+                    test_pressure_term(model)
+
+                    @info "Testing buoyancy production term"
+                    test_buoyancy_production_term(grid; model_type)
                 end
 
                 @info "Testing energy dissipation rate terms"
@@ -420,6 +458,9 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
        
                 if model_type == NonhydrostaticModel
                     @info "Testing energy dissipation rate terms"
+                    test_momentum_advection_term(grid; model_type)
+
+                    @info "Testing forcing terms"
                     test_ke_forcing_term(grid; model_type)
 
                     @info "Testing uniform strain flow"

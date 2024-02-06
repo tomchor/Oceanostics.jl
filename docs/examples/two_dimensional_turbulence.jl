@@ -70,7 +70,7 @@ KE = KineticEnergy(model)
 ∫ε = Integral(ε)
 
 # We also create another integrated quantity that appears in the TKE evolution equation: the
-# `KineticEnergyDiffusiveTerm`, which in our case is
+# `KineticEnergyStressTerm`, which in our case is
 #
 # ```math
 # \varepsilon^D = u_i \partial_j \tau_{ij}
@@ -78,10 +78,10 @@ KE = KineticEnergy(model)
 # where ``\tau_{ij}`` is the diffusive flux of ``i`` momentum in the ``j``-th direction.
 #
 
-∫εᴰ = Integral(KineticEnergyDiffusiveTerm(model))
+∫εᴰ = Integral(KineticEnergyStressTerm(model))
 
-# The idea in calculating this term is that, in integrated form, all transport terms should equal
-# zero and `∫εᴰ` should equal `∫ε`.
+# The idea in calculating this term is that, in integrated form, all transport contributions in it
+# should equal zero and `∫εᴰ` should equal `∫ε`.
 #
 # We output the previous quantities to a NetCDF file
 
@@ -188,6 +188,6 @@ nothing #hide
 # Second, again as expected, the volume-integrated KE dissipation rate is the same as the
 # volume-integrated KE diffusion term (since all the non-dissipation parts of the term
 # volume-integrate to zero). In fact, both `KineticEnergyDissipationRate` and
-# `KineticEnergyDiffusiveTerm` in Oceanostics are implemented in an energy-conserving form (i.e.,
+# `KineticEnergyStressTerm` in Oceanostics are implemented in an energy-conserving form (i.e.,
 # they use the exact same discretization scheme and interpolations as used in Oceananigans), so they
 # agree to machine-precision, and are great for closing budgets.
