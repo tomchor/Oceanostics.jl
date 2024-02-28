@@ -191,6 +191,7 @@ KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: uᵢ∂ⱼuⱼuᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "Centered reconstruction order 2")
+```
 """
 function AdvectionTerm(model::NonhydrostaticModel; velocities = model.velocities, location = (Center, Center, Center))
     validate_location(location, "AdvectionTerm")
