@@ -18,7 +18,7 @@ include("test_budgets.jl")
 
 #+++ Default grids and functions
 arch = has_cuda_gpu() ? arch = GPU() : CPU()
-arch = CPU()
+
 N = 6
 regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
 
