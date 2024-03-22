@@ -67,9 +67,9 @@ KernelFunctionOperation at (Center, Center, Center)
 To use a reference density pass the argument `reference_geopotential_height` to
 `GravitationalPotentialEnergy`:
 ```jldoctest
-julia> using Oceananigans, SeawaterPolynomials.TEOS10
+julia> using Oceananigans, SeawaterPolynomials.TEOS10;
 
-julia> using Oceanostics.DensityEquationTerms: GravitationalPotentialEnergy
+julia> using Oceanostics.DensityEquationTerms: GravitationalPotentialEnergy;
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
 
