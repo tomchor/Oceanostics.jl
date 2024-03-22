@@ -23,7 +23,7 @@ export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTens
 #---
 
 #+++ DensityEquationTerms exports
-export GravitationalPotentialEnergy
+export PotentialEnergy
 #---
 
 #+++ ProgressMessengers

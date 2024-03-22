@@ -1,5 +1,5 @@
 using Test
-#using CUDA
+using CUDA
 
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
@@ -11,7 +11,7 @@ using SeawaterPolynomials: RoquetEquationOfState
 using Oceanostics
 using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, PressureRedistributionTerm, BuoyancyProductionTerm, AdvectionTerm
 using Oceanostics.TKEBudgetTerms: AdvectionTerm
-using Oceanostics: GravitationalPotentialEnergy
+using Oceanostics: PotentialEnergy
 using Oceanostics.ProgressMessengers
 
 include("test_budgets.jl")
@@ -326,15 +326,15 @@ end
 
 function test_density_equation_terms_errors(model)
 
-    @test_throws ArgumentError GravitationalPotentialEnergy(model)
-    @test_throws ArgumentError GravitationalPotentialEnergy(model, 0)
+    @test_throws ArgumentError PotentialEnergy(model)
+    @test_throws ArgumentError PotentialEnergy(model, 0)
 
     return nothing
 end
 
 function test_density_equation_terms(model)
 
-    Eₚ = GravitationalPotentialEnergy(model)
+    Eₚ = PotentialEnergy(model)
     Eₚ_field = Field(Eₚ)
     @test Eₚ isa AbstractOperation
     @test Eₚ_field isa Field
@@ -354,7 +354,7 @@ function test_density_equation_terms(model)
 end
 function test_density_equation_terms(model, reference_geopotential_height)
 
-    Eₚ = GravitationalPotentialEnergy(model, reference_geopotential_height)
+    Eₚ = PotentialEnergy(model, reference_geopotential_height)
     Eₚ_field = Field(Eₚ)
     @test Eₚ isa AbstractOperation
     @test Eₚ_field isa Field
