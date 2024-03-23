@@ -332,41 +332,25 @@ function test_density_equation_terms_errors(model)
     return nothing
 end
 
-function test_density_equation_terms(model)
+function test_density_equation_terms(model; geopotential_height = nothing)
 
-    Eₚ = PotentialEnergy(model)
+    Eₚ = isnothing(geopotential_height) ? PotentialEnergy(model) :
+                                          PotentialEnergy(model, geopotential_height)
+
     Eₚ_field = Field(Eₚ)
     @test Eₚ isa AbstractOperation
     @test Eₚ_field isa Field
     compute!(Eₚ_field)
 
-    ρ = Field(seawater_density(model))
+    ρ = isnothing(geopotential_height) ? Field(seawater_density(model)) :
+                                         Field(seawater_density(model; geopotential_height))
+
     compute!(ρ)
     Z = Field(model_geopotential_height(model))
     compute!(Z)
     g = model.buoyancy.model.gravitational_acceleration
 
-    true_value =  g .* ρ.data .* Z.data
-
-    @test isequal(Eₚ_field.data, true_value)
-
-    return nothing
-end
-function test_density_equation_terms(model, reference_geopotential_height)
-
-    Eₚ = PotentialEnergy(model, reference_geopotential_height)
-    Eₚ_field = Field(Eₚ)
-    @test Eₚ isa AbstractOperation
-    @test Eₚ_field isa Field
-    compute!(Eₚ_field)
-
-    ρ = Field(seawater_density(model, geopotential_height = reference_geopotential_height))
-    compute!(ρ)
-    Z = Field(model_geopotential_height(model))
-    compute!(Z)
-    g = model.buoyancy.model.gravitational_acceleration
-
-    true_value =  @. g * ρ.data * Z.data
+    true_value = g .* ρ.data .* Z.data
 
     @test isequal(Eₚ_field.data, true_value)
 
@@ -548,7 +532,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 model = model_type(; grid, buoyancy, tracers = (:S, :T))
                 set!(model, S = 34.7, T = 0.5)
                 test_density_equation_terms(model)
-                test_density_equation_terms(model, 0)
+                test_density_equation_terms(model, geopotential_height = 0)
 
             end
         end
