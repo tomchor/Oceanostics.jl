@@ -14,8 +14,9 @@ using Oceanostics: validate_location, validate_buoyancy
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` to compute the`PotentialEnergy`, `Eₚ = gρz`,
+Return a `KernelFunctionOperation` to compute the `PotentialEnergy`, `Eₚ = gρz`,
 at each grid `location` in `model`.
+
 **NOTE:** A `BoussinesqEquationOfState` must be used in the `model` to calculate
 `seawater_density`. See the [relevant documentation](https://clima.github.io/OceananigansDocumentation/dev/model_setup/buoyancy_and_equation_of_state/#Idealized-nonlinear-equations-of-state)
 for how to set `SeawaterBuoyancy` using a `BoussinesqEquationOfState`.
@@ -23,7 +24,7 @@ for how to set `SeawaterBuoyancy` using a `BoussinesqEquationOfState`.
 Example
 =======
 
-By passing only the `model` to the function, the in-situ density is used in the calculation:
+The default behaviour of `PotentialEnergy` uses the *in-situ density* in the calculation:
 ```jldoctest
 julia> using Oceananigans, SeawaterPolynomials.TEOS10
 
@@ -64,8 +65,8 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665,)")
 ```
 
-To use a reference density pass the argument `reference_geopotential_height` to
-`PotentialEnergy`:
+To use a reference density set a constant value for the keyword argument `geopotential_height`
+and pass this the function. For example,
 ```jldoctest
 julia> using Oceananigans, SeawaterPolynomials.TEOS10;
 
@@ -81,38 +82,26 @@ julia> buoyancy = SeawaterBuoyancy(equation_of_state=eos);
 
 julia> model = NonhydrostaticModel(; grid, buoyancy, tracers);
 
-julia> reference_geopotential_height = 0; # density variable will be σ₀
+julia> geopotential_height = 0; # density variable will be σ₀
 
-julia> PotentialEnergy(model, reference_geopotential_height)
+julia> PotentialEnergy(model; geopotential_height)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: gρz_ccc (generic function with 1 method)
 └── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665,)")
 ```
 """
-@inline function PotentialEnergy(model; location = (Center, Center, Center))
+@inline function PotentialEnergy(model; geopotential_height = model_geopotential_height(model), location = (Center, Center, Center))
 
     validate_location(location, "PotentialEnergy")
     validate_buoyancy(model.buoyancy)
 
     grid = model.grid
-    ρ = seawater_density(model) # in-situ model density
+    ρ = seawater_density(model; geopotential_height)
     Z = model_geopotential_height(model)
     parameters = (g = model.buoyancy.model.gravitational_acceleration,)
 
     return KernelFunctionOperation{Center, Center, Center}(gρz_ccc, grid, ρ, Z, parameters)
-end
-@inline function PotentialEnergy(model, reference_geopotential_height; location = (Center, Center, Center))
-
-    validate_location(location, "PotentialEnergy")
-    validate_buoyancy(model.buoyancy)
-
-    grid = model.grid
-    σ = seawater_density(model, geopotential_height = reference_geopotential_height) # potential density reference to `reference_geopotential_height`
-    Z = model_geopotential_height(model)
-    parameters = (g = model.buoyancy.model.gravitational_acceleration,)
-
-    return KernelFunctionOperation{Center, Center, Center}(gρz_ccc, grid, σ, Z, parameters)
 end
 
 @inline gρz_ccc(i, j, k, grid, density, Z, p) = p.g * density[i, j, k] * Z[i, j, k]
