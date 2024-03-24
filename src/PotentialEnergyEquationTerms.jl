@@ -65,7 +65,7 @@ julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: gρz_ccc (generic function with 1 method)
-└── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665,)")
+└── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 
 To use a reference density set a constant value for the keyword argument `geopotential_height`
@@ -91,7 +91,7 @@ julia> PotentialEnergy(model; geopotential_height)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: gρz_ccc (generic function with 1 method)
-└── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665,)")
+└── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 """
 @inline function PotentialEnergy(model; geopotential_height = model_geopotential_height(model), location = (Center, Center, Center))
