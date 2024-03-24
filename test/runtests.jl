@@ -360,100 +360,100 @@ end
 #---
 
 #+++ Known-value function tests
-# function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1), α=1)
-#     model = model_type(; grid, closure)
-#     u₀(x, y, z) = +α*x
-#     v₀(x, y, z) = -α*y
-#     set!(model, u=u₀, v=v₀, w=0, enforce_incompressibility=false)
+function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1), α=1)
+    model = model_type(; grid, closure)
+    u₀(x, y, z) = +α*x
+    v₀(x, y, z) = -α*y
+    set!(model, u=u₀, v=v₀, w=0, enforce_incompressibility=false)
 
-#     u, v, w = model.velocities
+    u, v, w = model.velocities
 
-#     @compute ε = Field(KineticEnergyDissipationRate(model))
-#     @compute S = Field(StrainRateTensorModulus(model))
-#     @compute Ω = Field(VorticityTensorModulus(model))
-#     @compute q = Field(QVelocityGradientTensorInvariant(model))
+    @compute ε = Field(KineticEnergyDissipationRate(model))
+    @compute S = Field(StrainRateTensorModulus(model))
+    @compute Ω = Field(VorticityTensorModulus(model))
+    @compute q = Field(QVelocityGradientTensorInvariant(model))
 
-#     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
+    idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
-#     if model.closure isa Tuple
-#         @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
-#     else
-#         ν_field = viscosity(model.closure, model.diffusivity_fields)
-#     end
+    if model.closure isa Tuple
+        @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
+    else
+        ν_field = viscosity(model.closure, model.diffusivity_fields)
+    end
 
-#     CUDA.@allowscalar begin
-#         ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
+    CUDA.@allowscalar begin
+        ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
 
-#         @test getindex(S, idxs...) ≈ √2*α
-#         @test getindex(Ω, idxs...) ≈ 0
-#         @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ -α^2
-#         @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
-#     end
+        @test getindex(S, idxs...) ≈ √2*α
+        @test getindex(Ω, idxs...) ≈ 0
+        @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ -α^2
+        @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
+    end
 
-#     return nothing
-# end
+    return nothing
+end
 
-# function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1), ζ=1)
-#     model = model_type(; grid, closure)
-#     u₀(x, y, z) = +ζ*y / 2
-#     v₀(x, y, z) = -ζ*x / 2
-#     set!(model, u=u₀, v=v₀, w=0, enforce_incompressibility=false)
+function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1), ζ=1)
+    model = model_type(; grid, closure)
+    u₀(x, y, z) = +ζ*y / 2
+    v₀(x, y, z) = -ζ*x / 2
+    set!(model, u=u₀, v=v₀, w=0, enforce_incompressibility=false)
 
-#     u, v, w = model.velocities
+    u, v, w = model.velocities
 
-#     @compute ε = Field(KineticEnergyDissipationRate(model))
-#     @compute S = Field(StrainRateTensorModulus(model))
-#     @compute Ω = Field(VorticityTensorModulus(model))
-#     @compute q = Field(QVelocityGradientTensorInvariant(model))
+    @compute ε = Field(KineticEnergyDissipationRate(model))
+    @compute S = Field(StrainRateTensorModulus(model))
+    @compute Ω = Field(VorticityTensorModulus(model))
+    @compute q = Field(QVelocityGradientTensorInvariant(model))
 
-#     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
+    idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
-#     if model.closure isa Tuple
-#         @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
-#     else
-#         ν_field = viscosity(model.closure, model.diffusivity_fields)
-#     end
+    if model.closure isa Tuple
+        @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
+    else
+        ν_field = viscosity(model.closure, model.diffusivity_fields)
+    end
 
-#     CUDA.@allowscalar begin
-#         ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
+    CUDA.@allowscalar begin
+        ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
 
-#         @test getindex(S, idxs...) ≈ 0
-#         @test getindex(Ω, idxs...) ≈ ζ/√2
-#         @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ ζ^2/4
-#         @test getindex(ε, idxs...) ≈ 0
-#     end
-# end
+        @test getindex(S, idxs...) ≈ 0
+        @test getindex(Ω, idxs...) ≈ ζ/√2
+        @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ ζ^2/4
+        @test getindex(ε, idxs...) ≈ 0
+    end
+end
 
-# function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1), σ=1)
-#     model = model_type(; grid, closure)
-#     u₀(x, y, z) = +σ * y
-#     set!(model, u=u₀, v=0, w=0, enforce_incompressibility=false)
+function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1), σ=1)
+    model = model_type(; grid, closure)
+    u₀(x, y, z) = +σ * y
+    set!(model, u=u₀, v=0, w=0, enforce_incompressibility=false)
 
-#     u, v, w = model.velocities
+    u, v, w = model.velocities
 
-#     @compute ε = Field(KineticEnergyDissipationRate(model))
-#     @compute S = Field(StrainRateTensorModulus(model))
-#     @compute Ω = Field(VorticityTensorModulus(model))
-#     @compute q = Field(QVelocityGradientTensorInvariant(model))
+    @compute ε = Field(KineticEnergyDissipationRate(model))
+    @compute S = Field(StrainRateTensorModulus(model))
+    @compute Ω = Field(VorticityTensorModulus(model))
+    @compute q = Field(QVelocityGradientTensorInvariant(model))
 
-#     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
+    idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
-#     if model.closure isa Tuple
-#         @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
-#     else
-#         ν_field = viscosity(model.closure, model.diffusivity_fields)
-#     end
+    if model.closure isa Tuple
+        @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
+    else
+        ν_field = viscosity(model.closure, model.diffusivity_fields)
+    end
 
-#     CUDA.@allowscalar begin
-#         ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
+    CUDA.@allowscalar begin
+        ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
 
-#         @test getindex(S, idxs...) ≈ σ/√2
-#         @test getindex(Ω, idxs...) ≈ σ/√2
-#         @test ≈(getindex(q, idxs...), (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2, atol=eps())
-#         @test ≈(getindex(q, idxs...), 0, atol=eps())
-#         @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
-#     end
-# end
+        @test getindex(S, idxs...) ≈ σ/√2
+        @test getindex(Ω, idxs...) ≈ σ/√2
+        @test ≈(getindex(q, idxs...), (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2, atol=eps())
+        @test ≈(getindex(q, idxs...), 0, atol=eps())
+        @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
+    end
+end
 #---
 
 model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()),
@@ -475,50 +475,50 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 @testset "Oceanostics" begin
     for grid in grids
         for model_type in model_types
-            # for closure in closures
-            #     @info "Testing $model_type on grid and with closure" grid closure
-            #     model = model_type(; grid, closure, model_kwargs...)
+            for closure in closures
+                @info "Testing $model_type on grid and with closure" grid closure
+                model = model_type(; grid, closure, model_kwargs...)
 
-            #     @info "Testing velocity-only diagnostics"
-            #     test_vel_only_diagnostics(model)
+                @info "Testing velocity-only diagnostics"
+                test_vel_only_diagnostics(model)
 
-            #     @info "Testing buoyancy diagnostics"
-            #     test_buoyancy_diagnostics(model)
+                @info "Testing buoyancy diagnostics"
+                test_buoyancy_diagnostics(model)
 
-            #     if model isa NonhydrostaticModel
-            #         @info "Testing pressure terms"
-            #         test_pressure_term(model)
+                if model isa NonhydrostaticModel
+                    @info "Testing pressure terms"
+                    test_pressure_term(model)
 
-            #         @info "Testing buoyancy production term"
-            #         test_buoyancy_production_term(grid; model_type)
-            #     end
+                    @info "Testing buoyancy production term"
+                    test_buoyancy_production_term(grid; model_type)
+                end
 
-            #     @info "Testing energy dissipation rate terms"
-            #     test_ke_dissipation_rate_terms(grid; model_type, closure)
+                @info "Testing energy dissipation rate terms"
+                test_ke_dissipation_rate_terms(grid; model_type, closure)
 
 
-            #     if model_type == NonhydrostaticModel
-            #         @info "Testing energy dissipation rate terms"
-            #         test_momentum_advection_term(grid; model_type)
+                if model_type == NonhydrostaticModel
+                    @info "Testing energy dissipation rate terms"
+                    test_momentum_advection_term(grid; model_type)
 
-            #         @info "Testing forcing terms"
-            #         test_ke_forcing_term(grid; model_type)
+                    @info "Testing forcing terms"
+                    test_ke_forcing_term(grid; model_type)
 
-            #         @info "Testing uniform strain flow"
-            #         test_uniform_strain_flow(grid; model_type, closure, α=3)
+                    @info "Testing uniform strain flow"
+                    test_uniform_strain_flow(grid; model_type, closure, α=3)
 
-            #         @info "Testing solid body rotation flow"
-            #         test_solid_body_rotation_flow(grid; model_type, closure, ζ=3)
+                    @info "Testing solid body rotation flow"
+                    test_solid_body_rotation_flow(grid; model_type, closure, ζ=3)
 
-            #         @info "Testing uniform shear flow"
-            #         test_uniform_shear_flow(grid; model_type, closure, σ=3)
-            #     end
+                    @info "Testing uniform shear flow"
+                    test_uniform_shear_flow(grid; model_type, closure, σ=3)
+                end
 
-            #     @info "Testing tracer variance terms"
-            #     model = model_type(; grid, closure, model_kwargs...)
-            #     test_tracer_diagnostics(model)
+                @info "Testing tracer variance terms"
+                model = model_type(; grid, closure, model_kwargs...)
+                test_tracer_diagnostics(model)
 
-            # end
+            end
             @info "Testing error throws for invalid buoyancy models"
             for buoyancy in invalid_buoyancy_models
 
