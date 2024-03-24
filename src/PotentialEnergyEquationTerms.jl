@@ -64,7 +64,7 @@ NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── kernel_function: gρz_ccc (generic function with 1 method)
+├── kernel_function: g′z_ccc (generic function with 1 method)
 └── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 
@@ -90,7 +90,7 @@ julia> geopotential_height = 0; # density variable will be σ₀
 julia> PotentialEnergy(model; geopotential_height)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── kernel_function: gρz_ccc (generic function with 1 method)
+├── kernel_function: g′z_ccc (generic function with 1 method)
 └── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 """
@@ -105,9 +105,9 @@ KernelFunctionOperation at (Center, Center, Center)
     parameters = (g = model.buoyancy.model.gravitational_acceleration,
                   ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
 
-    return KernelFunctionOperation{Center, Center, Center}(gρz_ccc, grid, ρ, Z, parameters)
+    return KernelFunctionOperation{Center, Center, Center}(g′z_ccc, grid, ρ, Z, parameters)
 end
 
-@inline gρz_ccc(i, j, k, grid, ρ, Z, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Z[i, j, k]
+@inline g′z_ccc(i, j, k, grid, ρ, Z, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Z[i, j, k]
 
 end # module
