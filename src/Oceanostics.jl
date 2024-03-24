@@ -22,7 +22,7 @@ export DirectionalErtelPotentialVorticity
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 #---
 
-#+++ DensityEquationTerms exports
+#+++ PotentialEnergyEquationTerms exports
 export PotentialEnergy
 #---
 
@@ -97,10 +97,10 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
 include("TKEBudgetTerms.jl")
 include("TracerVarianceBudgetTerms.jl")
 include("FlowDiagnostics.jl")
-include("DensityEquationTerms.jl")
+include("PotentialEnergyEquationTerms.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TKEBudgetTerms, .TracerVarianceBudgetTerms, .FlowDiagnostics, .ProgressMessengers
-using .DensityEquationTerms
+using .PotentialEnergyEquationTerms
 
 end # module

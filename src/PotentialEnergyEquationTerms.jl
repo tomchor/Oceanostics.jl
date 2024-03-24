@@ -1,4 +1,4 @@
-module DensityEquationTerms
+module PotentialEnergyEquationTerms
 
 using DocStringExtensions
 
@@ -14,7 +14,10 @@ using Oceanostics: validate_location, validate_buoyancy
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` to compute the `PotentialEnergy`, `Eₚ = gρz`,
+Return a `KernelFunctionOperation` to compute the `PotentialEnergy` per unit volume,
+```math
+Eₚ = \\frac{gρz}{ρ₀}
+```
 at each grid `location` in `model`.
 
 **NOTE:** A `BoussinesqEquationOfState` must be used in the `model` to calculate
@@ -28,7 +31,7 @@ The default behaviour of `PotentialEnergy` uses the *in-situ density* in the cal
 ```jldoctest
 julia> using Oceananigans, SeawaterPolynomials.TEOS10
 
-julia> using Oceanostics.DensityEquationTerms: PotentialEnergy
+julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
@@ -70,7 +73,7 @@ and pass this the function. For example,
 ```jldoctest
 julia> using Oceananigans, SeawaterPolynomials.TEOS10;
 
-julia> using Oceanostics.DensityEquationTerms: PotentialEnergy;
+julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy;
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
 
@@ -99,11 +102,12 @@ KernelFunctionOperation at (Center, Center, Center)
     grid = model.grid
     ρ = seawater_density(model; geopotential_height)
     Z = model_geopotential_height(model)
-    parameters = (g = model.buoyancy.model.gravitational_acceleration,)
+    parameters = (g = model.buoyancy.model.gravitational_acceleration,
+                  ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
 
     return KernelFunctionOperation{Center, Center, Center}(gρz_ccc, grid, ρ, Z, parameters)
 end
 
-@inline gρz_ccc(i, j, k, grid, density, Z, p) = p.g * density[i, j, k] * Z[i, j, k]
+@inline gρz_ccc(i, j, k, grid, ρ, Z, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Z[i, j, k]
 
 end # module

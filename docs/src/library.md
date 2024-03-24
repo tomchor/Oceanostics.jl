@@ -31,9 +31,9 @@ Modules = [Oceanostics.FlowDiagnostics]
 Private = false
 ```
 
-## Oceanostics.DensityEquationTerms
+## Oceanostics.PotentialEnergyEquationTerms
 
 ```@autodocs
-Modules = [Oceanostics.DensityEquationTerms]
+Modules = [Oceanostics.PotentialEnergyEquationTerms]
 Private = false
 ```
