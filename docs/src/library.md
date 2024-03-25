@@ -30,3 +30,10 @@ Private = false
 Modules = [Oceanostics.FlowDiagnostics]
 Private = false
 ```
+
+## Oceanostics.PotentialEnergyEquationTerms
+
+```@autodocs
+Modules = [Oceanostics.PotentialEnergyEquationTerms]
+Private = false
+```

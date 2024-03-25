@@ -30,3 +30,6 @@ docs/Manifest.toml
 # No netcdf files or videos
 *.nc
 *.mp4
+
+# Mac os stuff
+.DS_STORE

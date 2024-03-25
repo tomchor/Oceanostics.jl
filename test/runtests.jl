@@ -5,10 +5,13 @@ using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
+using Oceananigans.Models: seawater_density, model_geopotential_height
+using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
 
 using Oceanostics
 using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, PressureRedistributionTerm, BuoyancyProductionTerm, AdvectionTerm
 using Oceanostics.TKEBudgetTerms: AdvectionTerm
+using Oceanostics: PotentialEnergy
 using Oceanostics.ProgressMessengers
 
 include("test_budgets.jl")
@@ -320,6 +323,40 @@ function test_tracer_diagnostics(model)
 
     return nothing
 end
+
+function test_density_equation_terms_errors(model)
+
+    @test_throws ArgumentError PotentialEnergy(model)
+    @test_throws ArgumentError PotentialEnergy(model, geopotential_height = 0)
+
+    return nothing
+end
+
+function test_density_equation_terms(model; geopotential_height = nothing)
+
+    Eₚ = isnothing(geopotential_height) ? PotentialEnergy(model) :
+                                          PotentialEnergy(model; geopotential_height)
+
+    Eₚ_field = Field(Eₚ)
+    @test Eₚ isa AbstractOperation
+    @test Eₚ_field isa Field
+    compute!(Eₚ_field)
+
+    ρ = isnothing(geopotential_height) ? Field(seawater_density(model)) :
+                                         Field(seawater_density(model; geopotential_height))
+
+    compute!(ρ)
+    Z = Field(model_geopotential_height(model))
+    compute!(Z)
+    ρ₀ = model.buoyancy.model.equation_of_state.reference_density
+    g = model.buoyancy.model.gravitational_acceleration
+
+    true_value = (g / ρ₀) .* ρ.data .* Z.data
+
+    @test isequal(Eₚ_field.data, true_value)
+
+    return nothing
+end
 #---
 
 #+++ Known-value function tests
@@ -419,13 +456,17 @@ function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=S
 end
 #---
 
-model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()), 
+model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()),
                 coriolis = FPlane(1e-4),
                 tracers = :b)
 
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
+
+invalid_buoyancy_models = (nothing, BuoyancyTracer(), SeawaterBuoyancy())
+valid_buoyancy_models = (SeawaterBuoyancy(equation_of_state=TEOS10EquationOfState()),
+                         SeawaterBuoyancy(equation_of_state=RoquetEquationOfState(:Linear)))
 
 grids = (regular_grid, stretched_grid)
 
@@ -455,7 +496,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 @info "Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(grid; model_type, closure)
 
-       
+
                 if model_type == NonhydrostaticModel
                     @info "Testing energy dissipation rate terms"
                     test_momentum_advection_term(grid; model_type)
@@ -478,13 +519,30 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 test_tracer_diagnostics(model)
 
             end
+            @info "Testing error throws for invalid buoyancy models"
+            for buoyancy in invalid_buoyancy_models
+
+                tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T)
+                model = model_type(; grid, buoyancy, tracers)
+                test_density_equation_terms_errors(model)
+
+            end
+            @info "Testing valid buoyancy models"
+            for buoyancy in valid_buoyancy_models
+
+                model = model_type(; grid, buoyancy, tracers = (:S, :T))
+                set!(model, S = 34.7, T = 0.5)
+                test_density_equation_terms(model)
+                test_density_equation_terms(model, geopotential_height = 0)
+
+            end
         end
 
         @info "Testing input validation for dissipation rates"
         invalid_closures = [HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7),
                             VerticalScalarDiffusivity(ν=1e-6, κ=1e-7),
                             (ScalarDiffusivity(ν=1e-6, κ=1e-7), HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7))]
-        
+
         for closure in invalid_closures
             model = NonhydrostaticModel(grid = regular_grid; model_kwargs..., closure)
             @test_throws ErrorException IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0)
@@ -496,7 +554,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
     for closure in closures
         LES = is_LES(closure)
         model = NonhydrostaticModel(grid = regular_grid;
-                                    buoyancy = Buoyancy(model=BuoyancyTracer()), 
+                                    buoyancy = Buoyancy(model=BuoyancyTracer()),
                                     coriolis = FPlane(1e-4),
                                     tracers = :b,
                                     closure = closure)

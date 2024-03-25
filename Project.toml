@@ -7,10 +7,12 @@ version = "0.14.0"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+SeawaterPolynomials = "d496a93d-167e-4197-9f49-d3af4ff8fe40"
 
 [compat]
 DocStringExtensions = "0.9"
-Oceananigans = "0.85, 0.86, 0.87, 0.88, 0.89, 0.90"
+Oceananigans = "0.89, 0.90"
+SeawaterPolynomials = "0.3"
 julia = "1.9"
 
 [extras]
