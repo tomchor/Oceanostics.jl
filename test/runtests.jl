@@ -11,7 +11,7 @@ using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
 using Oceanostics
 using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, PressureRedistributionTerm, BuoyancyProductionTerm, AdvectionTerm
 using Oceanostics.TKEBudgetTerms: AdvectionTerm
-using Oceanostics: PotentialEnergy
+using Oceanostics: PotentialEnergy, PotentialEnergyEquationTerms.BuoyancyBoussinesqEOSModel
 using Oceanostics.ProgressMessengers
 
 include("test_budgets.jl")
@@ -324,7 +324,7 @@ function test_tracer_diagnostics(model)
     return nothing
 end
 
-function test_density_equation_terms_errors(model)
+function test_potential_energy_equation_terms_errors(model)
 
     @test_throws ArgumentError PotentialEnergy(model)
     @test_throws ArgumentError PotentialEnergy(model, geopotential_height = 0)
@@ -332,7 +332,7 @@ function test_density_equation_terms_errors(model)
     return nothing
 end
 
-function test_density_equation_terms(model; geopotential_height = nothing)
+function test_potential_energy_equation_terms(model; geopotential_height = nothing)
 
     Eₚ = isnothing(geopotential_height) ? PotentialEnergy(model) :
                                           PotentialEnergy(model; geopotential_height)
@@ -342,18 +342,20 @@ function test_density_equation_terms(model; geopotential_height = nothing)
     @test Eₚ_field isa Field
     compute!(Eₚ_field)
 
-    ρ = isnothing(geopotential_height) ? Field(seawater_density(model)) :
-                                         Field(seawater_density(model; geopotential_height))
+    if model.buoyancy isa BuoyancyBoussinesqEOSModel
+        ρ = isnothing(geopotential_height) ? Field(seawater_density(model)) :
+                                            Field(seawater_density(model; geopotential_height))
 
-    compute!(ρ)
-    Z = Field(model_geopotential_height(model))
-    compute!(Z)
-    ρ₀ = model.buoyancy.model.equation_of_state.reference_density
-    g = model.buoyancy.model.gravitational_acceleration
+        compute!(ρ)
+        Z = Field(model_geopotential_height(model))
+        compute!(Z)
+        ρ₀ = model.buoyancy.model.equation_of_state.reference_density
+        g = model.buoyancy.model.gravitational_acceleration
 
-    true_value = (g / ρ₀) .* ρ.data .* Z.data
+        true_value = (g / ρ₀) .* ρ.data .* Z.data
 
-    @test isequal(Eₚ_field.data, true_value)
+        @test isequal(Eₚ_field.data, true_value)
+    end
 
     return nothing
 end
@@ -464,9 +466,9 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
 
-invalid_buoyancy_models = (nothing, BuoyancyTracer(), SeawaterBuoyancy())
-valid_buoyancy_models = (SeawaterBuoyancy(equation_of_state=TEOS10EquationOfState()),
-                         SeawaterBuoyancy(equation_of_state=RoquetEquationOfState(:Linear)))
+buoyancy_models = (nothing, BuoyancyTracer(), SeawaterBuoyancy(),
+                   SeawaterBuoyancy(equation_of_state=TEOS10EquationOfState()),
+                   SeawaterBuoyancy(equation_of_state=RoquetEquationOfState(:Linear)))
 
 grids = (regular_grid, stretched_grid)
 
@@ -519,23 +521,22 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 test_tracer_diagnostics(model)
 
             end
-            @info "Testing error throws for invalid buoyancy models"
-            for buoyancy in invalid_buoyancy_models
+
+            @info "Testing `PotentialEnergy`"
+            for buoyancy in buoyancy_models
 
                 tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T)
                 model = model_type(; grid, buoyancy, tracers)
-                test_density_equation_terms_errors(model)
+                buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
+                if isnothing(buoyancy)
+                    test_potential_energy_equation_terms_errors(model)
+                else
+                    test_potential_energy_equation_terms(model)
+                    test_potential_energy_equation_terms(model, geopotential_height = 0)
+                end
 
             end
-            @info "Testing valid buoyancy models"
-            for buoyancy in valid_buoyancy_models
 
-                model = model_type(; grid, buoyancy, tracers = (:S, :T))
-                set!(model, S = 34.7, T = 0.5)
-                test_density_equation_terms(model)
-                test_density_equation_terms(model, geopotential_height = 0)
-
-            end
         end
 
         @info "Testing input validation for dissipation rates"
