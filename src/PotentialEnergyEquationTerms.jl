@@ -8,6 +8,7 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Models: seawater_density
 using Oceananigans.Models: model_geopotential_height
 using Oceananigans.Grids: Center, Face
+using Oceananigans.Grids: NegativeZDirection
 using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
 using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
@@ -18,6 +19,10 @@ const NoBuoyancyModel = Union{Nothing, ShallowWaterModel}
 const BuoyancyTracerModel = Buoyancy{<:BuoyancyTracer, g} where g
 const BuoyancyLinearEOSModel = Buoyancy{<:SeawaterBuoyancy{FT, <:LinearEquationOfState, T, S}} where {FT, T, S}
 const BuoyancyBoussinesqEOSModel = Buoyancy{<:SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, T, S}} where {FT, T, S}
+
+validate_gravity_unit_vector(gravity_unit_vector::NegativeZDirection) = nothing
+validate_gravity_unit_vector(gravity_unit_vector) =
+    throw(ArgumentError("`PotentialEnergy` is curently only defined for models that have a `NegativeZDirection` gravity unit vector."))
 
 """
     $(SIGNATURES)
@@ -62,8 +67,8 @@ NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── kernel_function: bz_ccc (generic function with 1 method)
-└── arguments: ("1×1×100 Field{Center, Center, Center} on RectilinearGrid on CPU", "KernelFunctionOperation at (Center, Center, Center)")
+├── kernel_function: bz_ccc (generic function with 2 methods)
+└── arguments: ("1×1×100 Field{Center, Center, Center} on RectilinearGrid on CPU",)
 ```
 
 The default behaviour of `PotentialEnergy` uses the *in-situ density* in the calculation
@@ -127,17 +132,18 @@ julia> model = NonhydrostaticModel(; grid, buoyancy, tracers);
 
 julia> geopotential_height = 0; # density variable will be σ₀
 
-julia> PotentialEnergy(model; geopotential_height)
+julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: g′z_ccc (generic function with 1 method)
-└── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
+└── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 """
 @inline function PotentialEnergy(model; location = (Center, Center, Center),
                                  geopotential_height = model_geopotential_height(model))
 
     validate_location(location, "PotentialEnergy")
+    validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
 
     return PotentialEnergy(model, model.buoyancy, geopotential_height)
 end
@@ -173,7 +179,7 @@ end
     parameters = (g = model.buoyancy.model.gravitational_acceleration,
                   ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
 
-    return KernelFunctionOperation{Center, Center, Center}(g′z_ccc, grid, ρ, Z, parameters)
+    return KernelFunctionOperation{Center, Center, Center}(g′z_ccc, grid, ρ, parameters)
 end
 
 @inline g′z_ccc(i, j, k, grid, ρ, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)

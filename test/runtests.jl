@@ -344,7 +344,7 @@ function test_potential_energy_equation_terms(model; geopotential_height = nothi
 
     if model.buoyancy isa BuoyancyBoussinesqEOSModel
         ρ = isnothing(geopotential_height) ? Field(seawater_density(model)) :
-                                            Field(seawater_density(model; geopotential_height))
+                                             Field(seawater_density(model; geopotential_height))
 
         compute!(ρ)
         Z = Field(model_geopotential_height(model))
