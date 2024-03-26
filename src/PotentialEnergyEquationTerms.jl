@@ -8,8 +8,28 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans: Models.seawater_density
 using Oceananigans: Models.model_geopotential_height
 using Oceananigans.Grids: Center, Face
+using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
+using Oceananigans.Models: NonhydrostaticModel, HydrostaticFreeSurfaceModel
 using Oceanostics: validate_location, validate_buoyancy
+using SeawaterPolynomials: BoussinesqEquationOfState
 
+const ModelsWithBoussinesqEOS = Union{NonhydrostaticModel{TS, E, A, G, T,
+                                    <:Buoyancy{<:SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, Temp, Sal}},
+                                    R, SD, U, C, Φ, F, V, S, K, BG, P, BGC, I, AF},
+                                    HydrostaticFreeSurfaceModel{TS, E, A, S, G, T, V,
+                                    <:Buoyancy{<:SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, Temp, Sal}},
+                                    R, F, P, BGC, U, C, Φ, K, AF}} where
+                                    {TS, E, A, G, T, R, SD, U, C, Φ, F, V, S, K, BG, P,
+                                    BGC, I, AF, FT, Temp, Sal}
+
+const ModelsWithBuoyancyTracer = Union{NonhydrostaticModel{TS, E, A, G, T,
+                                        <:Buoyancy{<:BuoyancyTracer, g},
+                                        R, SD, U, C, Φ, F, V, S, K, BG, P, BGC, I, AF},
+                                        HydrostaticFreeSurfaceModel{TS, E, A, S, G, T, V,
+                                        <:Buoyancy{<:BuoyancyTracer, g},
+                                        R, F, P, BGC, U, C, Φ, K, AF}} where
+                                        {TS, E, A, G, T, R, SD, U, C, Φ, F, V, S, K, BG, P,
+                                        BGC, I, AF, g}
 
 """
     $(SIGNATURES)
@@ -94,10 +114,11 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 """
-@inline function PotentialEnergy(model; geopotential_height = model_geopotential_height(model), location = (Center, Center, Center))
+@inline function PotentialEnergy(model::ModelsWithBoussinesqEOS;
+                                geopotential_height = model_geopotential_height(model),
+                                location = (Center, Center, Center))
 
     validate_location(location, "PotentialEnergy")
-    validate_buoyancy(model.buoyancy)
 
     grid = model.grid
     ρ = seawater_density(model; geopotential_height)
@@ -109,5 +130,19 @@ KernelFunctionOperation at (Center, Center, Center)
 end
 
 @inline g′z_ccc(i, j, k, grid, ρ, Z, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Z[i, j, k]
+
+@inline function PotentialEnergy(model::ModelsWithBuoyancyTracer;
+                                location = (Center, Center, Center))
+
+    validate_location(location, "PotentialEnergy")
+
+    grid = model.grid
+    b = model.tracers.b
+    Z = model_geopotential_height(model)
+
+    return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b, Z)
+end
+
+@inline bz_ccc(i, j, k, grid, b, Z) = b[i, j, k] * Z[i, j, k]
 
 end # module
