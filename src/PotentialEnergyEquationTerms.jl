@@ -9,7 +9,7 @@ using Oceananigans.Models: seawater_density
 using Oceananigans.Models: model_geopotential_height
 using Oceananigans.Grids: Center, Face
 using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
-using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ
+using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
 using Oceanostics: validate_location
 using SeawaterPolynomials: BoussinesqEquationOfState
@@ -18,9 +18,6 @@ const NoBuoyancyModel = Union{Nothing, ShallowWaterModel}
 const BuoyancyTracerModel = Buoyancy{<:BuoyancyTracer, g} where g
 const BuoyancyLinearEOSModel = Buoyancy{<:SeawaterBuoyancy{FT, <:LinearEquationOfState, T, S}} where {FT, T, S}
 const BuoyancyBoussinesqEOSModel = Buoyancy{<:SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, T, S}} where {FT, T, S}
-
-linear_eos_buoyancy(model) = linear_eos_buoyancy(model.grid, model.buoyancy.model, model.tracers)
-linear_eos_buoyancy(grid, buoyancy, tracers) = KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
 
 """
     $(SIGNATURES)
@@ -152,33 +149,33 @@ end
 
     grid = model.grid
     b = model.tracers.b
-    Z = model_geopotential_height(model)
 
-    return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b, Z)
+    return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b)
 end
+
+@inline bz_ccc(i, j, k, grid, b) = b[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
 
 @inline function PotentialEnergy(model, buoyancy_model::BuoyancyLinearEOSModel, geopotential_height)
 
     grid = model.grid
-    b = linear_eos_buoyancy(model)
-    Z = model_geopotential_height(model)
+    C = model.tracers
+    b = buoyancy_model.model
 
-    return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b, Z)
+    return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b, C)
 end
 
-@inline bz_ccc(i, j, k, grid, b, Z) = b[i, j, k] * Z[i, j, k]
+@inline bz_ccc(i, j, k, grid, b, C) = buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, b, C) * Zᶜᶜᶜ(i, j, k, grid)
 
 @inline function PotentialEnergy(model, buoyancy_model::BuoyancyBoussinesqEOSModel, geopotential_height)
 
     grid = model.grid
     ρ = seawater_density(model; geopotential_height)
-    Z = model_geopotential_height(model)
     parameters = (g = model.buoyancy.model.gravitational_acceleration,
                   ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
 
     return KernelFunctionOperation{Center, Center, Center}(g′z_ccc, grid, ρ, Z, parameters)
 end
 
-@inline g′z_ccc(i, j, k, grid, ρ, Z, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Z[i, j, k]
+@inline g′z_ccc(i, j, k, grid, ρ, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
 
 end # module
