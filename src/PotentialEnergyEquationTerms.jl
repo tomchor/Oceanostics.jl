@@ -17,8 +17,8 @@ using SeawaterPolynomials: BoussinesqEquationOfState
 
 const NoBuoyancyModel = Union{Nothing, ShallowWaterModel}
 const BuoyancyTracerModel = Buoyancy{<:BuoyancyTracer, g} where g
-const BuoyancyLinearEOSModel = Buoyancy{<:SeawaterBuoyancy{FT, <:LinearEquationOfState, T, S}} where {FT, T, S}
-const BuoyancyBoussinesqEOSModel = Buoyancy{<:SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, T, S}} where {FT, T, S}
+const BuoyancyLinearEOSModel = Buoyancy{<:SeawaterBuoyancy{FT, <:LinearEquationOfState, T, S} where {FT, T, S}, g} where {g}
+const BuoyancyBoussinesqEOSModel = Buoyancy{<:SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, T, S} where {FT, T, S}, g} where {g}
 
 validate_gravity_unit_vector(gravity_unit_vector::NegativeZDirection) = nothing
 validate_gravity_unit_vector(gravity_unit_vector) =
@@ -110,7 +110,7 @@ julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: g′z_ccc (generic function with 1 method)
-└── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
+└── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 
 To use a reference density set a constant value for the keyword argument `geopotential_height`
@@ -143,7 +143,7 @@ KernelFunctionOperation at (Center, Center, Center)
                                  geopotential_height = model_geopotential_height(model))
 
     validate_location(location, "PotentialEnergy")
-    validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
+    isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
 
     return PotentialEnergy(model, model.buoyancy, geopotential_height)
 end
