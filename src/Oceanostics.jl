@@ -33,8 +33,6 @@ export ProgressMessengers
 #+++ Utils for validation
 # Right now, all kernels must be located at ccc
 using Oceananigans.TurbulenceClosures: AbstractScalarDiffusivity, ThreeDimensionalFormulation
-using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
-using SeawaterPolynomials: BoussinesqEquationOfState
 using Oceananigans.Grids: Center, Face
 
 validate_location(location, type, valid_location=(Center, Center, Center)) =
@@ -44,13 +42,6 @@ validate_location(location, type, valid_location=(Center, Center, Center)) =
 validate_dissipative_closure(closure) = error("Cannot calculate dissipation rate for $closure")
 validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}) = nothing
 validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_closure(c) for c in closure_tuple)
-
-validate_buoyancy(buoyancy::Nothing) = throw(ArgumentError("Cannot calculate gravitational potential energy without a buoyancy model."))
-validate_buoyancy(buoyancy::Buoyancy{<:BuoyancyTracer, g}) where g =
-    throw(ArgumentError("Cannot calculate gravitational potential energy for the buoyancy model $(buoyancy.model)."))
-validate_buoyancy(buoyancy::Buoyancy{<:SeawaterBuoyancy{FT, <:LinearEquationOfState, T, S}, g}) where {FT, T, S, g} =
-    throw(ArgumentError("To calculate gravitational potential energy with a linear equation of state use a linear `BoussinesqEquationOfState`."))
-validate_buoyancy(buoyancy::Buoyancy{<:SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, T, S}, g}) where {FT, T, S, g} = nothing
 
 #---
 
