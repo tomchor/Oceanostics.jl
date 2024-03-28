@@ -3,6 +3,7 @@ module PotentialEnergyEquationTerms
 using DocStringExtensions
 
 export PotentialEnergy
+export sort_field, sorted_field
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Models: seawater_density
@@ -12,6 +13,7 @@ using Oceananigans.Grids: NegativeZDirection
 using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
 using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
+using Oceananigans.Fields: Field
 using Oceanostics: validate_location
 using SeawaterPolynomials: BoussinesqEquationOfState
 
@@ -184,4 +186,23 @@ end
 
 @inline g′z_ccc(i, j, k, grid, ρ, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
 
+## Background Potential Energy drafts
+
+resorted_field(i, j, k, grid, sf) = sf[i, j, k]
+function sorted_field(f::Field)
+    grid = f.grid
+    sorted_f = reshape(sort(reshape(f, :)), size(f))
+    return KernelFunctionOperation{Center, Center, Center}(resorted_field, grid, sorted_f)
+end
+
+function background_potential_energy(model)
+
+    return nothing
+end
+
+## Background potential energy would look like
+# Eb = gρ✶z/ρ₀ where ρ✶ is the sorted density field
+# or Eb = gρz✶/ρ₀ where z✶ = z[sortperm(ρ)]
+# so could have g/ρ₀ * ρ✶[i, j, k] * zᶜᶜᶜ(i, j, k, grid)
+# how to minimise the computation here? ie can I just return one kernel function operation?
 end # module
