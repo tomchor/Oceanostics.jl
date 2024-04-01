@@ -2,8 +2,7 @@ module PotentialEnergyEquationTerms
 
 using DocStringExtensions
 
-export PotentialEnergy
-export sort_field, sorted_field
+export PotentialEnergy, BackgroundPotentialEnergy
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Models: seawater_density
@@ -13,7 +12,7 @@ using Oceananigans.Grids: NegativeZDirection
 using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
 using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
-using Oceananigans.Fields: Field
+using Oceananigans.Fields: Field, compute!
 using Oceanostics: validate_location
 using SeawaterPolynomials: BoussinesqEquationOfState
 
@@ -186,23 +185,121 @@ end
 
 @inline g′z_ccc(i, j, k, grid, ρ, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
 
-## Background Potential Energy drafts
-
-resorted_field(i, j, k, grid, sf) = sf[i, j, k]
-function sorted_field(f::Field)
+# For testing `sort`ed fields.
+@inline resorted_field(i, j, k, grid, sf) = sf[i, j, k]
+@inline function sort_field(f::Field)
     grid = f.grid
-    sorted_f = reshape(sort(reshape(f, :)), size(f))
-    return KernelFunctionOperation{Center, Center, Center}(resorted_field, grid, sorted_f)
+    sorted_field = reshape(sort(reshape(f, :)), size(f))
+    return KernelFunctionOperation{Center, Center, Center}(resorted_field, grid, sorted_field)
 end
 
-function background_potential_energy(model)
+"""
+    $(SIGNATURES)
+Return a `kernelFunctionOperation` to compute the `BackgroundPotentialEnergy` per unit
+volume,
+```math
+Eₚ = \\frac{gρ✶z}{ρ₀}.
+```
+The `BackgroundPotentialEnergy` is the potential energy computed after adiabatically resorting
+the buoyancy or density field into a reference state of minimal potential energy.
+The reference state is computed by reshaping the gridded buoyancy or density field and
+`sort`ing into a monotonically increasing `Vector`. This `sort`ed vector is then reshaped into
+the `size(model.grid)`.
 
-    return nothing
+Examples
+========
+
+```jldoctest
+julia> using Oceananigans
+
+julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
+
+julia> grid = RectilinearGrid(size=5, z=(-5, 0), topology=(Flat, Flat, Bounded))
+1×1×5 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── Flat x
+├── Flat y
+└── Bounded  z ∈ [-5.0, 0.0]      regularly spaced with Δz=1.0
+
+julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=(:b,))
+NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 1×1×5 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── timestepper: QuasiAdamsBashforth2TimeStepper
+├── tracers: b
+├── closure: Nothing
+├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
+└── coriolis: Nothing
+
+julia> set!(model, b = randn(size(model.grid)));
+
+julia> interior(model.tracers.b, 1, 1, :)
+5-element view(::Array{Float64, 3}, 1, 1, 4:8) with eltype Float64:
+  1.6132888274716937
+ -0.7877032120116347
+ -0.9357749288520266
+  1.310757334669075
+  0.09514543268446216
+
+julia> bpe = BackgroundPotentialEnergy(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×5 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── kernel_function: bz_ccc (generic function with 2 methods)
+└── arguments: ("1×1×5 Array{Float64, 3}",)
+
+julia> bpe_field = Field(bpe);
+
+julia> compute!(bpe_field);
+
+julia> interior(bpe_field, 1, 1, :)
+5-element view(::Array{Float64, 3}, 1, 1, 4:8) with eltype Float64:
+  4.210987179834119
+  2.7569612420407217
+ -0.2378635817111554
+ -1.9661360020036125
+ -0.8066444137358468
+```
+"""
+@inline function BackgroundPotentialEnergy(model; location = (Center, Center, Center),
+                                                  geopotential_height = model_geopotential_height(model))
+
+    validate_location(location, "BackgroundPotentialEnergy")
+    isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
+
+    return BackgroundPotentialEnergy(model, model.buoyancy, geopotential_height)
 end
 
-## Background potential energy would look like
-# Eb = gρ✶z/ρ₀ where ρ✶ is the sorted density field
-# or Eb = gρz✶/ρ₀ where z✶ = z[sortperm(ρ)]
-# so could have g/ρ₀ * ρ✶[i, j, k] * zᶜᶜᶜ(i, j, k, grid)
-# how to minimise the computation here? ie can I just return one kernel function operation?
+@inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyTracerModel, geopotential_height)
+
+    grid = model.grid
+    b✶ = reshape(sort(reshape(model.tracers.b, :)), size(grid))
+
+    return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b✶)
+end
+
+linear_eos_buoyancy(grid, buoyancy, tracers) = KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
+
+@inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyLinearEOSModel, geopotential_height)
+
+    grid = model.grid
+    buoyancy = model.buoyancy.model
+    tracers = model.tracers
+    b = linear_eos_buoyancy(grid, buoyancy, tracers)
+    b = Field(b)
+    compute!(b)
+    b✶ = reshape(sort(reshape(b, :)), size(grid))
+
+    return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b✶)
+end
+
+@inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyBoussinesqEOSModel, geopotential_height)
+
+    grid = model.grid
+    ρ = Field(seawater_density(model; geopotential_height))
+    compute!(ρ)
+    ρ✶ = reshape(sort(reshape(ρ, :)), size(grid))
+    parameters = (g = model.buoyancy.model.gravitational_acceleration,
+                  ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
+
+    return KernelFunctionOperation{Center, Center, Center}(g′z_ccc, grid, ρ✶, parameters)
+end
+
 end # module
