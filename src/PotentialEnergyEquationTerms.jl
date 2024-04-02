@@ -195,6 +195,7 @@ end
 
 """
     $(SIGNATURES)
+
 Return a `kernelFunctionOperation` to compute the `BackgroundPotentialEnergy` per unit
 volume,
 ```math
