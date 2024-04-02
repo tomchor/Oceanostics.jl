@@ -214,48 +214,26 @@ julia> using Oceananigans
 
 julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
 
-julia> grid = RectilinearGrid(size=5, z=(-5, 0), topology=(Flat, Flat, Bounded))
-1×1×5 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
+1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── Flat x
 ├── Flat y
-└── Bounded  z ∈ [-5.0, 0.0]      regularly spaced with Δz=1.0
+└── Bounded  z ∈ [-1000.0, 0.0]   regularly spaced with Δz=10.0
 
 julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=(:b,))
 NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
-├── grid: 1×1×5 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── timestepper: QuasiAdamsBashforth2TimeStepper
 ├── tracers: b
 ├── closure: Nothing
 ├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
 └── coriolis: Nothing
 
-julia> set!(model, b = randn(size(model.grid)));
-
-julia> interior(model.tracers.b, 1, 1, :)
-5-element view(::Array{Float64, 3}, 1, 1, 4:8) with eltype Float64:
-  1.6132888274716937
- -0.7877032120116347
- -0.9357749288520266
-  1.310757334669075
-  0.09514543268446216
-
 julia> bpe = BackgroundPotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
-├── grid: 1×1×5 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: bz_ccc (generic function with 2 methods)
-└── arguments: ("1×1×5 Array{Float64, 3}",)
-
-julia> bpe_field = Field(bpe);
-
-julia> compute!(bpe_field);
-
-julia> interior(bpe_field, 1, 1, :)
-5-element view(::Array{Float64, 3}, 1, 1, 4:8) with eltype Float64:
-  4.210987179834119
-  2.7569612420407217
- -0.2378635817111554
- -1.9661360020036125
- -0.8066444137358468
+└── arguments: ("1×1×100 Array{Float64, 3}",)
 ```
 """
 @inline function BackgroundPotentialEnergy(model; location = (Center, Center, Center),
