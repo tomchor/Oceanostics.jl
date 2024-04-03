@@ -269,7 +269,7 @@ linear_eos_buoyancy(grid, buoyancy, tracers) = KernelFunctionOperation{Center, C
     b = linear_eos_buoyancy(grid, buoyancy, tracers)
     b = Field(b)
     compute!(b)
-    b✶ = reshape(sort(reshape(b, :), rev = true))
+    b✶ = reshape(sort(reshape(b, :)), size(grid))
 
     return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b✶)
 end
