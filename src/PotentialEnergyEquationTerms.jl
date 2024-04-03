@@ -204,7 +204,7 @@ end
 Return a `kernelFunctionOperation` to compute the `BackgroundPotentialEnergy` per unit
 volume,
 ```math
-Eₚ = \\frac{gρ✶z}{ρ₀}.
+E_{b} = \\frac{gρ✶z}{ρ₀}.
 ```
 The `BackgroundPotentialEnergy` is the potential energy computed after adiabatically resorting
 the buoyancy or density field into a reference state of minimal potential energy.
