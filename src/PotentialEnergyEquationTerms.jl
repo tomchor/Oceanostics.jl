@@ -189,6 +189,11 @@ end
 @inline resorted_field(i, j, k, grid, sf) = sf[i, j, k]
 @inline function sort_field(f::Field)
     grid = f.grid
+    sorted_field = reshape(sort(reshape(f, :)), size(f))
+    return KernelFunctionOperation{Center, Center, Center}(resorted_field, grid, sorted_field)
+end
+@inline function sort_field_rev(f::Field)
+    grid = f.grid
     sorted_field = reshape(sort(reshape(f, :), rev = true), size(f))
     return KernelFunctionOperation{Center, Center, Center}(resorted_field, grid, sorted_field)
 end
@@ -249,7 +254,7 @@ end
 @inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyTracerModel, geopotential_height)
 
     grid = model.grid
-    b✶ = reshape(sort(reshape(model.tracers.b, :), rev = true), size(grid))
+    b✶ = reshape(sort(reshape(model.tracers.b, :)), size(grid))
 
     return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b✶)
 end
@@ -264,7 +269,7 @@ linear_eos_buoyancy(grid, buoyancy, tracers) = KernelFunctionOperation{Center, C
     b = linear_eos_buoyancy(grid, buoyancy, tracers)
     b = Field(b)
     compute!(b)
-    b✶ = reshape(sort(reshape(b, :), rev = true), size(grid))
+    b✶ = reshape(sort(reshape(b, :), rev = true))
 
     return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b✶)
 end
