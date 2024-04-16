@@ -71,6 +71,28 @@ function add_background_fields(model)
 end
 #---
 
+#+++ Utils for removing mean velocities
+using Oceananigans.Biogeochemistry: biogeochemical_auxiliary_fields
+"""
+    $(SIGNATURES)
+
+Remove mean velocities from the model resolved velocities.
+"""
+function remove_mean_velocities(model, mean_velocities)
+
+    velocities = model.velocities
+    # Removes mean velocities only if mean velocity isn't ZeroField
+    perturbation_velocities = NamedTuple{keys(velocities)}((mean_velocities[key] isa ZeroField) ?
+                                                           val :
+                                                           val - mean_velocities[key]
+                                                           for (key,val) in zip(keys(velocities), velocities))
+    return merge(perturbation_velocities,
+                 model.tracers,
+                 model.auxiliary_fields,
+                 biogeochemical_auxiliary_fields(model.biogeochemistry))
+end
+#---
+
 #+++ A few utils for closure tuples:
 using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
 

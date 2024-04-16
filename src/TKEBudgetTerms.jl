@@ -27,7 +27,7 @@ using Oceananigans.TurbulenceClosures: immersed_∂ⱼ_τ₁ⱼ, immersed_∂ⱼ
 using Oceananigans.BuoyancyModels: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
 
 using Oceanostics: _νᶜᶜᶜ
-using Oceanostics: validate_location, validate_dissipative_closure
+using Oceanostics: validate_location, validate_dissipative_closure, remove_mean_velocities
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -283,13 +283,14 @@ where ∂ⱼuᵢ is the velocity gradient tensor and Fᵢⱼ is the stress tenso
 function KineticEnergyDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
                                                location = (Center, Center, Center))
     validate_location(location, "KineticEnergyDissipationRate")
-    u, v, w = model.velocities
+    mean_velocities = (u=U, v=V, w=W)
+    model_fields = remove_mean_velocities(model, mean_velocities)
     parameters = (; model.closure, 
                   model.clock,
                   model.buoyancy)
 
     return KernelFunctionOperation{Center, Center, Center}(viscous_dissipation_rate_ccc, model.grid,
-                                                           model.diffusivity_fields, fields(model), parameters)
+                                                           model.diffusivity_fields, model_fields, parameters)
 end
 #---
 
