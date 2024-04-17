@@ -79,16 +79,16 @@ using Oceananigans.Biogeochemistry: biogeochemical_auxiliary_fields
 
 Remove mean fields from the model resolved fields.
 """
-function fields_without_means(model; kwargs...)
+function perturbation_fields(model; kwargs...)
 
     resolved_fields = prognostic_fields(model)
     mean_fields = values(kwargs)
     # Removes mean fields only if mean field is provided
-    perturbation_fields = NamedTuple{keys(resolved_fields)}(haskey(mean_fields, key) ?
-                                                           val - mean_fields[key] :
-                                                           val
-                                                           for (key,val) in zip(keys(resolved_fields), resolved_fields))
-    return merge(perturbation_fields,
+    pert_fields = NamedTuple{keys(resolved_fields)}(haskey(mean_fields, key) ?
+                                                    val - mean_fields[key] :
+                                                    val
+                                                    for (key,val) in zip(keys(resolved_fields), resolved_fields))
+    return merge(pert_fields,
                  model.auxiliary_fields,
                  biogeochemical_auxiliary_fields(model.biogeochemistry))
 end
