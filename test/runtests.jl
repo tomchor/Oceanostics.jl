@@ -212,10 +212,23 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
         @test ε_iso_field isa Field
     end
 
-    ε = KineticEnergyDissipationRate(model; U=0, V=0, W=0)
+    dudz = 2
+    set!(model, u=(x, y, z) -> dudz*z)
+
+    ε = KineticEnergyDissipationRate(model)
     ε_field = compute!(Field(ε))
     @test ε isa AbstractOperation
     @test ε_field isa Field
+
+    true_ε = viscosity(model.closure, model.diffusivity_fields) * dudz^2
+    @test interior(ε_field, 3, 3, 3)[1] == true_ε
+
+    ε = KineticEnergyDissipationRate(model; U=Field(Average(model.velocities.u, dims=(1,2))))
+    ε_field = compute!(Field(ε))
+    @test ε isa AbstractOperation
+    @test ε_field isa Field
+
+    @test interior(ε_field, 3, 3, 3)[1] == 0.0
 
     ε = KineticEnergyStressTerm(model)
     ε_field = compute!(Field(ε))
@@ -455,6 +468,15 @@ function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=S
         @test ≈(getindex(q, idxs...), 0, atol=eps())
         @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
     end
+end
+
+function test_auxiliary_functions(model)
+    set!(model, u=1, v=2)
+    fields_without_means = map(Field, perturbation_fields(model; u=1, v=2))
+    compute!(fields_without_means)
+    @test all(Array(interior(fields_without_means.u)) .== 0)
+    @test all(Array(interior(fields_without_means.v)) .== 0)
+    return
 end
 #---
 
