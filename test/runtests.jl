@@ -504,6 +504,9 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 @info "Testing $model_type on grid and with closure" grid closure
                 model = model_type(; grid, closure, model_kwargs...)
 
+                @info "Testing auxiliary functions"
+                test_auxiliary_functions(model)
+
                 @info "Testing velocity-only diagnostics"
                 test_vel_only_diagnostics(model)
 
