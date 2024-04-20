@@ -13,6 +13,7 @@ using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, P
 using Oceanostics.TKEBudgetTerms: AdvectionTerm
 using Oceanostics: PotentialEnergy, PotentialEnergyEquationTerms.BuoyancyBoussinesqEOSModel
 using Oceanostics.ProgressMessengers
+using Oceanostics: perturbation_fields
 
 include("test_budgets.jl")
 
