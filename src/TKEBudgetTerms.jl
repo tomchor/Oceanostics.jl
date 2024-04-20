@@ -16,7 +16,7 @@ using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
-using Oceananigans.Fields: ZeroField
+using Oceananigans.Fields: Field, ZeroField
 using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
 using Oceananigans.Advection: div_𝐯u, div_𝐯v, div_𝐯w
 using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz, 
@@ -284,7 +284,7 @@ function KineticEnergyDissipationRate(model; U=ZeroField(), V=ZeroField(), W=Zer
                                                location = (Center, Center, Center))
     validate_location(location, "KineticEnergyDissipationRate")
     mean_velocities = (u=U, v=V, w=W)
-    model_fields = perturbation_fields(model; mean_velocities...)
+    model_fields = map(Field, perturbation_fields(model; mean_velocities...))
     parameters = (; model.closure, 
                   model.clock,
                   model.buoyancy)
