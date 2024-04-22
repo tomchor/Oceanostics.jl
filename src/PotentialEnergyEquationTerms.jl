@@ -12,7 +12,7 @@ using Oceananigans.Grids: NegativeZDirection
 using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
 using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
-using Oceananigans.Fields: Field
+using Oceananigans.Fields: Field, compute!
 using Oceanostics: validate_location
 using SeawaterPolynomials: BoussinesqEquationOfState
 
