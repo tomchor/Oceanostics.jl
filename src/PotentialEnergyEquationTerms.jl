@@ -239,7 +239,7 @@ Examples
 ```jldoctest
 julia> using Oceananigans
 
-julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
+julia> using Oceanostics.PotentialEnergyEquationTerms: BackgroundPotentialEnergy
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
@@ -260,7 +260,7 @@ julia> bpe = BackgroundPotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: bz_ccc (generic function with 2 methods)
-└── arguments: ("1×1×100 Array{Float64, 3}",)
+└── arguments: ("KernelFunctionOperation at (Center, Center, Center)",)
 ```
 """
 @inline function BackgroundPotentialEnergy(model; location = (Center, Center, Center),
