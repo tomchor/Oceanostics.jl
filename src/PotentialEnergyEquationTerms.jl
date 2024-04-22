@@ -12,7 +12,7 @@ using Oceananigans.Grids: NegativeZDirection
 using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
 using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
-using Oceananigans.Fields: Field, compute!
+using Oceananigans.Fields: Field
 using Oceanostics: validate_location
 using SeawaterPolynomials: BoussinesqEquationOfState
 
@@ -185,18 +185,34 @@ end
 
 @inline g′z_ccc(i, j, k, grid, ρ, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
 
-# For testing `sort`ed fields.
-@inline resorted_field(i, j, k, grid, sf) = sf[i, j, k]
+"""
+    function sort_field(f)
+Reshape a `Field` `f` into an array (that is the lenght of the interior grid dimensions),
+`sort` this array (default behaviour of `sort` is ascending) then distribute this `sort`ed
+array throughout the grid such that the _largest_ values are at the top of the grid and
+the smallest values are at the _bottom_ of the grid.
+"""
+@inline sort_field(f) = reshape(sort(reshape(f, :)), size(f))
+
 @inline function sort_field(f::Field)
     grid = f.grid
-    sorted_field = reshape(sort(reshape(f, :)), size(f))
+    sorted_field = sort_field(f)
     return KernelFunctionOperation{Center, Center, Center}(resorted_field, grid, sorted_field)
 end
-@inline function sort_field_rev(f::Field)
+"""
+    function sort_field_revesre(f)
+Same method as [`sort_field`](@ref) but the 1D array is sorted in _descending_ order.
+"""
+@inline sort_field_reverse(f) = reshape(sort(reshape(f, :), rev = true), size(f))
+
+@inline function sort_field_reverse(f::Field)
     grid = f.grid
-    sorted_field = reshape(sort(reshape(f, :), rev = true), size(f))
+    sorted_field = sort_field_reverse(f)
     return KernelFunctionOperation{Center, Center, Center}(resorted_field, grid, sorted_field)
 end
+
+# For testing and validating `sort`ed fields.
+@inline resorted_field(i, j, k, grid, sf) = sf[i, j, k]
 
 """
     $(SIGNATURES)
@@ -254,7 +270,7 @@ end
 @inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyTracerModel, geopotential_height)
 
     grid = model.grid
-    b✶ = reshape(sort(reshape(model.tracers.b, :)), size(grid))
+    b✶ = sort_field(model.tracers.b)
 
     return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b✶)
 end
@@ -266,10 +282,9 @@ linear_eos_buoyancy(grid, buoyancy, tracers) = KernelFunctionOperation{Center, C
     grid = model.grid
     buoyancy = model.buoyancy.model
     tracers = model.tracers
-    b = linear_eos_buoyancy(grid, buoyancy, tracers)
-    b = Field(b)
+    b = Field(linear_eos_buoyancy(grid, buoyancy, tracers))
     compute!(b)
-    b✶ = reshape(sort(reshape(b, :)), size(grid))
+    b✶ = sort_field(b)
 
     return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b✶)
 end
@@ -279,11 +294,28 @@ end
     grid = model.grid
     ρ = Field(seawater_density(model; geopotential_height))
     compute!(ρ)
-    ρ✶ = reshape(sort(reshape(ρ, :), rev = true), size(grid))
+    ρ✶ = sort_field_reverse(ρ)
     parameters = (g = model.buoyancy.model.gravitational_acceleration,
                   ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
 
     return KernelFunctionOperation{Center, Center, Center}(g′z_ccc, grid, ρ✶, parameters)
+end
+
+## By defining custom field
+export ReferenceStateOperand, ReferenceStateField
+
+struct ReferenceStateOperand{O}
+    sorting_function :: O
+end
+const ReferenceStateField = Field{Center, Center, Center, <:ReferenceStateOperand}
+
+import Oceananigans.Fields: compute!
+
+function compute!(rs::ReferenceStateField, time=nothing)
+
+    rs.data = rs.operand(rs.data)
+
+    return rs
 end
 
 end # module
