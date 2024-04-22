@@ -193,26 +193,11 @@ array throughout the grid such that the _largest_ values are at the top of the g
 the smallest values are at the _bottom_ of the grid.
 """
 @inline sort_field(f) = reshape(sort(reshape(f, :)), size(f))
-
-@inline function sort_field(f::Field)
-    grid = f.grid
-    sorted_field = sort_field(f)
-    return KernelFunctionOperation{Center, Center, Center}(resorted_field, grid, sorted_field)
-end
 """
     function sort_field_revesre(f)
 Same method as [`sort_field`](@ref) but the 1D array is sorted in _descending_ order.
 """
 @inline sort_field_reverse(f) = reshape(sort(reshape(f, :), rev = true), size(f))
-
-@inline function sort_field_reverse(f::Field)
-    grid = f.grid
-    sorted_field = sort_field_reverse(f)
-    return KernelFunctionOperation{Center, Center, Center}(resorted_field, grid, sorted_field)
-end
-
-# For testing and validating `sort`ed fields.
-@inline resorted_field(i, j, k, grid, sf) = sf[i, j, k]
 
 """
     $(SIGNATURES)
