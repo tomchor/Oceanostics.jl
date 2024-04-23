@@ -202,6 +202,7 @@ the smallest values are at the _bottom_ of the grid.
 
     return KernelFunctionOperation{Center, Center, Center}(sorted_field, grid, sf)
 end
+
 """
     function sort_field_revesre(f)
 Same method as [`sort_field`](@ref) but the 1D array is sorted in _descending_ order.
