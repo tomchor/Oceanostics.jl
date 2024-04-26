@@ -18,7 +18,7 @@ using Oceanostics: perturbation_fields
 include("test_budgets.jl")
 
 #+++ Default grids and functions
-arch = has_cuda_gpu() ? arch = GPU() : CPU()
+arch = has_cuda_gpu() ? GPU() : CPU()
 
 N = 6
 regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
@@ -221,15 +221,16 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     @test ε isa AbstractOperation
     @test ε_field isa Field
 
-    true_ε = viscosity(model.closure, model.diffusivity_fields) * dudz^2
-    @test interior(ε_field, 3, 3, 3)[1] == true_ε
+    ν = closure isa Tuple ? Field(sum(viscosity(closure, model.diffusivity_fields))) : viscosity(closure, model.diffusivity_fields)
+    true_ε = (ν isa Field ? interior(compute!(ν), 3, 3, 3)[1] : ν) * dudz^2
+    @test interior(ε_field, 3, 3, 3)[1] ≈ true_ε
 
     ε = KineticEnergyDissipationRate(model; U=Field(Average(model.velocities.u, dims=(1,2))))
     ε_field = compute!(Field(ε))
     @test ε isa AbstractOperation
     @test ε_field isa Field
 
-    @test interior(ε_field, 3, 3, 3)[1] == 0.0
+    @test isapprox(interior(ε_field, 3, 3, 3)[1], 0.0, rtol=1e-12, atol=eps())
 
     ε = KineticEnergyStressTerm(model)
     ε_field = compute!(Field(ε))
@@ -473,7 +474,7 @@ end
 
 function test_auxiliary_functions(model)
     set!(model, u=1, v=2)
-    fields_without_means = map(Field, perturbation_fields(model; u=1, v=2))
+    fields_without_means = perturbation_fields(model; u=1, v=2)
     compute!(fields_without_means)
     @test all(Array(interior(fields_without_means.u)) .== 0)
     @test all(Array(interior(fields_without_means.v)) .== 0)
@@ -504,9 +505,6 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 @info "Testing $model_type on grid and with closure" grid closure
                 model = model_type(; grid, closure, model_kwargs...)
 
-                @info "Testing auxiliary functions"
-                test_auxiliary_functions(model)
-
                 @info "Testing velocity-only diagnostics"
                 test_vel_only_diagnostics(model)
 
@@ -521,12 +519,15 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                     test_buoyancy_production_term(grid; model_type)
                 end
 
+                @info "Testing auxiliary functions"
+                test_auxiliary_functions(model)
+
                 @info "Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(grid; model_type, closure)
 
 
                 if model_type == NonhydrostaticModel
-                    @info "Testing energy dissipation rate terms"
+                    @info "Testing advection terms"
                     test_momentum_advection_term(grid; model_type)
 
                     @info "Testing forcing terms"
