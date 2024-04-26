@@ -221,16 +221,26 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     @test ε isa AbstractOperation
     @test ε_field isa Field
 
-    ν = closure isa Tuple ? Field(sum(viscosity(closure, model.diffusivity_fields))) : viscosity(closure, model.diffusivity_fields)
-    true_ε = (ν isa Field ? interior(compute!(ν), 3, 3, 3)[1] : ν) * dudz^2
-    @test interior(ε_field, 3, 3, 3)[1] ≈ true_ε
+    εp = KineticEnergyDissipationRate(model; U=Field(Average(model.velocities.u, dims=(1,2))))
+    εp_field = compute!(Field(εp))
+    @test εp isa AbstractOperation
+    @test εp_field isa Field
 
-    ε = KineticEnergyDissipationRate(model; U=Field(Average(model.velocities.u, dims=(1,2))))
-    ε_field = compute!(Field(ε))
-    @test ε isa AbstractOperation
-    @test ε_field isa Field
+    idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2)
 
-    @test isapprox(interior(ε_field, 3, 3, 3)[1], 0.0, rtol=1e-12, atol=eps())
+    if closure isa Tuple
+        @compute ν_field = Field(sum(viscosity(closure, model.diffusivity_fields)))
+    else
+        ν_field = viscosity(closure, model.diffusivity_fields)
+    end
+
+    rtol = zspacings(grid, Center()) isa Number ? 1e-12 : 0.06 # less accurate for stretched grid
+
+    CUDA.@allowscalar begin
+        true_ε = (ν_field isa Field ? getindex(ν_field, idxs...) : ν_field) * dudz^2
+        @test isapprox(getindex(ε_field,  idxs...), true_ε, rtol=rtol, atol=eps())
+        @test isapprox(getindex(εp_field, idxs...), 0.0,    rtol=rtol, atol=eps())
+    end
 
     ε = KineticEnergyStressTerm(model)
     ε_field = compute!(Field(ε))
@@ -367,9 +377,10 @@ function test_potential_energy_equation_terms(model; geopotential_height = nothi
         ρ₀ = model.buoyancy.model.equation_of_state.reference_density
         g = model.buoyancy.model.gravitational_acceleration
 
-        true_value = (g / ρ₀) .* ρ.data .* Z.data
-
-        @test isequal(Eₚ_field.data, true_value)
+        CUDA.@allowscalar begin
+            true_value = (g / ρ₀) .* ρ.data .* Z.data
+            @test isequal(Eₚ_field.data, true_value)
+        end
     end
 
     return nothing
