@@ -74,8 +74,6 @@ end
 #+++ Utils for removing mean fields
 using Oceananigans: prognostic_fields, HydrostaticFreeSurfaceModel
 using Oceananigans.Biogeochemistry: biogeochemical_auxiliary_fields
-import Base: -
--(a::ZeroField, b::ZeroField) = a
 """
     $(SIGNATURES)
 
