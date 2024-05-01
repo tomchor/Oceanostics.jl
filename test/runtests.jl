@@ -307,7 +307,7 @@ function test_buoyancy_production_term(grid; model_type=NonhydrostaticModel)
     @compute w′b′_field = Field(w′b′)
     @test w′b′ isa AbstractOperation
     @test w′b′_field isa Field
-    @test Array(interior(w′b′_field, 1, 1, 2)) .== 0
+    @test .≈(Array(interior(w′b′_field, 1, 1, 2)), 0, rtol=1e-12, atol=1e-13) # less accurate for stretched grid
 
     return nothing
 end
