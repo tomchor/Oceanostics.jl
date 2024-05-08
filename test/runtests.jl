@@ -185,6 +185,12 @@ function test_pressure_term(model)
     @test u⃗∇pNHS isa AbstractOperation
     @test compute!(Field(u⃗∇pNHS)) isa Field
 
+    # Test calculation with a hydrostatic pressure separation
+    model2 = NonhydrostaticModel(grid=model.grid, hydrostatic_pressure_anomaly=CenterField(model.grid))
+    u⃗∇p_from_model2 = PressureRedistributionTerm(model2)
+    @test u⃗∇p_from_model2 isa AbstractOperation
+    @test compute!(Field(u⃗∇p_from_model2)) isa Field
+
     return nothing
 end
 
