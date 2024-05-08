@@ -4,15 +4,15 @@ using DocStringExtensions
 
 export PotentialEnergy, BackgroundPotentialEnergy
 
-using Oceananigans.AbstractOperations: KernelFunctionOperation
+using Oceananigans.AbstractOperations: KernelFunctionOperation, volume, Az, GridMetricOperation
 using Oceananigans.Models: seawater_density
 using Oceananigans.Models: model_geopotential_height
-using Oceananigans.Grids: Center, Face
-using Oceananigans.Grids: NegativeZDirection
+using Oceananigans.Grids
+using Oceananigans.Grids: Center, Face, NegativeZDirection, interior, CenterField, regrid!
 using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
 using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
-using Oceananigans.Fields: Field, compute!
+using Oceananigans.Fields: Field, compute!, field, set!
 using Oceanostics: validate_location
 using SeawaterPolynomials: BoussinesqEquationOfState
 
@@ -185,40 +185,54 @@ end
 
 @inline g′z_ccc(i, j, k, grid, ρ, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
 
-"""
-    function sort_field(f)
-Reshape a `Field` `f` into an array (that is the length of the product of the grid dimensions),
-`sort` this array (default behaviour of `sort` is ascending) then distribute this `sort`ed
-array throughout the grid such that the _largest_ values are at the top of the grid and
-the smallest values are at the _bottom_ of the grid.
-"""
-@inline sorted_field(f::Field) = reshape(sort(reshape(f, :)), size(f))
+## Grid metrics from https://github.com/tomchor/Oceanostics.jl/issues/163#issuecomment-2012623824
 
-@inline function sort_field(f::Field)
+function MetricField(loc, grid, metric)
 
-    compute!(f)
-    grid = f.grid
-    sf = sorted_field(f)
+    metric_operation = GridMetricOperation(loc, metric, grid)
+    metric_field = Field(metric_operation)
 
-    return KernelFunctionOperation{Center, Center, Center}(sorted_field, grid, sf)
+    return compute!(metric_field)
 end
 
+VolumeField(grid, loc=(Center, Center, Center)) = MetricField(loc, grid, volume)
+  AreaField(grid, loc=(Center, Center, Nothing)) = MetricField(loc, grid, Az)
+
 """
-    function sort_field_revesre(f)
-Same method as [`sort_field`](@ref) but the 1D array is sorted in _descending_ order.
+    function OneDReferenceField(f::Field)
+Return a `OneDReferenceField` of the gridded data from the `Field` `f` and the `z✶` for the `Field`.
+The gridded data is first reshaped into a 1D `Array` then sorted. Returned is a new `Field` of this sorted data
+on a z✶ `grid`. The z✶ `grid` is defined as
+```math
+\\frac{1}{A}\\int_{f\\mathrm{min}}^{f\\mathrm{max}} \\mathrm{d}V.
+```
+and is computed by cumulatively summing the 1D `Array` of grid volumes `ΔV`.
+**Note:** the `OneDReferenceField` is only appropriate for grids that have uniform horizontal
+area.
 """
-@inline sorted_field_reverse(f::Field) = reshape(sort(reshape(f, :), rev = true), size(f))
+function OneDReferenceField(f::Field)
 
-@inline function sort_field_reverse(f::Field)
+    area = sum(AreaField(f.grid))
+    volume_field = VolumeField(f.grid)
+    v = reshape(interior(volume_field), :)
+    field_data = reshape(interior(f), :)
 
-    compute!(f)
-    grid = f.grid
-    sf = sorted_field_reverse(f)
+    p = sortperm(field_data)
+    sorted_field_data = field_data[p]
+    z✶ = cumsum(v[p]) / area
 
-    return KernelFunctionOperation{Center, Center, Center}(sorted_field, grid, sf)
+    grid_arch = f.grid.architecture
+    grid_size = prod(size(f.grid))
+    new_grid = RectilinearGrid(grid_arch, size = grid_size, z = (-f.grid.Lz, 0), topology=(Flat, Flat, Bounded))
+
+    sorted_field = CenterField(new_grid)
+    set!(sorted_field, reshape(sorted_field_data, size(new_grid)))
+    z✶_field = CenterField(new_grid)
+    set!(z✶_field, reshape(z✶, size(new_grid)))
+
+    return sorted_field, z✶_field
+
 end
-
-@inline sorted_field(i, j, k, grid, sf) = sf[i, j, k]
 
 """
     $(SIGNATURES)
