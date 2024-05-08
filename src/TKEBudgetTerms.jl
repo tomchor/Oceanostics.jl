@@ -388,7 +388,9 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU")
 ```
 """
-function PressureRedistributionTerm(model::NonhydrostaticModel; velocities = model.velocities, pressure = sum(model.pressures), location = (Center, Center, Center))
+function PressureRedistributionTerm(model::NonhydrostaticModel; velocities = model.velocities,
+                                    pressure = model.pressures.pHY′ == nothing ? model.pressures.pNHS : sum(model.pressures),
+                                    location = (Center, Center, Center))
     validate_location(location, "PressureRedistributionTerm")
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
 end
