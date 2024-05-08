@@ -239,7 +239,7 @@ julia> using Oceananigans
 
 julia> grid = RectilinearGrid(topology = (Flat, Flat, Bounded), size = 4, extent = 1);
 
-julia> N² = 1e-6
+julia> N² = 1e-6;
 
 julia> b_bcs = FieldBoundaryConditions(top=GradientBoundaryCondition(N²));
 
