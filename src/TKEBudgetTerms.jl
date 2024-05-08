@@ -124,6 +124,7 @@ function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, C
                     model.auxiliary_fields,
                     model.diffusivity_fields,
                     model.forcing,
+                    model.pressures.pHY′,
                     model.clock)
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ₜuᵢᶜᶜᶜ, model.grid, dependencies...)
 end
