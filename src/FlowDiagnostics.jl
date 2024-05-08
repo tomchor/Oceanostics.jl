@@ -239,9 +239,13 @@ julia> using Oceananigans
 
 julia> grid = RectilinearGrid(topology = (Flat, Flat, Bounded), size = 4, extent = 1);
 
-julia> model = NonhydrostaticModel(; grid, coriolis=FPlane(1e-4), buoyancy=BuoyancyTracer(), tracers=:b);
+julia> N² = 1e-6
 
-julia> stratification(z) = 1e-6 * z;
+julia> b_bcs = FieldBoundaryConditions(top=GradientBoundaryCondition(N²));
+
+julia> model = NonhydrostaticModel(; grid, coriolis=FPlane(1e-4), buoyancy=BuoyancyTracer(), tracers=:b, boundary_conditions=(; b=b_bcs));
+
+julia> stratification(z) = N² * z;
 
 julia> set!(model, b=stratification)
 
@@ -251,7 +255,7 @@ KernelFunctionOperation at (Face, Face, Face)
 ├── kernel_function: ertel_potential_vorticity_fff (generic function with 1 method)
 └── arguments: ("1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU", "1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU", "1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU", "1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU", "0", "0", "0.0001")
 
-julia> interior(compute!(Field(EPV))) # Let's calculate the EPV for this grid:
+julia> interior(compute!(Field(EPV)))
 1×1×5 view(::Array{Float64, 3}, 1:1, 1:1, 4:8) with eltype Float64:
 [:, :, 1] =
  0.0
@@ -266,8 +270,13 @@ julia> interior(compute!(Field(EPV))) # Let's calculate the EPV for this grid:
  1.0000000000000002e-10
 
 [:, :, 5] =
- 0.0
+ 1.0e-10
 ```
+
+Note that EPV values are correctly calculated both in the interior and the boundaries. In the
+interior and top boundary, EPV = f×N² = 10⁻¹⁰, while EPV = 0 at the bottom boundary since ∂b/∂z
+is zero there.
+
 """
 function ErtelPotentialVorticity(model; location = (Face, Face, Face), add_background = true)
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
