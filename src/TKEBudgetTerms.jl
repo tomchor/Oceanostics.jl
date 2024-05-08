@@ -92,37 +92,10 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
                                           buoyancy,
                                           background_fields,
                                           velocities,
-                                          tracers,
-                                          auxiliary_fields,
-                                          diffusivity_fields,
-                                          forcing,
-                                          pHY′,
-                                          clock)
-        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, u_immersed_bc, buoyancy, background_fields,
-                                                                           velocities,
-                                                                           tracers,
-                                                                           auxiliary_fields,
-                                                                           diffusivity_fields,
-                                                                           forcing,
-                                                                           pHY′,
-                                                                           clock)
-
-        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields,
-                                                                           velocities,
-                                                                           tracers,
-                                                                           auxiliary_fields,
-                                                                           diffusivity_fields,
-                                                                           forcing,
-                                                                           pHY′,
-                                                                           clock)
-
-        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields,
-                                                                           velocities,
-                                                                           tracers,
-                                                                           auxiliary_fields,
-                                                                           diffusivity_fields,
-                                                                           forcing,
-                                                                           clock)
+                                          args...)
+        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, u_immersed_bc, buoyancy, background_fields, velocities, args...)
+        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, args...)
+        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, args...)
     return u∂ₜu + v∂ₜv + w∂ₜw
 end
 
@@ -151,7 +124,6 @@ function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, C
                     model.auxiliary_fields,
                     model.diffusivity_fields,
                     model.forcing,
-                    model.pressures.pHY′,
                     model.clock)
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ₜuᵢᶜᶜᶜ, model.grid, dependencies...)
 end

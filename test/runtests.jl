@@ -175,6 +175,7 @@ function test_buoyancy_diagnostics(model)
     return nothing
 end
 
+
 function test_pressure_term(model)
     u⃗∇p = PressureRedistributionTerm(model)
     @test u⃗∇p isa AbstractOperation
