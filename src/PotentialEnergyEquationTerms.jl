@@ -210,14 +210,14 @@ and is computed by cumulatively summing the 1D `Array` of grid volumes `ΔV`.
 **Note:** the `OneDReferenceField` is only appropriate for grids that have uniform horizontal
 area.
 """
-function OneDReferenceField(f::Field)
+function OneDReferenceField(f::Field; rev = false)
 
     area = sum(AreaField(f.grid))
     volume_field = VolumeField(f.grid)
     v = reshape(interior(volume_field), :)
     field_data = reshape(interior(f), :)
 
-    p = sortperm(field_data)
+    p = sortperm(field_data; rev)
     sorted_field_data = field_data[p]
     z✶ = cumsum(v[p]) / area
 
@@ -240,13 +240,12 @@ end
 Return a `kernelFunctionOperation` to compute the `BackgroundPotentialEnergy` per unit
 volume,
 ```math
-E_{b} = \\frac{gρ✶z}{ρ₀}.
+E_{b} = \\frac{gρz✶}{ρ₀}.
 ```
 The `BackgroundPotentialEnergy` is the potential energy computed after adiabatically resorting
 the buoyancy or density field into a reference state of minimal potential energy.
 The reference state is computed by reshaping the gridded buoyancy or density field and
-`sort`ing into a monotonically increasing `Vector`. This `sort`ed vector is then reshaped into
-the `size(model.grid)`.
+`sort`ing into a monotonically increasing `Vector`.
 
 Examples
 ========
@@ -274,8 +273,8 @@ NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 julia> bpe = BackgroundPotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── kernel_function: bz_ccc (generic function with 2 methods)
-└── arguments: ("KernelFunctionOperation at (Center, Center, Center)",)
+├── kernel_function: bz✶_ccc (generic function with 1 method)
+└── arguments: ("1×1×100 Field{Center, Center, Center} on RectilinearGrid on CPU", "1×1×100 Field{Center, Center, Center} on RectilinearGrid on CPU")
 ```
 """
 @inline function BackgroundPotentialEnergy(model; location = (Center, Center, Center),
@@ -290,10 +289,12 @@ end
 @inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyTracerModel, geopotential_height)
 
     grid = model.grid
-    b✶ = sort_field(model.tracers.b)
+    sorted_buoyancy, z✶ = OneDReferenceField(model.tracers.b)
 
-    return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b✶)
+    return KernelFunctionOperation{Center, Center, Center}(bz✶_ccc, grid, sorted_buoyancy, z✶)
 end
+
+@inline bz✶_ccc(i, j, k, grid, b, z✶) = b[i, j, k] * z✶[i, j, k]
 
 linear_eos_buoyancy(grid, buoyancy, tracers) = KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
 
@@ -303,20 +304,24 @@ linear_eos_buoyancy(grid, buoyancy, tracers) = KernelFunctionOperation{Center, C
     buoyancy = model.buoyancy.model
     tracers = model.tracers
     b = linear_eos_buoyancy(grid, buoyancy, tracers)
-    b✶ = sort_field(b)
+    compute!(b)
+    sorted_buoyancy, z✶ = OneDReferenceField(b)
 
-    return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b✶)
+    return KernelFunctionOperation{Center, Center, Center}(bz✶_ccc, grid, sorted_buoyancy, z✶)
 end
 
 @inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyBoussinesqEOSModel, geopotential_height)
 
     grid = model.grid
     ρ = seawater_density(model; geopotential_height)
-    ρ✶ = sort_field_reverse(ρ)
+    compute!(ρ)
+    sorted_density, z✶ = OneDReferenceField(ρ)
     parameters = (g = model.buoyancy.model.gravitational_acceleration,
                   ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
 
-    return KernelFunctionOperation{Center, Center, Center}(g′z_ccc, grid, ρ✶, parameters)
+    return KernelFunctionOperation{Center, Center, Center}(g′z_ccc, grid, sorted_density, z✶, parameters)
 end
+
+@inline g′z✶_ccc(i, j, k, grid, ρ, z✶, p) = (p.g / p.ρ₀) * ρ[i, j, k] * z✶[i, j, k]
 
 end # module
