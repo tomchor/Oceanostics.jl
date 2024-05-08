@@ -249,6 +249,8 @@ julia> stratification(z) = N² * z;
 
 julia> set!(model, b=stratification)
 
+julia> using Oceanostics: ErtelPotentialVorticity
+
 julia> EPV = ErtelPotentialVorticity(model)
 KernelFunctionOperation at (Face, Face, Face)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
@@ -276,7 +278,6 @@ julia> interior(compute!(Field(EPV)))
 Note that EPV values are correctly calculated both in the interior and the boundaries. In the
 interior and top boundary, EPV = f×N² = 10⁻¹⁰, while EPV = 0 at the bottom boundary since ∂b/∂z
 is zero there.
-
 """
 function ErtelPotentialVorticity(model; location = (Face, Face, Face), add_background = true)
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
