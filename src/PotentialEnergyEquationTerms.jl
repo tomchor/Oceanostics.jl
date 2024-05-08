@@ -2,7 +2,7 @@ module PotentialEnergyEquationTerms
 
 using DocStringExtensions
 
-export PotentialEnergy, BackgroundPotentialEnergy
+export PotentialEnergy, BackgroundPotentialEnergy, OneDReferenceField
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation, volume, Az, GridMetricOperation
 using Oceananigans.Models: seawater_density
