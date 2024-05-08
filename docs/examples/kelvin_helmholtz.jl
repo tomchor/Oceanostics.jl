@@ -34,11 +34,11 @@ model = NonhydrostaticModel(; grid, timestepper = :RungeKutta3,
 # kick the instability off:
 
 
-noise(x, y, z) = 2e-2 * randn()
-shear_flow(x, y, z) = tanh(z) + noise(x, y, z)
+noise(x, z) = 2e-2 * randn()
+shear_flow(x, z) = tanh(z) + noise(x, z)
 
 Ri₀ = 0.1; h = 1/4
-stratification(x, y, z) = h * Ri₀ * tanh(z / h)
+stratification(x, z) = h * Ri₀ * tanh(z / h)
 
 set!(model, u=shear_flow, b=stratification)
 

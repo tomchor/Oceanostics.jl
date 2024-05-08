@@ -2,9 +2,13 @@ module TKEBudgetTerms
 using DocStringExtensions
 
 export TurbulentKineticEnergy, KineticEnergy
-export KineticEnergyTendency, KineticEnergyDiffusiveTerm, KineticEnergyForcingTerm
+export KineticEnergyTendency
+export AdvectionTerm
+export KineticEnergyStressTerm
+export KineticEnergyForcingTerm
 export IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate
-export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
+export PressureRedistributionTerm
+export BuoyancyProductionTerm
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 
 using Oceananigans: NonhydrostaticModel, HydrostaticFreeSurfaceModel, fields
@@ -14,13 +18,16 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
 using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
+using Oceananigans.Advection: div_𝐯u, div_𝐯v, div_𝐯w
 using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz, 
                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
                                        viscous_flux_wx, viscous_flux_wy, viscous_flux_wz,
                                        ∂ⱼ_τ₁ⱼ, ∂ⱼ_τ₂ⱼ, ∂ⱼ_τ₃ⱼ
+using Oceananigans.TurbulenceClosures: immersed_∂ⱼ_τ₁ⱼ, immersed_∂ⱼ_τ₂ⱼ, immersed_∂ⱼ_τ₃ⱼ
+using Oceananigans.BuoyancyModels: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
 
 using Oceanostics: _νᶜᶜᶜ
-using Oceanostics: validate_location, validate_dissipative_closure
+using Oceanostics: validate_location, validate_dissipative_closure, perturbation_fields
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -72,7 +79,99 @@ Calculate the kinetic energy of `model`.
 KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwargs...)
 #------
 
-#+++ Energy dissipation rate for a fluid with isotropic viscosity
+#+++ Kinetic energy tendency
+@inline ψf(i, j, k, grid, ψ, f, args...) = @inbounds ψ[i, j, k] * f(i, j, k, grid, args...)
+
+@inline function uᵢ∂ₜuᵢᶜᶜᶜ(i, j, k, grid, advection,
+                                          coriolis,
+                                          stokes_drift,
+                                          closure,
+                                          u_immersed_bc,
+                                          v_immersed_bc,
+                                          w_immersed_bc,
+                                          buoyancy,
+                                          background_fields,
+                                          velocities,
+                                          args...)
+        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, u_immersed_bc, buoyancy, background_fields, velocities, args...)
+        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, args...)
+        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, args...)
+    return u∂ₜu + v∂ₜv + w∂ₜw
+end
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` that computes the tendency of the KE except for the nonhydrostatic
+pressure:
+
+```julia
+```
+"""
+function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyTendency")
+    dependencies = (model.advection,
+                    model.coriolis,
+                    model.stokes_drift,
+                    model.closure,
+                    u_immersed_bc = model.velocities.u.boundary_conditions.immersed,
+                    v_immersed_bc = model.velocities.v.boundary_conditions.immersed,
+                    w_immersed_bc = model.velocities.w.boundary_conditions.immersed,
+                    model.buoyancy,
+                    model.background_fields,
+                    model.velocities,
+                    model.tracers,
+                    model.auxiliary_fields,
+                    model.diffusivity_fields,
+                    model.forcing,
+                    model.clock)
+    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ₜuᵢᶜᶜᶜ, model.grid, dependencies...)
+end
+#---
+
+#+++ Advection term
+@inline function uᵢ∂ⱼuⱼuᵢᶜᶜᶜ(i, j, k, grid, velocities, advection)
+    u∂ⱼuⱼu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, div_𝐯u, advection, velocities, velocities.u)
+    v∂ⱼuⱼv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, div_𝐯v, advection, velocities, velocities.v)
+    w∂ⱼuⱼw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, div_𝐯w, advection, velocities, velocities.w)
+    return u∂ⱼuⱼu + v∂ⱼuⱼv + w∂ⱼuⱼw
+end
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` that computes the advection term, defined as
+
+    ADV = uᵢ∂ⱼ(uᵢuⱼ)
+
+By default, the buoyancy production will be calculated using the resolved `velocities` and
+users cab use the keyword `velocities` to modify that behavior:
+
+```jldoctest
+julia> using Oceananigans
+
+julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia> model = NonhydrostaticModel(grid=grid);
+
+julia> using Oceanostics.TKEBudgetTerms: BuoyancyProductionTerm
+
+julia> using Oceanostics.TKEBudgetTerms: AdvectionTerm
+
+julia> ADV = AdvectionTerm(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢ∂ⱼuⱼuᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "Centered reconstruction order 2")
+```
+"""
+function AdvectionTerm(model::NonhydrostaticModel; velocities = model.velocities, location = (Center, Center, Center))
+    validate_location(location, "AdvectionTerm")
+    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ, model.grid, velocities, model.advection)
+end
+#---
+
+#+++ Kinetic energy dissipation rate
 @inline function isotropic_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
 
     Σˣˣ² = ∂xᶜᶜᶜ(i, j, k, grid, u)^2
@@ -146,76 +245,24 @@ Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo,
 """
     $(SIGNATURES)
 
-Calculate the pseudo viscous Dissipation Rate, defined as
+Calculate the Kinetic Energy Dissipation Rate, defined as
 
     ε = ν (∂uᵢ/∂xⱼ) (∂uᵢ/∂xⱼ)
+    ε = ∂ⱼuᵢ ⋅ Fᵢⱼ
 
-for a fluid with an isotropic turbulence closure (i.e., a 
-turbulence closure where ν (eddy or not) is the same for all directions.
+where ∂ⱼuᵢ is the velocity gradient tensor and Fᵢⱼ is the stress tensor.
 """
 function KineticEnergyDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
                                                location = (Center, Center, Center))
-
     validate_location(location, "KineticEnergyDissipationRate")
-
-    u, v, w = model.velocities
-
+    mean_velocities = (u=U, v=V, w=W)
+    model_fields = perturbation_fields(model; mean_velocities...)
     parameters = (; model.closure, 
                   model.clock,
                   model.buoyancy)
 
     return KernelFunctionOperation{Center, Center, Center}(viscous_dissipation_rate_ccc, model.grid,
-                                                           model.diffusivity_fields, fields(model), parameters)
-end
-#---
-
-#+++ Kinetic energy tendency
-@inline ψf(i, j, k, grid, ψ, f, args...) = @inbounds ψ[i, j, k] * f(i, j, k, grid, args...)
-
-@inline function uᵢ∂ₜuᵢᶜᶜᶜ(i, j, k, grid, advection,
-                                          coriolis,
-                                          stokes_drift,
-                                          closure,
-                                          u_immersed_bc,
-                                          v_immersed_bc,
-                                          w_immersed_bc,
-                                          buoyancy,
-                                          background_fields,
-                                          velocities,
-                                          args...)
-        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, u_immersed_bc, buoyancy, background_fields, velocities, args...)
-        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, args...)
-        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, args...)
-    return u∂ₜu + v∂ₜv + w∂ₜw
-end
-
-"""
-    $(SIGNATURES)
-
-Return a `KernelFunctionOperation` that computes the tendency of the KE except for the nonhydrostatic
-pressure:
-
-```julia
-```
-"""
-function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
-    validate_location(location, "KineticEnergyTendency")
-    dependencies = (model.advection,
-                    model.coriolis,
-                    model.stokes_drift,
-                    model.closure,
-                    u_immersed_bc = model.velocities.u.boundary_conditions.immersed,
-                    v_immersed_bc = model.velocities.v.boundary_conditions.immersed,
-                    w_immersed_bc = model.velocities.w.boundary_conditions.immersed,
-                    model.buoyancy,
-                    model.background_fields,
-                    model.velocities,
-                    model.tracers,
-                    model.auxiliary_fields,
-                    model.diffusivity_fields,
-                    model.forcing,
-                    model.clock)
-    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ₜuᵢᶜᶜᶜ, model.grid, dependencies...)
+                                                           model.diffusivity_fields, model_fields, parameters)
 end
 #---
 
@@ -245,8 +292,8 @@ Return a `KernelFunctionOperation` that computes the diffusive term of the KE pr
 where `uᵢ` are the velocity components and `τᵢⱼ` is the diffusive flux of `i` momentum in the 
 `j`-th direction.
 """
-function KineticEnergyDiffusiveTerm(model; location = (Center, Center, Center))
-    validate_location(location, "KineticEnergyDiffusiveTerm")
+function KineticEnergyStressTerm(model; location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyStressTerm")
     model_fields = fields(model)
 
     if model isa HydrostaticFreeSurfaceModel
@@ -296,32 +343,115 @@ function KineticEnergyForcingTerm(model::NonhydrostaticModel; location = (Center
 end
 #---
 
-#++++ Pressure redistribution terms
-"""
-    $(SIGNATURES)
-
-Calculate the pressure redistribution term in the `x` direction. Here `u′` and `p′`
-are the fluctuations around a mean.
-"""
-XPressureRedistribution(model, u′, p′) = ∂x(u′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
-
-"""
-    $(SIGNATURES)
-
-Calculate the pressure redistribution term in the `y` direction. Here `v′` and `p′`
-are the fluctuations around a mean.
-"""
-YPressureRedistribution(model, v′, p′) = ∂y(v′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
+#+++ Pressure redistribution term
+@inline function uᵢ∂ᵢpᶜᶜᶜ(i, j, k, grid, velocities, pressure)
+    u∂x_p = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, ∂xᶠᶜᶜ, pressure)
+    v∂y_p = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, ∂yᶜᶠᶜ, pressure)
+    w∂z_p = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, ∂zᶜᶜᶠ, pressure)
+    return u∂x_p + v∂y_p + w∂z_p
+end
 
 """
     $(SIGNATURES)
 
-Calculate the pressure redistribution term in the `z` direction. Here `w′` and `p′`
-are the fluctuations around a mean.
-"""
-ZPressureRedistribution(model, w′, p′) = ∂z(w′*p′) # p is the total kinematic pressure (there's no need for ρ₀)
+Return a `KernelFunctionOperation` that computes the pressure redistribution term:
 
-#----
+    PR = uᵢ∂ᵢp
+
+where `p` is the pressure. By default `p` is taken to be the total pressure (nonhydrostatic + hydrostatic):
+
+```jldoctest ∇u⃗p_example
+julia> using Oceananigans
+
+julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia> model = NonhydrostaticModel(grid=grid);
+
+julia> using Oceanostics.TKEBudgetTerms: PressureRedistributionTerm
+
+julia> ∇u⃗p = PressureRedistributionTerm(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
+└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "BinaryOperation at (Center, Center, Center)")
+```
+
+We can also pass `velocities` and `pressure` keywords to perform more specific calculations. The
+example below illustrates calculation of the nonhydrostatic contribution to the pressure
+redistrubution term:
+
+```jldoctest ∇u⃗p_example
+julia> ∇u⃗pNHS = PressureRedistributionTerm(model, pressure=model.pressures.pNHS)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
+└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU")
+```
+"""
+function PressureRedistributionTerm(model::NonhydrostaticModel; velocities = model.velocities, pressure = sum(model.pressures), location = (Center, Center, Center))
+    validate_location(location, "PressureRedistributionTerm")
+    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
+end
+#---
+
+#+++ Buoyancy conversion term
+@inline function uᵢbᵢᶜᶜᶜ(i, j, k, grid, velocities, buoyancy_model, tracers)
+    ubˣ = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, x_dot_g_bᶠᶜᶜ, buoyancy_model, tracers)
+    vbʸ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, y_dot_g_bᶜᶠᶜ, buoyancy_model, tracers)
+    wbᶻ = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, z_dot_g_bᶜᶜᶠ, buoyancy_model, tracers)
+    return ubˣ + vbʸ + wbᶻ
+end
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` that computes the buoyancy production term, defined as
+
+    BP = uᵢbᵢ
+
+where bᵢ is the component of the buoyancy acceleration in the `i`-th direction (which is zero for x
+and y, except when `gravity_unit_vector` isn't aligned with the grid's z-direction) and all three
+components of `i=1,2,3` are added up.
+
+By default, the buoyancy production will be calculated using the resolved `velocities` and
+`tracers`:
+
+```jldoctest wb_example
+julia> using Oceananigans
+
+julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia> model = NonhydrostaticModel(grid=grid, buoyancy=BuoyancyTracer(), tracers=:b);
+
+julia> using Oceanostics.TKEBudgetTerms: BuoyancyProductionTerm
+
+julia> wb = BuoyancyProductionTerm(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "BuoyancyTracer with ĝ = NegativeZDirection()", "(b=1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU,)")
+```
+
+If we want to calculate only the _turbulent_ buoyancy production rate, we can do so by passing
+turbulent perturbations to the `velocities` and/or `tracers` options):
+
+```jldoctest wb_example
+julia> w′ = Field(model.velocities.w - Field(Average(model.velocities.w)));
+
+julia> b′ = Field(model.tracers.b - Field(Average(model.tracers.b)));
+
+julia> w′b′ = BuoyancyProductionTerm(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "BuoyancyTracer with ĝ = NegativeZDirection()", "(b=1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU,)")
+```
+"""
+function BuoyancyProductionTerm(model::NonhydrostaticModel; velocities = model.velocities, tracers = model.tracers, location = (Center, Center, Center))
+    validate_location(location, "BuoyancyProductionTerm")
+    return KernelFunctionOperation{Center, Center, Center}(uᵢbᵢᶜᶜᶜ, model.grid, velocities, model.buoyancy, tracers)
+end
+#---
 
 #++++ Shear production terms
 @inline function shear_production_rate_x_ccc(i, j, k, grid, u, v, w, U, V, W)
