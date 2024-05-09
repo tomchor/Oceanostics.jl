@@ -27,7 +27,7 @@ using Oceananigans.TurbulenceClosures: immersed_∂ⱼ_τ₁ⱼ, immersed_∂ⱼ
 using Oceananigans.BuoyancyModels: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
 
 using Oceanostics: _νᶜᶜᶜ
-using Oceanostics: validate_location, validate_dissipative_closure
+using Oceanostics: validate_location, validate_dissipative_closure, perturbation_fields
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -82,57 +82,45 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
 #+++ Kinetic energy tendency
 @inline ψf(i, j, k, grid, ψ, f, args...) = @inbounds ψ[i, j, k] * f(i, j, k, grid, args...)
 
-@inline function uᵢ∂ₜuᵢᶜᶜᶜ(i, j, k, grid, advection,
-                                          coriolis,
-                                          stokes_drift,
-                                          closure,
-                                          u_immersed_bc,
-                                          v_immersed_bc,
-                                          w_immersed_bc,
-                                          buoyancy,
-                                          background_fields,
-                                          velocities,
-                                          tracers,
-                                          auxiliary_fields,
-                                          diffusivity_fields,
-                                          forcing,
-                                          pHY′,
-                                          clock)
-        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, u_immersed_bc, buoyancy, background_fields,
-                                                                           velocities,
-                                                                           tracers,
-                                                                           auxiliary_fields,
-                                                                           diffusivity_fields,
-                                                                           forcing,
-                                                                           pHY′,
-                                                                           clock)
-
-        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields,
-                                                                           velocities,
-                                                                           tracers,
-                                                                           auxiliary_fields,
-                                                                           diffusivity_fields,
-                                                                           forcing,
-                                                                           pHY′,
-                                                                           clock)
-
-        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields,
-                                                                           velocities,
-                                                                           tracers,
-                                                                           auxiliary_fields,
-                                                                           diffusivity_fields,
-                                                                           forcing,
-                                                                           clock)
+@inline function uᵢGᵢᶜᶜᶜ(i, j, k, grid, advection,
+                                        coriolis,
+                                        stokes_drift,
+                                        closure,
+                                        u_immersed_bc,
+                                        v_immersed_bc,
+                                        w_immersed_bc,
+                                        buoyancy,
+                                        background_fields,
+                                        velocities,
+                                        args...)
+        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, u_immersed_bc, buoyancy, background_fields, velocities, args...)
+        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, args...)
+        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, args...)
     return u∂ₜu + v∂ₜv + w∂ₜw
 end
 
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` that computes the tendency of the KE except for the nonhydrostatic
-pressure:
+Return a `KernelFunctionOperation` that computes the tendency uᵢGᵢ of the KE, excluding the nonhydrostatic
+pressure contribution:
+
+    KET = ½∂ₜuᵢ² = uᵢGᵢ - uᵢ∂ᵢpₙₕₛ
 
 ```julia
+julia> using Oceananigans
+
+julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia> model = NonhydrostaticModel(grid=grid);
+
+julia> using Oceanostics.TKEBudgetTerms: KineticEnergyTendency
+
+julia> ke_tendency = KineticEnergyTendency(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢ∂ₜuᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: ("Centered reconstruction order 2", "Nothing", "Nothing", "Nothing", "FluxBoundaryCondition: Nothing", "FluxBoundaryCondition: Nothing", "FluxBoundaryCondition: Nothing", "Nothing", "(velocities=(u=ZeroField{Int64}, v=ZeroField{Int64}, w=ZeroField{Int64}), tracers=NamedTuple())", "(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "NamedTuple()", "NamedTuple()", "Nothing", "(u=zeroforcing (generic function with 1 method), v=zeroforcing (generic function with 1 method), w=zeroforcing (generic function with 1 method))", "Nothing", "Clock(time=0 seconds, iteration=0, last_Δt=Inf days)")
 ```
 """
 function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
@@ -153,7 +141,7 @@ function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, C
                     model.forcing,
                     model.pressures.pHY′,
                     model.clock)
-    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ₜuᵢᶜᶜᶜ, model.grid, dependencies...)
+    return KernelFunctionOperation{Center, Center, Center}(uᵢGᵢᶜᶜᶜ, model.grid, dependencies...)
 end
 #---
 
@@ -188,7 +176,7 @@ julia> using Oceanostics.TKEBudgetTerms: AdvectionTerm
 
 julia> ADV = AdvectionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
-├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ⱼuⱼuᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "Centered reconstruction order 2")
 ```
@@ -283,13 +271,14 @@ where ∂ⱼuᵢ is the velocity gradient tensor and Fᵢⱼ is the stress tenso
 function KineticEnergyDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
                                                location = (Center, Center, Center))
     validate_location(location, "KineticEnergyDissipationRate")
-    u, v, w = model.velocities
+    mean_velocities = (u=U, v=V, w=W)
+    model_fields = perturbation_fields(model; mean_velocities...)
     parameters = (; model.closure, 
                   model.clock,
                   model.buoyancy)
 
     return KernelFunctionOperation{Center, Center, Center}(viscous_dissipation_rate_ccc, model.grid,
-                                                           model.diffusivity_fields, fields(model), parameters)
+                                                           model.diffusivity_fields, model_fields, parameters)
 end
 #---
 
@@ -398,9 +387,9 @@ julia> using Oceanostics.TKEBudgetTerms: PressureRedistributionTerm
 
 julia> ∇u⃗p = PressureRedistributionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
-├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "BinaryOperation at (Center, Center, Center)")
+└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU")
 ```
 
 We can also pass `velocities` and `pressure` keywords to perform more specific calculations. The
@@ -410,12 +399,14 @@ redistrubution term:
 ```jldoctest ∇u⃗p_example
 julia> ∇u⃗pNHS = PressureRedistributionTerm(model, pressure=model.pressures.pNHS)
 KernelFunctionOperation at (Center, Center, Center)
-├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU")
 ```
 """
-function PressureRedistributionTerm(model::NonhydrostaticModel; velocities = model.velocities, pressure = sum(model.pressures), location = (Center, Center, Center))
+function PressureRedistributionTerm(model::NonhydrostaticModel; velocities = model.velocities,
+                                    pressure = model.pressures.pHY′ == nothing ? model.pressures.pNHS : sum(model.pressures),
+                                    location = (Center, Center, Center))
     validate_location(location, "PressureRedistributionTerm")
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
 end
@@ -454,7 +445,7 @@ julia> using Oceanostics.TKEBudgetTerms: BuoyancyProductionTerm
 
 julia> wb = BuoyancyProductionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
-├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "BuoyancyTracer with ĝ = NegativeZDirection()", "(b=1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU,)")
 ```
@@ -469,7 +460,7 @@ julia> b′ = Field(model.tracers.b - Field(Average(model.tracers.b)));
 
 julia> w′b′ = BuoyancyProductionTerm(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
 KernelFunctionOperation at (Center, Center, Center)
-├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "BuoyancyTracer with ĝ = NegativeZDirection()", "(b=1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU,)")
 ```
