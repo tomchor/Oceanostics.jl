@@ -82,57 +82,45 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
 #+++ Kinetic energy tendency
 @inline ψf(i, j, k, grid, ψ, f, args...) = @inbounds ψ[i, j, k] * f(i, j, k, grid, args...)
 
-@inline function uᵢ∂ₜuᵢᶜᶜᶜ(i, j, k, grid, advection,
-                                          coriolis,
-                                          stokes_drift,
-                                          closure,
-                                          u_immersed_bc,
-                                          v_immersed_bc,
-                                          w_immersed_bc,
-                                          buoyancy,
-                                          background_fields,
-                                          velocities,
-                                          tracers,
-                                          auxiliary_fields,
-                                          diffusivity_fields,
-                                          forcing,
-                                          pHY′,
-                                          clock)
-        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, u_immersed_bc, buoyancy, background_fields,
-                                                                           velocities,
-                                                                           tracers,
-                                                                           auxiliary_fields,
-                                                                           diffusivity_fields,
-                                                                           forcing,
-                                                                           pHY′,
-                                                                           clock)
-
-        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields,
-                                                                           velocities,
-                                                                           tracers,
-                                                                           auxiliary_fields,
-                                                                           diffusivity_fields,
-                                                                           forcing,
-                                                                           pHY′,
-                                                                           clock)
-
-        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields,
-                                                                           velocities,
-                                                                           tracers,
-                                                                           auxiliary_fields,
-                                                                           diffusivity_fields,
-                                                                           forcing,
-                                                                           clock)
+@inline function uᵢGᵢᶜᶜᶜ(i, j, k, grid, advection,
+                                        coriolis,
+                                        stokes_drift,
+                                        closure,
+                                        u_immersed_bc,
+                                        v_immersed_bc,
+                                        w_immersed_bc,
+                                        buoyancy,
+                                        background_fields,
+                                        velocities,
+                                        args...)
+        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, u_immersed_bc, buoyancy, background_fields, velocities, args...)
+        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, args...)
+        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, args...)
     return u∂ₜu + v∂ₜv + w∂ₜw
 end
 
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` that computes the tendency of the KE except for the nonhydrostatic
-pressure:
+Return a `KernelFunctionOperation` that computes the tendency uᵢGᵢ of the KE, excluding the nonhydrostatic
+pressure contribution:
+
+    KET = ½∂ₜuᵢ² = uᵢGᵢ - uᵢ∂ᵢpₙₕₛ
 
 ```julia
+julia> using Oceananigans
+
+julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia> model = NonhydrostaticModel(grid=grid);
+
+julia> using Oceanostics.TKEBudgetTerms: KineticEnergyTendency
+
+julia> ke_tendency = KineticEnergyTendency(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢ∂ₜuᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: ("Centered reconstruction order 2", "Nothing", "Nothing", "Nothing", "FluxBoundaryCondition: Nothing", "FluxBoundaryCondition: Nothing", "FluxBoundaryCondition: Nothing", "Nothing", "(velocities=(u=ZeroField{Int64}, v=ZeroField{Int64}, w=ZeroField{Int64}), tracers=NamedTuple())", "(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "NamedTuple()", "NamedTuple()", "Nothing", "(u=zeroforcing (generic function with 1 method), v=zeroforcing (generic function with 1 method), w=zeroforcing (generic function with 1 method))", "Nothing", "Clock(time=0 seconds, iteration=0, last_Δt=Inf days)")
 ```
 """
 function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
@@ -153,7 +141,7 @@ function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, C
                     model.forcing,
                     model.pressures.pHY′,
                     model.clock)
-    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ₜuᵢᶜᶜᶜ, model.grid, dependencies...)
+    return KernelFunctionOperation{Center, Center, Center}(uᵢGᵢᶜᶜᶜ, model.grid, dependencies...)
 end
 #---
 
@@ -401,7 +389,7 @@ julia> ∇u⃗p = PressureRedistributionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "BinaryOperation at (Center, Center, Center)")
+└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU")
 ```
 
 We can also pass `velocities` and `pressure` keywords to perform more specific calculations. The
@@ -416,7 +404,9 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU")
 ```
 """
-function PressureRedistributionTerm(model::NonhydrostaticModel; velocities = model.velocities, pressure = sum(model.pressures), location = (Center, Center, Center))
+function PressureRedistributionTerm(model::NonhydrostaticModel; velocities = model.velocities,
+                                    pressure = model.pressures.pHY′ == nothing ? model.pressures.pNHS : sum(model.pressures),
+                                    location = (Center, Center, Center))
     validate_location(location, "PressureRedistributionTerm")
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
 end
