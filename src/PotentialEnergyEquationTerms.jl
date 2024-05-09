@@ -50,21 +50,9 @@ julia> using Oceananigans
 
 julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
 
-julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
-1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── Flat x
-├── Flat y
-└── Bounded  z ∈ [-1000.0, 0.0]   regularly spaced with Δz=10.0
+julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
 
-julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=(:b,))
-NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
-├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── timestepper: QuasiAdamsBashforth2TimeStepper
-├── advection scheme: Centered reconstruction order 2
-├── tracers: b
-├── closure: Nothing
-├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
-└── coriolis: Nothing
+julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=(:b,));
 
 julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -80,34 +68,15 @@ julia> using Oceananigans, SeawaterPolynomials.TEOS10
 
 julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
 
-julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
-1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── Flat x
-├── Flat y
-└── Bounded  z ∈ [-1000.0, 0.0]   regularly spaced with Δz=10.0
+julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
 
-julia> tracers = (:T, :S)
-(:T, :S)
+julia> tracers = (:T, :S);
 
-julia> eos = TEOS10EquationOfState()
-BoussinesqEquationOfState{Float64}:
-    ├── seawater_polynomial: TEOS10SeawaterPolynomial{Float64}
-    └── reference_density: 1020.0
+julia> eos = TEOS10EquationOfState();
 
-julia> buoyancy = SeawaterBuoyancy(equation_of_state=eos)
-SeawaterBuoyancy{Float64}:
-├── gravitational_acceleration: 9.80665
-└── equation_of_state: BoussinesqEquationOfState{Float64}
+julia> buoyancy = SeawaterBuoyancy(equation_of_state=eos);
 
-julia> model = NonhydrostaticModel(; grid, buoyancy, tracers)
-NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
-├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── timestepper: QuasiAdamsBashforth2TimeStepper
-├── advection scheme: Centered reconstruction order 2
-├── tracers: (T, S)
-├── closure: Nothing
-├── buoyancy: SeawaterBuoyancy with g=9.80665 and BoussinesqEquationOfState{Float64} with ĝ = NegativeZDirection()
-└── coriolis: Nothing
+julia> model = NonhydrostaticModel(; grid, buoyancy, tracers);
 
 julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -257,20 +226,9 @@ julia> using Oceananigans
 
 julia> using Oceanostics.PotentialEnergyEquationTerms: BackgroundPotentialEnergy
 
-julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
-1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── Flat x
-├── Flat y
-└── Bounded  z ∈ [-1000.0, 0.0]   regularly spaced with Δz=10.0
+julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
 
-julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=(:b,))
-NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
-├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── timestepper: QuasiAdamsBashforth2TimeStepper
-├── tracers: b
-├── closure: Nothing
-├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
-└── coriolis: Nothing
+julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=(:b,));
 
 julia> bpe = BackgroundPotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
