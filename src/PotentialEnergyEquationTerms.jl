@@ -7,7 +7,7 @@ export PotentialEnergy, BackgroundPotentialEnergy, OneDReferenceField
 using Oceananigans.AbstractOperations: KernelFunctionOperation, volume, Az, GridMetricOperation
 using Oceananigans.Models: seawater_density
 using Oceananigans.Models: model_geopotential_height
-using Oceananigans.ImmersedBoundaryGrid: ImmersedBoundaryGrid
+using Oceananigans.ImmersedBoundaries: ImmersedBoundaryGrid
 using Oceananigans.Grids
 using Oceananigans.Grids: Center, NegativeZDirection, interior, CenterField
 using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
