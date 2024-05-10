@@ -56,7 +56,7 @@ julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
 
-julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=(:b,));
+julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=:b);
 
 julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
