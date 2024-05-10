@@ -7,8 +7,9 @@ export PotentialEnergy, BackgroundPotentialEnergy, OneDReferenceField
 using Oceananigans.AbstractOperations: KernelFunctionOperation, volume, Az, GridMetricOperation
 using Oceananigans.Models: seawater_density
 using Oceananigans.Models: model_geopotential_height
+using Oceananigans.ImmersedBoundaryGrid: ImmersedBoundaryGrid
 using Oceananigans.Grids
-using Oceananigans.Grids: Center, Face, NegativeZDirection, interior, CenterField, regrid!
+using Oceananigans.Grids: Center, NegativeZDirection, interior, CenterField
 using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
 using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
@@ -23,7 +24,10 @@ const BuoyancyBoussinesqEOSModel = Buoyancy{<:SeawaterBuoyancy{FT, <:BoussinesqE
 
 validate_gravity_unit_vector(gravity_unit_vector::NegativeZDirection) = nothing
 validate_gravity_unit_vector(gravity_unit_vector) =
-    throw(ArgumentError("`PotentialEnergy` is curently only defined for models that have a `NegativeZDirection` gravity unit vector."))
+    throw(ArgumentError("`PotentialEnergy` and `BackgroundPotentialEnergy` are curently only defined for models that have a `NegativeZDirection` gravity unit vector."))
+validate_grid(grid) = nothing
+validate_grid(grid::ImmersedBoundaryGrid) =
+    throw(ArgumentError("`PotentialEnergy` and `BackgroundPotentialEnergy` are not currently defined for $(grid)."))
 
 """
     $(SIGNATURES)
@@ -116,6 +120,7 @@ KernelFunctionOperation at (Center, Center, Center)
 
     validate_location(location, "PotentialEnergy")
     isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
+    validate_grid(model.grid)
 
     return PotentialEnergy(model, model.buoyancy, geopotential_height)
 end
@@ -210,15 +215,17 @@ end
 """
     $(SIGNATURES)
 
-Return a `kernelFunctionOperation` to compute the `BackgroundPotentialEnergy` per unit
-volume,
+Return a `kernelFunctionOperation` to compute an approximation to the `BackgroundPotentialEnergy`
+per unit volume,
 ```math
 E_{b} = \\frac{gρz✶}{ρ₀}.
 ```
-The `BackgroundPotentialEnergy` is the potential energy computed after adiabatically resorting
+The `BackgroundPotentialEnergy` is the potential energy computed by adiabatically resorting
 the buoyancy or density field into a reference state of minimal potential energy.
-The reference state is computed by reshaping the gridded buoyancy or density field and
-`sort`ing into a monotonically increasing `Vector`.
+The reference state, and corresponding `z✶` cooridinate, is approximated using [OneDReferenceField](@ref).
+For more informaion about the background potential energy state and its implementation see
+[Winters et al. (1995)](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/available-potential-energy-and-mixing-in-densitystratified-fluids/A45F1A40521FF0A0DC82BC705AD398DA)
+and [Carpenter et al. (2012)](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/simulations-of-a-doublediffusive-interface-in-the-diffusive-convection-regime/63D2ECE2AA41439E01A01F9A0D76F2E2).
 
 Examples
 ========
@@ -244,6 +251,7 @@ KernelFunctionOperation at (Center, Center, Center)
 
     validate_location(location, "BackgroundPotentialEnergy")
     isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
+    validate_grid(model.grid)
 
     return BackgroundPotentialEnergy(model, model.buoyancy, geopotential_height)
 end
