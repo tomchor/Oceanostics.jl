@@ -171,15 +171,17 @@ VolumeField(grid, loc=(Center, Center, Center)) = MetricField(loc, grid, volume)
 
 """
     function OneDReferenceField(f::Field)
-Return a `OneDReferenceField` of the gridded data from the `Field` `f` and the `z✶` for the `Field`.
-The gridded data is first reshaped into a 1D `Array` then sorted. Returned is a new `Field` of this sorted data
-on a z✶ `grid`. The z✶ `grid` is defined as
+Return a `OneDReferenceField` of the data in `f` and the corresponding `z✶` coordinate.
+The gridded data is first reshaped into a 1D `Array` then sorted. Returned is a new `Field`
+of this sorted data as well as the `z✶` `Field` that are both on a grid that has the same vertical extent
+as the original field (`f.grid.Lz`) but with the resolution of the whole domain (`Nx * Ny * Nz`).
+The `z✶` `Field` is defined as
 ```math
 \\frac{1}{A}\\int_{f\\mathrm{min}}^{f\\mathrm{max}} \\mathrm{d}V.
 ```
 and is computed by cumulatively summing the 1D `Array` of grid volumes `ΔV`.
-**Note:** the `OneDReferenceField` is only appropriate for grids that have uniform horizontal
-area.
+**Note:** `OneDReferenceField` is currently only appropriate for grids that have uniform
+horizontal area.
 """
 function OneDReferenceField(f::Field; rev = false)
 
