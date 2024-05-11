@@ -288,7 +288,7 @@ end
     parameters = (g = model.buoyancy.model.gravitational_acceleration,
                   ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
 
-    return KernelFunctionOperation{Center, Center, Center}(g′z_ccc, grid, sorted_density, z✶, parameters)
+    return KernelFunctionOperation{Center, Center, Center}(g′z✶_ccc, grid, sorted_density, z✶, parameters)
 end
 
 @inline g′z✶_ccc(i, j, k, grid, ρ, z✶, p) = (p.g / p.ρ₀) * ρ[i, j, k] * z✶[i, j, k]
