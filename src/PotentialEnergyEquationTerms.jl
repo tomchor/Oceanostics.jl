@@ -164,10 +164,8 @@ end
 ## Grid metrics from https://github.com/tomchor/Oceanostics.jl/issues/163#issuecomment-2012623824
 
 function MetricField(loc, grid, metric)
-
     metric_operation = GridMetricOperation(loc, metric, grid)
     metric_field = Field(metric_operation)
-
     return compute!(metric_field)
 end
 
