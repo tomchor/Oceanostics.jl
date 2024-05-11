@@ -140,21 +140,36 @@ function test_buoyancy_diagnostics(model)
     u, v, w = model.velocities
     b = model.tracers.b
 
+    N² = 1e-5;
+    stratification(x, y, z) = N² * z;
+
+    S = 1e-3;
+    z_shear(x, y, z) = S * z + S * y;
+    set!(model, u=z_shear, b=stratification)
+
     Ri = RichardsonNumber(model)
     @test Ri isa AbstractOperation
-    @test compute!(Field(Ri)) isa Field
+    Ri_field = compute!(Field(Ri))
+    @test Ri_field isa Field
+    @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
 
     Ri = RichardsonNumber(model, u, v, w, b)
     @test Ri isa AbstractOperation
-    @test compute!(Field(Ri)) isa Field
+    Ri_field = compute!(Field(Ri))
+    @test Ri_field isa Field
+    @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
 
-    PVe = ErtelPotentialVorticity(model)
-    @test PVe isa AbstractOperation
-    @test compute!(Field(PVe)) isa Field
+    EPV = ErtelPotentialVorticity(model)
+    @test EPV isa AbstractOperation
+    EPV_field = compute!(Field(EPV))
+    @test EPV_field isa Field
+    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (model.coriolis.f - S)
 
-    PVe = ErtelPotentialVorticity(model, u, v, w, b, model.coriolis)
-    @test PVe isa AbstractOperation
-    @test compute!(Field(PVe)) isa Field
+    EPV = ErtelPotentialVorticity(model, u, v, w, b, model.coriolis)
+    @test EPV isa AbstractOperation
+    EPV_field = compute!(Field(EPV))
+    @test EPV_field isa Field
+    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (model.coriolis.f - S)
 
     PVtw = ThermalWindPotentialVorticity(model)
     @test PVtw isa AbstractOperation
