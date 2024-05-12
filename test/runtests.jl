@@ -144,8 +144,8 @@ function test_buoyancy_diagnostics(model)
     stratification(x, y, z) = N² * z;
 
     S = 1e-3;
-    z_shear(x, y, z) = S * z + S * y;
-    set!(model, u=z_shear, b=stratification)
+    shear(x, y, z) = S*z + S*y;
+    set!(model, u=shear, b=stratification)
 
     Ri = RichardsonNumber(model)
     @test Ri isa AbstractOperation
