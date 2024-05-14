@@ -142,9 +142,9 @@ end
 
     grid = model.grid
     C = model.tracers
-    b = buoyancy_model.model
+    b_model = buoyancy_model.model
 
-    return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b, C)
+    return KernelFunctionOperation{Center, Center, Center}(bz_ccc, grid, b_model, C)
 end
 
 @inline bz_ccc(i, j, k, grid, b, C) = buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, b, C) * Zᶜᶜᶜ(i, j, k, grid)
@@ -255,29 +255,19 @@ KernelFunctionOperation at (Center, Center, Center)
     return BackgroundPotentialEnergy(model, model.buoyancy, geopotential_height)
 end
 
-@inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyTracerModel, geopotential_height)
+linear_eos_buoyancy(grid, buoyancy, tracers) = KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
+
+@inline function BackgroundPotentialEnergy(model, buoyancy_model::Union{BuoyancyTracerModel, BuoyancyLinearEOSModel}, geopotential_height)
 
     grid = model.grid
-    sorted_buoyancy, z✶ = OneDReferenceField(model.tracers.b)
+    b = buoyancy_model isa BuoyancyTracerModel ? model.tracers.b :
+                                                 compute!(Field(linear_eos_buoyancy(grid, buoyancy_model.model, model.tracers)))
+    sorted_buoyancy, z✶ = OneDReferenceField(b)
 
     return KernelFunctionOperation{Center, Center, Center}(bz✶_ccc, grid, sorted_buoyancy, z✶)
 end
 
 @inline bz✶_ccc(i, j, k, grid, b, z✶) = b[i, j, k] * z✶[i, j, k]
-
-linear_eos_buoyancy(grid, buoyancy, tracers) = KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
-
-@inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyLinearEOSModel, geopotential_height)
-
-    grid = model.grid
-    buoyancy = model.buoyancy.model
-    tracers = model.tracers
-    b = linear_eos_buoyancy(grid, buoyancy, tracers)
-    compute!(b)
-    sorted_buoyancy, z✶ = OneDReferenceField(b)
-
-    return KernelFunctionOperation{Center, Center, Center}(bz✶_ccc, grid, sorted_buoyancy, z✶)
-end
 
 @inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyBoussinesqEOSModel, geopotential_height)
 
