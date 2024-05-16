@@ -6,7 +6,6 @@ export PotentialEnergy, BackgroundPotentialEnergy, OneDReferenceField
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation, volume, Az, GridMetricOperation
 using Oceananigans.Models: seawater_density
-using Oceananigans.Models: model_geopotential_height
 using Oceananigans.ImmersedBoundaries: ImmersedBoundaryGrid
 using Oceananigans.Grids
 using Oceananigans.Grids: Center, NegativeZDirection, interior, CenterField
@@ -115,8 +114,7 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 """
-@inline function PotentialEnergy(model; location = (Center, Center, Center),
-                                 geopotential_height = model_geopotential_height(model))
+@inline function PotentialEnergy(model; location = (Center, Center, Center), geopotential_height = 0)
 
     validate_location(location, "PotentialEnergy")
     isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
@@ -196,7 +194,7 @@ function OneDReferenceField(f::Field; rev = false)
 
     p = sortperm(field_data; rev)
     sorted_field_data = field_data[p]
-    z✶ = cumsum(v[p]) / area
+    z✶ = cumsum(v[p]) / area # divide by area at surface
 
     grid_arch = f.grid.architecture
     grid_size = prod(size(f.grid))
@@ -246,7 +244,7 @@ KernelFunctionOperation at (Center, Center, Center)
 ```
 """
 @inline function BackgroundPotentialEnergy(model; location = (Center, Center, Center),
-                                                  geopotential_height = model_geopotential_height(model))
+                                                  geopotential_height = 0)
 
     validate_location(location, "BackgroundPotentialEnergy")
     isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
@@ -262,7 +260,7 @@ linear_eos_buoyancy(grid, buoyancy, tracers) = KernelFunctionOperation{Center, C
     grid = model.grid
     b = buoyancy_model isa BuoyancyTracerModel ? model.tracers.b :
                                                  compute!(Field(linear_eos_buoyancy(grid, buoyancy_model.model, model.tracers)))
-    sorted_buoyancy, z✶ = OneDReferenceField(b)
+    sorted_buoyancy, z✶ = OneDReferenceField(b, rev = true)
 
     return KernelFunctionOperation{Center, Center, Center}(bz✶_ccc, grid, sorted_buoyancy, z✶)
 end
@@ -272,7 +270,7 @@ end
 @inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyBoussinesqEOSModel, geopotential_height)
 
     grid = model.grid
-    ρ = seawater_density(model; geopotential_height)
+    ρ = seawater_density(model; geopotential_height) # default to σ₀, potential density referenced to sea surface height
     compute!(ρ)
     sorted_density, z✶ = OneDReferenceField(ρ)
     parameters = (g = model.buoyancy.model.gravitational_acceleration,
