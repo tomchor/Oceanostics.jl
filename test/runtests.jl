@@ -364,10 +364,9 @@ function test_potential_energy_equation_terms_errors(model)
     return nothing
 end
 
-function test_potential_energy_equation_terms(model; geopotential_height = nothing)
+function test_potential_energy_equation_terms(model; geopotential_height = 0)
 
-    Eₚ = isnothing(geopotential_height) ? PotentialEnergy(model) :
-                                          PotentialEnergy(model; geopotential_height)
+    Eₚ = PotentialEnergy(model; geopotential_height)
 
     Eₚ_field = Field(Eₚ)
     @test Eₚ isa AbstractOperation
@@ -375,8 +374,7 @@ function test_potential_energy_equation_terms(model; geopotential_height = nothi
     compute!(Eₚ_field)
 
     if model.buoyancy isa BuoyancyBoussinesqEOSModel
-        ρ = isnothing(geopotential_height) ? Field(seawater_density(model)) :
-                                             Field(seawater_density(model; geopotential_height))
+        ρ = Field(seawater_density(model); geopotential_height)
 
         compute!(ρ)
         Z = Field(model_geopotential_height(model))
@@ -577,7 +575,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                     test_potential_energy_equation_terms_errors(model)
                 else
                     test_potential_energy_equation_terms(model)
-                    test_potential_energy_equation_terms(model, geopotential_height = 0)
+                    test_potential_energy_equation_terms(model, geopotential_height = 1000)
                 end
 
             end
