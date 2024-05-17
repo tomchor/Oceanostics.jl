@@ -255,12 +255,15 @@ end
 
 linear_eos_buoyancy(grid, buoyancy, tracers) = KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
 
+@inline BackgroundPotentialEnergy(model, buoyancy_model::NoBuoyancyModel, geopotential_height) =
+    throw(ArgumentError("Cannot calculate gravitational potential energy without a Buoyancy model."))
+
 @inline function BackgroundPotentialEnergy(model, buoyancy_model::Union{BuoyancyTracerModel, BuoyancyLinearEOSModel}, geopotential_height)
 
-    grid = model.grid
     b = buoyancy_model isa BuoyancyTracerModel ? model.tracers.b :
-                                                 compute!(Field(linear_eos_buoyancy(grid, buoyancy_model.model, model.tracers)))
+                                                 compute!(Field(linear_eos_buoyancy(model.grid, buoyancy_model.model, model.tracers)))
     sorted_buoyancy, z✶ = OneDReferenceField(b, rev = true)
+    grid = sorted_buoyancy.grid
 
     return KernelFunctionOperation{Center, Center, Center}(bz✶_ccc, grid, sorted_buoyancy, z✶)
 end
@@ -269,10 +272,10 @@ end
 
 @inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyBoussinesqEOSModel, geopotential_height)
 
-    grid = model.grid
-    ρ = seawater_density(model; geopotential_height) # default to σ₀, potential density referenced to sea surface height
+    ρ = Field(seawater_density(model; geopotential_height)) # default to σ₀, potential density referenced to sea surface height
     compute!(ρ)
     sorted_density, z✶ = OneDReferenceField(ρ)
+    grid = sorted_density.grid
     parameters = (g = model.buoyancy.model.gravitational_acceleration,
                   ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
 

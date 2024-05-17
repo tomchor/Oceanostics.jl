@@ -11,7 +11,9 @@ using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
 using Oceanostics
 using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, PressureRedistributionTerm, BuoyancyProductionTerm, AdvectionTerm
 using Oceanostics.TKEBudgetTerms: AdvectionTerm
-using Oceanostics: PotentialEnergy, PotentialEnergyEquationTerms.BuoyancyBoussinesqEOSModel
+using Oceanostics: PotentialEnergy, BackgroundPotentialEnergy
+using Oceanostics.PotentialEnergyEquationTerms: OneDReferenceField, linear_eos_buoyancy
+using Oceanostics.PotentialEnergyEquationTerms: BuoyancyTracerModel, BuoyancyLinearEOSModel, BuoyancyBoussinesqEOSModel
 using Oceanostics.ProgressMessengers
 using Oceanostics: perturbation_fields
 
@@ -360,6 +362,8 @@ function test_potential_energy_equation_terms_errors(model)
 
     @test_throws ArgumentError PotentialEnergy(model)
     @test_throws ArgumentError PotentialEnergy(model, geopotential_height = 0)
+    @test_throws ArgumentError BackgroundPotentialEnergy(model)
+    @test_throws ArgumentError BackgroundPotentialEnergy(model, geopotential_height = 0)
 
     return nothing
 end
@@ -375,10 +379,11 @@ function test_potential_energy_equation_terms(model; geopotential_height = 0)
 
     if model.buoyancy isa BuoyancyBoussinesqEOSModel
         ρ = Field(seawater_density(model; geopotential_height))
-
         compute!(ρ)
+
         Z = Field(model_geopotential_height(model))
         compute!(Z)
+
         ρ₀ = model.buoyancy.model.equation_of_state.reference_density
         g = model.buoyancy.model.gravitational_acceleration
 
@@ -386,6 +391,45 @@ function test_potential_energy_equation_terms(model; geopotential_height = 0)
             true_value = (g / ρ₀) .* ρ.data .* Z.data
             @test isequal(Eₚ_field.data, true_value)
         end
+    end
+
+    Eb = BackgroundPotentialEnergy(model; geopotential_height)
+
+    Eb_field = Field(Eb)
+    @test Eb isa AbstractOperation
+    @test Eb_field isa Field
+    compute!(Eb_field)
+
+    return nothing
+end
+function test_1D_reference_field(model; geopotential_height = 0)
+
+    if model.buoyancy isa BuoyancyTracerModel
+
+        b_sorted = sort(reshape(interior(model.tracers.b), :), rev = true)
+
+        sorted_buoyancy, z✶ = OneDReferenceField(model.tracers.b, rev = true)
+
+        @test isequal(reshape(interior(sorted_buoyancy), :), b_sorted)
+
+    elseif model.buoyancy isa BuoyancyLinearEOSModel
+
+        b = Field(linear_eos_buoyancy(model.grid, model.buoyancy.model, model.tracers))
+        compute!(b)
+        b_sorted = sort(reshape(interior(b), :), rev = true)
+
+        sorted_buoyancy, z✶ = OneDReferenceField(b, rev = true)
+
+        @test isequal(reshape(interior(sorted_buoyancy), :), b_sorted)
+
+    elseif model.buoyancy isa BuoyancyBoussinesqEOSModel
+        ρ = Field(seawater_density(model; geopotential_height))
+        compute!(ρ)
+        ρ_data_sorted = sort(reshape(interior(ρ), :))
+
+        sorted_density, z✶ = OneDReferenceField(ρ)
+
+        @test isequal(reshape(interior(sorted_density), :), ρ_data_sorted)
     end
 
     return nothing
@@ -565,7 +609,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
             end
 
-            @info "Testing `PotentialEnergy`"
+            @info "Testing `PotentialEnergy`, `BackgroundPotentialEnergy` and `OneDReferenceField`"
             for buoyancy in buoyancy_models
 
                 tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T)
@@ -576,6 +620,10 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 else
                     test_potential_energy_equation_terms(model)
                     test_potential_energy_equation_terms(model, geopotential_height = 1000)
+                    buoyancy isa BuoyancyTracer ? set!(model, b = randn(size(model.grid))) :
+                                                  set!(model, S = randn(size(model.grid)), T = randn(size(model.grid)))
+                    test_1D_reference_field(model)
+                    test_1D_reference_field(model, geopotential_height = 1000)
                 end
 
             end
