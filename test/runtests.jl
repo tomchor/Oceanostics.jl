@@ -14,6 +14,7 @@ using Oceanostics.TKEBudgetTerms: AdvectionTerm
 using Oceanostics: PotentialEnergy, BackgroundPotentialEnergy
 using Oceanostics.PotentialEnergyEquationTerms: OneDReferenceField, linear_eos_buoyancy
 using Oceanostics.PotentialEnergyEquationTerms: BuoyancyTracerModel, BuoyancyLinearEOSModel, BuoyancyBoussinesqEOSModel
+using Oceanostics.PotentialEnergyEquationTerms: VolumeField, AreaField
 using Oceanostics.ProgressMessengers
 using Oceanostics: perturbation_fields
 
@@ -406,30 +407,53 @@ function test_1D_reference_field(model; geopotential_height = 0)
 
     if model.buoyancy isa BuoyancyTracerModel
 
-        b_sorted = sort(reshape(interior(model.tracers.b), :), rev = true)
+        b = reshape(interior(model.tracers.b), :)
+        p = sortperm(b, rev = true)
+        b_sorted = b[p]
+
+        v_grid = VolumeField(model.grid)
+        A = sum(AreaField(model.grid))
+        z✶_check = cumsum(reshape(v_grid, :)[p]) / A
 
         sorted_buoyancy, z✶ = OneDReferenceField(model.tracers.b, rev = true)
 
         @test isequal(reshape(interior(sorted_buoyancy), :), b_sorted)
+        @test isequal(reshape(interior(z✶), :), z✶_check)
 
     elseif model.buoyancy isa BuoyancyLinearEOSModel
 
         b = Field(linear_eos_buoyancy(model.grid, model.buoyancy.model, model.tracers))
         compute!(b)
-        b_sorted = sort(reshape(interior(b), :), rev = true)
+        b_flat = reshape(interior(b), :)
+        p = sortperm(b_flat, rev = true)
+        b_sorted = b_flat[p]
+
+        v_grid = VolumeField(model.grid)
+        A = sum(AreaField(model.grid))
+        z✶_check = cumsum(reshape(v_grid, :)[p]) / A
 
         sorted_buoyancy, z✶ = OneDReferenceField(b, rev = true)
 
         @test isequal(reshape(interior(sorted_buoyancy), :), b_sorted)
+        @test isequal(reshape(interior(z✶), :), z✶_check)
 
     elseif model.buoyancy isa BuoyancyBoussinesqEOSModel
+
         ρ = Field(seawater_density(model; geopotential_height))
         compute!(ρ)
-        ρ_data_sorted = sort(reshape(interior(ρ), :))
+        ρ_flat = reshape(interior(ρ), :)
+        p = sortperm(ρ_flat)
+        ρ_sorted = ρ_flat[p]
+
+        v_grid = VolumeField(model.grid)
+        A = sum(AreaField(model.grid))
+        z✶_check = cumsum(reshape(v_grid, :)[p]) / A
 
         sorted_density, z✶ = OneDReferenceField(ρ)
 
-        @test isequal(reshape(interior(sorted_density), :), ρ_data_sorted)
+        @test isequal(reshape(interior(sorted_density), :), ρ_sorted)
+        @test isequal(reshape(interior(z✶), :), z✶_check)
+
     end
 
     return nothing
