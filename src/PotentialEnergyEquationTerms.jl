@@ -40,9 +40,9 @@ and `SeawaterBuoyancy`. See the relevant Oceananigans.jl documentation on
 [buoyancy models](https://clima.github.io/OceananigansDocumentation/dev/model_setup/buoyancy_and_equation_of_state/)
 for more information about available options.
 
-The optional keyword argument `geopotential_height` is only used
-if ones wishes to calculate `Eₚ` with a potential density referenced to `geopotential_height`,
-rather than in-situ density, when using a `BoussinesqEquationOfState`.
+The keyword argument `geopotential_height` allows users to choose a set a different potential
+density for use in the calulation of `Eₚ` when using a `BoussinesqEquationOfState`. See the
+example below for how to do this.
 
 Example
 =======
@@ -64,8 +64,9 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("1×1×100 Field{Center, Center, Center} on RectilinearGrid on CPU",)
 ```
 
-The default behaviour of `PotentialEnergy` uses the *in-situ density* in the calculation
-when the equation of state is a `BoussinesqEquationOfState`:
+The default behaviour of `PotentialEnergy` uses *potential density* with reference
+`geopotential_height = 0` (i.e. σ₀ is the density variable) in the calculation when the
+equation of state is a `BoussinesqEquationOfState`:
 ```jldoctest
 julia> using Oceananigans, SeawaterPolynomials.TEOS10
 
@@ -88,8 +89,8 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 
-To use a reference density set a constant value for the keyword argument `geopotential_height`
-and pass this the function. For example,
+To use a different potential density set a constant value for the keyword argument
+`geopotential_height` and pass this the function. For example,
 ```jldoctest
 julia> using Oceananigans, SeawaterPolynomials.TEOS10;
 
@@ -105,9 +106,9 @@ julia> buoyancy = SeawaterBuoyancy(equation_of_state=eos);
 
 julia> model = NonhydrostaticModel(; grid, buoyancy, tracers);
 
-julia> geopotential_height = 0; # density variable will be σ₀
+julia> geopotential_height = 1000; # density variable will be σ₁
 
-julia> PotentialEnergy(model)
+julia> PotentialEnergy(model; geopotential_height)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: g′z_ccc (generic function with 1 method)
@@ -150,7 +151,7 @@ end
 @inline function PotentialEnergy(model, buoyancy_model::BuoyancyBoussinesqEOSModel, geopotential_height)
 
     grid = model.grid
-    ρ = seawater_density(model; geopotential_height)
+    ρ = seawater_density(model; geopotential_height) # default to σ₀, potential density referenced to sea surface height
     parameters = (g = model.buoyancy.model.gravitational_acceleration,
                   ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
 
@@ -212,7 +213,7 @@ end
 """
     $(SIGNATURES)
 
-Return a `kernelFunctionOperation` to compute an approximation to the `BackgroundPotentialEnergy`
+Return a `KernelFunctionOperation` to compute the `BackgroundPotentialEnergy`
 per unit volume,
 ```math
 E_{b} = \\frac{gρz✶}{ρ₀}.
