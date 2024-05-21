@@ -130,7 +130,7 @@ julia> tracers = (:T, :S);
 
 julia> eos = TEOS10EquationOfState();
 
-julia> tracers = (:T, :S);
+julia> buoyancy = SeawaterBuoyancy(equation_of_state=eos);
 
 julia> model = NonhydrostaticModel(; grid, buoyancy, tracers);
 
