@@ -17,8 +17,10 @@ using SeawaterPolynomials: BoussinesqEquationOfState
 
 const NoBuoyancyModel = Union{Nothing, ShallowWaterModel}
 const BuoyancyTracerModel = Buoyancy{<:BuoyancyTracer, g} where g
-const BuoyancyLinearEOSModel = Buoyancy{<:SeawaterBuoyancy{FT, <:LinearEquationOfState, T, S} where {FT, T, S}, g} where {g}
-const BuoyancyBoussinesqEOSModel = Buoyancy{<:SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, T, S} where {FT, T, S}, g} where {g}
+const LinearSeawaterBuoyancy = SeawaterBuoyancy{FT, <:LinearEquationOfState, T, S} where {FT, T, S}
+const BuoyancyLinearEOSModel = Buoyancy{<:LinearSeawaterBuoyancy, g} where {g}
+const BoussinesqSeawaterBuoyancy = SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, T, S} where {FT, T, S}
+const BuoyancyBoussinesqEOSModel = Buoyancy{<:BoussinesqSeawaterBuoyancy, g} where {g}
 
 validate_gravity_unit_vector(gravity_unit_vector::NegativeZDirection) = nothing
 validate_gravity_unit_vector(gravity_unit_vector) =
@@ -68,7 +70,7 @@ NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── kernel_function: minus_bz_ccc (generic function with 2 methods)
+├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("1×1×100 Field{Center, Center, Center} on RectilinearGrid on CPU",)
 ```
 
@@ -111,7 +113,7 @@ NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── kernel_function: minus_bz_ccc (generic function with 1 method)
+├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 
@@ -128,7 +130,7 @@ julia> tracers = (:T, :S);
 
 julia> eos = TEOS10EquationOfState();
 
-julia> buoyancy = SeawaterBuoyancy(equation_of_state=eos);
+julia> tracers = (:T, :S);
 
 julia> model = NonhydrostaticModel(; grid, buoyancy, tracers);
 
@@ -137,7 +139,7 @@ julia> geopotential_height = 0; # density variable will be σ₀
 julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── kernel_function: minus_bz_ccc (generic function with 1 method)
+├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 """
@@ -172,7 +174,8 @@ end
     return KernelFunctionOperation{Center, Center, Center}(minus_bz_ccc, grid, b, C)
 end
 
-@inline minus_bz_ccc(i, j, k, grid, b, C) = - buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, b, C) * Zᶜᶜᶜ(i, j, k, grid)
+@inline minus_bz_ccc(i, j, k, grid, b::LinearSeawaterBuoyancy, C) =
+    -buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, b, C) * Zᶜᶜᶜ(i, j, k, grid)
 
 @inline function PotentialEnergy(model, buoyancy_model::BuoyancyBoussinesqEOSModel, geopotential_height)
 
