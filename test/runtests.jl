@@ -408,7 +408,7 @@ function test_potential_energy_equation_terms(model; geopotential_height = nothi
 
     return nothing
 end
-function test_PEbuoyancytracer_PElineareos(grid)
+function test_PEbuoyancytracer_equals_PElineareos(grid)
 
     model_buoyancytracer = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=:b)
     model_lineareos = NonhydrostaticModel(; grid, buoyancy=SeawaterBuoyancy(), tracers=(:S, :T))
