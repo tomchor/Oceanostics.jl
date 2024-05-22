@@ -208,7 +208,6 @@ function OneDReferenceField(f::Field; rev = false)
     set!(z✶_field, reshape(z✶, size(new_grid)))
 
     return sorted_field, z✶_field
-
 end
 
 """
@@ -217,7 +216,7 @@ end
 Return a `KernelFunctionOperation` to compute the `BackgroundPotentialEnergy`
 per unit volume,
 ```math
-E_{b} = \\frac{gρz✶}{ρ₀} = -bz✶.
+E_{b} = \\frac{g}{ρ₀}ρz✶ = -bz✶.
 ```
 The `BackgroundPotentialEnergy` is the potential energy computed by adiabatically resorting
 the buoyancy or density field into a reference state of minimal potential energy.
@@ -241,7 +240,7 @@ julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=(:
 julia> bpe = BackgroundPotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── kernel_function: bz✶_ccc (generic function with 1 method)
+├── kernel_function: minus_bz✶_ccc (generic function with 2 methods)
 └── arguments: ("1×1×100 Field{Center, Center, Center} on RectilinearGrid on CPU", "1×1×100 Field{Center, Center, Center} on RectilinearGrid on CPU")
 ```
 """
@@ -255,22 +254,24 @@ KernelFunctionOperation at (Center, Center, Center)
     return BackgroundPotentialEnergy(model, model.buoyancy, geopotential_height)
 end
 
-linear_eos_buoyancy(grid, buoyancy, tracers) = KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
+linear_eos_buoyancy(grid, buoyancy, tracers) =
+    KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
 
 @inline BackgroundPotentialEnergy(model, buoyancy_model::NoBuoyancyModel, geopotential_height) =
     throw(ArgumentError("Cannot calculate gravitational potential energy without a Buoyancy model."))
 
 @inline function BackgroundPotentialEnergy(model, buoyancy_model::Union{BuoyancyTracerModel, BuoyancyLinearEOSModel}, geopotential_height)
 
-    b = buoyancy_model isa BuoyancyTracerModel ? model.tracers.b :
-                                                 compute!(Field(linear_eos_buoyancy(model.grid, buoyancy_model.model, model.tracers)))
-    sorted_buoyancy, z✶ = OneDReferenceField(b, rev = true)
-    grid = sorted_buoyancy.grid
+    minus_b = buoyancy_model isa BuoyancyTracerModel ? -model.tracers.b :
+                                                       compute!(Field(-linear_eos_buoyancy(model.grid, buoyancy_model.model, model.tracers)))
 
-    return KernelFunctionOperation{Center, Center, Center}(bz✶_ccc, grid, sorted_buoyancy, z✶)
+    sorted_minus_b, z✶ = OneDReferenceField(minus_b)
+    grid = sorted_minus_b.grid
+
+    return KernelFunctionOperation{Center, Center, Center}(minus_bz✶_ccc, grid, sorted_minus_b, z✶)
 end
 
-@inline bz✶_ccc(i, j, k, grid, b, z✶) = b[i, j, k] * z✶[i, j, k]
+@inline minus_bz✶_ccc(i, j, k, grid, sorted_minus_b::Field, z✶::Field) = sorted_minus_b[i, j, k] * z✶[i, j, k]
 
 @inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyBoussinesqEOSModel, geopotential_height)
 
@@ -284,6 +285,6 @@ end
     return KernelFunctionOperation{Center, Center, Center}(g′z✶_ccc, grid, sorted_density, z✶, parameters)
 end
 
-@inline g′z✶_ccc(i, j, k, grid, ρ, z✶, p) = (p.g / p.ρ₀) * ρ[i, j, k] * z✶[i, j, k]
+@inline minus_bz✶_ccc(i, j, k, grid, sorted_ρ::Field, z✶::Field, p::NamedTuple) = (p.g / p.ρ₀) * sorted_ρ[i, j, k] * z✶[i, j, k]
 
 end # module
