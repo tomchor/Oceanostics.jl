@@ -180,9 +180,10 @@ has the same vertical extent as the original field (`f.grid.Lz`) but with the sa
 number of points of the original domain (`Nx * Ny * Nz`).
 The `z✶` `Field` is defined as
 ```math
-\\frac{1}{A}\\int_{f\\mathrm{min}}^{f\\mathrm{max}} \\mathrm{d}V.
+-\\frac{1}{A}\\int_{f\\mathrm{min}}^{f\\mathrm{max}} \\mathrm{d}V.
 ```
-and is computed by cumulatively summing the 1D `Array` of grid volumes `ΔV`.
+and is computed by cumulatively summing the 1D `Array` of grid volumes `ΔV`. The negative sign
+ensures that `z✶` is increasing over the same range and same direction as `f.grid`.
 **Note:** `OneDReferenceField` is currently only appropriate for grids that have uniform
 horizontal area.
 """
@@ -195,7 +196,7 @@ function OneDReferenceField(f::Field; rev = false)
 
     p = sortperm(field_data; rev)
     sorted_field_data = field_data[p]
-    z✶ = cumsum(v[p]) / area # divide by area at surface
+    z✶ = -cumsum(v[p]) / area # divide by area at surface
 
     grid_arch = f.grid.architecture
     grid_size = prod(size(f.grid))
@@ -216,7 +217,7 @@ end
 Return a `KernelFunctionOperation` to compute the `BackgroundPotentialEnergy`
 per unit volume,
 ```math
-E_{b} = \\frac{gρz✶}{ρ₀}.
+E_{b} = \\frac{gρz✶}{ρ₀} = -bz.
 ```
 The `BackgroundPotentialEnergy` is the potential energy computed by adiabatically resorting
 the buoyancy or density field into a reference state of minimal potential energy.

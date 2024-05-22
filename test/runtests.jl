@@ -413,7 +413,7 @@ function test_1D_reference_field(model; geopotential_height = 0)
 
         v_grid = VolumeField(model.grid)
         A = sum(AreaField(model.grid))
-        z✶_check = cumsum(reshape(v_grid, :)[p]) / A
+        z✶_check = -cumsum(reshape(v_grid, :)[p]) / A
 
         sorted_buoyancy, z✶ = OneDReferenceField(model.tracers.b, rev = true)
 
@@ -430,7 +430,7 @@ function test_1D_reference_field(model; geopotential_height = 0)
 
         v_grid = VolumeField(model.grid)
         A = sum(AreaField(model.grid))
-        z✶_check = cumsum(reshape(v_grid, :)[p]) / A
+        z✶_check = -cumsum(reshape(v_grid, :)[p]) / A
 
         sorted_buoyancy, z✶ = OneDReferenceField(b, rev = true)
 
@@ -447,7 +447,7 @@ function test_1D_reference_field(model; geopotential_height = 0)
 
         v_grid = VolumeField(model.grid)
         A = sum(AreaField(model.grid))
-        z✶_check = cumsum(reshape(v_grid, :)[p]) / A
+        z✶_check = -cumsum(reshape(v_grid, :)[p]) / A
 
         sorted_density, z✶ = OneDReferenceField(ρ)
 
