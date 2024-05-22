@@ -618,7 +618,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 end
 
             end
-            test_PEbuoyancytracer_PElineareos(grid)
+            test_PEbuoyancytracer_equals_PElineareos(grid)
 
         end
 
