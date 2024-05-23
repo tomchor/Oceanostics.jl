@@ -282,7 +282,7 @@ end
     parameters = (g = model.buoyancy.model.gravitational_acceleration,
                   ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
 
-    return KernelFunctionOperation{Center, Center, Center}(g′z✶_ccc, grid, sorted_density, z✶, parameters)
+    return KernelFunctionOperation{Center, Center, Center}(minus_bz✶_ccc, grid, sorted_density, z✶, parameters)
 end
 
 @inline minus_bz✶_ccc(i, j, k, grid, sorted_ρ::Field, z✶::Field, p::NamedTuple) = (p.g / p.ρ₀) * sorted_ρ[i, j, k] * z✶[i, j, k]
