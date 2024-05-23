@@ -3,6 +3,7 @@ using CUDA
 
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
+using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 using Oceananigans.Models: seawater_density, model_geopotential_height
@@ -143,21 +144,36 @@ function test_buoyancy_diagnostics(model)
     u, v, w = model.velocities
     b = model.tracers.b
 
+    N² = 1e-5;
+    stratification(x, y, z) = N² * z;
+
+    S = 1e-3;
+    shear(x, y, z) = S*z + S*y;
+    set!(model, u=shear, b=stratification)
+
     Ri = RichardsonNumber(model)
     @test Ri isa AbstractOperation
-    @test compute!(Field(Ri)) isa Field
+    Ri_field = compute!(Field(Ri))
+    @test Ri_field isa Field
+    @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
 
     Ri = RichardsonNumber(model, u, v, w, b)
     @test Ri isa AbstractOperation
-    @test compute!(Field(Ri)) isa Field
+    Ri_field = compute!(Field(Ri))
+    @test Ri_field isa Field
+    @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
 
-    PVe = ErtelPotentialVorticity(model)
-    @test PVe isa AbstractOperation
-    @test compute!(Field(PVe)) isa Field
+    EPV = ErtelPotentialVorticity(model)
+    @test EPV isa AbstractOperation
+    EPV_field = compute!(Field(EPV))
+    @test EPV_field isa Field
+    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (model.coriolis.f - S)
 
-    PVe = ErtelPotentialVorticity(model, u, v, w, b, model.coriolis)
-    @test PVe isa AbstractOperation
-    @test compute!(Field(PVe)) isa Field
+    EPV = ErtelPotentialVorticity(model, u, v, w, b, model.coriolis)
+    @test EPV isa AbstractOperation
+    EPV_field = compute!(Field(EPV))
+    @test EPV_field isa Field
+    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (model.coriolis.f - S)
 
     PVtw = ThermalWindPotentialVorticity(model)
     @test PVtw isa AbstractOperation
@@ -458,6 +474,27 @@ function test_1D_reference_field(model; geopotential_height = 0)
 
     return nothing
 end
+function test_PEbuoyancytracer_equals_PElineareos(grid)
+
+    model_buoyancytracer = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=:b)
+    model_lineareos = NonhydrostaticModel(; grid, buoyancy=SeawaterBuoyancy(), tracers=(:S, :T))
+    C_grad(x, y, z) = 0.01 * z
+    set!(model_lineareos, S = C_grad, T = C_grad)
+    linear_eos_buoyancy(grid, buoyancy, tracers) =
+        KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
+    b_field = Field(linear_eos_buoyancy(model_lineareos.grid, model_lineareos.buoyancy.model, model_lineareos.tracers))
+    compute!(b_field)
+    set!(model_buoyancytracer, b = interior(b_field))
+    pe_buoyancytracer = Field(PotentialEnergy(model_buoyancytracer))
+    compute!(pe_buoyancytracer)
+    pe_lineareos = Field(PotentialEnergy(model_lineareos))
+    compute!(pe_lineareos)
+
+    @test all(interior(pe_buoyancytracer) .== interior(pe_lineareos))
+
+    return nothing
+
+end
 #---
 
 #+++ Known-value function tests
@@ -651,6 +688,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 end
 
             end
+            test_PEbuoyancytracer_equals_PElineareos(grid)
 
         end
 
