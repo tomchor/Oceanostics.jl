@@ -4,7 +4,7 @@ using DocStringExtensions
 
 export PotentialEnergy, BackgroundPotentialEnergy, OneDReferenceField
 
-using Oceananigans.AbstractOperations: KernelFunctionOperation, volume, Az, GridMetricOperation
+using Oceananigans.AbstractOperations: AbstractOperation, KernelFunctionOperation, volume, Az, GridMetricOperation
 using Oceananigans.Models: seawater_density
 using Oceananigans.ImmersedBoundaries: ImmersedBoundaryGrid
 using Oceananigans.Grids
@@ -187,7 +187,7 @@ ensures that `z✶` is increasing over the same range and same direction as `f.g
 **Note:** `OneDReferenceField` is currently only appropriate for grids that have uniform
 horizontal area.
 """
-function OneDReferenceField(f::Field; rev = false)
+function OneDReferenceField(f::Union{Field, AbstractOperation}; rev = false)
 
     area = sum(AreaField(f.grid))
     volume_field = VolumeField(f.grid)
