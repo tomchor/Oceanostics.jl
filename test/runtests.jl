@@ -3,6 +3,7 @@ using CUDA
 
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
+using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 using Oceananigans.Models: seawater_density, model_geopotential_height
@@ -407,6 +408,27 @@ function test_potential_energy_equation_terms(model; geopotential_height = nothi
 
     return nothing
 end
+function test_PEbuoyancytracer_equals_PElineareos(grid)
+
+    model_buoyancytracer = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=:b)
+    model_lineareos = NonhydrostaticModel(; grid, buoyancy=SeawaterBuoyancy(), tracers=(:S, :T))
+    C_grad(x, y, z) = 0.01 * z
+    set!(model_lineareos, S = C_grad, T = C_grad)
+    linear_eos_buoyancy(grid, buoyancy, tracers) =
+        KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
+    b_field = Field(linear_eos_buoyancy(model_lineareos.grid, model_lineareos.buoyancy.model, model_lineareos.tracers))
+    compute!(b_field)
+    set!(model_buoyancytracer, b = interior(b_field))
+    pe_buoyancytracer = Field(PotentialEnergy(model_buoyancytracer))
+    compute!(pe_buoyancytracer)
+    pe_lineareos = Field(PotentialEnergy(model_lineareos))
+    compute!(pe_lineareos)
+
+    @test all(interior(pe_buoyancytracer) .== interior(pe_lineareos))
+
+    return nothing
+
+end
 #---
 
 #+++ Known-value function tests
@@ -596,6 +618,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 end
 
             end
+            test_PEbuoyancytracer_equals_PElineareos(grid)
 
         end
 
