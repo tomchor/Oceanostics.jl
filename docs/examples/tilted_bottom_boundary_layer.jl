@@ -1,7 +1,7 @@
 # # Tilted bottom boundary layer example
 #
 # This example is based on the similar [Oceananigans
-# example](https://clima.github.io/OceananigansDocumentation/stable/generated/tilted_bottom_boundary_layer/)
+# example](https://clima.github.io/OceananigansDocumentation/stable/literated/tilted_bottom_boundary_layer/)
 # and simulates a two-dimensional oceanic bottom boundary layer in a domain that's tilted with
 # respect to gravity. We simulate the perturbation away from a constant along-slope
 # (y-direction) velocity constant density stratification.  This perturbation develops into a

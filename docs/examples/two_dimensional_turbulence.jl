@@ -1,7 +1,7 @@
 # # [Two-dimensional turbulence example](@id two_d_turbulence_example)
 #
 # In this example (based on the homonymous [Oceananigans
-# one](https://clima.github.io/OceananigansDocumentation/stable/generated/two_dimensional_turbulence/))
+# one](https://clima.github.io/OceananigansDocumentation/stable/literated/two_dimensional_turbulence/))
 # we simulate a 2D flow initialized with random noise and observe the flow evolve.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
