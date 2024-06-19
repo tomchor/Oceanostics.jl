@@ -186,7 +186,7 @@ using CairoMakie
 set_theme!(Theme(fontsize = 20))
 fig = Figure()
 
-kwargs = (xlabel="x", ylabel="z", height=150, width=250)
+kwargs = (xlabel="x [m]", ylabel="z [m]", height=150, width=250)
 ax1 = Axis(fig[2, 1]; title = "Ri", kwargs...)
 ax2 = Axis(fig[2, 2]; title = "Ro", kwargs...)
 ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
