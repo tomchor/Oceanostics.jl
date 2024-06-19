@@ -201,7 +201,7 @@ xF = Array(dims(ds, :xF))
 zC = Array(dims(ds, :zC))
 zF = Array(dims(ds, :zF))
 
-bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
+bₙ = @lift Array(ds.b[Ti=$n, yC=Near(0)])
 
 Riₙ = @lift Array(ds.Ri[Ti=$n, yC=Near(0)])
 hm1 = heatmap!(ax1, xC, zF, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
