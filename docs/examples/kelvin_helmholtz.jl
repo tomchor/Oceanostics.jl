@@ -137,8 +137,8 @@ Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
 axb = Axis(fig[4, 1:3]; xlabel="Time", height=100)
 times = dims(ds, :Ti)
-lines!(axb, Array(times), ds.∫χ,  label = "∫χdV")
-lines!(axb, Array(times), ds.∫χᴰ, label = "∫χᴰdV", linestyle=:dash)
+lines!(axb, Array(times), Array(ds.∫χ),  label = "∫χdV")
+lines!(axb, Array(times), Array(ds.∫χᴰ), label = "∫χᴰdV", linestyle=:dash)
 axislegend(position=:lb, labelsize=14)
 
 # Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
