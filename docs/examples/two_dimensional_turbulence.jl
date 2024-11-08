@@ -1,7 +1,7 @@
 # # [Two-dimensional turbulence example](@id two_d_turbulence_example)
 #
 # In this example (based on the homonymous [Oceananigans
-# one](https://clima.github.io/OceananigansDocumentation/stable/generated/two_dimensional_turbulence/))
+# one](https://clima.github.io/OceananigansDocumentation/stable/literated/two_dimensional_turbulence/))
 # we simulate a 2D flow initialized with random noise and observe the flow evolve.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
@@ -147,11 +147,11 @@ axis_kwargs = (xlabel = "Time",
 
 ax3 = Axis(fig[4, 1]; axis_kwargs...)
 times = dims(ds, :Ti)
-lines!(ax3, Array(times), ds.∫KE)
+lines!(ax3, Array(times), Array(ds.∫KE))
 
 ax4 = Axis(fig[4, 2]; axis_kwargs...)
-lines!(ax4, Array(times), ds.∫ε, label="∫εdV")
-lines!(ax4, Array(times), ds.∫εᴰ, label="∫εᴰdV", linestyle=:dash)
+lines!(ax4, Array(times), Array(ds.∫ε), label="∫εdV")
+lines!(ax4, Array(times), Array(ds.∫εᴰ), label="∫εᴰdV", linestyle=:dash)
 axislegend(ax4, labelsize=14)
 
 # Now we mark the time by placing a vertical line in the bottom plots:

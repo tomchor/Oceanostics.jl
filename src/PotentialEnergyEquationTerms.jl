@@ -55,9 +55,21 @@ julia> using Oceananigans
 
 julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
 
-julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
+julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
+1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── Flat x
+├── Flat y
+└── Bounded  z ∈ [-1000.0, 0.0] regularly spaced with Δz=10.0
 
-julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=:b);
+julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=(:b,))
+NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: Centered reconstruction order 2
+├── tracers: b
+├── closure: Nothing
+├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
+└── coriolis: Nothing
 
 julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -74,7 +86,11 @@ julia> using Oceananigans, SeawaterPolynomials.TEOS10
 
 julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
 
-julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
+julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
+1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── Flat x
+├── Flat y
+└── Bounded  z ∈ [-1000.0, 0.0] regularly spaced with Δz=10.0
 
 julia> tracers = (:T, :S);
 
@@ -82,7 +98,15 @@ julia> eos = TEOS10EquationOfState();
 
 julia> buoyancy = SeawaterBuoyancy(equation_of_state=eos);
 
-julia> model = NonhydrostaticModel(; grid, buoyancy, tracers);
+julia> model = NonhydrostaticModel(; grid, buoyancy, tracers)
+NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: Centered reconstruction order 2
+├── tracers: (T, S)
+├── closure: Nothing
+├── buoyancy: SeawaterBuoyancy with g=9.80665 and BoussinesqEquationOfState{Float64} with ĝ = NegativeZDirection()
+└── coriolis: Nothing
 
 julia> PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
