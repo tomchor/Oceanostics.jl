@@ -8,7 +8,7 @@ using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 using Oceananigans.Models: seawater_density, model_geopotential_height
-using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
+using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState, BoussinesqEquationOfState
 using SeawaterPolynomials.SecondOrderSeawaterPolynomials: LinearRoquetSeawaterPolynomial
 
 using Oceanostics
@@ -548,7 +548,7 @@ function test_mixed_layer_depth(grid;
 
     T = CenterField(grid; boundary_conditions)
 
-    mld = DensityCriteriaMixedLayerDepth(grid, buoyancy, (; T); pertubation = δρ)
+    mld = MixedLayerDepth(grid, buoyancy, (; T))
 
     @test isinf(mld[1, 1])
     
