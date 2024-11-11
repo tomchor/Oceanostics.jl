@@ -4,14 +4,18 @@ using DocStringExtensions
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
+export DensityCriteriaMixedLayerDepth
 
 using Oceanostics: validate_location, validate_dissipative_closure, add_background_fields
 
 using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyField, BuoyancyTracer
+using Oceananigans.BuoyancyModels: get_temperature_and_salinity, SeawaterBuoyancy
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceananigans.Grids: Center, Face, NegativeZDirection, ZDirection
+using Oceananigans.Grids: Center, Face, NegativeZDirection, ZDirection, znode
+
+using SeawaterPolynomials: ρ′
 
 #+++ Richardson number
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -502,6 +506,49 @@ function QVelocityGradientTensorInvariant(model; location = (Center, Center, Cen
 end
 
 const Q = QVelocityGradientTensorInvariant
-#---
 
+"""
+    $(SIGNATURES)
+
+Calculate the mixed layer depth defined as the depth at which the density is 
+some threshold (defaults to 0.125kg/m³) higher than the surface density.
+
+`C` should be a named tuple of `(; T, S)`, `(; T)` or `(; S)` (the latter two
+if the buoyancy model specifies a constant salinity or temperature.
+"""
+function DensityCriteriaMixedLayerDepth(grid, buoyancy, C; pertubation = convert(eltype(grid), 1/8))
+    validate_buoyancy_model(buoyancy)
+    return KernelFunctionOperation{Center, Center, Nothing}(_density_criteria_mixed_layer_depth!, grid, buoyancy, C, pertubation)
+end
+
+validate_buoyancy_model(buoyancy) = @error "Mixed layer depth is only implemented for `SeawaterBuoyancy`"
+validate_buoyancy_model(::SeawaterBuoyancy) = nothing
+
+@inline function density(i, j, k, grid, b::SeawaterBuoyancy, C)
+    T, S = get_temperature_and_salinity(b, C)
+
+    return ρ′(i, j, k, grid, b.equation_of_state, T, S)
+end
+
+function _density_criteria_mixed_layer_depth!(i, j, k, grid, buoyancy, C, δρ)
+    ρᵣ = density(i, j, grid.Nz, grid, buoyancy, C)
+
+    kₘₗ = -1
+
+    for k in grid.Nz-1:-1:1
+        ρₖ = density(i, j, k, grid, buoyancy, C)
+
+        kₘₗ = ifelse((ρₖ > ρᵣ + δρ) & (kₘₗ < 0), k, kₘₗ)
+    end
+
+    ρₖ = density(i, j, kₘₗ, grid, buoyancy, C)
+    ρ₊ = density(i, j, kₘₗ+1, grid, buoyancy, C)
+
+    zₖ = znode(i, j, kₘₗ, grid, Center(), Center(), Center())
+    z₊ = znode(i, j, kₘₗ+1, grid, Center(), Center(), Center())
+
+    zₘₗ = zₖ + (z₊ - zₖ) * (ρᵣ + δρ - ρₖ) / (ρ₊ - ρₖ)
+    
+    return ifelse(kₘₗ == -1, -Inf, zₘₗ)
+end
 end # module
