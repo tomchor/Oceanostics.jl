@@ -15,7 +15,8 @@ using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face, NegativeZDirection, ZDirection, znode
 
-using SeawaterPolynomials: ρ′
+using SeawaterPolynomials: ρ′, BoussinesqEquationOfState
+using SeawaterPolynomials.SecondOrderSeawaterPolynomials: SecondOrderSeawaterPolynomial
 
 #+++ Richardson number
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -521,20 +522,19 @@ function DensityCriteriaMixedLayerDepth(grid, buoyancy, C; pertubation = convert
     return KernelFunctionOperation{Center, Center, Nothing}(_density_criteria_mixed_layer_depth!, grid, buoyancy, C, pertubation)
 end
 
-validate_buoyancy_model(buoyancy) = @error "Mixed layer depth is only implemented for `SeawaterBuoyancy`"
-validate_buoyancy_model(::SeawaterBuoyancy) = nothing
+validate_buoyancy_model(buoyancy) = @error "Mixed layer depth is not implemented for your buoyancy model as the density anomaly is not defined"
+validate_buoyancy_model(::SeawaterBuoyancy{<:Any, <:BoussinesqEquationOfState}) = nothing
 
-@inline function density(i, j, k, grid, b::SeawaterBuoyancy, C)
+@inline function density(i, j, k, grid, b::SeawaterBuoyancy{<:Any, <:BoussinesqEquationOfState}, C)
     T, S = get_temperature_and_salinity(b, C)
 
     return ρ′(i, j, k, grid, b.equation_of_state, T, S)
 end
 
 function _density_criteria_mixed_layer_depth!(i, j, k, grid, buoyancy, C, δρ)
-    ρᵣ = density(i, j, grid.Nz, grid, buoyancy, C)
+    ρᵣ = (density(i, j, grid.Nz, grid, buoyancy, C) + density(i, j, grid.Nz+1, grid, buoyancy, C)) * convert(eltype(grid), 0.5)
 
     kₘₗ = -1
-
     for k in grid.Nz-1:-1:1
         ρₖ = density(i, j, k, grid, buoyancy, C)
 
