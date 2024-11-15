@@ -98,15 +98,15 @@ v_bcs = FieldBoundaryConditions(bottom = drag_bc_v)
 
 # ## Create model and simulation
 #
-# We are now ready to create the model. We create a `NonhydrostaticModel` with an
-# `UpwindBiasedFifthOrder` advection scheme, a `RungeKutta3` timestepper, and a constant viscosity
+# We are now ready to create the model. We create a `NonhydrostaticModel` with a 5th
+# `UpwindBiased` advection scheme, a `RungeKutta3` timestepper, and a constant viscosity
 # and diffusivity.
 
 closure = ScalarDiffusivity(ν=2e-4, κ=2e-4)
 
 model = NonhydrostaticModel(; grid, buoyancy, coriolis, closure,
                             timestepper = :RungeKutta3,
-                            advection = UpwindBiasedFifthOrder(),
+                            advection = UpwindBiased(order=5),
                             tracers = :b,
                             boundary_conditions = (u=u_bcs, v=v_bcs),
                             background_fields = (; b=B_field))
