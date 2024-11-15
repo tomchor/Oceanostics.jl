@@ -6,6 +6,7 @@ using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
+using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveragedCoefficient
 using Oceananigans.Models: seawater_density, model_geopotential_height
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
 
@@ -33,7 +34,7 @@ stretched_grid = RectilinearGrid(arch, size=(N, N, N), x=(0, 1), y=(0, 1), z=z_f
 
 grid_noise(x, y, z) = randn()
 
-is_LES(::SmagorinskyLilly) = true
+is_LES(::Smagorinsky) = true
 is_LES(::AnisotropicMinimumDissipation) = true
 is_LES(::Any) = false
 is_LES(a::Tuple) = any(map(is_LES, a))
@@ -543,6 +544,8 @@ model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()),
 
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
+            Smagorinsky(coefficient=DynamicCoefficient(averaging=(1, 2))),
+            Smagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
 
 buoyancy_models = (nothing, BuoyancyTracer(), SeawaterBuoyancy(),
