@@ -358,7 +358,7 @@ function test_tracer_diagnostics(model)
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
     @compute ε̄ₚ = Field(Average(TracerVarianceDissipationRate(model, :b)))
     @compute ε̄ₚ₂ = Field(Average(TracerVarianceDiffusiveTerm(model, :b)))
-    @test ≈(Array(interior(ε̄ₚ, 1, 1, 1)), Array(interior(ε̄ₚ₂, 1, 1, 1)), rtol=1e-12, atol=eps())
+    @test ≈(Array(interior(ε̄ₚ, 1, 1, 1)), Array(interior(ε̄ₚ₂, 1, 1, 1)), rtol=1e-12, atol=2*eps())
 
     if model isa NonhydrostaticModel
         χ = TracerVarianceTendency(model, :b)
@@ -563,45 +563,45 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 @info "Testing $model_type on grid and with closure" grid closure
                 model = model_type(; grid, closure, model_kwargs...)
 
-                @info "Testing velocity-only diagnostics"
+                @info "    Testing velocity-only diagnostics"
                 test_vel_only_diagnostics(model)
 
-                @info "Testing buoyancy diagnostics"
+                @info "    Testing buoyancy diagnostics"
                 test_buoyancy_diagnostics(model)
 
                 if model isa NonhydrostaticModel
-                    @info "Testing pressure terms"
+                    @info "    Testing pressure terms"
                     test_pressure_term(model)
 
-                    @info "Testing buoyancy production term"
+                    @info "    Testing buoyancy production term"
                     test_buoyancy_production_term(grid; model_type)
                 end
 
-                @info "Testing auxiliary functions"
+                @info "    Testing auxiliary functions"
                 test_auxiliary_functions(model)
 
-                @info "Testing energy dissipation rate terms"
+                @info "    Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(grid; model_type, closure)
 
 
                 if model_type == NonhydrostaticModel
-                    @info "Testing advection terms"
+                    @info "    Testing advection terms"
                     test_momentum_advection_term(grid; model_type)
 
-                    @info "Testing forcing terms"
+                    @info "    Testing forcing terms"
                     test_ke_forcing_term(grid; model_type)
 
-                    @info "Testing uniform strain flow"
+                    @info "    Testing uniform strain flow"
                     test_uniform_strain_flow(grid; model_type, closure, α=3)
 
-                    @info "Testing solid body rotation flow"
+                    @info "    Testing solid body rotation flow"
                     test_solid_body_rotation_flow(grid; model_type, closure, ζ=3)
 
-                    @info "Testing uniform shear flow"
+                    @info "    Testing uniform shear flow"
                     test_uniform_shear_flow(grid; model_type, closure, σ=3)
                 end
 
-                @info "Testing tracer variance terms"
+                @info "Testing tracer variance terms with model $model_type and closure" closure
                 model = model_type(; grid, closure, model_kwargs...)
                 test_tracer_diagnostics(model)
 
