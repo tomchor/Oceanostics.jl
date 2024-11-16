@@ -2,13 +2,15 @@ using Test
 using CUDA
 
 using Oceananigans
+using Oceananigans: fill_halo_regions!
 using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using Oceananigans.Models: seawater_density, model_geopotential_height
-using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
+using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState, BoussinesqEquationOfState
+using SeawaterPolynomials.SecondOrderSeawaterPolynomials: LinearRoquetSeawaterPolynomial
 
 using Oceanostics
 using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, PressureRedistributionTerm, BuoyancyProductionTerm, AdvectionTerm
@@ -536,6 +538,29 @@ function test_auxiliary_functions(model)
     @test all(Array(interior(fields_without_means.v)) .== 0)
     return
 end
+
+function test_mixed_layer_depth(grid; 
+                                buoyancy = SeawaterBuoyancy(equation_of_state=BoussinesqEquationOfState(LinearRoquetSeawaterPolynomial(), 1000),
+                                                            constant_salinity=0),
+                                zₘₓₗ = 0.5,
+                                δρ = 0.125,
+                                ∂z_T = - δρ / zₘₓₗ / buoyancy.equation_of_state.seawater_polynomial.R₀₁₀)
+    boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_T))
+
+    T = CenterField(grid; boundary_conditions)
+
+    mld = MixedLayerDepth(grid, buoyancy, (; T))
+
+    @test isinf(mld[1, 1])
+    
+    set!(T, (x, y, z) -> z * ∂z_T+10)
+    fill_halo_regions!(T)
+
+    @test mld[1, 1] ≈ -zₘₓₗ
+
+    return nothing
+end
+
 #---
 
 model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()),
@@ -621,9 +646,9 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 end
 
             end
-            test_PEbuoyancytracer_equals_PElineareos(grid)
-
         end
+        test_PEbuoyancytracer_equals_PElineareos(grid)
+        test_mixed_layer_depth(grid)
 
         @info "Testing input validation for dissipation rates"
         invalid_closures = [HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7),

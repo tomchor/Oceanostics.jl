@@ -20,6 +20,7 @@ export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity
 export DirectionalErtelPotentialVorticity
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
+export MixedLayerDepth, DensityAnomalyCriterion
 #---
 
 #+++ PotentialEnergyEquationTerms exports

@@ -4,14 +4,19 @@ using DocStringExtensions
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
+export MixedLayerDepth, DensityAnomalyCriterion
 
 using Oceanostics: validate_location, validate_dissipative_closure, add_background_fields
 
 using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyField, BuoyancyTracer
+using Oceananigans.BuoyancyModels: get_temperature_and_salinity, SeawaterBuoyancy
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceananigans.Grids: Center, Face, NegativeZDirection, ZDirection
+using Oceananigans.Grids: Center, Face, NegativeZDirection, ZDirection, znode
+
+using SeawaterPolynomials: ρ′, BoussinesqEquationOfState
+using SeawaterPolynomials.SecondOrderSeawaterPolynomials: SecondOrderSeawaterPolynomial
 
 #+++ Richardson number
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -502,6 +507,95 @@ function QVelocityGradientTensorInvariant(model; location = (Center, Center, Cen
 end
 
 const Q = QVelocityGradientTensorInvariant
-#---
+struct MixedLayerDepth{C}
+    criterion::C
+end
 
+"""
+    $(SIGNATURES)
+
+Returns the mixed layer depth defined as the depth at which `criterion` is true.
+
+Defaults to `DensityAnomalyCriterion` where the depth is that at which the density
+is some threshold (defaults to 0.125kg/m³) higher than the surface density.
+
+When `DensityAnomalyCriterion` is used, the arguments `buoyancy` and `C` should be 
+supploed where `buoyancy` should be the buoyancy model, and `C` should be a named 
+tuple of `(; T, S)`, `(; T)` or `(; S)` (the latter two if the buoyancy model 
+specifies a constant salinity or temperature).
+"""
+function MixedLayerDepth(grid, args...; criterion = DensityAnomalyCriterion(convert(eltype(grid), 1/8)))
+    validate_criterion_model(criterion, args...)
+
+    MLD = MixedLayerDepth(criterion)
+
+    return KernelFunctionOperation{Center, Center, Nothing}(MLD, grid, args...)
+end
+
+function (MLD::MixedLayerDepth)(i, j, k, grid, args...)
+    kₘₗ = -1
+
+    for k in grid.Nz-1:-1:1
+        below_mixed_layer = MLD.criterion(i, j, k, grid, args...)
+
+        kₘₗ = ifelse(below_mixed_layer & (kₘₗ < 0), k, kₘₗ)
+    end
+
+    zₘₗ = interpolate_from_nearest_cell(MLD.criterion, i, j, kₘₗ, grid, args...)
+    
+    return ifelse(kₘₗ == -1, -Inf, zₘₗ)
+end
+
+"""
+    $(SIGNATURES)
+
+Defines the mixed layer to be the depth at which the density is more than `pertubation`
+greater than the surface density.
+
+When this model is used, the arguments `buoyancy` and `C` should be 
+supploed where `buoyancy` should be the buoyancy model, and `C` should be a named 
+tuple of `(; T, S)`, `(; T)` or `(; S)` (the latter two if the buoyancy model 
+specifies a constant salinity or temperature).
+"""
+struct DensityAnomalyCriterion{FT}
+    pertubation :: FT
+end
+
+validate_criterion_model(::DensityAnomalyCriterion, args...) = 
+    @error "For DensityAnomalyCriterion you must supply the arguments buoyancy and C, where C is a named tuple of (; T, S), (; T) or (; S)"
+
+validate_criterion_model(::DensityAnomalyCriterion, buoyancy, C) = 
+    @error "DensityAnomalyCriterion is not implemented for your buoyancy, model as the density anomaly is not defined"
+    
+validate_criterion_model(::DensityAnomalyCriterion, ::SeawaterBuoyancy{<:Any, <:BoussinesqEquationOfState}, C::NamedTuple) = nothing
+
+@inline function density(i, j, k, grid, b::SeawaterBuoyancy{<:Any, <:BoussinesqEquationOfState}, C)
+    T, S = get_temperature_and_salinity(b, C)
+
+    return ρ′(i, j, k, grid, b.equation_of_state, T, S)
+end
+
+@inline function (density_criterion::DensityAnomalyCriterion)(i, j, k, grid, buoyancy, C)
+    δρ = density_criterion.pertubation
+
+    ρᵣ = (density(i, j, grid.Nz, grid, buoyancy, C) + density(i, j, grid.Nz+1, grid, buoyancy, C)) * convert(eltype(grid), 0.5)
+
+    ρₖ = density(i, j, k, grid, buoyancy, C)
+
+    return ρₖ > ρᵣ + δρ
+end
+
+@inline function interpolate_from_nearest_cell(density_criterion::DensityAnomalyCriterion, i, j, k, grid, buoyancy, C)
+    δρ = density_criterion.pertubation
+
+    ρᵣ = (density(i, j, grid.Nz, grid, buoyancy, C) + density(i, j, grid.Nz+1, grid, buoyancy, C)) * convert(eltype(grid), 0.5)
+
+    ρₖ = density(i, j, k, grid, buoyancy, C)
+    ρ₊ = density(i, j, k+1, grid, buoyancy, C)
+
+    zₖ = znode(i, j, k, grid, Center(), Center(), Center())
+    z₊ = znode(i, j, k+1, grid, Center(), Center(), Center())
+
+    return zₖ + (z₊ - zₖ) * (ρᵣ + δρ - ρₖ) / (ρ₊ - ρₖ)
+end
 end # module
