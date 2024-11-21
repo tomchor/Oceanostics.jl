@@ -2,16 +2,17 @@ module PotentialEnergyEquationTerms
 
 using DocStringExtensions
 
-export PotentialEnergy
+export PotentialEnergy, BackgroundPotentialEnergy, OneDReferenceField
 
-using Oceananigans.AbstractOperations: KernelFunctionOperation
+using Oceananigans.AbstractOperations: AbstractOperation, KernelFunctionOperation, volume, Az, GridMetricOperation
 using Oceananigans.Models: seawater_density
-using Oceananigans.Models: model_geopotential_height
-using Oceananigans.Grids: Center, Face
-using Oceananigans.Grids: NegativeZDirection
+using Oceananigans.ImmersedBoundaries: ImmersedBoundaryGrid
+using Oceananigans.Grids
+using Oceananigans.Grids: Center, NegativeZDirection, interior, CenterField
 using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
 using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
+using Oceananigans.Fields: Field, compute!, field, set!
 using Oceanostics: validate_location
 using SeawaterPolynomials: BoussinesqEquationOfState
 
@@ -24,7 +25,10 @@ const BuoyancyBoussinesqEOSModel = Buoyancy{<:BoussinesqSeawaterBuoyancy, g} whe
 
 validate_gravity_unit_vector(gravity_unit_vector::NegativeZDirection) = nothing
 validate_gravity_unit_vector(gravity_unit_vector) =
-    throw(ArgumentError("`PotentialEnergy` is curently only defined for models that have a `NegativeZDirection` gravity unit vector."))
+    throw(ArgumentError("`PotentialEnergy` and `BackgroundPotentialEnergy` are curently only defined for models that have a `NegativeZDirection` gravity unit vector."))
+validate_grid(grid) = nothing
+validate_grid(grid::ImmersedBoundaryGrid) =
+    throw(ArgumentError("`PotentialEnergy` and `BackgroundPotentialEnergy` are not currently defined for $(grid)."))
 
 """
     $(SIGNATURES)
@@ -38,9 +42,9 @@ and `SeawaterBuoyancy`. See the relevant Oceananigans.jl documentation on
 [buoyancy models](https://clima.github.io/OceananigansDocumentation/dev/model_setup/buoyancy_and_equation_of_state/)
 for more information about available options.
 
-The optional keyword argument `geopotential_height` is only used
-if ones wishes to calculate `Eₚ` with a potential density referenced to `geopotential_height`,
-rather than in-situ density, when using a `BoussinesqEquationOfState`.
+The keyword argument `geopotential_height` allows users to choose a set a different potential
+density for use in the calulation of `Eₚ` when using a `BoussinesqEquationOfState`. See the
+example below for how to do this.
 
 Example
 =======
@@ -74,8 +78,9 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("1×1×100 Field{Center, Center, Center} on RectilinearGrid on CPU",)
 ```
 
-The default behaviour of `PotentialEnergy` uses the *in-situ density* in the calculation
-when the equation of state is a `BoussinesqEquationOfState`:
+The default behaviour of `PotentialEnergy` uses *potential density* with reference
+`geopotential_height = 0` (i.e. σ₀ is the density variable) in the calculation when the
+equation of state is a `BoussinesqEquationOfState`:
 ```jldoctest
 julia> using Oceananigans, SeawaterPolynomials.TEOS10
 
@@ -87,18 +92,11 @@ julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Boun
 ├── Flat y
 └── Bounded  z ∈ [-1000.0, 0.0] regularly spaced with Δz=10.0
 
-julia> tracers = (:T, :S)
-(:T, :S)
+julia> tracers = (:T, :S);
 
-julia> eos = TEOS10EquationOfState()
-BoussinesqEquationOfState{Float64}:
-    ├── seawater_polynomial: TEOS10SeawaterPolynomial{Float64}
-    └── reference_density: 1020.0
+julia> eos = TEOS10EquationOfState();
 
-julia> buoyancy = SeawaterBuoyancy(equation_of_state=eos)
-SeawaterBuoyancy{Float64}:
-├── gravitational_acceleration: 9.80665
-└── equation_of_state: BoussinesqEquationOfState{Float64}
+julia> buoyancy = SeawaterBuoyancy(equation_of_state=eos);
 
 julia> model = NonhydrostaticModel(; grid, buoyancy, tracers)
 NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
@@ -117,8 +115,8 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 
-To use a reference density set a constant value for the keyword argument `geopotential_height`
-and pass this the function. For example,
+To use a different potential density set a constant value for the keyword argument
+`geopotential_height` and pass this the function. For example,
 ```jldoctest
 julia> using Oceananigans, SeawaterPolynomials.TEOS10;
 
@@ -134,20 +132,20 @@ julia> buoyancy = SeawaterBuoyancy(equation_of_state=eos);
 
 julia> model = NonhydrostaticModel(; grid, buoyancy, tracers);
 
-julia> geopotential_height = 0; # density variable will be σ₀
+julia> geopotential_height = 1000; # density variable will be σ₁
 
-julia> PotentialEnergy(model)
+julia> PotentialEnergy(model; geopotential_height)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation at (Center, Center, Center)", "(g=9.80665, ρ₀=1020.0)")
 ```
 """
-@inline function PotentialEnergy(model; location = (Center, Center, Center),
-                                 geopotential_height = model_geopotential_height(model))
+@inline function PotentialEnergy(model; location = (Center, Center, Center), geopotential_height = 0)
 
     validate_location(location, "PotentialEnergy")
     isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
+    validate_grid(model.grid)
 
     return PotentialEnergy(model, model.buoyancy, geopotential_height)
 end
@@ -169,9 +167,9 @@ end
 
     grid = model.grid
     C = model.tracers
-    b = buoyancy_model.model
+    b_model = buoyancy_model.model
 
-    return KernelFunctionOperation{Center, Center, Center}(minus_bz_ccc, grid, b, C)
+    return KernelFunctionOperation{Center, Center, Center}(minus_bz_ccc, grid, b_model, C)
 end
 
 @inline minus_bz_ccc(i, j, k, grid, b::LinearSeawaterBuoyancy, C) =
@@ -180,7 +178,7 @@ end
 @inline function PotentialEnergy(model, buoyancy_model::BuoyancyBoussinesqEOSModel, geopotential_height)
 
     grid = model.grid
-    ρ = seawater_density(model; geopotential_height)
+    ρ = seawater_density(model; geopotential_height) # default to σ₀, potential density referenced to sea surface height
     parameters = (g = model.buoyancy.model.gravitational_acceleration,
                   ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
 
@@ -188,5 +186,132 @@ end
 end
 
 @inline minus_bz_ccc(i, j, k, grid, ρ, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
+
+## Grid metrics from https://github.com/tomchor/Oceanostics.jl/issues/163#issuecomment-2012623824
+
+function MetricField(loc, grid, metric)
+    metric_operation = GridMetricOperation(loc, metric, grid)
+    metric_field = Field(metric_operation)
+    return compute!(metric_field)
+end
+
+VolumeField(grid, loc=(Center, Center, Center)) = MetricField(loc, grid, volume)
+  AreaField(grid, loc=(Center, Center, Nothing)) = MetricField(loc, grid, Az)
+
+"""
+    function OneDReferenceField(f::Field)
+Return a `OneDReferenceField` of the data in `f` and the corresponding `z✶` coordinate.
+The gridded data is first reshaped into a 1D `Array` then sorted. Returned is a new `Field`
+of this sorted data as well as the `z✶` `Field` that are both on a one-dimensional grid that
+has the same vertical extent as the original field (`f.grid.Lz`) but with the same _total_
+number of points of the original domain (`Nx * Ny * Nz`).
+The `z✶` `Field` is defined as
+```math
+-\\frac{1}{A}\\int_{f\\mathrm{min}}^{f\\mathrm{max}} \\mathrm{d}V.
+```
+and is computed by cumulatively summing the 1D `Array` of grid volumes `ΔV`. The negative sign
+ensures that `z✶` is increasing over the same range and same direction as `f.grid`.
+**Note:** `OneDReferenceField` is currently only appropriate for grids that have uniform
+horizontal area.
+"""
+function OneDReferenceField(f::Union{Field, AbstractOperation}; rev = false)
+
+    area = sum(AreaField(f.grid))
+    volume_field = VolumeField(f.grid)
+    v = reshape(interior(volume_field), :)
+    field_data = reshape(interior(f), :)
+
+    p = sortperm(field_data; rev)
+    sorted_field_data = field_data[p]
+    z✶ = -cumsum(v[p]) / area # divide by area at surface
+
+    grid_arch = f.grid.architecture
+    grid_size = prod(size(f.grid))
+    new_grid = RectilinearGrid(grid_arch, size = grid_size, z = (-f.grid.Lz, 0), topology=(Flat, Flat, Bounded))
+
+    sorted_field = CenterField(new_grid)
+    set!(sorted_field, reshape(sorted_field_data, size(new_grid)))
+    z✶_field = CenterField(new_grid)
+    set!(z✶_field, reshape(z✶, size(new_grid)))
+
+    return sorted_field, z✶_field
+end
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` to compute the `BackgroundPotentialEnergy`
+per unit volume,
+```math
+E_{b} = \\frac{g}{ρ₀}ρz✶ = -bz✶.
+```
+The `BackgroundPotentialEnergy` is the potential energy computed by adiabatically resorting
+the buoyancy or density field into a reference state of minimal potential energy.
+The reference state, and corresponding `z✶` cooridinate, is approximated using [OneDReferenceField](@ref).
+For more informaion about the background potential energy state and its implementation see
+[Winters et al. (1995)](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/available-potential-energy-and-mixing-in-densitystratified-fluids/A45F1A40521FF0A0DC82BC705AD398DA)
+and [Carpenter et al. (2012)](https://www.cambridge.org/core/journals/journal-of-fluid-mechanics/article/simulations-of-a-doublediffusive-interface-in-the-diffusive-convection-regime/63D2ECE2AA41439E01A01F9A0D76F2E2).
+
+Examples
+========
+
+```jldoctest
+julia> using Oceananigans
+
+julia> using Oceanostics.PotentialEnergyEquationTerms: BackgroundPotentialEnergy
+
+julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
+
+julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=(:b,));
+
+julia> bpe = BackgroundPotentialEnergy(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── kernel_function: minus_bz✶_ccc (generic function with 2 methods)
+└── arguments: ("1×1×100 Field{Center, Center, Center} on RectilinearGrid on CPU", "1×1×100 Field{Center, Center, Center} on RectilinearGrid on CPU")
+```
+"""
+@inline function BackgroundPotentialEnergy(model; location = (Center, Center, Center),
+                                                  geopotential_height = 0)
+
+    validate_location(location, "BackgroundPotentialEnergy")
+    isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
+    validate_grid(model.grid)
+
+    return BackgroundPotentialEnergy(model, model.buoyancy, geopotential_height)
+end
+
+linear_eos_buoyancy(grid, buoyancy, tracers) =
+    KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
+
+@inline BackgroundPotentialEnergy(model, buoyancy_model::NoBuoyancyModel, geopotential_height) =
+    throw(ArgumentError("Cannot calculate gravitational potential energy without a Buoyancy model."))
+
+@inline function BackgroundPotentialEnergy(model, buoyancy_model::Union{BuoyancyTracerModel, BuoyancyLinearEOSModel}, geopotential_height)
+
+    minus_b = buoyancy_model isa BuoyancyTracerModel ? -model.tracers.b :
+                                                       compute!(Field(-linear_eos_buoyancy(model.grid, buoyancy_model.model, model.tracers)))
+
+    sorted_minus_b, z✶ = OneDReferenceField(minus_b)
+    grid = sorted_minus_b.grid
+
+    return KernelFunctionOperation{Center, Center, Center}(minus_bz✶_ccc, grid, sorted_minus_b, z✶)
+end
+
+@inline minus_bz✶_ccc(i, j, k, grid, sorted_minus_b::Field, z✶::Field) = sorted_minus_b[i, j, k] * z✶[i, j, k]
+
+@inline function BackgroundPotentialEnergy(model, buoyancy_model::BuoyancyBoussinesqEOSModel, geopotential_height)
+
+    ρ = Field(seawater_density(model; geopotential_height)) # default to σ₀, potential density referenced to sea surface height
+    compute!(ρ)
+    sorted_density, z✶ = OneDReferenceField(ρ)
+    grid = sorted_density.grid
+    parameters = (g = model.buoyancy.model.gravitational_acceleration,
+                  ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
+
+    return KernelFunctionOperation{Center, Center, Center}(minus_bz✶_ccc, grid, sorted_density, z✶, parameters)
+end
+
+@inline minus_bz✶_ccc(i, j, k, grid, sorted_ρ::Field, z✶::Field, p::NamedTuple) = (p.g / p.ρ₀) * sorted_ρ[i, j, k] * z✶[i, j, k]
 
 end # module
