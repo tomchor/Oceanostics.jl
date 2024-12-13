@@ -55,7 +55,7 @@ ĝ = [sind(θ), 0, cosd(θ)]
 # Changing the vertical direction impacts both the `gravity_unit_vector` for `Buoyancy` as well as
 # the `rotation_axis` for Coriolis forces,
 
-buoyancy = Buoyancy(model = BuoyancyTracer(), gravity_unit_vector = -ĝ)
+buoyancy = BuoyancyForce(BuoyancyTracer(), gravity_unit_vector = -ĝ)
 
 f₀ = 1e-4/second
 coriolis = ConstantCartesianCoriolis(f = f₀, rotation_axis = ĝ)
