@@ -5,7 +5,7 @@ using DocStringExtensions
 export TurbulentKineticEnergy, KineticEnergy
 export KineticEnergyTendency, KineticEnergyStressTerm, KineticEnergyForcingTerm
 export IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate
-export XPressureRedistribution, YPressureRedistribution, ZPressureRedistribution
+export PressureRedistributionTerm
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 #---
 
