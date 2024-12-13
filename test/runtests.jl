@@ -3,7 +3,7 @@ using CUDA
 
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
-using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ
+using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
@@ -538,7 +538,7 @@ function test_auxiliary_functions(model)
 end
 #---
 
-model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()),
+model_kwargs = (buoyancy = BuoyancyForce(BuoyancyTracer()),
                 coriolis = FPlane(1e-4),
                 tracers = :b)
 
@@ -641,7 +641,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
     for closure in closures
         LES = is_LES(closure)
         model = NonhydrostaticModel(grid = regular_grid;
-                                    buoyancy = Buoyancy(model=BuoyancyTracer()),
+                                    buoyancy = BuoyancyForce(BuoyancyTracer()),
                                     coriolis = FPlane(1e-4),
                                     tracers = :b,
                                     closure = closure)

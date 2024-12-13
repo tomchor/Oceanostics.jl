@@ -9,18 +9,18 @@ using Oceananigans.Models: seawater_density
 using Oceananigans.Models: model_geopotential_height
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Grids: NegativeZDirection
-using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
-using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
+using Oceananigans.BuoyancyFormulations: BuoyancyForce, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
+using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
 using Oceanostics: validate_location
 using SeawaterPolynomials: BoussinesqEquationOfState
 
 const NoBuoyancyModel = Union{Nothing, ShallowWaterModel}
-const BuoyancyTracerModel = Buoyancy{<:BuoyancyTracer, g} where g
+const BuoyancyTracerModel = BuoyancyForce{<:BuoyancyTracer, g} where g
 const LinearSeawaterBuoyancy = SeawaterBuoyancy{FT, <:LinearEquationOfState, T, S} where {FT, T, S}
-const BuoyancyLinearEOSModel = Buoyancy{<:LinearSeawaterBuoyancy, g} where {g}
+const BuoyancyLinearEOSModel = BuoyancyForce{<:LinearSeawaterBuoyancy, g} where {g}
 const BoussinesqSeawaterBuoyancy = SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, T, S} where {FT, T, S}
-const BuoyancyBoussinesqEOSModel = Buoyancy{<:BoussinesqSeawaterBuoyancy, g} where {g}
+const BuoyancyBoussinesqEOSModel = BuoyancyForce{<:BoussinesqSeawaterBuoyancy, g} where {g}
 
 validate_gravity_unit_vector(gravity_unit_vector::NegativeZDirection) = nothing
 validate_gravity_unit_vector(gravity_unit_vector) =
