@@ -169,7 +169,7 @@ end
 
     grid = model.grid
     C = model.tracers
-    b = buoyancy_model.model
+    b = buoyancy_model.formulation
 
     return KernelFunctionOperation{Center, Center, Center}(minus_bz_ccc, grid, b, C)
 end
@@ -181,8 +181,8 @@ end
 
     grid = model.grid
     ρ = seawater_density(model; geopotential_height)
-    parameters = (g = model.buoyancy.model.gravitational_acceleration,
-                  ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
+    parameters = (g = model.buoyancy.formulation.gravitational_acceleration,
+                  ρ₀ = model.buoyancy.formulation.equation_of_state.reference_density)
 
     return KernelFunctionOperation{Center, Center, Center}(minus_bz_ccc, grid, ρ, parameters)
 end
