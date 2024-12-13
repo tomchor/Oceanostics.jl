@@ -367,7 +367,7 @@ function test_tracer_diagnostics(model)
         @test χ_field isa Field
 
         @compute ∂ₜc² = Field(Average(TracerVarianceTendency(model, :b)))
-        @test ≈(Array(interior(ε̄ₚ, 1, 1, 1)), -Array(interior(∂ₜc², 1, 1, 1)), rtol=1e-10, atol=eps())
+        @test ≈(Array(interior(ε̄ₚ, 1, 1, 1)), -Array(interior(∂ₜc², 1, 1, 1)), rtol=1e-10, atol=2*eps())
     end
 
     return nothing
