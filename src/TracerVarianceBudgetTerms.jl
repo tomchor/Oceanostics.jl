@@ -69,8 +69,8 @@ function TracerVarianceTendency(model::NonhydrostaticModel, tracer_name; locatio
                     model.tracers,
                     model.auxiliary_fields,
                     model.diffusivity_fields,
-                    model.forcing[tracer_name],
-                    model.clock)
+                    model.clock,
+                    model.forcing[tracer_name])
 
     return KernelFunctionOperation{Center, Center, Center}(c∂ₜcᶜᶜᶜ, model.grid, dependencies...)
 end
