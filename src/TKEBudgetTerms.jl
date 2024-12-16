@@ -24,7 +24,7 @@ using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous
                                        viscous_flux_wx, viscous_flux_wy, viscous_flux_wz,
                                        ∂ⱼ_τ₁ⱼ, ∂ⱼ_τ₂ⱼ, ∂ⱼ_τ₃ⱼ
 using Oceananigans.TurbulenceClosures: immersed_∂ⱼ_τ₁ⱼ, immersed_∂ⱼ_τ₂ⱼ, immersed_∂ⱼ_τ₃ⱼ
-using Oceananigans.BuoyancyModels: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
+using Oceananigans.BuoyancyFormulations: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
 
 using Oceanostics: _νᶜᶜᶜ
 using Oceanostics: validate_location, validate_dissipative_closure, perturbation_fields
@@ -92,10 +92,16 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
                                         buoyancy,
                                         background_fields,
                                         velocities,
-                                        args...)
-        u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, u_immersed_bc, buoyancy, background_fields, velocities, args...)
-        v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, args...)
-        w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, args...)
+                                        tracers,
+                                        auxiliary_fields,
+                                        diffusivity_fields,
+                                        pHY′,
+                                        clock,
+                                        forcings)
+    common_args = (buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivity_fields, pHY′, clock)
+    u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, u_immersed_bc, common_args..., forcings.u)
+    v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, v_immersed_bc, common_args..., forcings.v)
+    w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, w_immersed_bc, common_args..., forcings.w)
     return u∂ₜu + v∂ₜv + w∂ₜw
 end
 
@@ -110,7 +116,7 @@ pressure contribution:
 ```jldoctest
 julia> using Oceananigans
 
-julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1, 1, 1));
 
 julia> model = NonhydrostaticModel(; grid);
 
@@ -120,7 +126,7 @@ julia> ke_tendency = KineticEnergyTendency(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢGᵢᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("Centered(order=2)", "Nothing", "Nothing", "Nothing", "FluxBoundaryCondition: Nothing", "FluxBoundaryCondition: Nothing", "FluxBoundaryCondition: Nothing", "Nothing", "(velocities=(u=ZeroField{Int64}, v=ZeroField{Int64}, w=ZeroField{Int64}), tracers=NamedTuple())", "(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "NamedTuple()", "NamedTuple()", "Nothing", "(u=zeroforcing (generic function with 1 method), v=zeroforcing (generic function with 1 method), w=zeroforcing (generic function with 1 method))", "Nothing", "Clock{Float64, Float64}(time=0 seconds, iteration=0, last_Δt=Inf days)")
+└── arguments: ("Centered(order=2)", "Nothing", "Nothing", "Nothing", "FluxBoundaryCondition: Nothing", "FluxBoundaryCondition: Nothing", "FluxBoundaryCondition: Nothing", "Nothing", "(velocities=(u=ZeroField{Int64}, v=ZeroField{Int64}, w=ZeroField{Int64}), tracers=NamedTuple())", "(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "NamedTuple()", "NamedTuple()", "Nothing", "Nothing", "Clock{Float64, Float64}(time=0 seconds, iteration=0, last_Δt=Inf days)", "(u=zeroforcing (generic function with 1 method), v=zeroforcing (generic function with 1 method), w=zeroforcing (generic function with 1 method))")
 ```
 """
 function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
@@ -138,9 +144,9 @@ function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, C
                     model.tracers,
                     model.auxiliary_fields,
                     model.diffusivity_fields,
-                    model.forcing,
                     model.pressures.pHY′,
-                    model.clock)
+                    model.clock,
+                    model.forcing,)
     return KernelFunctionOperation{Center, Center, Center}(uᵢGᵢᶜᶜᶜ, model.grid, dependencies...)
 end
 #---

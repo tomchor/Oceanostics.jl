@@ -3,7 +3,7 @@ using CUDA
 
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
-using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ
+using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
@@ -398,8 +398,8 @@ function test_potential_energy_equation_terms(model; geopotential_height = nothi
         compute!(ρ)
         Z = Field(model_geopotential_height(model))
         compute!(Z)
-        ρ₀ = model.buoyancy.model.equation_of_state.reference_density
-        g = model.buoyancy.model.gravitational_acceleration
+        ρ₀ = model.buoyancy.formulation.equation_of_state.reference_density
+        g = model.buoyancy.formulation.gravitational_acceleration
 
         CUDA.@allowscalar begin
             true_value = (g / ρ₀) .* ρ.data .* Z.data
@@ -417,7 +417,7 @@ function test_PEbuoyancytracer_equals_PElineareos(grid)
     set!(model_lineareos, S = C_grad, T = C_grad)
     linear_eos_buoyancy(grid, buoyancy, tracers) =
         KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
-    b_field = Field(linear_eos_buoyancy(model_lineareos.grid, model_lineareos.buoyancy.model, model_lineareos.tracers))
+    b_field = Field(linear_eos_buoyancy(model_lineareos.grid, model_lineareos.buoyancy.formulation, model_lineareos.tracers))
     compute!(b_field)
     set!(model_buoyancytracer, b = interior(b_field))
     pe_buoyancytracer = Field(PotentialEnergy(model_buoyancytracer))
@@ -538,7 +538,7 @@ function test_auxiliary_functions(model)
 end
 #---
 
-model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()),
+model_kwargs = (buoyancy = BuoyancyForce(BuoyancyTracer()),
                 coriolis = FPlane(1e-4),
                 tracers = :b)
 
@@ -641,7 +641,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
     for closure in closures
         LES = is_LES(closure)
         model = NonhydrostaticModel(grid = regular_grid;
-                                    buoyancy = Buoyancy(model=BuoyancyTracer()),
+                                    buoyancy = BuoyancyForce(BuoyancyTracer()),
                                     coriolis = FPlane(1e-4),
                                     tracers = :b,
                                     closure = closure)

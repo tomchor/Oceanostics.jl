@@ -282,7 +282,7 @@ is zero there.
 function ErtelPotentialVorticity(model; location = (Face, Face, Face), add_background = true)
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
 
-    if model.buoyancy == nothing || !(model.buoyancy.model isa BuoyancyTracer)
+    if model.buoyancy == nothing || !(model.buoyancy.formulation isa BuoyancyTracer)
         throw(ArgumentError("`ErtelPotentialVorticity` is only implemented for `BuoyancyTracer` at the moment."))
     end
 
@@ -359,7 +359,7 @@ operator.
 function DirectionalErtelPotentialVorticity(model, direction; location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
 
-    if model.buoyancy == nothing || !(model.buoyancy.model isa BuoyancyTracer)
+    if model.buoyancy == nothing || !(model.buoyancy.formulation isa BuoyancyTracer)
         throw(ArgumentError("`DirectionalErtelPotentialVorticity` is only implemented for `BuoyancyTracer` at the moment."))
     end
 
