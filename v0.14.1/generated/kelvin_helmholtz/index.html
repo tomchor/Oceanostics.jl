@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Kelvin-Helmholtz instability · Oceanostics.jl</title><meta name="title" content="Kelvin-Helmholtz instability · Oceanostics.jl"/><meta property="og:title" content="Kelvin-Helmholtz instability · Oceanostics.jl"/><meta property="twitter:title" content="Kelvin-Helmholtz instability · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox" checked/><label class="tocitem" for="menuitem-2"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li class="is-active"><a class="tocitem" href>Kelvin-Helmholtz instability</a><ul class="internal"><li><a class="tocitem" href="#Model-and-simulation-setup"><span>Model and simulation setup</span></a></li><li><a class="tocitem" href="#Model-diagnostics"><span>Model diagnostics</span></a></li><li><a class="tocitem" href="#Run-the-simulation-and-process-results"><span>Run the simulation and process results</span></a></li></ul></li><li><a class="tocitem" href="../tilted_bottom_boundary_layer/">Tilted bottom boundary layer</a></li></ul></li><li><a class="tocitem" href="../../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Kelvin-Helmholtz instability</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Kelvin-Helmholtz instability</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/examples/kelvin_helmholtz.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Kelvin-Helmholtz-instability"><a class="docs-heading-anchor" href="#Kelvin-Helmholtz-instability">Kelvin-Helmholtz instability</a><a id="Kelvin-Helmholtz-instability-1"></a><a class="docs-heading-anchor-permalink" href="#Kelvin-Helmholtz-instability" title="Permalink"></a></h1><p>This example simulates a simple 2D Kelvin-Helmholtz instability and is based on the similar <a href="https://clima.github.io/OceananigansDocumentation/stable/generated/kelvin_helmholtz_instability/">Oceananigans example</a>.</p><p>Before starting, make sure you have the required packages installed for this example, which can be done with</p><pre><code class="language-julia hljs">using Pkg
+pkg&quot;add Oceananigans, Oceanostics, CairoMakie, Rasters&quot;</code></pre><h2 id="Model-and-simulation-setup"><a class="docs-heading-anchor" href="#Model-and-simulation-setup">Model and simulation setup</a><a id="Model-and-simulation-setup-1"></a><a class="docs-heading-anchor-permalink" href="#Model-and-simulation-setup" title="Permalink"></a></h2><p>We begin by creating a model with an isotropic diffusivity and fifth-order advection on a <code>xz</code> 128² grid using a buoyancy <code>b</code> as the active scalar. We&#39;ll work here with nondimensional quantities.</p><pre><code class="language-julia hljs">using Oceananigans
+
+N = 128
+L = 10
+grid = RectilinearGrid(size=(N, N), x=(-L/2, +L/2), z=(-L/2, +L/2), topology=(Periodic, Flat, Bounded))
+
+model = NonhydrostaticModel(; grid, timestepper = :RungeKutta3,
+                            advection = UpwindBiasedFifthOrder(),
+                            closure = ScalarDiffusivity(ν=2e-5, κ=2e-5),
+                            buoyancy = BuoyancyTracer(), tracers = :b)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 128×1×128 RectilinearGrid{Float64, Periodic, Flat, Bounded} on CPU with 3×0×3 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: Upwind Biased reconstruction order 5
+├── tracers: b
+├── closure: ScalarDiffusivity{ExplicitTimeDiscretization}(ν=2.0e-5, κ=(b=2.0e-5,))
+├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
+└── coriolis: Nothing</code></pre><p>We use hyperbolic tangent functions for the initial conditions and set the maximum Richardson number below the threshold of 1/4. We also add some grid-scale small-amplitude noise to <code>u</code> to kick the instability off:</p><pre><code class="language-julia hljs">noise(x, z) = 2e-2 * randn()
+shear_flow(x, z) = tanh(z) + noise(x, z)
+
+Ri₀ = 0.1; h = 1/4
+stratification(x, z) = h * Ri₀ * tanh(z / h)
+
+set!(model, u=shear_flow, b=stratification)</code></pre><p>Next create an adaptive-time-step simulation using the model above:</p><pre><code class="language-julia hljs">simulation = Simulation(model, Δt=0.1, stop_time=100)
+
+wizard = TimeStepWizard(cfl=0.8, max_Δt=1)
+simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Callback of TimeStepWizard(cfl=0.8, max_Δt=1.0, min_Δt=0.0) on IterationInterval(2)</code></pre><h2 id="Model-diagnostics"><a class="docs-heading-anchor" href="#Model-diagnostics">Model diagnostics</a><a id="Model-diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Model-diagnostics" title="Permalink"></a></h2><p>We set-up a progress messenger using the <code>TimedMessenger</code>, which displays, among other information, the time step duration</p><pre><code class="language-julia hljs">using Oceanostics
+
+progress = ProgressMessengers.TimedMessenger()
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Callback of Oceanostics.ProgressMessengers.TimedMessenger{Oceanostics.ProgressMessengers.AbstractProgressMessenger} on IterationInterval(200)</code></pre><p>We can also define some useful diagnostics for of the flow, starting with the <code>RichardsonNumber</code></p><pre><code class="language-julia hljs">Ri = RichardsonNumber(model)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">KernelFunctionOperation at (Center, Center, Face)
+├── grid: 128×1×128 RectilinearGrid{Float64, Periodic, Flat, Bounded} on CPU with 3×0×3 halo
+├── kernel_function: richardson_number_ccf (generic function with 1 method)
+└── arguments: (&quot;128×1×128 Field{Face, Center, Center} on RectilinearGrid on CPU&quot;, &quot;128×1×128 Field{Center, Face, Center} on RectilinearGrid on CPU&quot;, &quot;128×1×129 Field{Center, Center, Face} on RectilinearGrid on CPU&quot;, &quot;128×1×128 Field{Center, Center, Center} on RectilinearGrid on CPU&quot;, &quot;Tuple{Int64, Int64, Int64}&quot;)</code></pre><p>We also set-up the <code>QVelocityGradientTensorInvariant</code>, which is usually used for visualizing vortices in the flow:</p><pre><code class="language-julia hljs">Q = QVelocityGradientTensorInvariant(model)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">KernelFunctionOperation at (Center, Center, Center)
+├── grid: 128×1×128 RectilinearGrid{Float64, Periodic, Flat, Bounded} on CPU with 3×0×3 halo
+├── kernel_function: Q_velocity_gradient_tensor_invariant_ccc (generic function with 1 method)
+└── arguments: (&quot;128×1×128 Field{Face, Center, Center} on RectilinearGrid on CPU&quot;, &quot;128×1×128 Field{Center, Face, Center} on RectilinearGrid on CPU&quot;, &quot;128×1×129 Field{Center, Center, Face} on RectilinearGrid on CPU&quot;)</code></pre><p>Q is one of the velocity gradient tensor invariants and it measures the amount of vorticity versus the strain in the flow and, when it&#39;s positive, indicates a vortex. This method of vortex visualization is called the <a href="https://tinyurl.com/mwv6fskc">Q-criterion</a>.</p><p>Let&#39;s also keep track of the amount of buoyancy mixing by measuring the buoyancy variance dissipation rate and diffusive term. When volume-integrated, these two quantities should be equal.</p><pre><code class="language-julia hljs">∫χᴰ = Integral(TracerVarianceDissipationRate(model, :b))
+∫χ = Integral(TracerVarianceDiffusiveTerm(model, :b))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">sum! over dims (1, 2, 3) of BinaryOperation at (Center, Center, Center)
+└── operand: BinaryOperation at (Center, Center, Center)
+    └── grid: 128×1×128 RectilinearGrid{Float64, Periodic, Flat, Bounded} on CPU with 3×0×3 halo</code></pre><p>Now we write these quantities, along with <code>b</code>, to a NetCDF:</p><pre><code class="language-julia hljs">output_fields = (; Ri, Q, model.tracers.b, ∫χ, ∫χᴰ)
+filename = &quot;kelvin_helmholtz&quot;
+simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
+                                                    filename = joinpath(@__DIR__, filename),
+                                                    schedule = TimeInterval(1),
+                                                    overwrite_existing = true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NetCDFOutputWriter scheduled on TimeInterval(1 second):
+├── filepath: /home/runner/work/Oceanostics.jl/Oceanostics.jl/docs/build/generated/kelvin_helmholtz.nc
+├── dimensions: zC(128), zF(129), xC(128), yF(1), xF(128), yC(1), time(0)
+├── 5 outputs: (Q, ∫χᴰ, Ri, b, ∫χ)
+└── array type: Array{Float64}
+├── file_splitting: NoFileSplitting
+└── file size: 20.0 KiB</code></pre><h2 id="Run-the-simulation-and-process-results"><a class="docs-heading-anchor" href="#Run-the-simulation-and-process-results">Run the simulation and process results</a><a id="Run-the-simulation-and-process-results-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-simulation-and-process-results" title="Permalink"></a></h2><p>To run the simulation:</p><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>Initializing simulation...
+<span class="sgr36"><span class="sgr1">┌ Info: </span></span>iter =      0,  [000.00%] time = 0 seconds,  Δt = 59.074 ms,  walltime = 20.158 seconds,  walltime / timestep = 0 seconds
+<span class="sgr36"><span class="sgr1">└ </span></span>          |u⃗|ₘₐₓ = [1.04e+00,  0.00e+00,  2.92e-02] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00019,  νₘₐₓ = 2e-05 m²/s
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>    ... simulation initialization complete (24.890 minutes)
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Executing initial time step...
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>    ... initial time step complete (5.508 seconds).
+<span class="sgr36"><span class="sgr1">┌ Info: </span></span>iter =    200,  [011.80%] time = 11.795 seconds,  Δt = 61.181 ms,  walltime = 25.361 minutes,  walltime / timestep = 7.508 seconds
+<span class="sgr36"><span class="sgr1">└ </span></span>          |u⃗|ₘₐₓ = [1.02e+00,  0.00e+00,  2.89e-02] m/s,  advective CFL = 0.8,  diffusive CFL = 0.0002,  νₘₐₓ = 2e-05 m²/s
+<span class="sgr36"><span class="sgr1">┌ Info: </span></span>iter =    400,  [023.37%] time = 23.367 seconds,  Δt = 61.101 ms,  walltime = 25.428 minutes,  walltime / timestep = 20.040 ms
+<span class="sgr36"><span class="sgr1">└ </span></span>          |u⃗|ₘₐₓ = [1.02e+00,  0.00e+00,  3.45e-02] m/s,  advective CFL = 0.8,  diffusive CFL = 0.0002,  νₘₐₓ = 2e-05 m²/s
+<span class="sgr36"><span class="sgr1">┌ Info: </span></span>iter =    600,  [035.12%] time = 35.121 seconds,  Δt = 60.452 ms,  walltime = 25.492 minutes,  walltime / timestep = 19.252 ms
+<span class="sgr36"><span class="sgr1">└ </span></span>          |u⃗|ₘₐₓ = [1.02e+00,  0.00e+00,  7.02e-02] m/s,  advective CFL = 0.8,  diffusive CFL = 0.0002,  νₘₐₓ = 2e-05 m²/s
+<span class="sgr36"><span class="sgr1">┌ Info: </span></span>iter =    800,  [046.44%] time = 46.440 seconds,  Δt = 54.874 ms,  walltime = 25.555 minutes,  walltime / timestep = 18.772 ms
+<span class="sgr36"><span class="sgr1">└ </span></span>          |u⃗|ₘₐₓ = [1.08e+00,  0.00e+00,  2.16e-01] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00018,  νₘₐₓ = 2e-05 m²/s
+<span class="sgr36"><span class="sgr1">┌ Info: </span></span>iter =   1000,  [056.44%] time = 56.438 seconds,  Δt = 48.641 ms,  walltime = 25.614 minutes,  walltime / timestep = 17.825 ms
+<span class="sgr36"><span class="sgr1">└ </span></span>          |u⃗|ₘₐₓ = [1.16e+00,  0.00e+00,  3.86e-01] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00016,  νₘₐₓ = 2e-05 m²/s
+<span class="sgr36"><span class="sgr1">┌ Info: </span></span>iter =   1200,  [066.00%] time = 1.100 minutes,  Δt = 49.980 ms,  walltime = 25.671 minutes,  walltime / timestep = 17.060 ms
+<span class="sgr36"><span class="sgr1">└ </span></span>          |u⃗|ₘₐₓ = [1.15e+00,  0.00e+00,  3.67e-01] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00016,  νₘₐₓ = 2e-05 m²/s
+<span class="sgr36"><span class="sgr1">┌ Info: </span></span>iter =   1400,  [076.05%] time = 1.268 minutes,  Δt = 53.284 ms,  walltime = 25.733 minutes,  walltime / timestep = 18.767 ms
+<span class="sgr36"><span class="sgr1">└ </span></span>          |u⃗|ₘₐₓ = [1.11e+00,  0.00e+00,  2.88e-01] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00017,  νₘₐₓ = 2e-05 m²/s
+<span class="sgr36"><span class="sgr1">┌ Info: </span></span>iter =   1600,  [086.20%] time = 1.437 minutes,  Δt = 50.465 ms,  walltime = 25.793 minutes,  walltime / timestep = 17.725 ms
+<span class="sgr36"><span class="sgr1">└ </span></span>          |u⃗|ₘₐₓ = [1.15e+00,  0.00e+00,  3.58e-01] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00017,  νₘₐₓ = 2e-05 m²/s
+<span class="sgr36"><span class="sgr1">┌ Info: </span></span>iter =   1800,  [095.84%] time = 1.597 minutes,  Δt = 49.815 ms,  walltime = 25.850 minutes,  walltime / timestep = 17.123 ms
+<span class="sgr36"><span class="sgr1">└ </span></span>          |u⃗|ₘₐₓ = [1.15e+00,  0.00e+00,  3.63e-01] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00016,  νₘₐₓ = 2e-05 m²/s
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulation is stopping after running for 25.561 minutes.
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulation time 1.667 minutes equals or exceeds stop time 1.667 minutes.</code></pre><p>Now we&#39;ll read the results using Rasters.jl, which works somewhat similarly to Python&#39;s Xarray and can speed-up the work the workflow</p><pre><code class="language-julia hljs">using Rasters
+
+ds = RasterStack(simulation.output_writers[:nc].filepath)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">RasterStack<span class="sgr90"> with dimensions: </span>
+  <span class="sgr31">Dim{</span><span class="sgr33">:xC</span><span class="sgr31">}</span> Sampled{Float64} <span class="sgr36">Float64[-4.9609375, -4.8828125, …, 4.8828125, 4.9609375]</span> ForwardOrdered Regular Points,
+  <span class="sgr31">Dim{</span><span class="sgr33">:yC</span><span class="sgr31">}</span> Sampled{Float64} <span class="sgr36">Float64[1.0]</span> ForwardOrdered Regular Points,
+  <span class="sgr31">Dim{</span><span class="sgr33">:zC</span><span class="sgr31">}</span> Sampled{Float64} <span class="sgr36">Float64[-4.9609375, -4.8828125, …, 4.8828125, 4.9609375]</span> ForwardOrdered Regular Points,
+  <span class="sgr31">Ti</span> Sampled{Float64} <span class="sgr36">Float64[0.0, 1.0, …, 99.0, 100.0]</span> ForwardOrdered Regular Points,
+  <span class="sgr31">Dim{</span><span class="sgr33">:zF</span><span class="sgr31">}</span> Sampled{Float64} <span class="sgr36">Float64[-5.0, -4.921875, …, 4.921875, 5.0]</span> ForwardOrdered Regular Points
+<span class="sgr90">and </span>5 layers:
+<span class="sgr33">  :Q  </span> Float64<span class="sgr90"> dims: </span><span class="sgr31">Dim{</span><span class="sgr33">:xC</span><span class="sgr31">}</span>, <span class="sgr31">Dim{</span><span class="sgr33">:yC</span><span class="sgr31">}</span>, <span class="sgr31">Dim{</span><span class="sgr33">:zC</span><span class="sgr31">}</span>, <span class="sgr31">Ti</span> (128×1×128×101)
+<span class="sgr33">  :∫χᴰ</span> Float64<span class="sgr90"> dims: </span><span class="sgr31">Ti</span> (101)
+<span class="sgr33">  :Ri </span> Float64<span class="sgr90"> dims: </span><span class="sgr31">Dim{</span><span class="sgr33">:xC</span><span class="sgr31">}</span>, <span class="sgr31">Dim{</span><span class="sgr33">:yC</span><span class="sgr31">}</span>, <span class="sgr31">Dim{</span><span class="sgr33">:zF</span><span class="sgr31">}</span>, <span class="sgr31">Ti</span> (128×1×129×101)
+<span class="sgr33">  :b  </span> Float64<span class="sgr90"> dims: </span><span class="sgr31">Dim{</span><span class="sgr33">:xC</span><span class="sgr31">}</span>, <span class="sgr31">Dim{</span><span class="sgr33">:yC</span><span class="sgr31">}</span>, <span class="sgr31">Dim{</span><span class="sgr33">:zC</span><span class="sgr31">}</span>, <span class="sgr31">Ti</span> (128×1×128×101)
+<span class="sgr33">  :∫χ </span> Float64<span class="sgr90"> dims: </span><span class="sgr31">Ti</span> (101)
+
+<span class="sgr90">with metadata </span>Metadata{Rasters.NCDsource}<span class="sgr90"> of </span>Dict{String, Any} with 6 entries:
+  &quot;interval&quot;             =&gt; 1.0
+  &quot;Oceananigans&quot;         =&gt; &quot;This file was generated using &quot;
+  &quot;Julia&quot;                =&gt; &quot;This file was generated using Julia Version 1.9.4\…
+  &quot;output time interval&quot; =&gt; &quot;Output was saved every 1 second.&quot;
+  &quot;date&quot;                 =&gt; &quot;This file was generated on 2024-05-09T16:57:41.068…
+  &quot;schedule&quot;             =&gt; &quot;TimeInterval&quot;</code></pre><p>We now use Makie to create the figure and its axes</p><pre><code class="language-julia hljs">using CairoMakie
+
+set_theme!(Theme(fontsize = 24))
+fig = Figure()
+
+kwargs = (xlabel=&quot;x&quot;, ylabel=&quot;z&quot;, height=150, width=250)
+ax1 = Axis(fig[2, 1]; title = &quot;Ri&quot;, kwargs...)
+ax2 = Axis(fig[2, 2]; title = &quot;Q&quot;, kwargs...)
+ax3 = Axis(fig[2, 3]; title = &quot;b&quot;, kwargs...);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr91"><span class="sgr1">ERROR: </span></span>LoadError: UndefVarError: `IntervalBox` not defined
+Stacktrace:
+ [1] top-level scope
+<span class="sgr90">   @</span> <span class="sgr90">~/.julia/packages/TaylorSeries/2qRvJ/ext/<span class="sgr4">TaylorSeriesIAExt.jl:182</span></span>
+ [2] <span class="sgr1">include</span>
+<span class="sgr90">   @</span> <span class="sgr90">./<span class="sgr4">Base.jl:457</span> [inlined]</span>
+ [3] <span class="sgr1">include_package_for_output(</span><span class="sgr90">pkg</span>::Base.PkgId, <span class="sgr90">input</span>::String, <span class="sgr90">depot_path</span>::Vector<span class="sgr90">{String}</span>, <span class="sgr90">dl_load_path</span>::Vector<span class="sgr90">{String}</span>, <span class="sgr90">load_path</span>::Vector<span class="sgr90">{String}</span>, <span class="sgr90">concrete_deps</span>::Vector<span class="sgr90">{Pair{Base.PkgId, UInt128}}</span>, <span class="sgr90">source</span>::String<span class="sgr1">)</span>
+<span class="sgr90">   @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:2049</span></span>
+ [4] top-level scope
+<span class="sgr90">   @</span> <span class="sgr90"><span class="sgr4">stdin:3</span></span>
+in expression starting at /home/runner/.julia/packages/TaylorSeries/2qRvJ/ext/TaylorSeriesIAExt.jl:1
+in expression starting at stdin:3
+<span class="sgr91"><span class="sgr1">┌ Error: </span></span>Error during loading of extension TaylorSeriesIAExt of TaylorSeries, use `Base.retry_load_extensions()` to retry.
+<span class="sgr91"><span class="sgr1">│ </span></span>  exception =
+<span class="sgr91"><span class="sgr1">│ </span></span>   1-element ExceptionStack:
+<span class="sgr91"><span class="sgr1">│ </span></span>   Failed to precompile TaylorSeriesIAExt [ed7ef945-33a4-511e-97fe-2b89c7a130ca] to &quot;/home/runner/.julia/compiled/v1.9/TaylorSeriesIAExt/jl_H3riVP&quot;.
+<span class="sgr91"><span class="sgr1">│ </span></span>   Stacktrace:
+<span class="sgr91"><span class="sgr1">│ </span></span>     [1] <span class="sgr1">error(</span><span class="sgr90">s</span>::String<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">error.jl:35</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>     [2] <span class="sgr1">compilecache(</span><span class="sgr90">pkg</span>::Base.PkgId, <span class="sgr90">path</span>::String, <span class="sgr90">internal_stderr</span>::IO, <span class="sgr90">internal_stdout</span>::IO, <span class="sgr90">keep_loaded_modules</span>::Bool<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:2294</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>     [3] <span class="sgr1">compilecache</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">./<span class="sgr4">loading.jl:2167</span> [inlined]</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>     [4] <span class="sgr1">_require(</span><span class="sgr90">pkg</span>::Base.PkgId, <span class="sgr90">env</span>::Nothing<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:1805</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>     [5] <span class="sgr1">_require_prelocked(</span><span class="sgr90">uuidkey</span>::Base.PkgId, <span class="sgr90">env</span>::Nothing<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:1660</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>     [6] <span class="sgr1">_require_prelocked(</span><span class="sgr90">uuidkey</span>::Base.PkgId<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:1658</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>     [7] <span class="sgr1">run_extension_callbacks(</span><span class="sgr90">extid</span>::Base.ExtensionId<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:1255</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>     [8] <span class="sgr1">run_extension_callbacks(</span><span class="sgr90">pkgid</span>::Base.PkgId<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:1290</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>     [9] <span class="sgr1">run_package_callbacks(</span><span class="sgr90">modkey</span>::Base.PkgId<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:1124</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [10] <span class="sgr1">_tryrequire_from_serialized(</span><span class="sgr90">modkey</span>::Base.PkgId, <span class="sgr90">build_id</span>::UInt128<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:1357</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [11] <span class="sgr1">_tryrequire_from_serialized(</span><span class="sgr90">pkg</span>::Base.PkgId, <span class="sgr90">path</span>::String, <span class="sgr90">ocachepath</span>::String<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:1435</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [12] <span class="sgr1">_require(</span><span class="sgr90">pkg</span>::Base.PkgId, <span class="sgr90">env</span>::String<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:1816</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [13] <span class="sgr1">_require_prelocked(</span><span class="sgr90">uuidkey</span>::Base.PkgId, <span class="sgr90">env</span>::String<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:1660</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [14] <span class="sgr1">macro expansion</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">./<span class="sgr4">loading.jl:1648</span> [inlined]</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [15] <span class="sgr1">macro expansion</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">./<span class="sgr4">lock.jl:267</span> [inlined]</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [16] <span class="sgr1">require(</span><span class="sgr90">into</span>::Module, <span class="sgr90">mod</span>::Symbol<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">loading.jl:1611</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [17] <span class="sgr1">eval</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">./<span class="sgr4">boot.jl:370</span> [inlined]</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [18] <span class="sgr1">#58</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">~/.julia/packages/Documenter/CJeWX/src/<span class="sgr4">expander_pipeline.jl:754</span> [inlined]</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [19] <span class="sgr1">cd(</span><span class="sgr90">f</span>::Documenter.var&quot;#58#60&quot;<span class="sgr90">{Module, Expr}</span>, <span class="sgr90">dir</span>::String<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base.Filesystem</span> <span class="sgr90">./<span class="sgr4">file.jl:112</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [20] <span class="sgr1">(::Documenter.var&quot;#57#59&quot;{Documenter.Page, Module, Expr})()</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr35">Documenter</span> <span class="sgr90">~/.julia/packages/Documenter/CJeWX/src/<span class="sgr4">expander_pipeline.jl:753</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [21] <span class="sgr1">(::IOCapture.var&quot;#4#7&quot;{DataType, Documenter.var&quot;#57#59&quot;{Documenter.Page, Module, Expr}, IOContext{Base.PipeEndpoint}, IOContext{Base.PipeEndpoint}, IOContext{Base.PipeEndpoint}, IOContext{Base.PipeEndpoint}})()</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr36">IOCapture</span> <span class="sgr90">~/.julia/packages/IOCapture/Rzdxd/src/<span class="sgr4">IOCapture.jl:161</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [22] <span class="sgr1">with_logstate(</span><span class="sgr90">f</span>::Function, <span class="sgr90">logstate</span>::Any<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base.CoreLogging</span> <span class="sgr90">./<span class="sgr4">logging.jl:514</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [23] <span class="sgr1">with_logger</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">./<span class="sgr4">logging.jl:626</span> [inlined]</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [24] <span class="sgr1">capture(</span><span class="sgr90">f</span>::Documenter.var&quot;#57#59&quot;<span class="sgr90">{Documenter.Page, Module, Expr}</span>; <span class="sgr90">rethrow</span>::Type, <span class="sgr90">color</span>::Bool, <span class="sgr90">passthrough</span>::Bool, <span class="sgr90">capture_buffer</span>::IOBuffer<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr36">IOCapture</span> <span class="sgr90">~/.julia/packages/IOCapture/Rzdxd/src/<span class="sgr4">IOCapture.jl:158</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [25] <span class="sgr1">runner(</span><span class="sgr90">#unused#</span>::Type<span class="sgr90">{Documenter.Expanders.ExampleBlocks}</span>, <span class="sgr90">node</span>::MarkdownAST.Node<span class="sgr90">{Nothing}</span>, <span class="sgr90">page</span>::Documenter.Page, <span class="sgr90">doc</span>::Documenter.Document<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr35">Documenter</span> <span class="sgr90">~/.julia/packages/Documenter/CJeWX/src/<span class="sgr4">expander_pipeline.jl:752</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [26] <span class="sgr1">dispatch(</span>::Type<span class="sgr90">{Documenter.Expanders.ExpanderPipeline}</span>, ::MarkdownAST.Node<span class="sgr90">{Nothing}</span>, ::Vararg<span class="sgr90">{Any}</span><span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr35">Documenter.Selectors</span> <span class="sgr90">~/.julia/packages/Documenter/CJeWX/src/utilities/<span class="sgr4">Selectors.jl:170</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [27] <span class="sgr1">expand(</span><span class="sgr90">doc</span>::Documenter.Document<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr35">Documenter</span> <span class="sgr90">~/.julia/packages/Documenter/CJeWX/src/<span class="sgr4">expander_pipeline.jl:22</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [28] <span class="sgr1">runner(</span><span class="sgr90">#unused#</span>::Type<span class="sgr90">{Documenter.Builder.ExpandTemplates}</span>, <span class="sgr90">doc</span>::Documenter.Document<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr35">Documenter</span> <span class="sgr90">~/.julia/packages/Documenter/CJeWX/src/<span class="sgr4">builder_pipeline.jl:222</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [29] <span class="sgr1">dispatch(</span><span class="sgr90">#unused#</span>::Type<span class="sgr90">{Documenter.Builder.DocumentPipeline}</span>, <span class="sgr90">x</span>::Documenter.Document<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr35">Documenter.Selectors</span> <span class="sgr90">~/.julia/packages/Documenter/CJeWX/src/utilities/<span class="sgr4">Selectors.jl:170</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [30] <span class="sgr1">#86</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">~/.julia/packages/Documenter/CJeWX/src/<span class="sgr4">makedocs.jl:248</span> [inlined]</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [31] <span class="sgr1">withenv(</span>::Documenter.var&quot;#86#88&quot;<span class="sgr90">{Documenter.Document}</span>, ::Pair<span class="sgr90">{String, Nothing}</span>, ::Vararg<span class="sgr90">{Pair{String, Nothing}}</span><span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">env.jl:197</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [32] <span class="sgr1">#85</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">~/.julia/packages/Documenter/CJeWX/src/<span class="sgr4">makedocs.jl:247</span> [inlined]</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [33] <span class="sgr1">cd(</span><span class="sgr90">f</span>::Documenter.var&quot;#85#87&quot;<span class="sgr90">{Documenter.Document}</span>, <span class="sgr90">dir</span>::String<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base.Filesystem</span> <span class="sgr90">./<span class="sgr4">file.jl:112</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [34] <span class="sgr1">#makedocs#84</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">~/.julia/packages/Documenter/CJeWX/src/<span class="sgr4">makedocs.jl:247</span> [inlined]</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [35] top-level scope
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">~/work/Oceanostics.jl/Oceanostics.jl/docs/<span class="sgr4">make.jl:44</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [36] <span class="sgr1">include(</span><span class="sgr90">mod</span>::Module, <span class="sgr90">_path</span>::String<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">Base.jl:457</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [37] <span class="sgr1">exec_options(</span><span class="sgr90">opts</span>::Base.JLOptions<span class="sgr1">)</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">client.jl:307</span></span>
+<span class="sgr91"><span class="sgr1">│ </span></span>    [38] <span class="sgr1">_start()</span>
+<span class="sgr91"><span class="sgr1">│ </span></span>   <span class="sgr90">    @</span> <span class="sgr90">Base</span> <span class="sgr90">./<span class="sgr4">client.jl:522</span></span>
+<span class="sgr91"><span class="sgr1">└ </span></span><span class="sgr90">@ Base loading.jl:1261</span></code></pre><p>Next we use <code>Observable</code>s to lift the values and plot heatmaps and their colorbars</p><pre><code class="language-julia hljs">n = Observable(1)
+
+Riₙ = @lift set(ds.Ri[Ti=$n, yC=Near(0)], :xC =&gt; X, :zF =&gt; Z)
+hm1 = heatmap!(ax1, Riₙ; colormap = :bwr, colorrange = (-1, +1))
+Colorbar(fig[3, 1], hm1, vertical=false, height=8)
+
+Qₙ = @lift set(ds.Q[Ti=$n, yC=Near(0)], :xC =&gt; X, :zC =&gt; Z)
+hm2 = heatmap!(ax2, Qₙ; colormap = :inferno, colorrange = (0, 0.2))
+Colorbar(fig[3, 2], hm2, vertical=false, height=8)
+
+bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC =&gt; X, :zC =&gt; Z)
+hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-2.5e-2, +2.5e-2))
+Colorbar(fig[3, 3], hm3, vertical=false, height=8);</code></pre><p>We now plot the time evolution of our integrated quantities</p><pre><code class="language-julia hljs">axb = Axis(fig[4, 1:3]; xlabel=&quot;Time&quot;, height=100)
+times = dims(ds, :Ti)
+lines!(axb, Array(times), ds.∫χ,  label = &quot;∫χdV&quot;)
+lines!(axb, Array(times), ds.∫χᴰ, label = &quot;∫χᴰdV&quot;, linestyle=:dash)
+axislegend(position=:lb, labelsize=14)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Makie.Legend()</code></pre><p>Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title</p><pre><code class="language-julia hljs">tₙ = @lift times[$n]
+vlines!(axb, tₙ, color=:black, linestyle=:dash)
+
+title = @lift &quot;Time = &quot; * string(round(times[$n], digits=2))
+fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);</code></pre><p>Finally, we adjust the figure dimensions to fit all the panels and record a movie</p><pre><code class="language-julia hljs">resize_to_layout!(fig)
+
+@info &quot;Animating...&quot;
+record(fig, filename * &quot;.mp4&quot;, 1:length(times), framerate=10) do i
+       n[] = i
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;kelvin_helmholtz.mp4&quot;</code></pre><p><video src="../kelvin_helmholtz.mp4" controls="true" title><a href="../kelvin_helmholtz.mp4"></a></video></p><p>Similarly to the kinetic energy dissipation rate (see the <a href="../two_dimensional_turbulence/#two_d_turbulence_example">Two-dimensional turbulence example</a>), <code>TracerVarianceDissipationRate</code> and <code>TracerVarianceDiffusiveTerm</code> are implemented with a energy-conserving formulation, which means that (for <code>NoFlux</code> boundary conditions) their volume-integral should be exactly (up to machine precision) the same.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../two_dimensional_turbulence/">« Two-dimensional turbulence</a><a class="docs-footer-nextpage" href="../tilted_bottom_boundary_layer/">Tilted bottom boundary layer »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.4.1 on <span class="colophon-date" title="Thursday 9 May 2024 17:30">Thursday 9 May 2024</span>. Using Julia version 1.9.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
