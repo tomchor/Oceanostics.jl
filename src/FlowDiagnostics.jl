@@ -187,7 +187,7 @@ is defined as
 where `f` is the Coriolis frequency, `ωᶻ` is the relative vorticity in the `z` direction, `b` is the buoyancy, and
 `∂U/∂z` and `∂V/∂z` comprise the thermal wind shear.
 """
-function ThermalWindPotentialVorticity(model; tracer=:b, location = (Face, Face, Face))
+function ThermalWindPotentialVorticity(model; tracer = :b, location = (Face, Face, Face))
     validate_location(location, "ThermalWindPotentialVorticity", (Face, Face, Face))
     u, v, w = model.velocities
     return ThermalWindPotentialVorticity(model, u, v, model.tracers[tracer], model.coriolis; location)
@@ -276,7 +276,7 @@ Note that EPV values are correctly calculated both in the interior and the bound
 interior and top boundary, EPV = f×N² = 10⁻¹⁰, while EPV = 0 at the bottom boundary since ∂b/∂z
 is zero there.
 """
-function ErtelPotentialVorticity(model; tracer=:b, location = (Face, Face, Face))
+function ErtelPotentialVorticity(model; tracer = :b, location = (Face, Face, Face))
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
     return ErtelPotentialVorticity(model, model.velocities..., model.tracers[tracer], model.coriolis; location)
 end
@@ -324,7 +324,7 @@ basde on a `model` and a `direction`. The Ertel Potential Vorticity is defined a
 where ωₜₒₜ is the total (relative + planetary) vorticity vector, `b` is the buoyancy and ∇ is the gradient
 operator.
 """
-function DirectionalErtelPotentialVorticity(model, direction; tracer=:b, location = (Face, Face, Face))
+function DirectionalErtelPotentialVorticity(model, direction; tracer = :b, location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
     return DirectionalErtelPotentialVorticity(model, direction, model.velocities..., model.tracers[tracer], model.coriolis; location)
 end
@@ -369,7 +369,7 @@ symmetric part of the velocity gradient tensor:
 Its modulus is then defined (using Einstein summation notation) as
 
 ```
-    || Sᵢⱼ || = √( Sᵢⱼ Sᵢⱼ)
+    || Sᵢⱼ || = √(Sᵢⱼ Sᵢⱼ)
 ```
 """
 function StrainRateTensorModulus(model; location = (Center, Center, Center))
@@ -404,7 +404,7 @@ antisymmetric part of the velocity gradient tensor:
 Its modulus is then defined (using Einstein summation notation) as
 
 ```
-    || Ωᵢⱼ || = √( Ωᵢⱼ Ωᵢⱼ)
+    || Ωᵢⱼ || = √(Ωᵢⱼ Ωᵢⱼ)
 ```
 """
 function VorticityTensorModulus(model; location = (Center, Center, Center))
@@ -435,7 +435,7 @@ gradient tensor `∂ⱼuᵢ`:
 from where `Q` is defined as
 
 ```
-    Q = ½ ( ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)
+    Q = ½ (ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)
 ```
 and where `Sᵢⱼ= ½(∂ⱼuᵢ + ∂ᵢuⱼ)` and `Ωᵢⱼ= ½(∂ⱼuᵢ - ∂ᵢuⱼ)`. More info about it can be found in
 doi:10.1063/1.5124245.

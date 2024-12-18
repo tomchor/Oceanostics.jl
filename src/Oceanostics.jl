@@ -101,7 +101,6 @@ end
 #+++ Utils for Coriolis frequency
 using Oceananigans: FPlane, ConstantCartesianCoriolis, AbstractModel
 function get_coriolis_frequency_components(coriolis)
-    @show coriolis
     if coriolis isa FPlane
         fx = fy = 0
         fz = coriolis.f
