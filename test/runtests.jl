@@ -16,7 +16,7 @@ using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, P
 using Oceanostics.TKEBudgetTerms: AdvectionTerm
 using Oceanostics: PotentialEnergy, PotentialEnergyEquationTerms.BuoyancyBoussinesqEOSModel
 using Oceanostics.ProgressMessengers
-using Oceanostics: perturbation_fields
+using Oceanostics: perturbation_fields, get_coriolis_frequency_components
 
 include("test_budgets.jl")
 
@@ -141,7 +141,6 @@ end
 
 function test_buoyancy_diagnostics(model)
     u, v, w = model.velocities
-    b = buoyancy(model)
 
     N² = 1e-5;
     stratification(x, y, z) = N² * z;
@@ -150,35 +149,43 @@ function test_buoyancy_diagnostics(model)
     shear(x, y, z) = S*z + S*y;
     set!(model, u=shear, b=stratification)
 
-    Ri = RichardsonNumber(model)
-    @test Ri isa AbstractOperation
-    Ri_field = compute!(Field(Ri))
-    @test Ri_field isa Field
-    @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+    if model.buoyancy != nothing
+        b = buoyancy(model)
 
-    Ri = RichardsonNumber(model, u, v, w, b)
-    @test Ri isa AbstractOperation
-    Ri_field = compute!(Field(Ri))
-    @test Ri_field isa Field
-    @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+        Ri = RichardsonNumber(model)
+        @test Ri isa AbstractOperation
+        Ri_field = compute!(Field(Ri))
+        @test Ri_field isa Field
+        @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
 
-    EPV = ErtelPotentialVorticity(model)
+        Ri = RichardsonNumber(model, u, v, w, b)
+        @test Ri isa AbstractOperation
+        Ri_field = compute!(Field(Ri))
+        @test Ri_field isa Field
+        @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+    else
+        b = model.tracers.b # b in this case is passive
+    end
+
+    fx, fy, fz = get_coriolis_frequency_components(model)
+
+    EPV = ErtelPotentialVorticity(model, tracer=:b)
     @test EPV isa AbstractOperation
     EPV_field = compute!(Field(EPV))
     @test EPV_field isa Field
-    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (model.coriolis.f - S)
+    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
 
     EPV = ErtelPotentialVorticity(model, u, v, w, b, model.coriolis)
     @test EPV isa AbstractOperation
     EPV_field = compute!(Field(EPV))
     @test EPV_field isa Field
-    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (model.coriolis.f - S)
+    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
 
     PVtw = ThermalWindPotentialVorticity(model)
     @test PVtw isa AbstractOperation
     @test compute!(Field(PVtw)) isa Field
 
-    PVtw = ThermalWindPotentialVorticity(model, u, v, b, coriolis=FPlane(1e-4))
+    PVtw = ThermalWindPotentialVorticity(model, u, v, b, FPlane(1e-4))
     @test PVtw isa AbstractOperation
     @test compute!(Field(PVtw)) isa Field
 
@@ -628,7 +635,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 end
 
                 for coriolis in coriolis_formulations
-                    tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T)
+                    tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T, :b)
                     model = model_type(; grid, buoyancy, tracers, coriolis)
                     buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
 
