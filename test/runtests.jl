@@ -8,6 +8,7 @@ using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using Oceananigans.Models: seawater_density, model_geopotential_height
+using Oceananigans.BuoyancyFormulations: buoyancy
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
 
 using Oceanostics
@@ -140,7 +141,7 @@ end
 
 function test_buoyancy_diagnostics(model)
     u, v, w = model.velocities
-    b = model.tracers.b
+    b = buoyancy(model)
 
     N² = 1e-5;
     stratification(x, y, z) = N² * z;
@@ -177,7 +178,7 @@ function test_buoyancy_diagnostics(model)
     @test PVtw isa AbstractOperation
     @test compute!(Field(PVtw)) isa Field
 
-    PVtw = ThermalWindPotentialVorticity(model, f=1e-4)
+    PVtw = ThermalWindPotentialVorticity(model, u, v, b, coriolis=FPlane(1e-4))
     @test PVtw isa AbstractOperation
     @test compute!(Field(PVtw)) isa Field
 
@@ -631,15 +632,8 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                     model = model_type(; grid, buoyancy, tracers, coriolis)
                     buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
 
-                    if isnothing(buoyancy)
-                        @info "    Testing that potential energy equation terms throw error when `buoyancy==nothing` and coriolis" coriolis
-                        @test_throws ArgumentError ErtelPotentialVorticity(model)
-                        @test_throws ArgumentError ThermalWindPotentialVorticity(model)
-
-                    else
-                        @info "    Testing buoyancy diagnostics with buoyancy and coriolis" buoyancy coriolis
-                        test_buoyancy_diagnostics(model)
-                    end
+                    @info "    Testing buoyancy diagnostics with buoyancy and coriolis" buoyancy coriolis
+                    test_buoyancy_diagnostics(model)
                 end
 
             end
