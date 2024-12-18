@@ -99,7 +99,7 @@ end
 #---
 
 #+++ Utils for Coriolis frequency
-using Oceananigans: FPlane, ConstantCartesianCoriolis
+using Oceananigans: FPlane, ConstantCartesianCoriolis, AbstractModel
 function get_coriolis_frequency_components(coriolis)
     @show coriolis
     if coriolis isa FPlane
@@ -117,7 +117,7 @@ function get_coriolis_frequency_components(coriolis)
     return fx, fy, fz
 end
 
-get_coriolis_frequency_components(model) = get_coriolis_frequency_components(model.coriolis)
+get_coriolis_frequency_components(model::AbstractModel) = get_coriolis_frequency_components(model.coriolis)
 #---
 
 #+++ A few utils for closure tuples:
