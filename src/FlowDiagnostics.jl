@@ -5,7 +5,10 @@ export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 
-using Oceanostics: validate_location, validate_dissipative_closure, add_background_fields
+using Oceanostics: validate_location,
+                   validate_dissipative_closure,
+                   add_background_fields,
+                   get_coriolis_frequency_components
 
 using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyField, BuoyancyTracer
 using Oceananigans.Operators
@@ -146,16 +149,7 @@ function RossbyNumber(model, u, v, w, coriolis; location = (Face, Face, Face),
                       dUdy_bg=0, dVdx_bg=0)
     validate_location(location, "RossbyNumber", (Face, Face, Face))
 
-    if coriolis isa FPlane
-        fx = fy = 0
-        fz = coriolis.f
-    elseif coriolis isa ConstantCartesianCoriolis
-        fx = coriolis.fx
-        fy = coriolis.fy
-        fz = coriolis.fz
-    else
-        throw(ArgumentError("RossbyNumber only implemented for FPlane and ConstantCartesianCoriolis"))
-    end
+    fx, fy, fz = get_coriolis_frequency_components(coriolis)
 
     parameters = (; fx, fy, fz, dWdy_bg, dVdz_bg, dUdz_bg, dWdx_bg, dUdy_bg, dVdx_bg)
     return KernelFunctionOperation{Face, Face, Face}(rossby_number_fff, model.grid,
@@ -193,15 +187,17 @@ is defined as
 where `f` is the Coriolis frequency, `ωᶻ` is the relative vorticity in the `z` direction, `b` is the buoyancy, and
 `∂U/∂z` and `∂V/∂z` comprise the thermal wind shear.
 """
-function ThermalWindPotentialVorticity(model; f=nothing, location = (Face, Face, Face))
+function ThermalWindPotentialVorticity(model; location = (Face, Face, Face))
     validate_location(location, "ThermalWindPotentialVorticity", (Face, Face, Face))
     u, v, w = model.velocities
-    b = BuoyancyField(model)
-    if isnothing(f)
-        f = model.coriolis.f
-    end
+    return ThermalWindPotentialVorticity(model, u, v, buoyancy(model), model.coriolis; location)
+end
+
+function ThermalWindPotentialVorticity(model, u, v, b, coriolis; location = (Face, Face, Face))
+    validate_location(location, "ThermalWindPotentialVorticity", (Face, Face, Face))
+    fx, fy, fz = get_coriolis_frequency_components(coriolis)
     return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid,
-                                                     u, v, b, f)
+                                                     u, v, b, fz)
 end
 
 @inline function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, fx, fy, fz)
@@ -294,20 +290,8 @@ end
 
 function ErtelPotentialVorticity(model, u, v, w, b, coriolis; location = (Face, Face, Face))
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
-
-    if coriolis isa FPlane
-        fx = fy = 0
-        fz = coriolis.f
-    elseif coriolis isa ConstantCartesianCoriolis
-        fx = coriolis.fx
-        fy = coriolis.fy
-        fz = coriolis.fz
-    elseif coriolis == nothing
-        fx = fy = fz = 0
-    else
-        throw(ArgumentError("ErtelPotentialVorticity is only implemented for FPlane and ConstantCartesianCoriolis"))
-    end
-
+    @show coriolis
+    fx, fy, fz = get_coriolis_frequency_components(coriolis)
     return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid,
                                                      u, v, w, b, fx, fy, fz)
 end
@@ -364,18 +348,7 @@ end
 function DirectionalErtelPotentialVorticity(model, direction, u, v, w, b, coriolis; location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
 
-    if coriolis isa FPlane
-        fx = fy = 0
-        fz = coriolis.f
-    elseif coriolis isa ConstantCartesianCoriolis
-        fx = coriolis.fx
-        fy = coriolis.fy
-        fz = coriolis.fz
-    elseif coriolis == nothing
-        fx = fy = fz = 0
-    else
-        throw(ArgumentError("ErtelPotentialVorticity is only implemented for FPlane and ConstantCartesianCoriolis"))
-    end
+    fx, fy, fz = get_coriolis_frequency_components(coriolis)
     f_dir = sum([fx, fy, fz] .* direction)
 
     dir_x, dir_y, dir_z = direction

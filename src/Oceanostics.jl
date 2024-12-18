@@ -98,6 +98,28 @@ function perturbation_fields(model; kwargs...)
 end
 #---
 
+#+++ Utils for Coriolis frequency
+using Oceananigans: FPlane, ConstantCartesianCoriolis
+function get_coriolis_frequency_components(coriolis)
+    @show coriolis
+    if coriolis isa FPlane
+        fx = fy = 0
+        fz = coriolis.f
+    elseif coriolis isa ConstantCartesianCoriolis
+        fx = coriolis.fx
+        fy = coriolis.fy
+        fz = coriolis.fz
+    elseif coriolis == nothing
+        fx = fy = fz = 0
+    else
+        throw(ArgumentError("Extraction of rotation components is only implemented for `FPlane`, `ConstantCartesianCoriolis` and `nothing`."))
+    end
+    return fx, fy, fz
+end
+
+get_coriolis_frequency_components(model) = get_coriolis_frequency_components(model.coriolis)
+#---
+
 #+++ A few utils for closure tuples:
 using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
 
