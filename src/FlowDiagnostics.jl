@@ -11,6 +11,7 @@ using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, Buoy
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
+using Oceananigans.BuoyancyFormulations: buoyancy
 using Oceananigans.Grids: Center, Face, NegativeZDirection, ZDirection
 
 #+++ Richardson number
@@ -279,25 +280,16 @@ Note that EPV values are correctly calculated both in the interior and the bound
 interior and top boundary, EPV = f×N² = 10⁻¹⁰, while EPV = 0 at the bottom boundary since ∂b/∂z
 is zero there.
 """
-function ErtelPotentialVorticity(model; location = (Face, Face, Face), add_background = true)
+function ErtelPotentialVorticity(model; location = (Face, Face, Face))
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
 
-    if model.buoyancy == nothing || !(model.buoyancy.formulation isa BuoyancyTracer)
-        throw(ArgumentError("`ErtelPotentialVorticity` is only implemented for `BuoyancyTracer` at the moment."))
+    if model.buoyancy == nothing
+        throw(ArgumentError("Cannot calculate `ErtelPotentialVorticity` when `model.buoyancy == nothing`."))
     end
 
-    u, v, w = model.velocities
-    b = model.tracers.b
+    b = buoyancy(model)
 
-    if (model isa NonhydrostaticModel) & add_background
-        full_fields = add_background_fields(model)
-        u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
-    else
-        u, v, w = model.velocities
-        b = model.tracers.b
-    end
-
-    return ErtelPotentialVorticity(model, u, v, w, b, model.coriolis; location)
+    return ErtelPotentialVorticity(model, model.velocities..., b, model.coriolis; location)
 end
 
 function ErtelPotentialVorticity(model, u, v, w, b, coriolis; location = (Face, Face, Face))
@@ -359,19 +351,13 @@ operator.
 function DirectionalErtelPotentialVorticity(model, direction; location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
 
-    if model.buoyancy == nothing || !(model.buoyancy.formulation isa BuoyancyTracer)
-        throw(ArgumentError("`DirectionalErtelPotentialVorticity` is only implemented for `BuoyancyTracer` at the moment."))
+    if model.buoyancy == nothing
+        throw(ArgumentError("Cannot calculate `DirectionalErtelPotentialVorticity` when `model.buoyancy == nothing`."))
     end
 
-    if model isa NonhydrostaticModel
-        full_fields = add_background_fields(model)
-        u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
-    else
-        u, v, w = model.velocities
-        b = model.tracers.b
-    end
+    b = buoyancy(model)
 
-    return DirectionalErtelPotentialVorticity(model, direction, u, v, w, b, model.coriolis; location)
+    return DirectionalErtelPotentialVorticity(model, direction, model.velocities..., b, model.coriolis; location)
 end
 
 

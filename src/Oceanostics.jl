@@ -57,15 +57,15 @@ function add_background_fields(model)
     velocities = model.velocities
     # Adds background velocities to their perturbations only if background velocity isn't ZeroField
     full_velocities = NamedTuple{keys(velocities)}((model.background_fields.velocities[key] isa ZeroField) ?
-                                                   val :
-                                                   Field(val + model.background_fields.velocities[key])
-                                                   for (key,val) in zip(keys(velocities), velocities))
+                                                    val :
+                                                    Field(val + model.background_fields.velocities[key])
+                                                    for (key, val) in zip(keys(velocities), velocities))
     tracers = model.tracers
     # Adds background tracer fields to their perturbations only if background tracer field isn't ZeroField
     full_tracers = NamedTuple{keys(tracers)}((model.background_fields.tracers[key] isa ZeroField) ?
                                               val :
                                               Field(val + model.background_fields.tracers[key])
-                                              for (key,val) in zip(keys(tracers), tracers))
+                                              for (key, val) in zip(keys(tracers), tracers))
 
     return merge(full_velocities, full_tracers)
 end
