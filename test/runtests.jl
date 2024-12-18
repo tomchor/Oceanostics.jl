@@ -548,9 +548,11 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             Smagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
 
-buoyancy_models = (nothing, BuoyancyTracer(), SeawaterBuoyancy(),
-                   SeawaterBuoyancy(equation_of_state=TEOS10EquationOfState()),
-                   SeawaterBuoyancy(equation_of_state=RoquetEquationOfState(:Linear)))
+buoyancy_formulations = (nothing, BuoyancyTracer(), SeawaterBuoyancy(),
+                         SeawaterBuoyancy(equation_of_state=TEOS10EquationOfState()),
+                         SeawaterBuoyancy(equation_of_state=RoquetEquationOfState(:Linear)))
+
+coriolis_formulations = (nothing, FPlane(1e-4), ConstantCartesianCoriolis(fx=1e-4, fy=1e-4, fz=1e-4))
 
 grids = (regular_grid, stretched_grid)
 
@@ -607,17 +609,37 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
             end
 
-            @info "Testing `PotentialEnergy`"
-            for buoyancy in buoyancy_models
+            @info "Testing diagnostics that use buoyancy"
+            for buoyancy in buoyancy_formulations
 
                 tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T)
                 model = model_type(; grid, buoyancy, tracers)
                 buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
+
                 if isnothing(buoyancy)
+                    @info "    Testing that potential energy equation terms throw error when `buoyancy==nothing`"
                     test_potential_energy_equation_terms_errors(model)
                 else
+
+                    @info "    Testing `PotentialEnergy` with buoyancy " buoyancy
                     test_potential_energy_equation_terms(model)
                     test_potential_energy_equation_terms(model, geopotential_height = 0)
+                end
+
+                for coriolis in coriolis_formulations
+                    tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T)
+                    model = model_type(; grid, buoyancy, tracers, coriolis)
+                    buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
+
+                    if isnothing(buoyancy)
+                        @info "    Testing that potential energy equation terms throw error when `buoyancy==nothing` and coriolis" coriolis
+                        @test_throws ArgumentError ErtelPotentialVorticity(model)
+                        @test_throws ArgumentError ThermalWindPotentialVorticity(model)
+
+                    else
+                        @info "    Testing buoyancy diagnostics with buoyancy and coriolis" buoyancy coriolis
+                        test_buoyancy_diagnostics(model)
+                    end
                 end
 
             end
