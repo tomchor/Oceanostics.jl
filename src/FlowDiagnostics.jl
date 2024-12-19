@@ -68,20 +68,10 @@ Calculate the Richardson Number as
 
 where `z` is the true vertical direction (ie anti-parallel to gravity).
 """
-function RichardsonNumber(model; location = (Center, Center, Face), add_background=true)
+function RichardsonNumber(model; location = (Center, Center, Face))
     validate_location(location, "RichardsonNumber", (Center, Center, Face))
-
-    if (model isa NonhydrostaticModel) & add_background
-        full_fields = add_background_fields(model)
-        u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
-    else
-        u, v, w = model.velocities
-        b = model.tracers.b
-    end
-
-    return RichardsonNumber(model, u, v, w, b; location)
+    return RichardsonNumber(model, model.velocities..., buoyancy(model); location)
 end
-
 
 function RichardsonNumber(model, u, v, w, b; location = (Center, Center, Face))
     validate_location(location, "RichardsonNumber", (Center, Center, Face))
@@ -93,6 +83,11 @@ function RichardsonNumber(model, u, v, w, b; location = (Center, Center, Face))
     else
         true_vertical_direction = .-model.buoyancy.gravity_unit_vector
     end
+    return RichardsonNumber(model, u, v, w, b, true_vertical_direction; location = (Center, Center, Face))
+end
+
+function RichardsonNumber(model, u, v, w, b, true_vertical_direction; location = (Center, Center, Face))
+    validate_location(location, "RichardsonNumber", (Center, Center, Face))
     return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid,
                                                          u, v, w, b, true_vertical_direction)
 end

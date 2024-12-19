@@ -20,6 +20,8 @@ using Oceanostics: perturbation_fields, get_coriolis_frequency_components
 
 include("test_budgets.jl")
 
+const LinearBuoyancyForce = Union{BuoyancyTracer, SeawaterBuoyancy{<:Any, <:LinearEquationOfState}}
+
 #+++ Default grids and functions
 arch = has_cuda_gpu() ? GPU() : CPU()
 
@@ -143,37 +145,55 @@ function test_buoyancy_diagnostics(model)
     u, v, w = model.velocities
 
     N² = 1e-5;
-    stratification(x, y, z) = N² * z;
-
     S = 1e-3;
     shear(x, y, z) = S*z + S*y;
-    set!(model, u=shear, b=stratification)
+    set!(model, u=shear)
 
-    if model.buoyancy != nothing
-        b = buoyancy(model)
+    if model.buoyancy != nothing && model.buoyancy.formulation isa SeawaterBuoyancy{<:Any, <:LinearEquationOfState}
+        g = model.buoyancy.formulation.gravitational_acceleration
+        α = model.buoyancy.formulation.equation_of_state.thermal_expansion
+        stratification_T(x, y, z) = N² * z / (g * α)
+        set!(model, T=stratification_T)
+
+    else
+        stratification_b(x, y, z) = N² * z
+        set!(model, b=stratification_b)
+    end
+
+    fx, fy, fz = get_coriolis_frequency_components(model)
+    if model.buoyancy != nothing && model.buoyancy.formulation isa LinearBuoyancyForce
 
         Ri = RichardsonNumber(model)
         @test Ri isa AbstractOperation
-        Ri_field = compute!(Field(Ri))
+        @compute Ri_field = Field(Ri)
         @test Ri_field isa Field
         @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
 
+        b = buoyancy(model)
         Ri = RichardsonNumber(model, u, v, w, b)
         @test Ri isa AbstractOperation
-        Ri_field = compute!(Field(Ri))
+        @compute Ri_field = Field(Ri)
         @test Ri_field isa Field
         @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+
     else
         b = model.tracers.b # b in this case is passive
     end
 
-    fx, fy, fz = get_coriolis_frequency_components(model)
+    if model.buoyancy != nothing && model.buoyancy.formulation isa SeawaterBuoyancy{<:Any, <:LinearEquationOfState}
+        EPV = ErtelPotentialVorticity(model, tracer=:T)
+        @test EPV isa AbstractOperation
+        EPV_field = compute!(Field(EPV))
+        @test EPV_field isa Field
+        @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S) / (g * α)
 
-    EPV = ErtelPotentialVorticity(model, tracer=:b)
-    @test EPV isa AbstractOperation
-    EPV_field = compute!(Field(EPV))
-    @test EPV_field isa Field
-    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
+    else
+        EPV = ErtelPotentialVorticity(model)
+        @test EPV isa AbstractOperation
+        EPV_field = compute!(Field(EPV))
+        @test EPV_field isa Field
+        @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
+    end
 
     EPV = ErtelPotentialVorticity(model, u, v, w, b, model.coriolis)
     @test EPV isa AbstractOperation
@@ -556,15 +576,21 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             Smagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
 
-buoyancy_formulations = (nothing, BuoyancyTracer(), SeawaterBuoyancy(),
+buoyancy_formulations = (nothing,
+                         BuoyancyTracer(),
+                         SeawaterBuoyancy(),
                          SeawaterBuoyancy(equation_of_state=TEOS10EquationOfState()),
                          SeawaterBuoyancy(equation_of_state=RoquetEquationOfState(:Linear)))
 
-coriolis_formulations = (nothing, FPlane(1e-4), ConstantCartesianCoriolis(fx=1e-4, fy=1e-4, fz=1e-4))
+coriolis_formulations = (nothing,
+                         FPlane(1e-4),
+                         ConstantCartesianCoriolis(fx=1e-4, fy=1e-4, fz=1e-4))
 
-grids = (regular_grid, stretched_grid)
+grids = (regular_grid,
+         stretched_grid)
 
-model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
+model_types = (NonhydrostaticModel,
+               HydrostaticFreeSurfaceModel)
 
 @testset "Oceanostics" begin
     for grid in grids
