@@ -146,9 +146,10 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(400))
 
 using Oceanostics
 
-Ri = RichardsonNumber(model, add_background=true)
+b = model.tracers.b + model.background_fields.tracers.b
+Ri = RichardsonNumber(model, model.velocities..., b)
 Ro = RossbyNumber(model)
-PV = ErtelPotentialVorticity(model, add_background=true)
+PV = ErtelPotentialVorticity(model, model.velocities..., b, model.coriolis)
 
 # Note that the calculation of these quantities depends on the alignment with the true (geophysical)
 # vertical and the rotation axis. Oceanostics already takes that into consideration by using
@@ -159,7 +160,7 @@ PV = ErtelPotentialVorticity(model, add_background=true)
 #
 # Now we write these quantities to a NetCDF file:
 
-output_fields = (; Ri, Ro, PV, b = model.tracers.b + model.background_fields.tracers.b)
+output_fields = (; Ri, Ro, PV, b)
 
 filename = "tilted_bottom_boundary_layer"
 simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
