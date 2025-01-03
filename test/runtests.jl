@@ -8,6 +8,7 @@ using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using Oceananigans.Models: seawater_density, model_geopotential_height
+using Oceananigans.BuoyancyFormulations: buoyancy
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
 
 using Oceanostics
@@ -15,9 +16,11 @@ using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, P
 using Oceanostics.TKEBudgetTerms: AdvectionTerm
 using Oceanostics: PotentialEnergy, PotentialEnergyEquationTerms.BuoyancyBoussinesqEOSModel
 using Oceanostics.ProgressMessengers
-using Oceanostics: perturbation_fields
+using Oceanostics: perturbation_fields, get_coriolis_frequency_components
 
 include("test_budgets.jl")
+
+const LinearBuoyancyForce = Union{BuoyancyTracer, SeawaterBuoyancy{<:Any, <:LinearEquationOfState}}
 
 #+++ Default grids and functions
 arch = has_cuda_gpu() ? GPU() : CPU()
@@ -140,44 +143,69 @@ end
 
 function test_buoyancy_diagnostics(model)
     u, v, w = model.velocities
-    b = model.tracers.b
 
     N² = 1e-5;
-    stratification(x, y, z) = N² * z;
-
     S = 1e-3;
     shear(x, y, z) = S*z + S*y;
-    set!(model, u=shear, b=stratification)
+    set!(model, u=shear)
 
-    Ri = RichardsonNumber(model)
-    @test Ri isa AbstractOperation
-    Ri_field = compute!(Field(Ri))
-    @test Ri_field isa Field
-    @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+    if model.buoyancy != nothing && model.buoyancy.formulation isa SeawaterBuoyancy{<:Any, <:LinearEquationOfState}
+        g = model.buoyancy.formulation.gravitational_acceleration
+        α = model.buoyancy.formulation.equation_of_state.thermal_expansion
+        stratification_T(x, y, z) = N² * z / (g * α)
+        set!(model, T=stratification_T)
 
-    Ri = RichardsonNumber(model, u, v, w, b)
-    @test Ri isa AbstractOperation
-    Ri_field = compute!(Field(Ri))
-    @test Ri_field isa Field
-    @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+    else
+        stratification_b(x, y, z) = N² * z
+        set!(model, b=stratification_b)
+    end
 
-    EPV = ErtelPotentialVorticity(model)
-    @test EPV isa AbstractOperation
-    EPV_field = compute!(Field(EPV))
-    @test EPV_field isa Field
-    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (model.coriolis.f - S)
+    fx, fy, fz = get_coriolis_frequency_components(model)
+    if model.buoyancy != nothing && model.buoyancy.formulation isa LinearBuoyancyForce
+
+        Ri = RichardsonNumber(model)
+        @test Ri isa AbstractOperation
+        @compute Ri_field = Field(Ri)
+        @test Ri_field isa Field
+        @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+
+        b = buoyancy(model)
+        Ri = RichardsonNumber(model, u, v, w, b)
+        @test Ri isa AbstractOperation
+        @compute Ri_field = Field(Ri)
+        @test Ri_field isa Field
+        @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+
+    else
+        b = model.tracers.b # b in this case is passive
+    end
+
+    if model.buoyancy != nothing && model.buoyancy.formulation isa SeawaterBuoyancy{<:Any, <:LinearEquationOfState}
+        EPV = ErtelPotentialVorticity(model, tracer=:T)
+        @test EPV isa AbstractOperation
+        EPV_field = compute!(Field(EPV))
+        @test EPV_field isa Field
+        @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S) / (g * α)
+
+    else
+        EPV = ErtelPotentialVorticity(model)
+        @test EPV isa AbstractOperation
+        EPV_field = compute!(Field(EPV))
+        @test EPV_field isa Field
+        @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
+    end
 
     EPV = ErtelPotentialVorticity(model, u, v, w, b, model.coriolis)
     @test EPV isa AbstractOperation
     EPV_field = compute!(Field(EPV))
     @test EPV_field isa Field
-    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (model.coriolis.f - S)
+    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
 
     PVtw = ThermalWindPotentialVorticity(model)
     @test PVtw isa AbstractOperation
     @test compute!(Field(PVtw)) isa Field
 
-    PVtw = ThermalWindPotentialVorticity(model, f=1e-4)
+    PVtw = ThermalWindPotentialVorticity(model, u, v, b, FPlane(1e-4))
     @test PVtw isa AbstractOperation
     @test compute!(Field(PVtw)) isa Field
 
@@ -548,13 +576,21 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             Smagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
 
-buoyancy_models = (nothing, BuoyancyTracer(), SeawaterBuoyancy(),
-                   SeawaterBuoyancy(equation_of_state=TEOS10EquationOfState()),
-                   SeawaterBuoyancy(equation_of_state=RoquetEquationOfState(:Linear)))
+buoyancy_formulations = (nothing,
+                         BuoyancyTracer(),
+                         SeawaterBuoyancy(),
+                         SeawaterBuoyancy(equation_of_state=TEOS10EquationOfState()),
+                         SeawaterBuoyancy(equation_of_state=RoquetEquationOfState(:Linear)))
 
-grids = (regular_grid, stretched_grid)
+coriolis_formulations = (nothing,
+                         FPlane(1e-4),
+                         ConstantCartesianCoriolis(fx=1e-4, fy=1e-4, fz=1e-4))
 
-model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
+grids = (regular_grid,
+         stretched_grid)
+
+model_types = (NonhydrostaticModel,
+               HydrostaticFreeSurfaceModel)
 
 @testset "Oceanostics" begin
     for grid in grids
@@ -607,17 +643,30 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
 
             end
 
-            @info "Testing `PotentialEnergy`"
-            for buoyancy in buoyancy_models
+            @info "Testing diagnostics that use buoyancy"
+            for buoyancy in buoyancy_formulations
 
                 tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T)
                 model = model_type(; grid, buoyancy, tracers)
                 buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
+
                 if isnothing(buoyancy)
+                    @info "    Testing that potential energy equation terms throw error when `buoyancy==nothing`"
                     test_potential_energy_equation_terms_errors(model)
                 else
+
+                    @info "    Testing `PotentialEnergy` with buoyancy " buoyancy
                     test_potential_energy_equation_terms(model)
                     test_potential_energy_equation_terms(model, geopotential_height = 0)
+                end
+
+                for coriolis in coriolis_formulations
+                    tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T, :b)
+                    model = model_type(; grid, buoyancy, tracers, coriolis)
+                    buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
+
+                    @info "    Testing buoyancy diagnostics with buoyancy and coriolis" buoyancy coriolis
+                    test_buoyancy_diagnostics(model)
                 end
 
             end
