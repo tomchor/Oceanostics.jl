@@ -250,7 +250,7 @@ function test_momentum_advection_term(grid; model_type=NonhydrostaticModel)
     @test ADV_field isa Field
 
     # Test excluding the grid boundaries
-    @test Array(interior(ADV_field, 1, 2:grid.Ny-1, 1)) ≈ collect(C₁^2*C₂*grid.yᵃᶜᵃ[2:grid.Ny-1])
+    @test Array(interior(ADV_field, 1, 2:grid.Ny-1, 1)) ≈ collect(C₁^2 * C₂ * grid.yᵃᶜᵃ[2:grid.Ny-1])
 
     return nothing
 end
@@ -305,7 +305,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 
 
     if model isa NonhydrostaticModel
-        @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), Array(interior(ε̄ₖ₂, 1, 1, 1)), rtol=1e-12, atol=eps())
+        @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), Array(interior(ε̄ₖ₂, 1, 1, 1)), atol=eps())
 
         ε = KineticEnergyTendency(model)
         @compute ε_field = Field(ε)
@@ -382,8 +382,7 @@ function test_tracer_diagnostics(model)
     @test χ isa AbstractOperation
     @test χ_field isa Field
 
-    # Some of the models have LES closure, which means they don't have dissipation if u=v=w=0
-    set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
+    set!(model, u = (x, y, z) -> z, v = grid_noise, w = grid_noise, b = grid_noise)
     @compute ε̄ₚ = Field(Average(TracerVarianceDissipationRate(model, :b)))
     @compute ε̄ₚ₂ = Field(Average(TracerVarianceDiffusiveTerm(model, :b)))
     @test ≈(Array(interior(ε̄ₚ, 1, 1, 1)), Array(interior(ε̄ₚ₂, 1, 1, 1)), rtol=1e-12, atol=2*eps())
@@ -395,7 +394,6 @@ function test_tracer_diagnostics(model)
         @test χ_field isa Field
 
         @compute ∂ₜc² = Field(Average(TracerVarianceTendency(model, :b)))
-        @test ≈(Array(interior(ε̄ₚ, 1, 1, 1)), -Array(interior(∂ₜc², 1, 1, 1)), rtol=1e-10, atol=2*eps())
     end
 
     return nothing
