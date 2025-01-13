@@ -305,7 +305,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 
 
     if model isa NonhydrostaticModel
-        @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), Array(interior(ε̄ₖ₂, 1, 1, 1)), atol=eps())
+        @test Array(interior(ε̄ₖ, 1, 1, 1)) ≈ Array(interior(ε̄ₖ₂, 1, 1, 1))
 
         ε = KineticEnergyTendency(model)
         @compute ε_field = Field(ε)
