@@ -6,14 +6,19 @@ export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelP
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export MixedLayerDepth, DensityAnomalyCriterion
 
-using Oceanostics: validate_location, validate_dissipative_closure, add_background_fields
+using Oceanostics: validate_location,
+                   validate_dissipative_closure,
+                   add_background_fields,
+                   get_coriolis_frequency_components
 
 using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyField, BuoyancyTracer
 using Oceananigans.BuoyancyModels: get_temperature_and_salinity, SeawaterBuoyancy
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
+using Oceananigans.BuoyancyFormulations: buoyancy
 using Oceananigans.Grids: Center, Face, NegativeZDirection, ZDirection, znode
+
 
 using SeawaterPolynomials: ρ′, BoussinesqEquationOfState
 using SeawaterPolynomials.SecondOrderSeawaterPolynomials: SecondOrderSeawaterPolynomial
@@ -69,20 +74,10 @@ Calculate the Richardson Number as
 
 where `z` is the true vertical direction (ie anti-parallel to gravity).
 """
-function RichardsonNumber(model; location = (Center, Center, Face), add_background=true)
+function RichardsonNumber(model; location = (Center, Center, Face))
     validate_location(location, "RichardsonNumber", (Center, Center, Face))
-
-    if (model isa NonhydrostaticModel) & add_background
-        full_fields = add_background_fields(model)
-        u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
-    else
-        u, v, w = model.velocities
-        b = model.tracers.b
-    end
-
-    return RichardsonNumber(model, u, v, w, b; location)
+    return RichardsonNumber(model, model.velocities..., buoyancy(model); location)
 end
-
 
 function RichardsonNumber(model, u, v, w, b; location = (Center, Center, Face))
     validate_location(location, "RichardsonNumber", (Center, Center, Face))
@@ -94,6 +89,11 @@ function RichardsonNumber(model, u, v, w, b; location = (Center, Center, Face))
     else
         true_vertical_direction = .-model.buoyancy.gravity_unit_vector
     end
+    return RichardsonNumber(model, u, v, w, b, true_vertical_direction; location = (Center, Center, Face))
+end
+
+function RichardsonNumber(model, u, v, w, b, true_vertical_direction; location = (Center, Center, Face))
+    validate_location(location, "RichardsonNumber", (Center, Center, Face))
     return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid,
                                                          u, v, w, b, true_vertical_direction)
 end
@@ -150,16 +150,7 @@ function RossbyNumber(model, u, v, w, coriolis; location = (Face, Face, Face),
                       dUdy_bg=0, dVdx_bg=0)
     validate_location(location, "RossbyNumber", (Face, Face, Face))
 
-    if coriolis isa FPlane
-        fx = fy = 0
-        fz = coriolis.f
-    elseif coriolis isa ConstantCartesianCoriolis
-        fx = coriolis.fx
-        fy = coriolis.fy
-        fz = coriolis.fz
-    else
-        throw(ArgumentError("RossbyNumber only implemented for FPlane and ConstantCartesianCoriolis"))
-    end
+    fx, fy, fz = get_coriolis_frequency_components(coriolis)
 
     parameters = (; fx, fy, fz, dWdy_bg, dVdz_bg, dUdz_bg, dWdx_bg, dUdy_bg, dVdx_bg)
     return KernelFunctionOperation{Face, Face, Face}(rossby_number_fff, model.grid,
@@ -197,15 +188,17 @@ is defined as
 where `f` is the Coriolis frequency, `ωᶻ` is the relative vorticity in the `z` direction, `b` is the buoyancy, and
 `∂U/∂z` and `∂V/∂z` comprise the thermal wind shear.
 """
-function ThermalWindPotentialVorticity(model; f=nothing, location = (Face, Face, Face))
+function ThermalWindPotentialVorticity(model; tracer = :b, location = (Face, Face, Face))
     validate_location(location, "ThermalWindPotentialVorticity", (Face, Face, Face))
     u, v, w = model.velocities
-    b = BuoyancyField(model)
-    if isnothing(f)
-        f = model.coriolis.f
-    end
+    return ThermalWindPotentialVorticity(model, u, v, model.tracers[tracer], model.coriolis; location)
+end
+
+function ThermalWindPotentialVorticity(model, u, v, tracer, coriolis; location = (Face, Face, Face))
+    validate_location(location, "ThermalWindPotentialVorticity", (Face, Face, Face))
+    fx, fy, fz = get_coriolis_frequency_components(coriolis)
     return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid,
-                                                     u, v, b, f)
+                                                     u, v, tracer, fz)
 end
 
 @inline function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, fx, fy, fz)
@@ -284,45 +277,16 @@ Note that EPV values are correctly calculated both in the interior and the bound
 interior and top boundary, EPV = f×N² = 10⁻¹⁰, while EPV = 0 at the bottom boundary since ∂b/∂z
 is zero there.
 """
-function ErtelPotentialVorticity(model; location = (Face, Face, Face), add_background = true)
+function ErtelPotentialVorticity(model; tracer = :b, location = (Face, Face, Face))
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
-
-    if model.buoyancy == nothing || !(model.buoyancy.model isa BuoyancyTracer)
-        throw(ArgumentError("`ErtelPotentialVorticity` is only implemented for `BuoyancyTracer` at the moment."))
-    end
-
-    u, v, w = model.velocities
-    b = model.tracers.b
-
-    if (model isa NonhydrostaticModel) & add_background
-        full_fields = add_background_fields(model)
-        u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
-    else
-        u, v, w = model.velocities
-        b = model.tracers.b
-    end
-
-    return ErtelPotentialVorticity(model, u, v, w, b, model.coriolis; location)
+    return ErtelPotentialVorticity(model, model.velocities..., model.tracers[tracer], model.coriolis; location)
 end
 
-function ErtelPotentialVorticity(model, u, v, w, b, coriolis; location = (Face, Face, Face))
+function ErtelPotentialVorticity(model, u, v, w, tracer, coriolis; location = (Face, Face, Face))
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
-
-    if coriolis isa FPlane
-        fx = fy = 0
-        fz = coriolis.f
-    elseif coriolis isa ConstantCartesianCoriolis
-        fx = coriolis.fx
-        fy = coriolis.fy
-        fz = coriolis.fz
-    elseif coriolis == nothing
-        fx = fy = fz = 0
-    else
-        throw(ArgumentError("ErtelPotentialVorticity is only implemented for FPlane and ConstantCartesianCoriolis"))
-    end
-
+    fx, fy, fz = get_coriolis_frequency_components(coriolis)
     return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid,
-                                                     u, v, w, b, fx, fy, fz)
+                                                     u, v, w, tracer, fx, fy, fz)
 end
 
 @inline function directional_ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
@@ -361,45 +325,21 @@ basde on a `model` and a `direction`. The Ertel Potential Vorticity is defined a
 where ωₜₒₜ is the total (relative + planetary) vorticity vector, `b` is the buoyancy and ∇ is the gradient
 operator.
 """
-function DirectionalErtelPotentialVorticity(model, direction; location = (Face, Face, Face))
+function DirectionalErtelPotentialVorticity(model, direction; tracer = :b, location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
-
-    if model.buoyancy == nothing || !(model.buoyancy.model isa BuoyancyTracer)
-        throw(ArgumentError("`DirectionalErtelPotentialVorticity` is only implemented for `BuoyancyTracer` at the moment."))
-    end
-
-    if model isa NonhydrostaticModel
-        full_fields = add_background_fields(model)
-        u, v, w, b = full_fields.u, full_fields.v, full_fields.w, full_fields.b
-    else
-        u, v, w = model.velocities
-        b = model.tracers.b
-    end
-
-    return DirectionalErtelPotentialVorticity(model, direction, u, v, w, b, model.coriolis; location)
+    return DirectionalErtelPotentialVorticity(model, direction, model.velocities..., model.tracers[tracer], model.coriolis; location)
 end
 
 
-function DirectionalErtelPotentialVorticity(model, direction, u, v, w, b, coriolis; location = (Face, Face, Face))
+function DirectionalErtelPotentialVorticity(model, direction, u, v, w, tracer, coriolis; location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
 
-    if coriolis isa FPlane
-        fx = fy = 0
-        fz = coriolis.f
-    elseif coriolis isa ConstantCartesianCoriolis
-        fx = coriolis.fx
-        fy = coriolis.fy
-        fz = coriolis.fz
-    elseif coriolis == nothing
-        fx = fy = fz = 0
-    else
-        throw(ArgumentError("ErtelPotentialVorticity is only implemented for FPlane and ConstantCartesianCoriolis"))
-    end
+    fx, fy, fz = get_coriolis_frequency_components(coriolis)
     f_dir = sum([fx, fy, fz] .* direction)
 
     dir_x, dir_y, dir_z = direction
     return KernelFunctionOperation{Face, Face, Face}(directional_ertel_potential_vorticity_fff, model.grid,
-                                                     u, v, w, b, (; f_dir, dir_x, dir_y, dir_z))
+                                                     u, v, w, tracer, (; f_dir, dir_x, dir_y, dir_z))
 end
 #---
 
@@ -430,7 +370,7 @@ symmetric part of the velocity gradient tensor:
 Its modulus is then defined (using Einstein summation notation) as
 
 ```
-    || Sᵢⱼ || = √( Sᵢⱼ Sᵢⱼ)
+    || Sᵢⱼ || = √(Sᵢⱼ Sᵢⱼ)
 ```
 """
 function StrainRateTensorModulus(model; location = (Center, Center, Center))
@@ -465,7 +405,7 @@ antisymmetric part of the velocity gradient tensor:
 Its modulus is then defined (using Einstein summation notation) as
 
 ```
-    || Ωᵢⱼ || = √( Ωᵢⱼ Ωᵢⱼ)
+    || Ωᵢⱼ || = √(Ωᵢⱼ Ωᵢⱼ)
 ```
 """
 function VorticityTensorModulus(model; location = (Center, Center, Center))
@@ -496,7 +436,7 @@ gradient tensor `∂ⱼuᵢ`:
 from where `Q` is defined as
 
 ```
-    Q = ½ ( ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)
+    Q = ½ (ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)
 ```
 and where `Sᵢⱼ= ½(∂ⱼuᵢ + ∂ᵢuⱼ)` and `Ωᵢⱼ= ½(∂ⱼuᵢ - ∂ᵢuⱼ)`. More info about it can be found in
 doi:10.1063/1.5124245.

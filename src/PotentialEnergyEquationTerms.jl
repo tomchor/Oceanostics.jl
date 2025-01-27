@@ -9,18 +9,18 @@ using Oceananigans.Models: seawater_density
 using Oceananigans.Models: model_geopotential_height
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Grids: NegativeZDirection
-using Oceananigans.BuoyancyModels: Buoyancy, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
-using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
+using Oceananigans.BuoyancyFormulations: BuoyancyForce, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
+using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
 using Oceanostics: validate_location
 using SeawaterPolynomials: BoussinesqEquationOfState
 
 const NoBuoyancyModel = Union{Nothing, ShallowWaterModel}
-const BuoyancyTracerModel = Buoyancy{<:BuoyancyTracer, g} where g
+const BuoyancyTracerModel = BuoyancyForce{<:BuoyancyTracer, g} where g
 const LinearSeawaterBuoyancy = SeawaterBuoyancy{FT, <:LinearEquationOfState, T, S} where {FT, T, S}
-const BuoyancyLinearEOSModel = Buoyancy{<:LinearSeawaterBuoyancy, g} where {g}
+const BuoyancyLinearEOSModel = BuoyancyForce{<:LinearSeawaterBuoyancy, g} where {g}
 const BoussinesqSeawaterBuoyancy = SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, T, S} where {FT, T, S}
-const BuoyancyBoussinesqEOSModel = Buoyancy{<:BoussinesqSeawaterBuoyancy, g} where {g}
+const BuoyancyBoussinesqEOSModel = BuoyancyForce{<:BoussinesqSeawaterBuoyancy, g} where {g}
 
 validate_gravity_unit_vector(gravity_unit_vector::NegativeZDirection) = nothing
 validate_gravity_unit_vector(gravity_unit_vector) =
@@ -61,7 +61,7 @@ julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=(:
 NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── timestepper: RungeKutta3TimeStepper
-├── advection scheme: Centered reconstruction order 2
+├── advection scheme: Centered(order=2)
 ├── tracers: b
 ├── closure: Nothing
 ├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
@@ -104,7 +104,7 @@ julia> model = NonhydrostaticModel(; grid, buoyancy, tracers)
 NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── timestepper: RungeKutta3TimeStepper
-├── advection scheme: Centered reconstruction order 2
+├── advection scheme: Centered(order=2)
 ├── tracers: (T, S)
 ├── closure: Nothing
 ├── buoyancy: SeawaterBuoyancy with g=9.80665 and BoussinesqEquationOfState{Float64} with ĝ = NegativeZDirection()
@@ -169,7 +169,7 @@ end
 
     grid = model.grid
     C = model.tracers
-    b = buoyancy_model.model
+    b = buoyancy_model.formulation
 
     return KernelFunctionOperation{Center, Center, Center}(minus_bz_ccc, grid, b, C)
 end
@@ -181,8 +181,8 @@ end
 
     grid = model.grid
     ρ = seawater_density(model; geopotential_height)
-    parameters = (g = model.buoyancy.model.gravitational_acceleration,
-                  ρ₀ = model.buoyancy.model.equation_of_state.reference_density)
+    parameters = (g = model.buoyancy.formulation.gravitational_acceleration,
+                  ρ₀ = model.buoyancy.formulation.equation_of_state.reference_density)
 
     return KernelFunctionOperation{Center, Center, Center}(minus_bz_ccc, grid, ρ, parameters)
 end

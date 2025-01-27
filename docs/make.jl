@@ -1,4 +1,5 @@
 pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..")) # add Oceanostics environment
+using Pkg; Pkg.instantiate()
 
 using Documenter
 using Literate

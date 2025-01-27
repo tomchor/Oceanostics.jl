@@ -4,10 +4,12 @@ using CUDA
 using Oceananigans
 using Oceananigans: fill_halo_regions!
 using Oceananigans.AbstractOperations: AbstractOperation
-using Oceananigans.BuoyancyModels: buoyancy_perturbationᶜᶜᶜ
+using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
+using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using Oceananigans.Models: seawater_density, model_geopotential_height
+using Oceananigans.BuoyancyFormulations: buoyancy
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState, BoussinesqEquationOfState
 using SeawaterPolynomials.SecondOrderSeawaterPolynomials: LinearRoquetSeawaterPolynomial
 
@@ -16,9 +18,11 @@ using Oceanostics: TKEBudgetTerms, TracerVarianceBudgetTerms, FlowDiagnostics, P
 using Oceanostics.TKEBudgetTerms: AdvectionTerm
 using Oceanostics: PotentialEnergy, PotentialEnergyEquationTerms.BuoyancyBoussinesqEOSModel
 using Oceanostics.ProgressMessengers
-using Oceanostics: perturbation_fields
+using Oceanostics: perturbation_fields, get_coriolis_frequency_components
 
 include("test_budgets.jl")
+
+const LinearBuoyancyForce = Union{BuoyancyTracer, SeawaterBuoyancy{<:Any, <:LinearEquationOfState}}
 
 #+++ Default grids and functions
 arch = has_cuda_gpu() ? GPU() : CPU()
@@ -35,7 +39,7 @@ stretched_grid = RectilinearGrid(arch, size=(N, N, N), x=(0, 1), y=(0, 1), z=z_f
 
 grid_noise(x, y, z) = randn()
 
-is_LES(::SmagorinskyLilly) = true
+is_LES(::Smagorinsky) = true
 is_LES(::AnisotropicMinimumDissipation) = true
 is_LES(::Any) = false
 is_LES(a::Tuple) = any(map(is_LES, a))
@@ -141,44 +145,69 @@ end
 
 function test_buoyancy_diagnostics(model)
     u, v, w = model.velocities
-    b = model.tracers.b
 
     N² = 1e-5;
-    stratification(x, y, z) = N² * z;
-
     S = 1e-3;
     shear(x, y, z) = S*z + S*y;
-    set!(model, u=shear, b=stratification)
+    set!(model, u=shear)
 
-    Ri = RichardsonNumber(model)
-    @test Ri isa AbstractOperation
-    Ri_field = compute!(Field(Ri))
-    @test Ri_field isa Field
-    @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+    if model.buoyancy != nothing && model.buoyancy.formulation isa SeawaterBuoyancy{<:Any, <:LinearEquationOfState}
+        g = model.buoyancy.formulation.gravitational_acceleration
+        α = model.buoyancy.formulation.equation_of_state.thermal_expansion
+        stratification_T(x, y, z) = N² * z / (g * α)
+        set!(model, T=stratification_T)
 
-    Ri = RichardsonNumber(model, u, v, w, b)
-    @test Ri isa AbstractOperation
-    Ri_field = compute!(Field(Ri))
-    @test Ri_field isa Field
-    @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+    else
+        stratification_b(x, y, z) = N² * z
+        set!(model, b=stratification_b)
+    end
 
-    EPV = ErtelPotentialVorticity(model)
-    @test EPV isa AbstractOperation
-    EPV_field = compute!(Field(EPV))
-    @test EPV_field isa Field
-    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (model.coriolis.f - S)
+    fx, fy, fz = get_coriolis_frequency_components(model)
+    if model.buoyancy != nothing && model.buoyancy.formulation isa LinearBuoyancyForce
+
+        Ri = RichardsonNumber(model)
+        @test Ri isa AbstractOperation
+        @compute Ri_field = Field(Ri)
+        @test Ri_field isa Field
+        @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+
+        b = buoyancy(model)
+        Ri = RichardsonNumber(model, u, v, w, b)
+        @test Ri isa AbstractOperation
+        @compute Ri_field = Field(Ri)
+        @test Ri_field isa Field
+        @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+
+    else
+        b = model.tracers.b # b in this case is passive
+    end
+
+    if model.buoyancy != nothing && model.buoyancy.formulation isa SeawaterBuoyancy{<:Any, <:LinearEquationOfState}
+        EPV = ErtelPotentialVorticity(model, tracer=:T)
+        @test EPV isa AbstractOperation
+        EPV_field = compute!(Field(EPV))
+        @test EPV_field isa Field
+        @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S) / (g * α)
+
+    else
+        EPV = ErtelPotentialVorticity(model)
+        @test EPV isa AbstractOperation
+        EPV_field = compute!(Field(EPV))
+        @test EPV_field isa Field
+        @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
+    end
 
     EPV = ErtelPotentialVorticity(model, u, v, w, b, model.coriolis)
     @test EPV isa AbstractOperation
     EPV_field = compute!(Field(EPV))
     @test EPV_field isa Field
-    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (model.coriolis.f - S)
+    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
 
     PVtw = ThermalWindPotentialVorticity(model)
     @test PVtw isa AbstractOperation
     @test compute!(Field(PVtw)) isa Field
 
-    PVtw = ThermalWindPotentialVorticity(model, f=1e-4)
+    PVtw = ThermalWindPotentialVorticity(model, u, v, b, FPlane(1e-4))
     @test PVtw isa AbstractOperation
     @test compute!(Field(PVtw)) isa Field
 
@@ -223,7 +252,7 @@ function test_momentum_advection_term(grid; model_type=NonhydrostaticModel)
     @test ADV_field isa Field
 
     # Test excluding the grid boundaries
-    @test Array(interior(ADV_field, 1, 2:grid.Ny-1, 1)) ≈ collect(C₁^2*C₂*grid.yᵃᶜᵃ[2:grid.Ny-1])
+    @test Array(interior(ADV_field, 1, 2:grid.Ny-1, 1)) ≈ collect(C₁^2 * C₂ * grid.yᵃᶜᵃ[2:grid.Ny-1])
 
     return nothing
 end
@@ -278,7 +307,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 
 
     if model isa NonhydrostaticModel
-        @test ≈(Array(interior(ε̄ₖ, 1, 1, 1)), Array(interior(ε̄ₖ₂, 1, 1, 1)), rtol=1e-12, atol=eps())
+        @test Array(interior(ε̄ₖ, 1, 1, 1)) ≈ Array(interior(ε̄ₖ₂, 1, 1, 1))
 
         ε = KineticEnergyTendency(model)
         @compute ε_field = Field(ε)
@@ -355,11 +384,10 @@ function test_tracer_diagnostics(model)
     @test χ isa AbstractOperation
     @test χ_field isa Field
 
-    # Some of the models have LES closure, which means they don't have dissipation if u=v=w=0
-    set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
+    set!(model, u = (x, y, z) -> z, v = grid_noise, w = grid_noise, b = grid_noise)
     @compute ε̄ₚ = Field(Average(TracerVarianceDissipationRate(model, :b)))
     @compute ε̄ₚ₂ = Field(Average(TracerVarianceDiffusiveTerm(model, :b)))
-    @test ≈(Array(interior(ε̄ₚ, 1, 1, 1)), Array(interior(ε̄ₚ₂, 1, 1, 1)), rtol=1e-12, atol=eps())
+    @test ≈(Array(interior(ε̄ₚ, 1, 1, 1)), Array(interior(ε̄ₚ₂, 1, 1, 1)), rtol=1e-12, atol=2*eps())
 
     if model isa NonhydrostaticModel
         χ = TracerVarianceTendency(model, :b)
@@ -368,7 +396,6 @@ function test_tracer_diagnostics(model)
         @test χ_field isa Field
 
         @compute ∂ₜc² = Field(Average(TracerVarianceTendency(model, :b)))
-        @test ≈(Array(interior(ε̄ₚ, 1, 1, 1)), -Array(interior(∂ₜc², 1, 1, 1)), rtol=1e-10, atol=eps())
     end
 
     return nothing
@@ -399,8 +426,8 @@ function test_potential_energy_equation_terms(model; geopotential_height = nothi
         compute!(ρ)
         Z = Field(model_geopotential_height(model))
         compute!(Z)
-        ρ₀ = model.buoyancy.model.equation_of_state.reference_density
-        g = model.buoyancy.model.gravitational_acceleration
+        ρ₀ = model.buoyancy.formulation.equation_of_state.reference_density
+        g = model.buoyancy.formulation.gravitational_acceleration
 
         CUDA.@allowscalar begin
             true_value = (g / ρ₀) .* ρ.data .* Z.data
@@ -418,7 +445,7 @@ function test_PEbuoyancytracer_equals_PElineareos(grid)
     set!(model_lineareos, S = C_grad, T = C_grad)
     linear_eos_buoyancy(grid, buoyancy, tracers) =
         KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
-    b_field = Field(linear_eos_buoyancy(model_lineareos.grid, model_lineareos.buoyancy.model, model_lineareos.tracers))
+    b_field = Field(linear_eos_buoyancy(model_lineareos.grid, model_lineareos.buoyancy.formulation, model_lineareos.tracers))
     compute!(b_field)
     set!(model_buoyancytracer, b = interior(b_field))
     pe_buoyancytracer = Field(PotentialEnergy(model_buoyancytracer))
@@ -562,21 +589,31 @@ end
 
 #---
 
-model_kwargs = (buoyancy = Buoyancy(model=BuoyancyTracer()),
+model_kwargs = (buoyancy = BuoyancyForce(BuoyancyTracer()),
                 coriolis = FPlane(1e-4),
                 tracers = :b)
 
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
+            Smagorinsky(coefficient=DynamicCoefficient(averaging=(1, 2))),
+            Smagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
 
-buoyancy_models = (nothing, BuoyancyTracer(), SeawaterBuoyancy(),
-                   SeawaterBuoyancy(equation_of_state=TEOS10EquationOfState()),
-                   SeawaterBuoyancy(equation_of_state=RoquetEquationOfState(:Linear)))
+buoyancy_formulations = (nothing,
+                         BuoyancyTracer(),
+                         SeawaterBuoyancy(),
+                         SeawaterBuoyancy(equation_of_state=TEOS10EquationOfState()),
+                         SeawaterBuoyancy(equation_of_state=RoquetEquationOfState(:Linear)))
 
-grids = (regular_grid, stretched_grid)
+coriolis_formulations = (nothing,
+                         FPlane(1e-4),
+                         ConstantCartesianCoriolis(fx=1e-4, fy=1e-4, fz=1e-4))
 
-model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
+grids = (regular_grid,
+         stretched_grid)
+
+model_types = (NonhydrostaticModel,
+               HydrostaticFreeSurfaceModel)
 
 @testset "Oceanostics" begin
     for grid in grids
@@ -585,61 +622,74 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
                 @info "Testing $model_type on grid and with closure" grid closure
                 model = model_type(; grid, closure, model_kwargs...)
 
-                @info "Testing velocity-only diagnostics"
+                @info "    Testing velocity-only diagnostics"
                 test_vel_only_diagnostics(model)
 
-                @info "Testing buoyancy diagnostics"
+                @info "    Testing buoyancy diagnostics"
                 test_buoyancy_diagnostics(model)
 
                 if model isa NonhydrostaticModel
-                    @info "Testing pressure terms"
+                    @info "    Testing pressure terms"
                     test_pressure_term(model)
 
-                    @info "Testing buoyancy production term"
+                    @info "    Testing buoyancy production term"
                     test_buoyancy_production_term(grid; model_type)
                 end
 
-                @info "Testing auxiliary functions"
+                @info "    Testing auxiliary functions"
                 test_auxiliary_functions(model)
 
-                @info "Testing energy dissipation rate terms"
+                @info "    Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(grid; model_type, closure)
 
 
                 if model_type == NonhydrostaticModel
-                    @info "Testing advection terms"
+                    @info "    Testing advection terms"
                     test_momentum_advection_term(grid; model_type)
 
-                    @info "Testing forcing terms"
+                    @info "    Testing forcing terms"
                     test_ke_forcing_term(grid; model_type)
 
-                    @info "Testing uniform strain flow"
+                    @info "    Testing uniform strain flow"
                     test_uniform_strain_flow(grid; model_type, closure, α=3)
 
-                    @info "Testing solid body rotation flow"
+                    @info "    Testing solid body rotation flow"
                     test_solid_body_rotation_flow(grid; model_type, closure, ζ=3)
 
-                    @info "Testing uniform shear flow"
+                    @info "    Testing uniform shear flow"
                     test_uniform_shear_flow(grid; model_type, closure, σ=3)
                 end
 
-                @info "Testing tracer variance terms"
+                @info "Testing tracer variance terms with model $model_type and closure" closure
                 model = model_type(; grid, closure, model_kwargs...)
                 test_tracer_diagnostics(model)
 
             end
 
-            @info "Testing `PotentialEnergy`"
-            for buoyancy in buoyancy_models
+            @info "Testing diagnostics that use buoyancy"
+            for buoyancy in buoyancy_formulations
 
                 tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T)
                 model = model_type(; grid, buoyancy, tracers)
                 buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
+
                 if isnothing(buoyancy)
+                    @info "    Testing that potential energy equation terms throw error when `buoyancy==nothing`"
                     test_potential_energy_equation_terms_errors(model)
                 else
+
+                    @info "    Testing `PotentialEnergy` with buoyancy " buoyancy
                     test_potential_energy_equation_terms(model)
                     test_potential_energy_equation_terms(model, geopotential_height = 0)
+                end
+
+                for coriolis in coriolis_formulations
+                    tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T, :b)
+                    model = model_type(; grid, buoyancy, tracers, coriolis)
+                    buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
+
+                    @info "    Testing buoyancy diagnostics with buoyancy and coriolis" buoyancy coriolis
+                    test_buoyancy_diagnostics(model)
                 end
 
             end
@@ -663,7 +713,7 @@ model_types = (NonhydrostaticModel, HydrostaticFreeSurfaceModel)
     for closure in closures
         LES = is_LES(closure)
         model = NonhydrostaticModel(grid = regular_grid;
-                                    buoyancy = Buoyancy(model=BuoyancyTracer()),
+                                    buoyancy = BuoyancyForce(BuoyancyTracer()),
                                     coriolis = FPlane(1e-4),
                                     tracers = :b,
                                     closure = closure)

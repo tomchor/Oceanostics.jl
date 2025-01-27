@@ -55,7 +55,7 @@ ĝ = [sind(θ), 0, cosd(θ)]
 # Changing the vertical direction impacts both the `gravity_unit_vector` for `Buoyancy` as well as
 # the `rotation_axis` for Coriolis forces,
 
-buoyancy = Buoyancy(model = BuoyancyTracer(), gravity_unit_vector = -ĝ)
+buoyancy = BuoyancyForce(BuoyancyTracer(), gravity_unit_vector = -ĝ)
 
 f₀ = 1e-4/second
 coriolis = ConstantCartesianCoriolis(f = f₀, rotation_axis = ĝ)
@@ -98,15 +98,15 @@ v_bcs = FieldBoundaryConditions(bottom = drag_bc_v)
 
 # ## Create model and simulation
 #
-# We are now ready to create the model. We create a `NonhydrostaticModel` with an
-# `UpwindBiasedFifthOrder` advection scheme, a `RungeKutta3` timestepper, and a constant viscosity
+# We are now ready to create the model. We create a `NonhydrostaticModel` with a 5th
+# `UpwindBiased` advection scheme, a `RungeKutta3` timestepper, and a constant viscosity
 # and diffusivity.
 
 closure = ScalarDiffusivity(ν=2e-4, κ=2e-4)
 
 model = NonhydrostaticModel(; grid, buoyancy, coriolis, closure,
                             timestepper = :RungeKutta3,
-                            advection = UpwindBiasedFifthOrder(),
+                            advection = UpwindBiased(order=5),
                             tracers = :b,
                             boundary_conditions = (u=u_bcs, v=v_bcs),
                             background_fields = (; b=B_field))
@@ -146,9 +146,10 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(400))
 
 using Oceanostics
 
-Ri = RichardsonNumber(model, add_background=true)
+b = model.tracers.b + model.background_fields.tracers.b
+Ri = RichardsonNumber(model, model.velocities..., b)
 Ro = RossbyNumber(model)
-PV = ErtelPotentialVorticity(model, add_background=true)
+PV = ErtelPotentialVorticity(model, model.velocities..., b, model.coriolis)
 
 # Note that the calculation of these quantities depends on the alignment with the true (geophysical)
 # vertical and the rotation axis. Oceanostics already takes that into consideration by using
@@ -159,7 +160,7 @@ PV = ErtelPotentialVorticity(model, add_background=true)
 #
 # Now we write these quantities to a NetCDF file:
 
-output_fields = (; Ri, Ro, PV, b = model.tracers.b + model.background_fields.tracers.b)
+output_fields = (; Ri, Ro, PV, b)
 
 filename = "tilted_bottom_boundary_layer"
 simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
