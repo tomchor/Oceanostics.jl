@@ -5,7 +5,8 @@ export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 
-using Oceanostics: validate_location,
+using Oceanostics: AbstractDiagnostic,
+                   validate_location,
                    validate_dissipative_closure,
                    add_background_fields,
                    get_coriolis_frequency_components
@@ -281,6 +282,29 @@ function ErtelPotentialVorticity(model, u, v, w, tracer, coriolis; location = (F
     fx, fy, fz = get_coriolis_frequency_components(coriolis)
     return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid,
                                                      u, v, w, tracer, fx, fy, fz)
+end
+
+struct PotentialVorticity <: AbstractDiagnostic
+    operation
+    thermal_wind
+    tracer
+end
+
+Base.summary(pv::PotentialVorticity) = string("PotentialVorticity$(pv.thermal_wind ? " in thermal wind balance" : ""), calculated with $(summary(pv.operation))")
+function Base.show(io::IO, pv::PotentialVorticity)
+    print(io, "PotentialVorticity$(pv.thermal_wind ? " in thermal wind balance" : ""), calculated with\n")
+    show(io, pv.operation)
+end
+
+
+function PotentialVorticity(model, u, v, w, tracer, coriolis; thermal_wind = false, location = (Face, Face, Face))
+    validate_location(location, "PotentialVorticity", (Face, Face, Face))
+    if thermal_wind
+        kfo = ThermalWindPotentialVorticity(model, u, v, tracer, coriolis; location)
+    else
+        kfo = ErtelPotentialVorticity(model, u, v, w, tracer, coriolis; location)
+    end
+    return PotentialVorticity(kfo, thermal_wind, tracer)
 end
 
 @inline function directional_ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
