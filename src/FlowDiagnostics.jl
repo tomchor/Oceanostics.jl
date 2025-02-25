@@ -272,29 +272,17 @@ Note that EPV values are correctly calculated both in the interior and the bound
 interior and top boundary, EPV = f×N² = 10⁻¹⁰, while EPV = 0 at the bottom boundary since ∂b/∂z
 is zero there.
 """
-function ErtelPotentialVorticity(model; tracer = :b, location = (Face, Face, Face))
-    validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
-    return ErtelPotentialVorticity(model, model.velocities..., model.tracers[tracer], model.coriolis; location)
-end
-
-function ErtelPotentialVorticity(model, u, v, w, tracer, coriolis; location = (Face, Face, Face))
-    validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
-    fx, fy, fz = get_coriolis_frequency_components(coriolis)
-    return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid,
-                                                     u, v, w, tracer, fx, fy, fz)
-end
-
-struct PotentialVorticity <: AbstractDiagnostic
+struct ErtelPotentialVorticity <: AbstractDiagnostic
     operation
     thermal_wind
     tracer
 end
 
-PotentialVorticity(model; tracer, location = (Face, Face, Face)) = PotentialVorticity(model, model.velocities..., tracer, model.coriolis; location)
-PotentialVorticity(model, tracer::Symbol) = PotentialVorticity(model, model.velocities..., model.tracers[tracer], model.coriolis; location)
+ErtelPotentialVorticity(model; tracer::Symbol, location = (Face, Face, Face)) = ErtelPotentialVorticity(model, model.velocities..., model.tracers[tracer], model.coriolis; location)
+ErtelPotentialVorticity(model, tracer;         location = (Face, Face, Face)) = ErtelPotentialVorticity(model, model.velocities..., tracer, model.coriolis; location)
 
-function PotentialVorticity(model, u, v, w, tracer, coriolis; thermal_wind = false, location = (Face, Face, Face))
-    validate_location(location, "PotentialVorticity", (Face, Face, Face))
+function ErtelPotentialVorticity(model, u, v, w, tracer, coriolis; thermal_wind = false, location = (Face, Face, Face))
+    validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
     f⃗ = get_coriolis_frequency_components(coriolis)
     if thermal_wind
         return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid,
@@ -303,12 +291,12 @@ function PotentialVorticity(model, u, v, w, tracer, coriolis; thermal_wind = fal
         return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid,
                                                          u, v, w, tracer, f⃗...)
     end
-    return PotentialVorticity(kfo, thermal_wind, tracer)
+    return ErtelPotentialVorticity(kfo, thermal_wind, tracer)
 end
 
-Base.summary(pv::PotentialVorticity) = string("PotentialVorticity$(pv.thermal_wind ? " in thermal wind balance" : ""), calculated with $(summary(pv.operation))")
-function Base.show(io::IO, pv::PotentialVorticity)
-    print(io, "PotentialVorticity$(pv.thermal_wind ? " in thermal wind balance" : ""), calculated with\n")
+Base.summary(pv::ErtelPotentialVorticity) = string("ErtelPotentialVorticity$(pv.thermal_wind ? " in thermal wind balance" : ""), calculated with $(summary(pv.operation))")
+function Base.show(io::IO, pv::ErtelPotentialVorticity)
+    print(io, "ErtelPotentialVorticity$(pv.thermal_wind ? " in thermal wind balance" : ""), calculated with\n")
     show(io, pv.operation)
 end
 
