@@ -162,11 +162,12 @@ PV = ErtelPotentialVorticity(model, model.velocities..., b, model.coriolis)
 
 output_fields = (; Ri, Ro, PV, b)
 
+using NCDatasets
 filename = "tilted_bottom_boundary_layer"
-simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
-                                                    filename = joinpath(@__DIR__, filename),
-                                                    schedule = TimeInterval(20minutes),
-                                                    overwrite_existing = true)
+simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
+                                              filename = joinpath(@__DIR__, filename),
+                                              schedule = TimeInterval(20minutes),
+                                              overwrite_existing = true)
 
 # ## Run the simulation and process results
 #

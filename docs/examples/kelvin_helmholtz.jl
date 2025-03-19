@@ -85,11 +85,13 @@ Q = QVelocityGradientTensorInvariant(model)
 # Now we write these quantities, along with `b`, to a NetCDF:
 
 output_fields = (; Ri, Q, model.tracers.b, ∫χ, ∫χᴰ)
+
+using NCDatasets
 filename = "kelvin_helmholtz"
-simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
-                                                    filename = joinpath(@__DIR__, filename),
-                                                    schedule = TimeInterval(1),
-                                                    overwrite_existing = true)
+simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
+                                              filename = joinpath(@__DIR__, filename),
+                                              schedule = TimeInterval(1),
+                                              overwrite_existing = true)
 
 
 # ## Run the simulation and process results
