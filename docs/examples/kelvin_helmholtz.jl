@@ -85,11 +85,13 @@ Q = QVelocityGradientTensorInvariant(model)
 # Now we write these quantities, along with `b`, to a NetCDF:
 
 output_fields = (; Ri, Q, model.tracers.b, ∫χ, ∫χᴰ)
+
+using NCDatasets
 filename = "kelvin_helmholtz"
-simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
-                                                    filename = joinpath(@__DIR__, filename),
-                                                    schedule = TimeInterval(1),
-                                                    overwrite_existing = true)
+simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
+                                              filename = joinpath(@__DIR__, filename),
+                                              schedule = TimeInterval(1),
+                                              overwrite_existing = true)
 
 
 # ## Run the simulation and process results
@@ -121,15 +123,15 @@ ax3 = Axis(fig[2, 3]; title = "b", kwargs...);
 
 n = Observable(1)
 
-Riₙ = @lift set(ds.Ri[Ti=$n, yC=Near(0)], :xC => X, :zF => Z)
+Riₙ = @lift set(ds.Ri[Ti=$n, y_aca=Near(0)], :x_caa => X, :z_aaf => Z)
 hm1 = heatmap!(ax1, Riₙ; colormap = :bwr, colorrange = (-1, +1))
 Colorbar(fig[3, 1], hm1, vertical=false, height=8)
 
-Qₙ = @lift set(ds.Q[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
+Qₙ = @lift set(ds.Q[Ti=$n, y_aca=Near(0)], :x_caa => X, :z_aac => Z)
 hm2 = heatmap!(ax2, Qₙ; colormap = :inferno, colorrange = (0, 0.2))
 Colorbar(fig[3, 2], hm2, vertical=false, height=8)
 
-bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC => X, :zC => Z)
+bₙ = @lift set(ds.b[Ti=$n, y_aca=Near(0)], :x_caa => X, :z_aac => Z)
 hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-2.5e-2, +2.5e-2))
 Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
