@@ -96,3 +96,7 @@ function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusiv
 
     return nothing
 end
+
+rtol = 0.02; N = 80
+@info "    Testing tracer variance budget on and a regular grid with N=$N and tolerance $rtol"
+test_tracer_variance_budget(N=N, rtol=rtol, regular_grid=true)
