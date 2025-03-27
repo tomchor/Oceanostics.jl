@@ -578,7 +578,7 @@ end
 #---
 
 @testset "Diagnostics test" begin
-    @info "    Testing Diagnostics" begin
+    @info "    Testing Diagnostics"
     for grid in grids
         for model_type in model_types
             for closure in closures
