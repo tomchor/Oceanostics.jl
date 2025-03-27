@@ -54,10 +54,14 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, closure = ScalarDi
     κ = diffusivity(model.closure, model.diffusivity_fields, Val(:c))
     @compute κ = κ isa Tuple ? Field(sum(κ)) : κ
     Δt = min(minimum_zspacing(grid)^2/maximum(κ)/10, minimum_zspacing(grid)/maximum(u) / 10)
-    simulation = Simulation(model; Δt=Δt, stop_time=0.1)
+    stop_time = 0.1
+    simulation = Simulation(model; Δt, stop_time)
 
     wizard = TimeStepWizard(cfl=0.1, diffusive_cfl=0.1)
     simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
+
+    progress(sim) = @info "$(time(sim)) of $stop_time with Δt = $(prettytime(sim.Δt))"
+    add_callback!(simulation, progress, IterationInterval(100))
 
     ε  = KineticEnergyDissipationRate(model)
     @compute ∫εdV   = Field(Integral(ε))
