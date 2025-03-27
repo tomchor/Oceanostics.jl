@@ -26,7 +26,7 @@ function test_progress_messenger(model, messenger)
     simulation = Simulation(model; Δt=1e-2, stop_iteration=10)
     simulation.callbacks[:progress] = Callback(messenger, IterationInterval(1))
     run!(simulation)
-    return nothing
+    return true
 end
 #---
 
@@ -45,7 +45,7 @@ end
 
         @info "        Testing SingleLineMessenger with $closure"
         model.clock.iteration = 0
-        test_progress_messenger(model, SingleLineMessenger())
+        @test test_progress_messenger(model, SingleLineMessenger())
 
         # Test that SingleLineMessenger is indeed a single line
         simulation = Simulation(model; Δt=1e-2, stop_iteration=1)
@@ -54,7 +54,7 @@ end
 
         @info "        Testing TimedMessenger with $closure"
         model.clock.iteration = 0
-        test_progress_messenger(model, TimedMessenger())
+        @test test_progress_messenger(model, TimedMessenger())
 
         @info "        Testing custom progress messenger with $closure"
         model.clock.iteration = 0
@@ -62,6 +62,6 @@ end
         progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false)
                                       + SimulationTime() + TimeStep() + MaxVelocities()
                                       + AdvectiveCFLNumber() + step_duration)(simulation)
-        test_progress_messenger(model, progress)
+        @test test_progress_messenger(model, progress)
     end
 end
