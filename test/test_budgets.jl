@@ -1,3 +1,6 @@
+using Test
+using CUDA: has_cuda_gpu
+
 using Oceananigans
 using Oceananigans.Fields: @compute
 using Oceanostics
@@ -19,7 +22,7 @@ function periodic_locations(N_locations, flip_z=true)
     return x₀, y₀, z₀
 end
 
-function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusivity(ν=1, κ=1), regular_grid=true)
+function test_tracer_variance_budget(; arch, N=16, rtol=0.01, closure = ScalarDiffusivity(ν=1, κ=1), regular_grid=true)
 
     if regular_grid
         grid = RectilinearGrid(topology=(Periodic, Flat, Periodic), size=(N,N), extent=(1,1))
@@ -97,6 +100,10 @@ function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusiv
     return nothing
 end
 
+arch = has_cuda_gpu() ? GPU() : CPU()
 rtol = 0.02; N = 80
 @info "    Testing tracer variance budget on and a regular grid with N=$N and tolerance $rtol"
-test_tracer_variance_budget(N=N, rtol=rtol, regular_grid=true)
+test_tracer_variance_budget(; arch, N, rtol, regular_grid=true)
+
+@info "    Testing tracer variance budget on and a stetched grid with N=$N and tolerance $rtol"
+test_tracer_variance_budget(; arch, N, rtol, regular_grid=false)

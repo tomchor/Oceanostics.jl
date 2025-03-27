@@ -1,3 +1,5 @@
+using Test
+
 group     = get(ENV, "TEST_GROUP", :all) |> Symbol
 
 @testset "Oceanostics" begin

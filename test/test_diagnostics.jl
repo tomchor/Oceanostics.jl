@@ -1,5 +1,5 @@
 using Test
-using CUDA
+using CUDA: has_cuda_gpu
 
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation

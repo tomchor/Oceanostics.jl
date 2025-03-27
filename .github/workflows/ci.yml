@@ -4,7 +4,7 @@ on:
 
 jobs:
   diagnostics:
-    name: Diagnostics - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    name: Diagnostics - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
@@ -29,7 +29,7 @@ jobs:
           TEST_GROUP: "diagnostics"
 
   progress_messengers:
-    name: Progress messengers - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    name: Progress messengers - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
@@ -54,7 +54,7 @@ jobs:
           TEST_GROUP: "progress_messengers"
 
   budgets:
-    name: Budgets - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    name: Budgets - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
