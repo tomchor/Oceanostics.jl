@@ -1,5 +1,5 @@
 using Test
-using CUDA: has_cuda_gpu
+using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
@@ -146,7 +146,7 @@ function test_vel_only_diagnostics(model)
     @test all(interior(compute!(Ω)) .≈ 0)
 
     op = QVelocityGradientTensorInvariant(model)
-    CUDA.@allowscalar @test op == Oceanostics.Q(model)
+    @allowscalar @test op == Oceanostics.Q(model)
     @test op isa AbstractOperation
     q = Field(op)
     @test all(interior(compute!(q)) .≈ 0)
@@ -301,7 +301,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 
     rtol = zspacings(grid, Center()) isa Number ? 1e-12 : 0.06 # less accurate for stretched grid
 
-    CUDA.@allowscalar begin
+    @allowscalar begin
         true_ε = (ν_field isa Field ? getindex(ν_field, idxs...) : ν_field) * dudz^2
         @test isapprox(getindex(ε_field,  idxs...), true_ε, rtol=rtol, atol=eps())
         @test isapprox(getindex(εp_field, idxs...), 0.0,    rtol=rtol, atol=eps())
@@ -440,7 +440,7 @@ function test_potential_energy_equation_terms(model; geopotential_height = nothi
         ρ₀ = model.buoyancy.formulation.equation_of_state.reference_density
         g = model.buoyancy.formulation.gravitational_acceleration
 
-        CUDA.@allowscalar begin
+        @allowscalar begin
             true_value = (g / ρ₀) .* ρ.data .* Z.data
             @test isequal(Eₚ_field.data, true_value)
         end
@@ -493,7 +493,7 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
         ν_field = viscosity(model.closure, model.diffusivity_fields)
     end
 
-    CUDA.@allowscalar begin
+    @allowscalar begin
         ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
 
         @test getindex(S, idxs...) ≈ √2*α
@@ -526,7 +526,7 @@ function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, clo
         ν_field = viscosity(model.closure, model.diffusivity_fields)
     end
 
-    CUDA.@allowscalar begin
+    @allowscalar begin
         ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
 
         @test getindex(S, idxs...) ≈ 0
@@ -556,7 +556,7 @@ function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=S
         ν_field = viscosity(model.closure, model.diffusivity_fields)
     end
 
-    CUDA.@allowscalar begin
+    @allowscalar begin
         ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
 
         @test getindex(S, idxs...) ≈ σ/√2
