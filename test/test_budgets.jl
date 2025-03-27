@@ -27,7 +27,7 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, closure = ScalarDi
     if regular_grid
         grid = RectilinearGrid(topology=(Periodic, Flat, Periodic), size=(N,N), extent=(1,1))
     else
-        S = 2
+        S = 1.5
         zᵃᵃᶠ(k) = (tanh(S * (2 * (k - 1) / N - 1)) / tanh(S) - 1) / 2 # [-1.0, 0.0]
         grid = RectilinearGrid(topology=(Periodic, Flat, Bounded), size=(N,N), x=(0,1), z=zᵃᵃᶠ)
     end
