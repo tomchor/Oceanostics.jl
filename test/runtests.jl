@@ -7,6 +7,10 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
         include("test_diagnostics.jl")
     end
 
+    if group == :canonical_flows || group == :all
+        include("test_canonical_flows.jl")
+    end
+
     if group == :progress_messengers || group == :all
         include("test_progress_messengers.jl")
     end
