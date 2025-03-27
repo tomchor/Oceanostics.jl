@@ -577,7 +577,8 @@ function test_auxiliary_functions(model)
 end
 #---
 
-@testset "    Diagnostics test" begin
+@testset "Diagnostics test" begin
+    @info "    Testing Diagnostics" begin
     for grid in grids
         for model_type in model_types
             for closure in closures
