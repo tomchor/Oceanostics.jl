@@ -4,6 +4,7 @@ using CUDA: has_cuda_gpu, @allowscalar
 using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.Fields: @compute
+using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 
 using Oceanostics

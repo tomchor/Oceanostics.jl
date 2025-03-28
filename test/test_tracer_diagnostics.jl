@@ -5,7 +5,6 @@ using Oceananigans
 using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Fields: @compute
-using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using Oceananigans.Models: seawater_density, model_geopotential_height
 using Oceananigans.BuoyancyFormulations: buoyancy
