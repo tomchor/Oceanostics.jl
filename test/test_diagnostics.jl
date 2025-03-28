@@ -56,8 +56,8 @@ coriolis_formulations = (nothing,
                          FPlane(1e-4),
                          ConstantCartesianCoriolis(fx=1e-4, fy=1e-4, fz=1e-4))
 
-grids = (regular_grid,
-         stretched_grid)
+grids = Dict("regular grid" => regular_grid,
+             "stretched grid" => stretched_grid)
 
 model_types = (NonhydrostaticModel,
                HydrostaticFreeSurfaceModel)
@@ -285,28 +285,27 @@ end
 
 @testset "Diagnostics tests" begin
     @info "  Testing Diagnostics"
-    for grid in grids
+    for (grid_class, grid) in zip(keys(grids), values(grids))
+        @info "    with $grid_class"
         for model_type in model_types
+            @info "      with $model_type"
             for closure in closures
-                @info "    Testing $model_type on grid and with closure" grid closure
+                @info "        with closure $(summary(closure))"
                 model = model_type(; grid, closure, model_kwargs...)
 
-                @info "        Testing velocity-only diagnostics"
+                @info "          Testing velocity-only diagnostics"
                 test_velocity_only_flow_diagnostics(model)
 
-                @info "        Testing buoyancy diagnostics"
-                test_buoyancy_diagnostics(model)
-
-                @info "        Testing auxiliary functions"
+                @info "          Testing auxiliary functions"
                 test_auxiliary_functions(model)
 
-                @info "    Testing tracer variance terms with model $model_type and closure" closure
-                model = model_type(; grid, closure, model_kwargs...)
+                @info "          Testing tracer variance terms"
                 test_tracer_diagnostics(model)
             end
 
             @info "        Testing diagnostics that use buoyancy"
             for buoyancy in buoyancy_formulations
+                @info "        with $(summary(buoyancy))"
 
                 tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T)
                 model = model_type(; grid, buoyancy, tracers)
@@ -326,7 +325,7 @@ end
                     model = model_type(; grid, buoyancy, tracers, coriolis)
                     buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
 
-                    @info "            Testing buoyancy diagnostics with buoyancy and coriolis" buoyancy coriolis
+                    @info "          Testing buoyancy diagnostics"
                     test_buoyancy_diagnostics(model)
                 end
 
