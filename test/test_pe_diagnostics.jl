@@ -71,10 +71,9 @@ function test_potential_energy_equation_terms(model; geopotential_height = nothi
     @test Eₚ_field isa Field
 
     if model.buoyancy isa BuoyancyBoussinesqEOSModel
-        ρ = isnothing(geopotential_height) ? Field(seawater_density(model)) :
-                                             Field(seawater_density(model; geopotential_height))
+        @compute ρ = isnothing(geopotential_height) ? Field(seawater_density(model)) :
+                                                      Field(seawater_density(model; geopotential_height))
 
-        compute!(ρ)
         @compute Z = Field(model_geopotential_height(model))
         ρ₀ = model.buoyancy.formulation.equation_of_state.reference_density
         g = model.buoyancy.formulation.gravitational_acceleration
@@ -96,18 +95,14 @@ function test_PEbuoyancytracer_equals_PElineareos(grid)
     set!(model_lineareos, S = C_grad, T = C_grad)
     linear_eos_buoyancy(grid, buoyancy, tracers) =
         KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
-    b_field = Field(linear_eos_buoyancy(model_lineareos.grid, model_lineareos.buoyancy.formulation, model_lineareos.tracers))
-    compute!(b_field)
+    @compute b_field = Field(linear_eos_buoyancy(model_lineareos.grid, model_lineareos.buoyancy.formulation, model_lineareos.tracers))
     set!(model_buoyancytracer, b = interior(b_field))
-    pe_buoyancytracer = Field(PotentialEnergy(model_buoyancytracer))
-    compute!(pe_buoyancytracer)
-    pe_lineareos = Field(PotentialEnergy(model_lineareos))
-    compute!(pe_lineareos)
+    @compute pe_buoyancytracer = Field(PotentialEnergy(model_buoyancytracer))
+    @compute pe_lineareos = Field(PotentialEnergy(model_lineareos))
 
     @test all(interior(pe_buoyancytracer) .== interior(pe_lineareos))
 
     return nothing
-
 end
 #---
 
