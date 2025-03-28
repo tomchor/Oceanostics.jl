@@ -24,8 +24,7 @@ jobs:
           arch: ${{ matrix.arch }}
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
-      name: Run tests
-        run: julia --project=. -O1 -e 'using Pkg; Pkg.test("Oceanostics")'
+      - uses: julia-actions/julia-runtest@v1
         env:
           TEST_GROUP: "diagnostics"
 
