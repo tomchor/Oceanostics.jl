@@ -3,8 +3,16 @@ using Test
 group     = get(ENV, "TEST_GROUP", :all) |> Symbol
 
 @testset "Oceanostics" begin
+    if group == :vel_diagnostics || group == :all
+        include("test_velocity_diagnostics.jl")
+    end
+
     if group == :ke_diagnostics || group == :all
         include("test_ke_diagnostics.jl")
+    end
+
+    if group == :pe_diagnostics || group == :all
+        include("test_pe_diagnostics.jl")
     end
 
     if group == :tracer_diagnostics || group == :all
