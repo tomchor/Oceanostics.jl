@@ -6,7 +6,7 @@
 # respect to gravity. We simulate the perturbation away from a constant along-slope
 # (y-direction) velocity constant density stratification.  This perturbation develops into a
 # turbulent bottom boundary layer due to momentum loss at the bottom boundary.
-# 
+#
 #
 # First let's make sure we have all required packages installed.
 #
@@ -118,7 +118,7 @@ set!(model, u=noise, w=noise)
 # wall.
 #
 # We are now ready to create the simulation. We begin by setting the initial time step
-# conservatively, based on the smallest grid size of our domain and set-up a 
+# conservatively, based on the smallest grid size of our domain and set-up a
 
 using Oceananigans.Units
 

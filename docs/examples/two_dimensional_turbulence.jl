@@ -58,7 +58,7 @@ progress = ProgressMessengers.BasicMessenger()
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 
 
-# Using Oceanostics we can easily calculate two important diagnostics, the kinetic energy KE and 
+# Using Oceanostics we can easily calculate two important diagnostics, the kinetic energy KE and
 # its dissipation rate ε
 
 KE = KineticEnergy(model)

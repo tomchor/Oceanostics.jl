@@ -4,7 +4,7 @@ Markdown.parse_file(joinpath(@__DIR__, "..", "..", "README.md"))
 ```
 
 !!! note "⚠️ Under construction! 🏗️"
-    We are still actively working on these docs. If you see any errors or if you have any helpful suggestions please 
+    We are still actively working on these docs. If you see any errors or if you have any helpful suggestions please
     open [an issue](https://github.com/tomchor/Oceanostics.jl/issues/new) or
     [a pull request](https://github.com/tomchor/Oceanostics.jl/pulls) on github.
 

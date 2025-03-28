@@ -67,7 +67,7 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))
 Ri = RichardsonNumber(model)
 
 # We also set-up the `QVelocityGradientTensorInvariant`, which is usually used for visualizing
-# vortices in the flow: 
+# vortices in the flow:
 Q = QVelocityGradientTensorInvariant(model)
 
 # Q is one of the velocity gradient tensor invariants and it measures the amount of vorticity versus
@@ -162,7 +162,7 @@ end
 
 # ![](kelvin_helmholtz.mp4)
 #
-# Similarly to the kinetic energy dissipation rate (see the [Two-dimensional turbulence example](@ref two_d_turbulence_example)), 
+# Similarly to the kinetic energy dissipation rate (see the [Two-dimensional turbulence example](@ref two_d_turbulence_example)),
 # `TracerVarianceDissipationRate` and `TracerVarianceDiffusiveTerm` are implemented
 # with a energy-conserving formulation, which means that (for `NoFlux` boundary conditions) their
 # volume-integral should be exactly (up to machine precision) the same.
