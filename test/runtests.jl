@@ -3,12 +3,12 @@ using Test
 group     = get(ENV, "TEST_GROUP", :all) |> Symbol
 
 @testset "Oceanostics" begin
-    if group == :diagnostics || group == :all
-        include("test_diagnostics.jl")
-    end
-
     if group == :ke_diagnostics || group == :all
         include("test_ke_diagnostics.jl")
+    end
+
+    if group == :tracer_diagnostics || group == :all
+        include("test_tracer_diagnostics.jl")
     end
 
     if group == :canonical_flows || group == :all
