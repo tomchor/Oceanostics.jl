@@ -92,8 +92,8 @@ julia> tracers = (:T, :S)
 
 julia> eos = TEOS10EquationOfState()
 BoussinesqEquationOfState{Float64}:
-    ├── seawater_polynomial: TEOS10SeawaterPolynomial{Float64}
-    └── reference_density: 1020.0
+├── seawater_polynomial: TEOS10SeawaterPolynomial{Float64}
+└── reference_density: 1020.0
 
 julia> buoyancy = SeawaterBuoyancy(equation_of_state=eos)
 SeawaterBuoyancy{Float64}:
