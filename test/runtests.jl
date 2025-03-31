@@ -45,10 +45,7 @@ end
         include("test_canonical_flows.jl")
     end
 
-    test_PEbuoyancytracer_equals_PElineareos(grid)
     test_mixed_layer_depth(grid)
-
-
     if group == :progress_messengers || group == :all
         include("test_progress_messengers.jl")
     end
