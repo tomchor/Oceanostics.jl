@@ -4,7 +4,7 @@ Markdown.parse_file(joinpath(@__DIR__, "..", "..", "README.md"))
 ```
 
 !!! note "⚠️ Under construction! 🏗️"
-    We are still actively working on these docs. If you see any errors or if you have any helpful suggestions please 
+    We are still actively working on these docs. If you see any errors or if you have any helpful suggestions please
     open [an issue](https://github.com/tomchor/Oceanostics.jl/issues/new) or
     [a pull request](https://github.com/tomchor/Oceanostics.jl/pulls) on github.
 
@@ -38,8 +38,6 @@ KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×5×6 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("(νₑ=4×5×6 Field{Center, Center, Center} on RectilinearGrid on CPU,)", "(u=4×5×6 Field{Face, Center, Center} on RectilinearGrid on CPU, v=4×5×6 Field{Center, Face, Center} on RectilinearGrid on CPU, w=4×5×7 Field{Center, Center, Face} on RectilinearGrid on CPU)", "(closure=Smagorinsky with coefficient = LillyCoefficient(smagorinsky = 0.16, reduction_factor = 1.0), Pr=NamedTuple(), clock=Clock{Float64, Float64}(time=0 seconds, iteration=0, last_Δt=Inf days), buoyancy=Nothing)")
-
-julia> simulation.output_writers[:netcdf_writer] = NetCDFOutputWriter(model, (; ke, ε), filename="out.nc", schedule=TimeInterval(2));
 
 julia> run!(simulation)
 [ Info: Initializing simulation...

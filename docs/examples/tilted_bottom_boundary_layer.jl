@@ -6,7 +6,7 @@
 # respect to gravity. We simulate the perturbation away from a constant along-slope
 # (y-direction) velocity constant density stratification.  This perturbation develops into a
 # turbulent bottom boundary layer due to momentum loss at the bottom boundary.
-# 
+#
 #
 # First let's make sure we have all required packages installed.
 #
@@ -118,7 +118,7 @@ set!(model, u=noise, w=noise)
 # wall.
 #
 # We are now ready to create the simulation. We begin by setting the initial time step
-# conservatively, based on the smallest grid size of our domain and set-up a 
+# conservatively, based on the smallest grid size of our domain and set-up a
 
 using Oceananigans.Units
 
@@ -162,11 +162,12 @@ PV = ErtelPotentialVorticity(model, model.velocities..., b, model.coriolis)
 
 output_fields = (; Ri, Ro, PV, b)
 
+using NCDatasets
 filename = "tilted_bottom_boundary_layer"
-simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
-                                                    filename = joinpath(@__DIR__, filename),
-                                                    schedule = TimeInterval(20minutes),
-                                                    overwrite_existing = true)
+simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
+                                              filename = joinpath(@__DIR__, filename),
+                                              schedule = TimeInterval(20minutes),
+                                              overwrite_existing = true)
 
 # ## Run the simulation and process results
 #
@@ -197,26 +198,26 @@ ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
 
 n = Observable(1)
 
-xC = Array(dims(ds, :xC))
-xF = Array(dims(ds, :xF))
-zC = Array(dims(ds, :zC))
-zF = Array(dims(ds, :zF))
+x_caa = Array(dims(ds, :x_caa))
+x_faa = Array(dims(ds, :x_faa))
+z_aac = Array(dims(ds, :z_aac))
+z_aaf = Array(dims(ds, :z_aaf))
 
-bₙ = @lift Array(ds.b[Ti=$n, yC=Near(0)])
+bₙ = @lift Array(ds.b[Ti=$n, y_aca=Near(0)])
 
-Riₙ = @lift Array(ds.Ri[Ti=$n, yC=Near(0)])
-hm1 = heatmap!(ax1, xC, zF, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
-contour!(ax1, xC, zC, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
+Riₙ = @lift Array(ds.Ri[Ti=$n, y_aca=Near(0)])
+hm1 = heatmap!(ax1, x_caa, z_aaf, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
+contour!(ax1, x_caa, z_aac, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
 Colorbar(fig[3, 1], hm1, vertical=false, height=8, ticklabelsize=14)
 
-Roₙ = @lift Array(ds.Ro[Ti=$n, yF=Near(0)])
-hm2 = heatmap!(ax2, xF, zF, Roₙ; colormap = :balance, colorrange = (-10, +10))
-contour!(ax2, xC, zC, bₙ; levels=10, color=:black, linestyle=:dash, linewidth=0.5)
+Roₙ = @lift Array(ds.Ro[Ti=$n, y_afa=Near(0)])
+hm2 = heatmap!(ax2, x_faa, z_aaf, Roₙ; colormap = :balance, colorrange = (-10, +10))
+contour!(ax2, x_caa, z_aac, bₙ; levels=10, color=:black, linestyle=:dash, linewidth=0.5)
 Colorbar(fig[3, 2], hm2, vertical=false, height=8, ticklabelsize=14)
 
-PVₙ = @lift Array(ds.PV[Ti=$n, yF=Near(0)])
-hm3 = heatmap!(ax3, xF, zF, PVₙ; colormap = :coolwarm, colorrange = N²*f₀.*(-1.5, +1.5))
-contour!(ax3, xC, zC, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
+PVₙ = @lift Array(ds.PV[Ti=$n, y_afa=Near(0)])
+hm3 = heatmap!(ax3, x_faa, z_aaf, PVₙ; colormap = :coolwarm, colorrange = N²*f₀.*(-1.5, +1.5))
+contour!(ax3, x_caa, z_aac, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
 Colorbar(fig[3, 3], hm3, vertical=false, height=8, ticklabelsize=14);
 
 # Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title

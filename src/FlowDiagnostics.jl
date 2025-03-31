@@ -116,7 +116,7 @@ end
     return (ω_x*params.fx + ω_y*params.fy + ω_z*params.fz)/(params.fx^2 + params.fy^2 + params.fz^2)
 end
 
-""" 
+"""
     $(SIGNATURES)
 
 Calculate the Rossby number using the vorticity in the rotation axis direction according
@@ -140,7 +140,7 @@ function RossbyNumber(model; location = (Face, Face, Face), add_background = tru
         u, v, w = model.velocities
     end
 
-    return RossbyNumber(model, u, v, w, model.coriolis; location, 
+    return RossbyNumber(model, u, v, w, model.coriolis; location,
                         dWdy_bg, dVdz_bg, dUdz_bg, dWdx_bg, dUdy_bg, dVdx_bg)
 end
 

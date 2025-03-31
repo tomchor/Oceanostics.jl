@@ -1,3 +1,6 @@
+using Test
+using CUDA: has_cuda_gpu
+
 using Oceananigans
 using Oceananigans.Fields: @compute
 using Oceanostics
@@ -19,12 +22,12 @@ function periodic_locations(N_locations, flip_z=true)
     return x₀, y₀, z₀
 end
 
-function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusivity(ν=1, κ=1), regular_grid=true)
+function test_tracer_variance_budget(; arch, N=16, rtol=0.01, closure = ScalarDiffusivity(ν=1, κ=1), regular_grid=true)
 
     if regular_grid
         grid = RectilinearGrid(topology=(Periodic, Flat, Periodic), size=(N,N), extent=(1,1))
     else
-        S = 2
+        S = 1.5
         zᵃᵃᶠ(k) = (tanh(S * (2 * (k - 1) / N - 1)) / tanh(S) - 1) / 2 # [-1.0, 0.0]
         grid = RectilinearGrid(topology=(Periodic, Flat, Bounded), size=(N,N), x=(0,1), z=zᵃᵃᶠ)
     end
@@ -51,10 +54,14 @@ function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusiv
     κ = diffusivity(model.closure, model.diffusivity_fields, Val(:c))
     @compute κ = κ isa Tuple ? Field(sum(κ)) : κ
     Δt = min(minimum_zspacing(grid)^2/maximum(κ)/10, minimum_zspacing(grid)/maximum(u) / 10)
-    simulation = Simulation(model; Δt=Δt, stop_time=0.1)
+    stop_time = 0.1
+    simulation = Simulation(model; Δt, stop_time)
 
     wizard = TimeStepWizard(cfl=0.1, diffusive_cfl=0.1)
     simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
+
+    progress(sim) = @info "$(time(sim)) of $stop_time with Δt = $(prettytime(sim.Δt))"
+    add_callback!(simulation, progress, IterationInterval(100))
 
     ε  = KineticEnergyDissipationRate(model)
     @compute ∫εdV   = Field(Integral(ε))
@@ -96,3 +103,11 @@ function test_tracer_variance_budget(; N=16, rtol=0.01, closure = ScalarDiffusiv
 
     return nothing
 end
+
+arch = has_cuda_gpu() ? GPU() : CPU()
+rtol = 0.02; N = 80
+@info "    Testing tracer variance budget on and a regular grid with N=$N and tolerance $rtol"
+test_tracer_variance_budget(; arch, N, rtol, regular_grid=true)
+
+@info "    Testing tracer variance budget on and a stetched grid with N=$N and tolerance $rtol"
+test_tracer_variance_budget(; arch, N, rtol, regular_grid=false)
