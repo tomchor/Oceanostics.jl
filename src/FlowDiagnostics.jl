@@ -12,7 +12,7 @@ using Oceanostics: validate_location,
                    get_coriolis_frequency_components
 
 using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyField, BuoyancyTracer
-using Oceananigans.BuoyancyModels: get_temperature_and_salinity, SeawaterBuoyancy
+using Oceananigans.BuoyancyFormulations: get_temperature_and_salinity, SeawaterBuoyancy
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
