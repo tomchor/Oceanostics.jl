@@ -1,6 +1,10 @@
 name: CI
 on:
-  - push
+  push:
+    branches:
+      - main
+    tags: '*'
+  pull_request:
 
 jobs:
   vel_diagnostics:
