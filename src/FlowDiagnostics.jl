@@ -464,7 +464,7 @@ supplied where `buoyancy` should be the buoyancy model, and `C` should be a name
 tuple of `(; T, S)`, `(; T)` or `(; S)` (the latter two if the buoyancy model 
 specifies a constant salinity or temperature).
 """
-function MixedLayerDepth(grid, args...; criterion = BuoyancyAnomalyCriterion(convert(eltype(grid), -1/8 * 1020 / g_Earth)))
+function MixedLayerDepth(grid, args...; criterion = BuoyancyAnomalyCriterion(convert(eltype(grid), - 0.125 / 1020 * g_Earth)))
     validate_criterion_model(criterion, args...)
 
     MLD = MixedLayerDepth(criterion)
@@ -561,7 +561,7 @@ tuple of `(; T, S)`, `(; T)` or `(; S)` (the latter two if the buoyancy model
 specifies a constant salinity or temperature).
 """
 @kwdef struct BuoyancyAnomalyCriterion{FT} <: AbstractAnomalyCriterion
-    pertubation :: FT = - 1/8 * 1020 / g_Earth
+    pertubation :: FT = - 0.125 / 1020 * g_Earth
 end
 
 validate_criterion_model(::BuoyancyAnomalyCriterion, args...) = 
