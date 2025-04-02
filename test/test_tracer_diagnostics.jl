@@ -2,16 +2,18 @@ using Test
 using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
+using Oceananigans: fill_halo_regions!
 using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using Oceananigans.BuoyancyFormulations: buoyancy
-using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
+using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState, BoussinesqEquationOfState
+using SeawaterPolynomials.SecondOrderSeawaterPolynomials: LinearRoquetSeawaterPolynomial
 
 using Oceanostics
 using Oceanostics: get_coriolis_frequency_components
 
-const LinearBuoyancyForce = Union{BuoyancyTracer, SeawaterBuoyancy{<:Any, <:LinearEquationOfState}}
+LinearBuoyancyForce = Union{BuoyancyTracer, SeawaterBuoyancy{<:Any, <:LinearEquationOfState}}
 
 #+++ Default grids
 arch = has_cuda_gpu() ? GPU() : CPU()
@@ -172,6 +174,26 @@ function test_tracer_diagnostics(model)
     return nothing
 end
 
+function test_mixed_layer_depth(grid;
+                                buoyancy = SeawaterBuoyancy(equation_of_state=BoussinesqEquationOfState(LinearRoquetSeawaterPolynomial(), 1000),
+                                                            constant_salinity=0),
+                                zₘₓₗ = 0.5,
+                                δρ = 0.125,
+                                ∂z_T = - δρ / zₘₓₗ / buoyancy.equation_of_state.seawater_polynomial.R₀₁₀)
+    boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_T))
+
+    T = CenterField(grid; boundary_conditions)
+    mld = MixedLayerDepth(grid, buoyancy, (; T))
+
+    @test isinf(mld[1, 1])
+
+    set!(T, (x, y, z) -> z * ∂z_T+10)
+    fill_halo_regions!(T)
+
+    @test mld[1, 1] ≈ -zₘₓₗ
+
+    return nothing
+end
 #---
 
 @testset "Tracer diagnostics tests" begin
@@ -201,6 +223,8 @@ end
                     @info "            Testing buoyancy diagnostics"
                     test_buoyancy_diagnostics(model)
                 end
+                @info "            Testing mixed layer depth diagnostic"
+                test_mixed_layer_depth(grid)
             end
         end
     end
