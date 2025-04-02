@@ -2,7 +2,7 @@ using Test
 
 group     = get(ENV, "TEST_GROUP", :all) |> Symbol
 
-function test_mixed_layer_depth(grid; 
+function test_mixed_layer_depth(grid;
                                 buoyancy = SeawaterBuoyancy(equation_of_state=BoussinesqEquationOfState(LinearRoquetSeawaterPolynomial(), 1000),
                                                             constant_salinity=0),
                                 zₘₓₗ = 0.5,
