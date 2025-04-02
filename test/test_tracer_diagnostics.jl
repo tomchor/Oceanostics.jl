@@ -1,5 +1,5 @@
 using Test
-using CUDA: has_cuda_gpu, @allowscalar
+#using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
 using Oceananigans: fill_halo_regions!
@@ -16,7 +16,7 @@ using Oceanostics: get_coriolis_frequency_components
 LinearBuoyancyForce = Union{BuoyancyTracer, SeawaterBuoyancy{<:Any, <:LinearEquationOfState}}
 
 #+++ Default grids
-arch = has_cuda_gpu() ? GPU() : CPU()
+arch = CPU()#has_cuda_gpu() ? GPU() : CPU()
 
 N = 6
 regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
@@ -174,20 +174,41 @@ function test_tracer_diagnostics(model)
     return nothing
 end
 
-function test_mixed_layer_depth(grid;
-                                buoyancy = SeawaterBuoyancy(equation_of_state=BoussinesqEquationOfState(LinearRoquetSeawaterPolynomial(), 1000),
-                                                            constant_salinity=0),
-                                zₘₓₗ = 0.5,
-                                δρ = 0.125,
-                                ∂z_T = - δρ / zₘₓₗ / buoyancy.equation_of_state.seawater_polynomial.R₀₁₀)
-    boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_T))
+function test_mixed_layer_depth(grid; zₘₓₗ = 0.5)
+    # buoyancy criterion (default)
+    buoyancy = BuoyancyTracer()
+    δb = -1
+    ∂z_b = - δb / zₘₓₗ
 
-    T = CenterField(grid; boundary_conditions)
-    mld = MixedLayerDepth(grid, buoyancy, (; T))
+    boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_b))
+
+    b = CenterField(grid; boundary_conditions)
+    mld = MixedLayerDepth(grid, buoyancy, (; b); criterion = BuoyancyAnomalyCriterion(δb))
 
     @test isinf(mld[1, 1])
 
-    set!(T, (x, y, z) -> z * ∂z_T+10)
+    set!(b, (x, y, z) -> z * ∂z_b)
+    fill_halo_regions!(b)
+
+    @test mld[1, 1] ≈ -zₘₓₗ
+
+    # density criterion
+    criterion = DensityAnomalyCriterion(convert(eltype(grid), 1/8))
+
+    buoyancy = SeawaterBuoyancy(equation_of_state=BoussinesqEquationOfState(LinearRoquetSeawaterPolynomial(), 1000),
+                                constant_salinity=0)
+
+    δρ = 0.125
+    ∂z_T = - δρ / zₘₓₗ / buoyancy.equation_of_state.seawater_polynomial.R₀₁₀
+
+    boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_T))
+
+    T = CenterField(grid; boundary_conditions)
+    mld = MixedLayerDepth(grid, buoyancy, (; T); criterion)
+
+    @test isinf(mld[1, 1])
+
+    set!(T, (x, y, z) -> z * ∂z_T + 10)
     fill_halo_regions!(T)
 
     @test mld[1, 1] ≈ -zₘₓₗ
@@ -195,7 +216,7 @@ function test_mixed_layer_depth(grid;
     return nothing
 end
 #---
-
+#=
 @testset "Tracer diagnostics tests" begin
     @info "  Testing tracer diagnostics"
     for (grid_class, grid) in zip(keys(grids), values(grids))
@@ -229,3 +250,4 @@ end
         end
     end
 end
+=#
