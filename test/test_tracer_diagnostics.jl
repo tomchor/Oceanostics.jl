@@ -193,10 +193,9 @@ function test_mixed_layer_depth(grid; zₘₓₗ = 0.5)
     @test mld[1, 1] ≈ -zₘₓₗ
 
     # density criterion
-    criterion = DensityAnomalyCriterion(convert(eltype(grid), 1/8))
+    buoyancy = SeawaterBuoyancy(equation_of_state=BoussinesqEquationOfState(LinearRoquetSeawaterPolynomial(), 1000), constant_salinity=0)
 
-    buoyancy = SeawaterBuoyancy(equation_of_state=BoussinesqEquationOfState(LinearRoquetSeawaterPolynomial(), 1000),
-                                constant_salinity=0)
+    criterion = DensityAnomalyCriterion(buoyancy; threshold = convert(eltype(grid), 1/8))
 
     δρ = 0.125
     ∂z_T = - δρ / zₘₓₗ / buoyancy.equation_of_state.seawater_polynomial.R₀₁₀
@@ -216,7 +215,7 @@ function test_mixed_layer_depth(grid; zₘₓₗ = 0.5)
     return nothing
 end
 #---
-#=
+
 @testset "Tracer diagnostics tests" begin
     @info "  Testing tracer diagnostics"
     for (grid_class, grid) in zip(keys(grids), values(grids))
@@ -250,4 +249,3 @@ end
         end
     end
 end
-=#
