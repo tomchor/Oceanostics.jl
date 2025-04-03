@@ -1,10 +1,11 @@
 using Test
-#using CUDA: has_cuda_gpu, @allowscalar
+using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
 using Oceananigans: fill_halo_regions!
 using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.Fields: @compute
+using Oceananigans.Grids: znode
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using Oceananigans.BuoyancyFormulations: buoyancy
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState, BoussinesqEquationOfState
@@ -16,7 +17,7 @@ using Oceanostics: get_coriolis_frequency_components
 LinearBuoyancyForce = Union{BuoyancyTracer, SeawaterBuoyancy{<:Any, <:LinearEquationOfState}}
 
 #+++ Default grids
-arch = CPU()#has_cuda_gpu() ? GPU() : CPU()
+arch = has_cuda_gpu() ? GPU() : CPU()
 
 N = 6
 regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
@@ -190,7 +191,7 @@ function test_mixed_layer_depth(grid; zₘₓₗ = 0.5)
     set!(b, (x, y, z) -> z * ∂z_b)
     fill_halo_regions!(b)
 
-    @test mld[1, 1] ≈ -zₘₓₗ
+    @test mld[1, 1] ≈ -zₘₓₗ + znode(1, 1, grid.Nz+1, grid, Center(), Center(), Face())
 
     # density criterion
     buoyancy = SeawaterBuoyancy(equation_of_state=BoussinesqEquationOfState(LinearRoquetSeawaterPolynomial(), 1000), constant_salinity=0)
@@ -210,7 +211,7 @@ function test_mixed_layer_depth(grid; zₘₓₗ = 0.5)
     set!(T, (x, y, z) -> z * ∂z_T + 10)
     fill_halo_regions!(T)
 
-    @test mld[1, 1] ≈ -zₘₓₗ
+    @test isapprox(mld[1, 1], -zₘₓₗ + znode(1, 1, grid.Nz+1, grid, Center(), Center(), Face()), atol=1e-10)
 
     return nothing
 end
