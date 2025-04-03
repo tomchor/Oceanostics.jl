@@ -4,7 +4,7 @@ using CUDA: has_cuda_gpu, @allowscalar
 using Oceananigans
 using Oceananigans: fill_halo_regions!
 using Oceananigans.AbstractOperations: AbstractOperation
-using Oceananigans.Fields: @compute
+using Oceananigans.Fields: @compute, ConstantField
 using Oceananigans.Grids: znode
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using Oceananigans.BuoyancyFormulations: buoyancy
@@ -175,45 +175,51 @@ function test_tracer_diagnostics(model)
     return nothing
 end
 
-function test_mixed_layer_depth(grid; zₘₓₗ = 0.5)
-    # buoyancy criterion (default)
-    buoyancy = BuoyancyTracer()
-    δb = -1
+function test_mixed_layer_depth(grid, buoyancy; zₘₓₗ = 0.5, δb = -1e-4 * 9.81, naive_thermal_expansion=0.000167)
+    density_is_defined = (!(buoyancy isa BuoyancyTracer)) && (buoyancy.equation_of_state isa BoussinesqEquationOfState)
+
     ∂z_b = - δb / zₘₓₗ
 
-    boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_b))
+    if buoyancy isa BuoyancyTracer
+        boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_b))
 
-    b = CenterField(grid; boundary_conditions)
-    mld = MixedLayerDepth(grid, buoyancy, (; b); criterion = BuoyancyAnomalyCriterion(δb))
+        C = (; b = CenterField(grid; boundary_conditions))
+    else
+        g = buoyancy.gravitational_acceleration
 
-    @test isinf(mld[1, 1])
+        ∂z_T = ∂z_b / (g * naive_thermal_expansion)
 
-    set!(b, (x, y, z) -> z * ∂z_b)
-    fill_halo_regions!(b)
+        boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_T))
+        
+        C = (; T = CenterField(grid; boundary_conditions), S = CenterField(grid))
+    end
+    
+    mld_b = MixedLayerDepth(grid, buoyancy, C; criterion = BuoyancyAnomalyCriterion(δb))
 
-    @test mld[1, 1] ≈ -zₘₓₗ + znode(1, 1, grid.Nz+1, grid, Center(), Center(), Face())
+    if density_is_defined
+        ρᵣ = buoyancy.equation_of_state.reference_density
 
-    # density criterion
-    buoyancy = SeawaterBuoyancy(equation_of_state=BoussinesqEquationOfState(LinearRoquetSeawaterPolynomial(), 1000), constant_salinity=0)
+        δρ = - δb * ρᵣ / g
 
-    criterion = DensityAnomalyCriterion(buoyancy; threshold = convert(eltype(grid), 1/8))
+        criterion = DensityAnomalyCriterion(buoyancy; threshold = convert(eltype(grid), δρ))
 
-    δρ = 0.125
-    ∂z_T = - δρ / zₘₓₗ / buoyancy.equation_of_state.seawater_polynomial.R₀₁₀
+        mld_ρ = MixedLayerDepth(grid, buoyancy, C; criterion)
+    end 
 
-    boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_T))
+    @test isinf(mld_b[1, 1])
+    density_is_defined && (@test isinf(mld_ρ[1, 1]) | (mld_ρ[1, 1] < znode(1, 1, 1, grid, Center(), Center(), Face()))) # for TEOS10 we don't get -Inf just a really deep depth
 
-    T = CenterField(grid; boundary_conditions)
-    mld = MixedLayerDepth(grid, buoyancy, (; T); criterion)
+    if buoyancy isa BuoyancyTracer
+        set!(C.b, (x, y, z) -> z * ∂z_b)
+    else
+        set!(C.T, (x, y, z) -> z * ∂z_T + 10)
+        set!(C.S, 35) # TEOS10SeawaterPolynomial doesn't seem to like it when this is zero
+    end
 
-    @test isinf(mld[1, 1])
+    fill_halo_regions!(C)
 
-    set!(T, (x, y, z) -> z * ∂z_T + 10)
-    fill_halo_regions!(T)
-
-    @test isapprox(mld[1, 1], -zₘₓₗ + znode(1, 1, grid.Nz+1, grid, Center(), Center(), Face()), atol=1e-10)
-
-    return nothing
+    @test isapprox(mld_b[1, 1], -zₘₓₗ + znode(1, 1, grid.Nz+1, grid, Center(), Center(), Face()), atol=0.02) # high tollerance from the approximation in ∂z_T
+    density_is_defined && (@test isapprox(mld_ρ[1, 1], -zₘₓₗ + znode(1, 1, grid.Nz+1, grid, Center(), Center(), Face()), atol=0.02)) # high tollerance from the approximation in ∂z_T
 end
 #---
 
@@ -243,9 +249,12 @@ end
 
                     @info "            Testing buoyancy diagnostics"
                     test_buoyancy_diagnostics(model)
+
+                    if !isnothing(buoyancy)
+                        @info "            Testing mixed layer depth diagnostic"
+                        test_mixed_layer_depth(grid, buoyancy)
+                    end
                 end
-                @info "            Testing mixed layer depth diagnostic"
-                test_mixed_layer_depth(grid)
             end
         end
     end
