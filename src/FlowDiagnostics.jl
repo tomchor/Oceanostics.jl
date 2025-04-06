@@ -487,12 +487,10 @@ function (MLD::MixedLayerDepth)(i, j, k, grid, args...)
 end
 
 """
-    $(SIGNATURES)
-
 An abstract mixed layer depth criterion where the mixed layer is defined to be
 `anomaly` + `threshold` greater than the surface value of `anomaly`.
 
-$(SIGNATURES) types should provide a method for the function `anomaly` in the form
+`AbstractAnomalyCriterion` types should provide a method for the function `anomaly` in the form
 `anomaly(criterion, i, j, k, grid, args...)`, and should have a property `threshold`.
 """
 abstract type AbstractAnomalyCriterion end
