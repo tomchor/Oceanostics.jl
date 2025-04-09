@@ -342,7 +342,7 @@ function DirectionalErtelPotentialVorticity(model, direction, u, v, w, tracer, c
 end
 #---
 
-#+++ Velocity gradient tensor
+#+++ Velocity gradient and vorticity tensors
 @inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
 function strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)
@@ -376,7 +376,6 @@ function StrainRateTensorModulus(model; location = (Center, Center, Center))
     validate_location(location, "StrainRateTensorModulus", (Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(strain_rate_tensor_modulus_ccc, model.grid, model.velocities...)
 end
-
 
 @inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2
 
@@ -419,7 +418,9 @@ end
     Ω² = vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
     return (Ω² - S²) / 2
 end
+#---
 
+#+++ Mixed layer depth
 """
     $(SIGNATURES)
 
@@ -515,8 +516,6 @@ end
 end
 
 """
-    $(SIGNATURES)
-
 Defines the mixed layer to be the depth at which the buoyancy is more than `threshold` greater than
 the surface buoyancy (but the pertubaton is usually negative).
 
@@ -535,8 +534,6 @@ validate_criterion_model(::BuoyancyAnomalyCriterion, buoyancy_formulation, C) = 
 @inline anomaly(::BuoyancyAnomalyCriterion, i, j, k, grid, buoyancy_formulation, C) = buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, buoyancy_formulation, C)
 
 """
-    $(SIGNATURES)
-
 Defines the mixed layer to be the depth at which the density is more than `threshold`
 greater than the surface density.
 
@@ -570,5 +567,6 @@ validate_criterion_model(::DensityAnomalyCriterion, buoyancy_formulation, C) = n
     g  = criterion.gravitational_acceleration
     return - ρᵣ * b / g
 end
+#---
 
 end # module
