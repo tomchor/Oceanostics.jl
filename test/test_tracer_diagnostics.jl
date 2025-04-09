@@ -4,7 +4,7 @@ using CUDA: has_cuda_gpu, @allowscalar
 using Oceananigans
 using Oceananigans: fill_halo_regions!
 using Oceananigans.AbstractOperations: AbstractOperation
-using Oceananigans.Fields: @compute, ConstantField
+using Oceananigans.Fields: @compute
 using Oceananigans.Grids: znode
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using Oceananigans.BuoyancyFormulations: buoyancy
@@ -177,32 +177,27 @@ end
 
 function test_mixed_layer_depth(grid, buoyancy; zₘₓₗ = 0.5, δb = -1e-4 * 9.81, naive_thermal_expansion=0.000167)
     density_is_defined = (!(buoyancy isa BuoyancyTracer)) && (buoyancy.equation_of_state isa BoussinesqEquationOfState)
-
     ∂z_b = - δb / zₘₓₗ
 
     if buoyancy isa BuoyancyTracer
         boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_b))
-
         C = (; b = CenterField(grid; boundary_conditions))
+
     else
         g = buoyancy.gravitational_acceleration
-
         ∂z_T = ∂z_b / (g * naive_thermal_expansion)
 
         boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_T))
-        
         C = (; T = CenterField(grid; boundary_conditions), S = CenterField(grid))
     end
-    
+
     mld_b = MixedLayerDepth(grid, buoyancy, C; criterion = BuoyancyAnomalyCriterion(δb))
 
     if density_is_defined
         ρᵣ = buoyancy.equation_of_state.reference_density
-
         δρ = - δb * ρᵣ / g
 
         criterion = DensityAnomalyCriterion(buoyancy; threshold = convert(eltype(grid), δρ))
-
         mld_ρ = MixedLayerDepth(grid, buoyancy, C; criterion)
     end 
 
@@ -251,9 +246,11 @@ end
                     test_buoyancy_diagnostics(model)
                 end
 
+                @info "            Testing mixed layer depth diagnostic"
                 if !isnothing(buoyancy)
-                    @info "            Testing mixed layer depth diagnostic"
                     test_mixed_layer_depth(grid, buoyancy)
+                else
+                    @test_throws ErrorException test_mixed_layer_depth(grid, buoyancy)
                 end
             end
         end
