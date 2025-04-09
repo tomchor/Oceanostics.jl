@@ -448,6 +448,9 @@ end
 
 const Q = QVelocityGradientTensorInvariant
 
+"""
+    $(TYPEDEF)
+"""
 struct MixedLayerDepthKernel{C}
     criterion::C
 end
@@ -484,6 +487,8 @@ function (MLD::MixedLayerDepthKernel)(i, j, k, grid, args...)
 end
 
 """
+    $(TYPEDEF)
+
 An abstract mixed layer depth criterion where the mixed layer is defined to be
 `anomaly` + `threshold` greater than the surface value of `anomaly`.
 
@@ -516,6 +521,8 @@ end
 end
 
 """
+    $(TYPEDEF)
+
 Defines the mixed layer to be the depth at which the buoyancy is more than `threshold` greater than
 the surface buoyancy (but the pertubaton is usually negative).
 
@@ -534,6 +541,8 @@ validate_criterion_model(::BuoyancyAnomalyCriterion, buoyancy_formulation, C) = 
 @inline anomaly(::BuoyancyAnomalyCriterion, i, j, k, grid, buoyancy_formulation, C) = buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, buoyancy_formulation, C)
 
 """
+    $(TYPEDEF)
+
 Defines the mixed layer to be the depth at which the density is more than `threshold`
 greater than the surface density.
 
