@@ -17,7 +17,7 @@ using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.BuoyancyFormulations: buoyancy
-using Oceananigans.Grids: Center, Face, NegativeZDirection, ZDirection, znode
+using Oceananigans.Grids: AbstractGrid, Center, Face, NegativeZDirection, ZDirection, znode
 
 using SeawaterPolynomials: ρ′, BoussinesqEquationOfState
 using SeawaterPolynomials.SecondOrderSeawaterPolynomials: SecondOrderSeawaterPolynomial
@@ -447,7 +447,7 @@ end
 
 const Q = QVelocityGradientTensorInvariant
 
-struct MixedLayerDepth{C}
+struct MixedLayerDepthKernel{C}
     criterion::C
 end
 
@@ -459,30 +459,26 @@ Returns the mixed layer depth defined as the depth at which `criterion` is true.
 Defaults to `DensityAnomalyCriterion` where the depth is that at which the density
 is some threshold (defaults to 0.125kg/m³) higher than the surface density.
 
-When `DensityAnomalyCriterion` is used, the arguments `buoyancy` and `C` should be 
-supplied where `buoyancy` should be the buoyancy model, and `C` should be a named 
-tuple of `(; T, S)`, `(; T)` or `(; S)` (the latter two if the buoyancy model 
+When `DensityAnomalyCriterion` is used, the arguments `buoyancy_formulation` and `C` should be
+supplied where `buoyancy_formulation` should be the buoyancy model, and `C` should be a named
+tuple of `(; T, S)`, `(; T)` or `(; S)` (the latter two if the buoyancy model
 specifies a constant salinity or temperature).
 """
 function MixedLayerDepth(grid::AbstractGrid, args...; criterion = BuoyancyAnomalyCriterion(convert(eltype(grid), -1e-4 * g_Earth)))
     validate_criterion_model(criterion, args...)
-
-    MLD = MixedLayerDepth(criterion)
-
+    MLD = MixedLayerDepthKernel(criterion)
     return KernelFunctionOperation{Center, Center, Nothing}(MLD, grid, args...)
 end
 
-function (MLD::MixedLayerDepth)(i, j, k, grid, args...)
+function (MLD::MixedLayerDepthKernel)(i, j, k, grid, args...)
     kₘₗ = -1
 
     for k in grid.Nz-1:-1:1
         below_mixed_layer = MLD.criterion(i, j, k, grid, args...)
-
         kₘₗ = ifelse(below_mixed_layer & (kₘₗ < 0), k, kₘₗ)
     end
 
     zₘₗ = interpolate_from_nearest_cell(MLD.criterion, i, j, kₘₗ, grid, args...)
-    
     return ifelse(kₘₗ == -1, -Inf, zₘₗ)
 end
 
@@ -499,7 +495,6 @@ abstract type AbstractAnomalyCriterion end
     δ = criterion.threshold
 
     ref = (anomaly(criterion, i, j, grid.Nz, grid, args...) + anomaly(criterion, i, j, grid.Nz+1, grid, args...)) * convert(eltype(grid), 0.5)
-
     val = anomaly(criterion, i, j, k, grid,args...)
 
     return val < ref + δ
@@ -522,24 +517,22 @@ end
 """
     $(SIGNATURES)
 
-Defines the mixed layer to be the depth at which the buoyancy is more than `threshold`
-greater than the surface buoyancy (but the pertubaton is usually negative).
+Defines the mixed layer to be the depth at which the buoyancy is more than `threshold` greater than
+the surface buoyancy (but the pertubaton is usually negative).
 
-When this model is used, the arguments `buoyancy` and `C` should be 
-supplied where `buoyancy` should be the buoyancy model, and `C` should be a named 
-tuple of `(; T, S)`, `(; T)` or `(; S)` (the latter two if the buoyancy model 
-specifies a constant salinity or temperature).
+When this model is used, the arguments `buoyancy_formulation` and `C` should be supplied where `C`
+should be the named tuple `(; b)`, with `b` the buoyancy tracer.
 """
 @kwdef struct BuoyancyAnomalyCriterion{FT} <: AbstractAnomalyCriterion
     threshold :: FT = -1e-4 * g_Earth
 end
 
-validate_criterion_model(::BuoyancyAnomalyCriterion, args...) = 
-    @error "For DensityAnomalyCriterion you must supply the arguments buoyancy and C, where C is a named tuple of (; T, S), (; T) or (; S)"
+validate_criterion_model(::BuoyancyAnomalyCriterion, args...) =
+    @error "For BuoyancyAnomalyCriterion you must supply the arguments `buoyancy_formulation` and `C`, where `C` is the named tuple `(; b)`, with `b` the buoyancy tracer."
 
-validate_criterion_model(::BuoyancyAnomalyCriterion, buoyancy, C) = nothing
+validate_criterion_model(::BuoyancyAnomalyCriterion, buoyancy_formulation, C) = nothing
 
-@inline anomaly(::BuoyancyAnomalyCriterion, i, j, k, grid, buoyancy, C) = buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, buoyancy, C)
+@inline anomaly(::BuoyancyAnomalyCriterion, i, j, k, grid, buoyancy_formulation, C) = buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, buoyancy_formulation, C)
 
 """
     $(SIGNATURES)
@@ -547,10 +540,10 @@ validate_criterion_model(::BuoyancyAnomalyCriterion, buoyancy, C) = nothing
 Defines the mixed layer to be the depth at which the density is more than `threshold`
 greater than the surface density.
 
-When this model is used, the arguments `buoyancy` and `C` should be 
-supplied where `buoyancy` should be the buoyancy model, and `C` should be a named 
-tuple of `(; T, S)`, `(; T)` or `(; S)` (the latter two if the buoyancy model 
-specifies a constant salinity or temperature).
+When this model is used, the arguments `buoyancy_formulation` and `C` should be supplied where
+`buoyancy_formulation` should be the buoyancy model, and `C` should be a named tuple of `(; T, S)`,
+`(; T)` or `(; S)` (the latter two if the buoyancy model specifies a constant salinity or
+temperature).
 """
 @kwdef struct DensityAnomalyCriterion{FT} <: AbstractAnomalyCriterion
              reference_density :: FT = 1020.0
@@ -558,24 +551,23 @@ specifies a constant salinity or temperature).
                      threshold :: FT = 0.125
 end
 
-function DensityAnomalyCriterion(buoyancy::SeawaterBuoyancy{<:Any, <:BoussinesqEquationOfState}; threshold = 0.125)
-    ρᵣ = buoyancy.equation_of_state.reference_density
-    g  = buoyancy.gravitational_acceleration
+function DensityAnomalyCriterion(buoyancy_formulation::SeawaterBuoyancy{<:Any, <:BoussinesqEquationOfState}; threshold = 0.125)
+    ρᵣ = buoyancy_formulation.equation_of_state.reference_density
+    g  = buoyancy_formulation.gravitational_acceleration
 
     return DensityAnomalyCriterion(ρᵣ, g, threshold)
 end
 
-validate_criterion_model(::DensityAnomalyCriterion, args...) = 
-    @error "For DensityAnomalyCriterion you must supply the arguments buoyancy and C, where C is a named tuple of (; T, S), (; T) or (; S)"
+validate_criterion_model(::DensityAnomalyCriterion, args...) =
+    @error "For DensityAnomalyCriterion you must supply the arguments buoyancy_formulation and C, where C is a named tuple of (; T, S), (; T) or (; S)"
 
-validate_criterion_model(::DensityAnomalyCriterion, buoyancy, C) = nothing
+validate_criterion_model(::DensityAnomalyCriterion, buoyancy_formulation, C) = nothing
     
-@inline function anomaly(criterion::DensityAnomalyCriterion, i, j, k, grid, buoyancy, C)
+@inline function anomaly(criterion::DensityAnomalyCriterion, i, j, k, grid, buoyancy_formulation, C)
+    b = buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, buoyancy_formulation, C)
+
     ρᵣ = criterion.reference_density
     g  = criterion.gravitational_acceleration
-
-    b = buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, buoyancy, C)
-
     return - ρᵣ * b / g
 end
 

@@ -249,11 +249,11 @@ end
 
                     @info "            Testing buoyancy diagnostics"
                     test_buoyancy_diagnostics(model)
+                end
 
-                    if !isnothing(buoyancy)
-                        @info "            Testing mixed layer depth diagnostic"
-                        test_mixed_layer_depth(grid, buoyancy)
-                    end
+                if !isnothing(buoyancy)
+                    @info "            Testing mixed layer depth diagnostic"
+                    test_mixed_layer_depth(grid, buoyancy)
                 end
             end
         end
