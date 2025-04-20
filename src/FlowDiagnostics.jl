@@ -187,10 +187,10 @@ is defined as
 where `f` is the Coriolis frequency, `ωᶻ` is the relative vorticity in the `z` direction, `b` is the buoyancy, and
 `∂U/∂z` and `∂V/∂z` comprise the thermal wind shear.
 """
-function ThermalWindPotentialVorticity(model; tracer = :b, location = (Face, Face, Face))
+function ThermalWindPotentialVorticity(model; tracer_index = :b, location = (Face, Face, Face))
     validate_location(location, "ThermalWindPotentialVorticity", (Face, Face, Face))
     u, v, w = model.velocities
-    return ThermalWindPotentialVorticity(model, u, v, model.tracers[tracer], model.coriolis; location)
+    return ThermalWindPotentialVorticity(model, u, v, model.tracers[tracer_index], model.coriolis; location)
 end
 
 function ThermalWindPotentialVorticity(model, u, v, tracer, coriolis; location = (Face, Face, Face))
@@ -276,9 +276,9 @@ Note that EPV values are correctly calculated both in the interior and the bound
 interior and top boundary, EPV = f×N² = 10⁻¹⁰, while EPV = 0 at the bottom boundary since ∂b/∂z
 is zero there.
 """
-function ErtelPotentialVorticity(model; tracer = :b, location = (Face, Face, Face))
+function ErtelPotentialVorticity(model; tracer_index = :b, location = (Face, Face, Face))
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
-    return ErtelPotentialVorticity(model, model.velocities..., model.tracers[tracer], model.coriolis; location)
+    return ErtelPotentialVorticity(model, model.velocities..., model.tracers[tracer_index], model.coriolis; location)
 end
 
 function ErtelPotentialVorticity(model, u, v, w, tracer, coriolis; location = (Face, Face, Face))
@@ -324,9 +324,9 @@ basde on a `model` and a `direction`. The Ertel Potential Vorticity is defined a
 where ωₜₒₜ is the total (relative + planetary) vorticity vector, `b` is the buoyancy and ∇ is the gradient
 operator.
 """
-function DirectionalErtelPotentialVorticity(model, direction; tracer = :b, location = (Face, Face, Face))
+function DirectionalErtelPotentialVorticity(model, direction; tracer_index = :b, location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
-    return DirectionalErtelPotentialVorticity(model, direction, model.velocities..., model.tracers[tracer], model.coriolis; location)
+    return DirectionalErtelPotentialVorticity(model, direction, model.velocities..., model.tracers[tracer_index], model.coriolis; location)
 end
 
 

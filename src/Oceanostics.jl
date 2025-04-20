@@ -9,6 +9,10 @@ export PressureRedistributionTerm
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 #---
 
+#+++ TracerBudgetTerms exports
+export TracerAdvection
+#---
+
 #+++ TracerVarianceBudgetTerms exports
 export TracerVarianceTendency
 export TracerVarianceDiffusiveTerm
@@ -135,12 +139,13 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
 #---
 
 include("TKEBudgetTerms.jl")
+include("TracerBudgetTerms.jl")
 include("TracerVarianceBudgetTerms.jl")
 include("FlowDiagnostics.jl")
 include("PotentialEnergyEquationTerms.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
-using .TKEBudgetTerms, .TracerVarianceBudgetTerms, .FlowDiagnostics, .ProgressMessengers
+using .TKEBudgetTerms, .TracerBudgetTerms, .TracerVarianceBudgetTerms, .FlowDiagnostics, .ProgressMessengers
 using .PotentialEnergyEquationTerms
 
 end # module
