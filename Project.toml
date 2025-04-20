@@ -4,11 +4,9 @@ authors = ["tomchor <tomaschor@gmail.com>"]
 version = "0.15.2"
 
 [deps]
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 SeawaterPolynomials = "d496a93d-167e-4197-9f49-d3af4ff8fe40"
 
 [compat]
