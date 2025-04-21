@@ -99,7 +99,7 @@ function test_buoyancy_diagnostics(model)
     end
 
     if model.buoyancy != nothing && model.buoyancy.formulation isa SeawaterBuoyancy{<:Any, <:LinearEquationOfState}
-        EPV = ErtelPotentialVorticity(model, tracer=:T)
+        EPV = ErtelPotentialVorticity(model, tracer_index = :T)
         @test EPV isa AbstractOperation
         EPV_field = compute!(Field(EPV))
         @test EPV_field isa Field

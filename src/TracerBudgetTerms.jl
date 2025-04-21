@@ -19,7 +19,7 @@ Calculates the advection of the tracer `c` as
 using Oceananigans' kernel `div_Uc`.
 
 ```jldoctest
-julia> using Oceananigans
+julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
