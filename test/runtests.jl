@@ -7,6 +7,10 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
         include("test_velocity_diagnostics.jl")
     end
 
+    if group == :tracer_diagnostics || group == :all
+        include("test_tracer_diagnostics.jl")
+    end
+
     if group == :ke_diagnostics || group == :all
         include("test_ke_diagnostics.jl")
     end

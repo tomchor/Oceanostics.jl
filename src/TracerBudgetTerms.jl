@@ -1,5 +1,4 @@
 module TracerBudgetTerms
-using DocStringExtensions
 
 using Oceananigans: fields, Center, KernelFunctionOperation
 using Oceananigans.Models.NonhydrostaticModels: div_Uc
@@ -9,6 +8,7 @@ using Oceanostics: validate_location
 export TracerAdvection
 
 #+++ Advection
+
 """
     $(SIGNATURES)
 
