@@ -1,4 +1,5 @@
 module TracerVarianceBudgetTerms
+using DocStringExtensions
 
 export TracerVarianceDissipationRate, TracerVarianceTendency, TracerVarianceDiffusiveTerm
 

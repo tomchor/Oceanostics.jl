@@ -138,8 +138,8 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
                                                                      _νᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], K[2:end], clock)
 #---
 
-include("TKEBudgetTerms.jl")
 include("TracerBudgetTerms.jl")
+include("TKEBudgetTerms.jl")
 include("TracerVarianceBudgetTerms.jl")
 include("FlowDiagnostics.jl")
 include("PotentialEnergyEquationTerms.jl")

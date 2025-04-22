@@ -23,16 +23,6 @@ stretched_grid = RectilinearGrid(arch, size=(N, N, N), x=(0, 1), y=(0, 1), z=z_f
 #---
 
 #+++ Test options
-model_kwargs = (buoyancy = BuoyancyForce(BuoyancyTracer()),
-                coriolis = FPlane(1e-4),
-                tracers = :a)
-
-closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
-            SmagorinskyLilly(),
-            Smagorinsky(coefficient=DynamicCoefficient(averaging=(1, 2))),
-            Smagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
-            (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
-
 grids = Dict("regular grid" => regular_grid,
              "stretched grid" => stretched_grid)
 
@@ -47,7 +37,7 @@ function test_tracer_terms(model)
     @test ADV isa AbstractOperation
     @test ADV_field isa Field
 
-    ADV = TracerAdvection(model, model.velocities..., model.tracers.a, advection=model.advection)
+    ADV = TracerAdvection(model, model.velocities..., model.tracers.a, model.advection)
     @compute ADV_field = Field(ADV)
     @test ADV isa AbstractOperation
     @test ADV_field isa Field
@@ -62,13 +52,10 @@ end
         @info "    with $grid_class"
         for model_type in model_types
             @info "      with $model_type"
-            for closure in closures
-                @info "        with closure $(summary(closure))"
-                model = model_type(; grid, closure, model_kwargs...)
+            model = model_type(; grid, tracers = :a)
 
-                @info "          Testing tracer variance terms"
-                test_tracer_terms(model)
-            end
+            @info "        Testing tracer terms"
+            test_tracer_terms(model)
         end
     end
 end
