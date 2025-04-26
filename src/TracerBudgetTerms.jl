@@ -123,8 +123,8 @@ julia> model = NonhydrostaticModel(; grid, tracers=:a);
 julia> FORC = TracerForcing(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: (u=zeroforcing (generic function with 1 method), v=zeroforcing (generic function with 1 method), w=zeroforcing (generic function with 1 method), a=zeroforcing (generic function with 1 method))
-└── arguments: ("Symbol", "(u=4×4×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=4×4×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=4×4×5 Field{Center, Center, Face} on RectilinearGrid on CPU, a=4×4×4 Field{Center, Center, Center} on RectilinearGrid on CPU)")
+├── kernel_function: zeroforcing (generic function with 1 method)
+└── arguments: ("Clock{Float64, Float64}(time=0 seconds, iteration=0, last_Δt=Inf days)", "(u=4×4×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=4×4×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=4×4×5 Field{Center, Center, Face} on RectilinearGrid on CPU, a=4×4×4 Field{Center, Center, Center} on RectilinearGrid on CPU)")
 ```
 """
 function TracerForcing(model, forcing, clock, model_fields; location = (Center, Center, Center))
@@ -133,6 +133,31 @@ end
 
 function TracerForcing(model, tracer_index; location = (Center, Center, Center))
     return TracerForcing(model, model.forcing[tracer_index], model.clock, fields(model); location)
+end
+#---
+
+#+++ Biogeochemistry
+"""
+    $(SIGNATURES)
+
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(; grid, tracers=:a);
+
+julia> BIO = TracerBiogeochemistry(model, :a, model.biogeochemistry, model.clock, fields(model))
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: biogeochemical_transition (generic function with 3 methods)
+└── arguments: ("Nothing", "Symbol", "Clock{Float64, Float64}(time=0 seconds, iteration=0, last_Δt=Inf days)", "(u=4×4×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=4×4×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=4×4×5 Field{Center, Center, Face} on RectilinearGrid on CPU, a=4×4×4 Field{Center, Center, Center} on RectilinearGrid on CPU)")
+```
+"""
+function TracerBiogeochemistry(model, val_tracer_name, biogeochemistry, clock, model_fields; location = (Center, Center, Center))
+    validate_location(location, "TracerBiogeochemistry", (Center, Center, Center))
+    return KernelFunctionOperation{Center, Center, Center}(biogeochemical_transition, model.grid, biogeochemistry, val_tracer_name, clock, model_fields)
 end
 #---
 
