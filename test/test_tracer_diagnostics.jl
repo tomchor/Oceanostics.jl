@@ -32,15 +32,29 @@ model_types = (NonhydrostaticModel,
 
 #+++ Test functions
 function test_tracer_terms(model)
+    if model isa NonhydrostaticModel
+        ADV = TracerAdvection(model, model.velocities..., model.tracers.a, model.advection)
+    elseif model isa HydrostaticFreeSurfaceModel
+        ADV = TracerAdvection(model, model.velocities..., model.tracers.a, model.advection.a)
+    end
+    @compute ADV_field = Field(ADV)
+    @test ADV isa AbstractOperation
+    @test ADV_field isa Field
+
     ADV = TracerAdvection(model, :a)
     @compute ADV_field = Field(ADV)
     @test ADV isa AbstractOperation
     @test ADV_field isa Field
 
-    ADV = TracerAdvection(model, model.velocities..., model.tracers.a, model.advection)
-    @compute ADV_field = Field(ADV)
-    @test ADV isa AbstractOperation
-    @test ADV_field isa Field
+    DIFF = TracerDiffusion(model, :a, model.tracers.a, model.closure, model.diffusivity_fields)
+    @compute DIFF_field = Field(DIFF)
+    @test DIFF isa AbstractOperation
+    @test DIFF_field isa Field
+
+    DIFF = TracerDiffusion(model, :a)
+    @compute DIFF_field = Field(DIFF)
+    @test DIFF isa AbstractOperation
+    @test DIFF_field isa Field
 
     return nothing
 end

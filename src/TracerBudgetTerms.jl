@@ -2,11 +2,12 @@ module TracerBudgetTerms
 using DocStringExtensions
 
 using Oceananigans: fields, Center, KernelFunctionOperation
-using Oceananigans.Models.NonhydrostaticModels: div_Uc, ∇_dot_qᶜ, immersed_∇_dot_qᶜ
+using Oceananigans.Models: HydrostaticFreeSurfaceModel
+using Oceananigans.Models.NonhydrostaticModels: div_Uc, ∇_dot_qᶜ, immersed_∇_dot_qᶜ, biogeochemical_transition
 
 using Oceanostics: validate_location
 
-export TracerAdvection, TracerDiffusion, ImmersedTracerDiffusion
+export TracerAdvection, TracerDiffusion, ImmersedTracerDiffusion, TracerForcing, TracerBiogeochemistry
 
 #+++ Advection
 
@@ -33,7 +34,7 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("Centered(order=2)", "(u=4×4×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=4×4×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=4×4×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "4×4×4 Field{Center, Center, Center} on RectilinearGrid on CPU")
 ```
 """
-function TracerAdvection(model, u, v, w, c, advection=model.advection; location = (Center, Center, Center))
+function TracerAdvection(model, u, v, w, c, advection; location = (Center, Center, Center))
     validate_location(location, "TracerAdvection", (Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(div_Uc, model.grid, advection, (; u, v, w), c)
 end
@@ -41,6 +42,12 @@ end
 function TracerAdvection(model, tracer_index; location = (Center, Center, Center))
     @inbounds c = model.tracers[tracer_index]
     return TracerAdvection(model, model.velocities..., c, model.advection; location)
+end
+
+function TracerAdvection(model::HydrostaticFreeSurfaceModel, tracer_index; location = (Center, Center, Center))
+    @inbounds c = model.tracers[tracer_index]
+    advection = model.advection[tracer_index]
+    return TracerAdvection(model, model.velocities..., c, advection; location)
 end
 #---
 
