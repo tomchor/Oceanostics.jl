@@ -22,6 +22,15 @@ z_faces(k) = ((F1 + F2)/2 - f_asin(k)) / (F1 - F2)
 stretched_grid = RectilinearGrid(arch, size=(N, N, N), x=(0, 1), y=(0, 1), z=z_faces)
 #---
 
+#+++ Model arguments
+tracers = :a
+
+forcing_function(x, y, z, t) = sin(t)
+forcing = (; a = Forcing(forcing_function))
+
+model_kwargs = (; tracers, forcing)
+#---
+
 #+++ Test options
 grids = Dict("regular grid" => regular_grid,
              "stretched grid" => stretched_grid)
@@ -56,6 +65,16 @@ function test_tracer_terms(model)
     @test DIFF isa AbstractOperation
     @test DIFF_field isa Field
 
+    FORC = TracerForcing(model, model.forcing.a, model.clock, fields(model))
+    @compute FORC_field = Field(FORC)
+    @test FORC isa AbstractOperation
+    @test FORC_field isa Field
+
+    FORC = TracerForcing(model, :a)
+    @compute FORC_field = Field(FORC)
+    @test FORC isa AbstractOperation
+    @test FORC_field isa Field
+
     return nothing
 end
 #---
@@ -66,7 +85,7 @@ end
         @info "    with $grid_class"
         for model_type in model_types
             @info "      with $model_type"
-            model = model_type(; grid, tracers = :a)
+            model = model_type(; grid, model_kwargs...)
 
             @info "        Testing tracer terms"
             test_tracer_terms(model)
