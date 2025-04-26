@@ -75,11 +75,6 @@ function test_tracer_terms(model)
     @test FORC isa AbstractOperation
     @test FORC_field isa Field
 
-    BIO = TracerBiogeochemistry(model, :a, model.biogeochemistry, model.clock, fields(model))
-    @compute BIO_field = Field(BIO)
-    @test BIO isa AbstractOperation
-    @test BIO_field isa Field
-
     return nothing
 end
 #---
