@@ -12,14 +12,18 @@ using Oceanostics
 arch = has_cuda_gpu() ? GPU() : CPU()
 
 N = 6
-regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
+underlying_regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
 
 S = .99 # Stretching factor. Positive number ∈ (0, 1]
 f_asin(k) = -asin(S*(2k - N - 2) / N)/π + 1/2
 F1 = f_asin(1); F2 = f_asin(N+1)
 z_faces(k) = ((F1 + F2)/2 - f_asin(k)) / (F1 - F2)
 
-stretched_grid = RectilinearGrid(arch, size=(N, N, N), x=(0, 1), y=(0, 1), z=z_faces)
+underlying_stretched_grid = RectilinearGrid(arch, size=(N, N, N), x=(0, 1), y=(0, 1), z=z_faces)
+
+bottom(x, y) = -1/2
+regular_grid   = ImmersedBoundaryGrid(underlying_regular_grid, GridFittedBottom(bottom))
+stretched_grid = ImmersedBoundaryGrid(underlying_stretched_grid, GridFittedBottom(bottom))
 #---
 
 #+++ Model arguments
@@ -27,6 +31,10 @@ tracers = :a
 
 forcing_function(x, y, z, t) = sin(t)
 forcing = (; a = Forcing(forcing_function))
+
+sine_function(x, y, t) = sin(t)
+value_bc = ValueBoundaryCondition(sine_function)
+boundary_conditions = (; a = value_bc)
 
 model_kwargs = (; tracers, forcing)
 #---

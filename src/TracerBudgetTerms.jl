@@ -96,8 +96,8 @@ julia> model = NonhydrostaticModel(; grid, tracers=:a);
 julia> DIFF = ImmersedTracerDiffusion(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: ∇_dot_qᶜ (generic function with 10 methods)
-└── arguments: ("Nothing", "Nothing", "Val{:a}", "4×4×4 Field{Center, Center, Center} on RectilinearGrid on CPU", "Clock{Float64, Float64}(time=0 seconds, iteration=0, last_Δt=Inf days)", "(u=4×4×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=4×4×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=4×4×5 Field{Center, Center, Face} on RectilinearGrid on CPU, a=4×4×4 Field{Center, Center, Center} on RectilinearGrid on CPU)", "Nothing")
+├── kernel_function: immersed_∇_dot_qᶜ (generic function with 2 methods)
+└── arguments: ("4×4×4 Field{Center, Center, Center} on RectilinearGrid on CPU", "FluxBoundaryCondition: Nothing", "Nothing", "Nothing", "Val{:a}", "Clock{Float64, Float64}(time=0 seconds, iteration=0, last_Δt=Inf days)", "(u=4×4×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=4×4×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=4×4×5 Field{Center, Center, Face} on RectilinearGrid on CPU, a=4×4×4 Field{Center, Center, Center} on RectilinearGrid on CPU)")
 ```
 """
 function ImmersedTracerDiffusion(model, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields; location = (Center, Center, Center))
