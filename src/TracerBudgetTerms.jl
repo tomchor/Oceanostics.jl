@@ -100,11 +100,15 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("Nothing", "Nothing", "Val{:a}", "4×4×4 Field{Center, Center, Center} on RectilinearGrid on CPU", "Clock{Float64, Float64}(time=0 seconds, iteration=0, last_Δt=Inf days)", "(u=4×4×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=4×4×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=4×4×5 Field{Center, Center, Face} on RectilinearGrid on CPU, a=4×4×4 Field{Center, Center, Center} on RectilinearGrid on CPU)", "Nothing")
 ```
 """
-function ImmersedTracerDiffusion(model, c, c_immersed_bc=c.boundary_conditions.immersed,
-                                 closure=model.closure, diffusivity_fields=model.diffusivity_fields, val_tracer_index=1, clock=model.clock, model_fields=fields(model);
-                                 location = (Center, Center, Center))
+function ImmersedTracerDiffusion(model, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields; location = (Center, Center, Center))
     validate_location(location, "ImmersedTracerDiffusion", (Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(immersed_∇_dot_qᶜ, model.grid, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields)
+end
+
+function ImmersedTracerDiffusion(model, tracer_index; location = (Center, Center, Center))
+    tracer = model.tracers[tracer_index]
+    immersed_bc = tracer.boundary_conditions.immersed
+    return ImmersedTracerDiffusion(model, tracer, immersed_bc, model.closure, model.diffusivity_fields, Val(tracer_index), model.clock, fields(model); location)
 end
 #---
 
