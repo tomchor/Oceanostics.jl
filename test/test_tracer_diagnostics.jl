@@ -29,14 +29,14 @@ stretched_grid = ImmersedBoundaryGrid(underlying_stretched_grid, GridFittedBotto
 #+++ Model arguments
 tracers = :a
 
-forcing_function(x, y, z, t) = sin(t)
+forcing_function(x, y, z, t) = cos(t)
 forcing = (; a = Forcing(forcing_function))
 
-sine_function(x, y, t) = sin(t)
-value_bc = ValueBoundaryCondition(sine_function)
-boundary_conditions = (; a = value_bc)
+bc_function(x, y, z, t) = cos(t)
+immersed_bc = FluxBoundaryCondition(bc_function)
+boundary_conditions = (; a = FieldBoundaryConditions(immersed=immersed_bc))
 
-model_kwargs = (; tracers, forcing)
+model_kwargs = (; tracers, forcing, boundary_conditions)
 #---
 
 #+++ Test options
@@ -74,7 +74,7 @@ function test_tracer_terms(model)
     @test DIFF_field isa Field
 
     DIFF = ImmersedTracerDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
-                                   model.closure, model.diffusivity_fields, :a, model.clock, fields(model))
+                                   model.closure, model.diffusivity_fields, Val(:a), model.clock, fields(model))
     @compute DIFF_field = Field(DIFF)
     @test DIFF isa AbstractOperation
     @test DIFF_field isa Field
