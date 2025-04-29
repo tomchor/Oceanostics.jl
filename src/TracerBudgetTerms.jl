@@ -10,7 +10,6 @@ using Oceanostics: validate_location
 export TracerAdvection, TracerDiffusion, ImmersedTracerDiffusion, TracerForcing
 
 #+++ Advection
-
 """
     $(SIGNATURES)
 
@@ -18,7 +17,7 @@ Calculates the advection of the tracer `c` as
 
     ADV = ∂ⱼ (uⱼ c)
 
-using Oceananigans' kernel `div_Uc`.
+using Oceananigans' kernel [`div_Uc`.](https://clima.github.io/OceananigansDocumentation/stable/appendix/library/#Oceananigans.Advection.div_Uc-NTuple{7,%20Any})
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -52,10 +51,14 @@ end
 #---
 
 #+++ Diffusion
-
 """
     $(SIGNATURES)
 
+Calculates the diffusion term (excluding anything due to the bathymetry) as
+
+    DIFF = ∂ⱼ qᶜⱼ,
+
+where qᶜⱼ is the diffusion tensor for tracer `c`, using the Oceananigans' kernel `∇_dot_qᶜ`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -84,6 +87,13 @@ end
 
 """
     $(SIGNATURES)
+
+Calculates the diffusion term due to the bathymetry term as
+
+    DIFF = ∂ⱼ 𝓆ᶜⱼ,
+
+where 𝓆ᶜⱼ is the bathyemtry-led diffusion tensor for tracer `c`, using the Oceananigans' kernel
+`immersed_∇_dot_qᶜ`.
 
 
 ```jldoctest
@@ -116,6 +126,7 @@ end
 """
     $(SIGNATURES)
 
+Calculate the forcing term `Fᶜ` on the equation for tracer `c` for `model`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
