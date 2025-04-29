@@ -45,8 +45,8 @@ end
 
 function TracerAdvection(model::HydrostaticFreeSurfaceModel, tracer_index; kwargs...)
     @inbounds c = model.tracers[tracer_index]
-    advection = model.advection[tracer_index]
-    return TracerAdvection(model, model.velocities..., c, advection; kwargs...)
+    tracer_advection = model.advection[tracer_index]
+    return TracerAdvection(model, model.velocities..., c, tracer_advection; kwargs...)
 end
 #---
 
@@ -81,7 +81,7 @@ end
 
 function TracerDiffusion(model, tracer_index; kwargs...)
     @inbounds c = model.tracers[tracer_index]
-    return TracerDiffusion(model, Val(tracer_index), c, model.closure, model.diffusivity_fields; kwargs...)
+    return TracerDiffusion(model, Val(tracer_index), c, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy; kwargs...)
 end
 
 
