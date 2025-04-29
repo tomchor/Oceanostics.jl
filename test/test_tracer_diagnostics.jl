@@ -63,7 +63,7 @@ function test_tracer_terms(model)
     @test ADV isa AbstractOperation
     @test ADV_field isa Field
 
-    DIFF = TracerDiffusion(model, :a, model.tracers.a, model.closure, model.diffusivity_fields)
+    DIFF = TracerDiffusion(model, :a, model.tracers.a, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy)
     @compute DIFF_field = Field(DIFF)
     @test DIFF isa AbstractOperation
     @test DIFF_field isa Field
