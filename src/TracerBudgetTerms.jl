@@ -38,14 +38,14 @@ function TracerAdvection(model, u, v, w, c, advection; location = (Center, Cente
     return KernelFunctionOperation{Center, Center, Center}(div_Uc, model.grid, advection, (; u, v, w), c)
 end
 
-function TracerAdvection(model, tracer_index; kwargs...)
-    @inbounds c = model.tracers[tracer_index]
+function TracerAdvection(model, tracer_name; kwargs...)
+    @inbounds c = model.tracers[tracer_name]
     return TracerAdvection(model, model.velocities..., c, model.advection; kwargs...)
 end
 
-function TracerAdvection(model::HydrostaticFreeSurfaceModel, tracer_index; kwargs...)
-    @inbounds c = model.tracers[tracer_index]
-    tracer_advection = model.advection[tracer_index]
+function TracerAdvection(model::HydrostaticFreeSurfaceModel, tracer_name; kwargs...)
+    @inbounds c = model.tracers[tracer_name]
+    tracer_advection = model.advection[tracer_name]
     return TracerAdvection(model, model.velocities..., c, tracer_advection; kwargs...)
 end
 #---
@@ -79,8 +79,9 @@ function TracerDiffusion(model, val_tracer_index, c, closure, diffusivity_fields
     return KernelFunctionOperation{Center, Center, Center}(∇_dot_qᶜ, model.grid, closure, diffusivity_fields, val_tracer_index, c, clock, model_fields, buoyancy)
 end
 
-function TracerDiffusion(model, tracer_index; kwargs...)
-    @inbounds c = model.tracers[tracer_index]
+function TracerDiffusion(model, tracer_name; kwargs...)
+    tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
+    @inbounds c = model.tracers[tracer_name]
     return TracerDiffusion(model, Val(tracer_index), c, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy; kwargs...)
 end
 
@@ -115,8 +116,9 @@ function ImmersedTracerDiffusion(model, c, c_immersed_bc, closure, diffusivity_f
     return KernelFunctionOperation{Center, Center, Center}(immersed_∇_dot_qᶜ, model.grid, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields)
 end
 
-function ImmersedTracerDiffusion(model, tracer_index; kwargs...)
-    tracer = model.tracers[tracer_index]
+function ImmersedTracerDiffusion(model, tracer_name; kwargs...)
+    tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
+    tracer = model.tracers[tracer_name]
     immersed_bc = tracer.boundary_conditions.immersed
     return ImmersedTracerDiffusion(model, tracer, immersed_bc, model.closure, model.diffusivity_fields, Val(tracer_index), model.clock, fields(model); kwargs...)
 end
@@ -154,7 +156,8 @@ function TotalTracerDiffusion(model, c, c_immersed_bc, closure, diffusivity_fiel
     return KernelFunctionOperation{Center, Center, Center}(total_∇_dot_qᶜ, model.grid, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields, buoyancy)
 end
 
-function TotalTracerDiffusion(model, tracer_index; kwargs...)
+function TotalTracerDiffusion(model, tracer_name; kwargs...)
+    tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
     tracer = model.tracers[tracer_index]
     immersed_bc = tracer.boundary_conditions.immersed
     return TotalTracerDiffusion(model, tracer, immersed_bc, model.closure, model.diffusivity_fields, Val(tracer_index), model.clock, fields(model), model.buoyancy; kwargs...)
@@ -185,8 +188,8 @@ function TracerForcing(model, forcing, clock, model_fields; location = (Center, 
     return KernelFunctionOperation{Center, Center, Center}(forcing, model.grid, clock, model_fields)
 end
 
-function TracerForcing(model, tracer_index; kwargs...)
-    return TracerForcing(model, model.forcing[tracer_index], model.clock, fields(model); kwargs...)
+function TracerForcing(model, tracer_name; kwargs...)
+    return TracerForcing(model, model.forcing[tracer_name], model.clock, fields(model); kwargs...)
 end
 #---
 
