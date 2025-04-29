@@ -10,7 +10,7 @@ export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 #---
 
 #+++ TracerBudgetTerms exports
-export TracerAdvection, TracerDiffusion, ImmersedTracerDiffusion, TracerForcing
+export TracerAdvection, TracerDiffusion, ImmersedTracerDiffusion, TotalTracerDiffusion, TracerForcing
 #---
 
 #+++ TracerVarianceBudgetTerms exports

@@ -84,6 +84,17 @@ function test_tracer_terms(model)
     @test DIFF isa AbstractOperation
     @test DIFF_field isa Field
 
+    DIFF = TotalTracerDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
+                                model.closure, model.diffusivity_fields, Val(:a), model.clock, fields(model), model.buoyancy)
+    @compute DIFF_field = Field(DIFF)
+    @test DIFF isa AbstractOperation
+    @test DIFF_field isa Field
+
+    DIFF = TotalTracerDiffusion(model, :a)
+    @compute DIFF_field = Field(DIFF)
+    @test DIFF isa AbstractOperation
+    @test DIFF_field isa Field
+
     FORC = TracerForcing(model, model.forcing.a, model.clock, fields(model))
     @compute FORC_field = Field(FORC)
     @test FORC isa AbstractOperation
