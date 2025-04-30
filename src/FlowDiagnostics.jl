@@ -6,7 +6,8 @@ export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelP
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 
-using Oceanostics: validate_location,
+using Oceanostics: AbstractDiagnostic,
+                   validate_location,
                    validate_dissipative_closure,
                    add_background_fields,
                    get_coriolis_frequency_components
@@ -158,8 +159,7 @@ end
 #---
 
 #+++ Potential vorticity
-@inline function potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, f)
-
+@inline function ertel_potential_vorticity_in_thermal_wind_fff(i, j, k, grid, u, v, b, f)
     dVdx =  ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v) # F, F, C → F, F, F
     dUdy =  ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶠᶠᶜ, u) # F, F, C → F, F, F
     dbdz = ℑxyᶠᶠᵃ(i, j, k, grid, ∂zᶜᶜᶠ, b) # C, C, F → F, F, F
@@ -172,32 +172,6 @@ end
     pv_baroc = -f * (dUdz^2 + dVdz^2)
 
     return pv_barot + pv_baroc
-end
-
-"""
-    $(SIGNATURES)
-
-Calculate the Potential Vorticty assuming thermal wind balance for `model`, where the characteristics of
-the Coriolis rotation are taken from `model.coriolis`. The Potential Vorticity in this case
-is defined as
-
-```
-    TWPV = (f + ωᶻ) ∂b/∂z - f ((∂U/∂z)² + (∂V/∂z)²)
-```
-where `f` is the Coriolis frequency, `ωᶻ` is the relative vorticity in the `z` direction, `b` is the buoyancy, and
-`∂U/∂z` and `∂V/∂z` comprise the thermal wind shear.
-"""
-function ThermalWindPotentialVorticity(model; tracer_name = :b, location = (Face, Face, Face))
-    validate_location(location, "ThermalWindPotentialVorticity", (Face, Face, Face))
-    u, v, w = model.velocities
-    return ThermalWindPotentialVorticity(model, u, v, model.tracers[tracer_name], model.coriolis; location)
-end
-
-function ThermalWindPotentialVorticity(model, u, v, tracer, coriolis; location = (Face, Face, Face))
-    validate_location(location, "ThermalWindPotentialVorticity", (Face, Face, Face))
-    fx, fy, fz = get_coriolis_frequency_components(coriolis)
-    return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid,
-                                                     u, v, tracer, fz)
 end
 
 @inline function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, fx, fy, fz)
@@ -222,14 +196,13 @@ end
 """
     $(SIGNATURES)
 
-Calculate the Ertel Potential Vorticty for `model`, where the characteristics of
-the Coriolis rotation are taken from `model.coriolis`. The Ertel Potential Vorticity
-is defined as
 
-    EPV = ωₜₒₜ ⋅ ∇b
+Calculate the Ertel Potential Vorticty, defined as
 
-where ωₜₒₜ is the total (relative + planetary) vorticity vector, `b` is the buoyancy and ∇ is the gradient
-operator.
+    EPV = ωₜₒₜ ⋅ ∇c
+
+(where ωₜₒₜ is the total (relative + planetary) vorticity vector, `c` is a conserved tracer and ∇ is the gradient
+operator), for a `model`.
 
 ```jldoctest
 julia> using Oceananigans
@@ -276,17 +249,34 @@ Note that EPV values are correctly calculated both in the interior and the bound
 interior and top boundary, EPV = f×N² = 10⁻¹⁰, while EPV = 0 at the bottom boundary since ∂b/∂z
 is zero there.
 """
-function ErtelPotentialVorticity(model; tracer_name = :b, location = (Face, Face, Face))
-    validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
-    return ErtelPotentialVorticity(model, model.velocities..., model.tracers[tracer_name], model.coriolis; location)
+struct ErtelPotentialVorticity <: AbstractDiagnostic
+    operation
+    thermal_wind
+    tracer
 end
 
-function ErtelPotentialVorticity(model, u, v, w, tracer, coriolis; location = (Face, Face, Face))
+ErtelPotentialVorticity(model; tracer::Symbol, location = (Face, Face, Face)) = ErtelPotentialVorticity(model, model.velocities..., model.tracers[tracer], model.coriolis; location)
+ErtelPotentialVorticity(model, tracer;         location = (Face, Face, Face)) = ErtelPotentialVorticity(model, model.velocities..., tracer, model.coriolis; location)
+
+function ErtelPotentialVorticity(model, u, v, w, tracer, coriolis; thermal_wind = false, location = (Face, Face, Face))
     validate_location(location, "ErtelPotentialVorticity", (Face, Face, Face))
-    fx, fy, fz = get_coriolis_frequency_components(coriolis)
-    return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid,
-                                                     u, v, w, tracer, fx, fy, fz)
+    f⃗ = get_coriolis_frequency_components(coriolis)
+    if thermal_wind
+        kfo = KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_in_thermal_wind_fff, model.grid,
+                                                        u, v, tracer, f⃗...)
+    else
+        kfo = KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid,
+                                                        u, v, w, tracer, f⃗...)
+    end
+    return ErtelPotentialVorticity(kfo, thermal_wind, tracer)
 end
+
+Base.summary(pv::ErtelPotentialVorticity) = string("ErtelPotentialVorticity$(pv.thermal_wind ? " in thermal wind balance" : ""), calculated with $(summary(pv.operation))")
+function Base.show(io::IO, pv::ErtelPotentialVorticity)
+    print(io, "ErtelPotentialVorticity$(pv.thermal_wind ? " in thermal wind balance" : ""), calculated with\n")
+    show(io, pv.operation)
+end
+
 
 @inline function directional_ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
 

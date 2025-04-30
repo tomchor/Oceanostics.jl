@@ -35,6 +35,10 @@ export PotentialEnergy
 export ProgressMessengers
 #---
 
+#+++ Define AbstractDiagnostic
+abstract type AbstractDiagnostic end
+#---
+
 #+++ Utils for validation
 # Right now, all kernels must be located at ccc
 using Oceananigans.TurbulenceClosures: AbstractScalarDiffusivity, ThreeDimensionalFormulation
