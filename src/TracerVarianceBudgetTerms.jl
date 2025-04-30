@@ -149,13 +149,13 @@ end
     $(SIGNATURES)
 
 Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
-for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is defined as 
+for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is defined as
 
 ```
     χ = 2 ∂ⱼc ⋅ Fⱼ
 ```
 where `Fⱼ` is the diffusive flux of `c` in the `j`-th direction and `∂ⱼ` is the gradient operator.
-`χ` is implemented in its conservative formulation based on the equation above. 
+`χ` is implemented in its conservative formulation based on the equation above.
 
 Note that often `χ` is written as `χ = 2κ (∇c ⋅ ∇c)`, which is the special case for Fickian diffusion
 (`κ` is the tracer diffusivity).
@@ -185,7 +185,7 @@ function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, loc
                                                            model.closure,
                                                            model.diffusivity_fields,
                                                            Val(tracer_index),
-                                                           tracer, 
+                                                           tracer,
                                                            model.clock,
                                                            fields(model),
                                                            model.buoyancy)

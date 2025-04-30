@@ -9,11 +9,17 @@ Modules = [Oceanostics]
 Private = false
 ```
 
-
 ## Oceanostics.TKEBudgetTerms
 
 ```@autodocs
 Modules = [Oceanostics.TKEBudgetTerms]
+Private = false
+```
+
+## Oceanostics.TracerBudgetTerms
+
+```@autodocs
+Modules = [Oceanostics.TracerBudgetTerms]
 Private = false
 ```
 

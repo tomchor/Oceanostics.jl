@@ -4,6 +4,7 @@ using DocStringExtensions
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
+export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 
 using Oceanostics: AbstractDiagnostic,
                    validate_location,
@@ -12,11 +13,15 @@ using Oceanostics: AbstractDiagnostic,
                    get_coriolis_frequency_components
 
 using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyField, BuoyancyTracer
+using Oceananigans.BuoyancyFormulations: get_temperature_and_salinity, SeawaterBuoyancy, g_Earth, buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.BuoyancyFormulations: buoyancy
-using Oceananigans.Grids: Center, Face, NegativeZDirection, ZDirection
+using Oceananigans.Grids: AbstractGrid, Center, Face, NegativeZDirection, ZDirection, znode
+
+using SeawaterPolynomials: ρ′, BoussinesqEquationOfState
+using SeawaterPolynomials.SecondOrderSeawaterPolynomials: SecondOrderSeawaterPolynomial
 
 #+++ Richardson number
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -111,7 +116,7 @@ end
     return (ω_x*params.fx + ω_y*params.fy + ω_z*params.fz)/(params.fx^2 + params.fy^2 + params.fz^2)
 end
 
-""" 
+"""
     $(SIGNATURES)
 
 Calculate the Rossby number using the vorticity in the rotation axis direction according
@@ -135,7 +140,7 @@ function RossbyNumber(model; location = (Face, Face, Face), add_background = tru
         u, v, w = model.velocities
     end
 
-    return RossbyNumber(model, u, v, w, model.coriolis; location, 
+    return RossbyNumber(model, u, v, w, model.coriolis; location,
                         dWdy_bg, dVdz_bg, dUdz_bg, dWdx_bg, dUdy_bg, dVdx_bg)
 end
 
@@ -309,9 +314,9 @@ basde on a `model` and a `direction`. The Ertel Potential Vorticity is defined a
 where ωₜₒₜ is the total (relative + planetary) vorticity vector, `b` is the buoyancy and ∇ is the gradient
 operator.
 """
-function DirectionalErtelPotentialVorticity(model, direction; tracer = :b, location = (Face, Face, Face))
+function DirectionalErtelPotentialVorticity(model, direction; tracer_name = :b, location = (Face, Face, Face))
     validate_location(location, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
-    return DirectionalErtelPotentialVorticity(model, direction, model.velocities..., model.tracers[tracer], model.coriolis; location)
+    return DirectionalErtelPotentialVorticity(model, direction, model.velocities..., model.tracers[tracer_name], model.coriolis; location)
 end
 
 
@@ -327,7 +332,7 @@ function DirectionalErtelPotentialVorticity(model, direction, u, v, w, tracer, c
 end
 #---
 
-#+++ Velocity gradient tensor
+#+++ Velocity gradient and vorticity tensors
 @inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
 function strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)
@@ -361,7 +366,6 @@ function StrainRateTensorModulus(model; location = (Center, Center, Center))
     validate_location(location, "StrainRateTensorModulus", (Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(strain_rate_tensor_modulus_ccc, model.grid, model.velocities...)
 end
-
 
 @inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2
 
@@ -404,7 +408,9 @@ end
     Ω² = vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
     return (Ω² - S²) / 2
 end
+#---
 
+#+++ Mixed layer depth
 """
     $(SIGNATURES)
 
@@ -431,6 +437,135 @@ function QVelocityGradientTensorInvariant(model; location = (Center, Center, Cen
 end
 
 const Q = QVelocityGradientTensorInvariant
+
+"""
+    $(TYPEDEF)
+"""
+struct MixedLayerDepthKernel{C}
+    criterion::C
+end
+
+"""
+    $(SIGNATURES)
+
+Returns the mixed layer depth defined as the depth at which `criterion` is true.
+
+Defaults to `DensityAnomalyCriterion` where the depth is that at which the density
+is some threshold (defaults to 0.125kg/m³) higher than the surface density.
+
+When `DensityAnomalyCriterion` is used, the arguments `buoyancy_formulation` and `C` should be
+supplied where `buoyancy_formulation` should be the buoyancy model, and `C` should be a named
+tuple of `(; T, S)`, `(; T)` or `(; S)` (the latter two if the buoyancy model
+specifies a constant salinity or temperature).
+"""
+function MixedLayerDepth(grid::AbstractGrid, args...; criterion = BuoyancyAnomalyCriterion(convert(eltype(grid), -1e-4 * g_Earth)))
+    validate_criterion_model(criterion, args...)
+    MLD = MixedLayerDepthKernel(criterion)
+    return KernelFunctionOperation{Center, Center, Nothing}(MLD, grid, args...)
+end
+
+function (MLD::MixedLayerDepthKernel)(i, j, k, grid, args...)
+    kₘₗ = -1
+
+    for k in grid.Nz-1:-1:1
+        below_mixed_layer = MLD.criterion(i, j, k, grid, args...)
+        kₘₗ = ifelse(below_mixed_layer & (kₘₗ < 0), k, kₘₗ)
+    end
+
+    zₘₗ = interpolate_from_nearest_cell(MLD.criterion, i, j, kₘₗ, grid, args...)
+    return ifelse(kₘₗ == -1, -Inf, zₘₗ)
+end
+
+"""
+    $(TYPEDEF)
+
+An abstract mixed layer depth criterion where the mixed layer is defined to be
+`anomaly` + `threshold` greater than the surface value of `anomaly`.
+
+`AbstractAnomalyCriterion` types should provide a method for the function `anomaly` in the form
+`anomaly(criterion, i, j, k, grid, args...)`, and should have a property `threshold`.
+"""
+abstract type AbstractAnomalyCriterion end
+
+@inline function (criterion::AbstractAnomalyCriterion)(i, j, k, grid, args...)
+    δ = criterion.threshold
+
+    ref = (anomaly(criterion, i, j, grid.Nz, grid, args...) + anomaly(criterion, i, j, grid.Nz+1, grid, args...)) * convert(eltype(grid), 0.5)
+    val = anomaly(criterion, i, j, k, grid,args...)
+
+    return val < ref + δ
+end
+
+@inline function interpolate_from_nearest_cell(criterion::AbstractAnomalyCriterion, i, j, k, grid, args...)
+    δ = criterion.threshold
+
+    ref = (anomaly(criterion, i, j, grid.Nz, grid, args...) + anomaly(criterion, i, j, grid.Nz + 1, grid, args...)) * convert(eltype(grid), 0.5)
+
+    k_val  = anomaly(criterion, i, j, k, grid, args...)
+    k⁺_val = anomaly(criterion, i, j, k + 1, grid, args...)
+
+    zₖ = znode(i, j, k, grid, Center(), Center(), Center())
+    z₊ = znode(i, j, k+1, grid, Center(), Center(), Center())
+
+    return zₖ + (z₊ - zₖ) * (ref + δ - k_val) / (k⁺_val - k_val)
+end
+
+"""
+    $(TYPEDEF)
+
+Defines the mixed layer to be the depth at which the buoyancy is more than `threshold` greater than
+the surface buoyancy (but the pertubaton is usually negative).
+
+When this model is used, the arguments `buoyancy_formulation` and `C` should be supplied where `C`
+should be the named tuple `(; b)`, with `b` the buoyancy tracer.
+"""
+@kwdef struct BuoyancyAnomalyCriterion{FT} <: AbstractAnomalyCriterion
+    threshold :: FT = -1e-4 * g_Earth
+end
+
+validate_criterion_model(::BuoyancyAnomalyCriterion, args...) =
+    @error "For BuoyancyAnomalyCriterion you must supply the arguments `buoyancy_formulation` and `C`, where `C` is the named tuple `(; b)`, with `b` the buoyancy tracer."
+
+validate_criterion_model(::BuoyancyAnomalyCriterion, buoyancy_formulation, C) = nothing
+
+@inline anomaly(::BuoyancyAnomalyCriterion, i, j, k, grid, buoyancy_formulation, C) = buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, buoyancy_formulation, C)
+
+"""
+    $(TYPEDEF)
+
+Defines the mixed layer to be the depth at which the density is more than `threshold`
+greater than the surface density.
+
+When this model is used, the arguments `buoyancy_formulation` and `C` should be supplied where
+`buoyancy_formulation` should be the buoyancy model, and `C` should be a named tuple of `(; T, S)`,
+`(; T)` or `(; S)` (the latter two if the buoyancy model specifies a constant salinity or
+temperature).
+"""
+@kwdef struct DensityAnomalyCriterion{FT} <: AbstractAnomalyCriterion
+             reference_density :: FT = 1020.0
+    gravitational_acceleration :: FT = g_Earth
+                     threshold :: FT = 0.125
+end
+
+function DensityAnomalyCriterion(buoyancy_formulation::SeawaterBuoyancy{<:Any, <:BoussinesqEquationOfState}; threshold = 0.125)
+    ρᵣ = buoyancy_formulation.equation_of_state.reference_density
+    g  = buoyancy_formulation.gravitational_acceleration
+
+    return DensityAnomalyCriterion(ρᵣ, g, threshold)
+end
+
+validate_criterion_model(::DensityAnomalyCriterion, args...) =
+    @error "For DensityAnomalyCriterion you must supply the arguments buoyancy_formulation and C, where C is a named tuple of (; T, S), (; T) or (; S)"
+
+validate_criterion_model(::DensityAnomalyCriterion, buoyancy_formulation, C) = nothing
+    
+@inline function anomaly(criterion::DensityAnomalyCriterion, i, j, k, grid, buoyancy_formulation, C)
+    b = buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, buoyancy_formulation, C)
+
+    ρᵣ = criterion.reference_density
+    g  = criterion.gravitational_acceleration
+    return - ρᵣ * b / g
+end
 #---
 
 end # module

@@ -1,5 +1,4 @@
 name: Documentation
-
 on:
   push:
     branches:
@@ -8,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  build:
+  build_docs:
     permissions:
       contents: write
     runs-on: ubuntu-latest

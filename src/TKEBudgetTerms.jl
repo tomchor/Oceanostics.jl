@@ -19,7 +19,7 @@ using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
 using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
 using Oceananigans.Advection: div_𝐯u, div_𝐯v, div_𝐯w
-using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz, 
+using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz,
                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
                                        viscous_flux_wx, viscous_flux_wy, viscous_flux_wz,
                                        ∂ⱼ_τ₁ⱼ, ∂ⱼ_τ₂ⱼ, ∂ⱼ_τ₃ⱼ
@@ -73,7 +73,7 @@ KineticEnergy(model, u, v, w; location = (Center, Center, Center), kwargs...) =
 
 """
     $(SIGNATURES)
-    
+
 Calculate the kinetic energy of `model`.
 """
 KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwargs...)
@@ -216,7 +216,7 @@ Calculate the Viscous Dissipation Rate, defined as
 
     ε = 2 ν SᵢⱼSᵢⱼ,
 
-where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a 
+where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
 function IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0,
@@ -279,7 +279,7 @@ function KineticEnergyDissipationRate(model; U=ZeroField(), V=ZeroField(), W=Zer
     validate_location(location, "KineticEnergyDissipationRate")
     mean_velocities = (u=U, v=V, w=W)
     model_fields = perturbation_fields(model; mean_velocities...)
-    parameters = (; model.closure, 
+    parameters = (; model.closure,
                   model.clock,
                   model.buoyancy)
 
@@ -311,7 +311,7 @@ Return a `KernelFunctionOperation` that computes the diffusive term of the KE pr
     DIFF = uᵢ∂ⱼτᵢⱼ
 ```
 
-where `uᵢ` are the velocity components and `τᵢⱼ` is the diffusive flux of `i` momentum in the 
+where `uᵢ` are the velocity components and `τᵢⱼ` is the diffusive flux of `i` momentum in the
 `j`-th direction.
 """
 function KineticEnergyStressTerm(model; location = (Center, Center, Center))
@@ -511,7 +511,7 @@ end
 """
     $(SIGNATURES)
 
-Calculate the shear production rate in the `model`'s `x` direction. At least one of the mean 
+Calculate the shear production rate in the `model`'s `x` direction. At least one of the mean
 velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
 """
 function XShearProductionRate(model; U=0, V=0, W=0, kwargs...)
@@ -553,7 +553,7 @@ end
 """
     $(SIGNATURES)
 
-Calculate the shear production rate in the `model`'s `y` direction. At least one of the mean 
+Calculate the shear production rate in the `model`'s `y` direction. At least one of the mean
 velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
 """
 function YShearProductionRate(model; U=0, V=0, W=0, kwargs...)
@@ -595,7 +595,7 @@ end
 """
     $(SIGNATURES)
 
-Calculate the shear production rate in the `model`'s `z` direction. At least one of the mean 
+Calculate the shear production rate in the `model`'s `z` direction. At least one of the mean
 velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
 """
 function ZShearProductionRate(model; U=0, V=0, W=0, kwargs...)
