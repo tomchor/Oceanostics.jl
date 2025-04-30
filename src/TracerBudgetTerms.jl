@@ -93,9 +93,8 @@ Calculates the diffusion term due to the bathymetry term as
 
     DIFF = ∂ⱼ 𝓆ᶜⱼ,
 
-where 𝓆ᶜⱼ is the bathyemtry-led diffusion tensor for tracer `c`, using the Oceananigans' kernel
+where 𝓆ᶜⱼ is the bathymetry-led diffusion tensor for tracer `c`, using the Oceananigans' kernel
 `immersed_∇_dot_qᶜ`.
-
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -134,8 +133,8 @@ Calculates the total diffusion term as
 
     DIFF = ∂ⱼ qᶜⱼ + ∂ⱼ 𝓆ᶜⱼ,
 
-where qᶜⱼ is the interior diffusion tensor and 𝓆ᶜⱼ is the bathyemtry-led diffusion tensor for tracer
 `c`. The calculation is done using the Oceananigans' kernels `∇_dot_qᶜ` and `immersed_∇_dot_qᶜ`.
+where qᶜⱼ is the interior diffusion tensor and 𝓆ᶜⱼ is the bathymetry-led diffusion tensor for tracer
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
