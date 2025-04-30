@@ -23,6 +23,7 @@ docs/src/generated
 # committed for packages, but should be committed for applications that require a static
 # environment.
 docs/Manifest.toml
+Manifest.toml
 
 # Ignore swap files used by VIM
 *.swp
