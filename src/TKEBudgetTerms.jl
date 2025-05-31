@@ -395,7 +395,7 @@ julia> ∇u⃗p = PressureRedistributionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU")
+└── arguments: ("NamedTuple", "Field")
 ```
 
 We can also pass `velocities` and `pressure` keywords to perform more specific calculations. The
