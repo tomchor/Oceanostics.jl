@@ -42,5 +42,4 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
     if group == :budgets || group == :all
         include("test_budgets.jl")
     end
-
 end

@@ -18,7 +18,7 @@ using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.BuoyancyFormulations: buoyancy
-using Oceananigans.Grids: AbstractGrid, Center, Face, NegativeZDirection, ZDirection, znode, inactive_node
+using Oceananigans.Grids: AbstractGrid, Center, Face, NegativeZDirection, ZDirection, znode, bottommost_active_node
 
 using SeawaterPolynomials: ρ′, BoussinesqEquationOfState
 using SeawaterPolynomials.SecondOrderSeawaterPolynomials: SecondOrderSeawaterPolynomial
@@ -580,8 +580,6 @@ end
 #---
 
 #+++ Bottom value
-@inline bottom_adjacent_node(i, j, k, grid, LX, LY, LZ) = !inactive_node(i, j, k, grid, LX, LY, LZ) && inactive_node(i, j, k - 1, grid, LX, LY, LZ)
-
 """
     $(SIGNATURES)
 
@@ -591,7 +589,7 @@ domain (lowest vertical level) or an immersed bottom.
 function BottomCellValue(diagnostic)
     loc = location(diagnostic)
     instantiated_location = (L() for L in loc)
-    condition_to_ban = KernelFunctionOperation{loc...}(bottom_adjacent_node, diagnostic.grid, instantiated_location...)
+    condition_to_ban = KernelFunctionOperation{loc...}(bottommost_active_node, diagnostic.grid, instantiated_location...)
     return diagnostic * condition_to_ban
 end
 #---
