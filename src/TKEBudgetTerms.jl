@@ -1,4 +1,4 @@
-module TKEEquation
+module TKEBudgetTerms
 using DocStringExtensions
 
 export TurbulentKineticEnergy, KineticEnergy
@@ -120,7 +120,7 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1, 1, 1));
 
 julia> model = NonhydrostaticModel(; grid);
 
-julia> using Oceanostics.TKEEquation: KineticEnergyTendency
+julia> using Oceanostics.TKEBudgetTerms: KineticEnergyTendency
 
 julia> ke_tendency = KineticEnergyTendency(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -176,9 +176,9 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
 julia> model = NonhydrostaticModel(grid=grid);
 
-julia> using Oceanostics.TKEEquation: BuoyancyProductionTerm
+julia> using Oceanostics.TKEBudgetTerms: BuoyancyProductionTerm
 
-julia> using Oceanostics.TKEEquation: AdvectionTerm
+julia> using Oceanostics.TKEBudgetTerms: AdvectionTerm
 
 julia> ADV = AdvectionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -389,7 +389,7 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
 julia> model = NonhydrostaticModel(grid=grid);
 
-julia> using Oceanostics.TKEEquation: PressureRedistributionTerm
+julia> using Oceanostics.TKEBudgetTerms: PressureRedistributionTerm
 
 julia> ∇u⃗p = PressureRedistributionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -447,7 +447,7 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
 julia> model = NonhydrostaticModel(grid=grid, buoyancy=BuoyancyTracer(), tracers=:b);
 
-julia> using Oceanostics.TKEEquation: BuoyancyProductionTerm
+julia> using Oceanostics.TKEBudgetTerms: BuoyancyProductionTerm
 
 julia> wb = BuoyancyProductionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)

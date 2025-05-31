@@ -6,7 +6,6 @@ using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 
 using Oceanostics
-using Oceanostics.TKEEquation: KineticEnergyDissipationRate
 
 #+++ Default grids
 arch = has_cuda_gpu() ? GPU() : CPU()

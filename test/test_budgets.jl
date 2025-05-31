@@ -4,7 +4,6 @@ using CUDA: has_cuda_gpu
 using Oceananigans
 using Oceananigans.Fields: @compute
 using Oceanostics
-using Oceanostics.TKEEquation: KineticEnergy, KineticEnergyDissipationRate
 using Random
 using Statistics
 
