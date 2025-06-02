@@ -2,7 +2,7 @@ module Oceanostics
 using DocStringExtensions
 
 #+++ Module export
-export TracerEquation, TKEEquation, TracerVarianceEquation
+export TracerEquation, TKEEquation, TracerVarianceEquation, PotentialEnergyEquation
 #---
 
 #+++ FlowDiagnostics exports
@@ -12,10 +12,6 @@ export DirectionalErtelPotentialVorticity
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomValue
-#---
-
-#+++ PotentialEnergyEquationTerms exports
-export PotentialEnergy
 #---
 
 #+++ ProgressMessengers
@@ -129,10 +125,10 @@ include("TracerEquation.jl")
 include("TKEEquation.jl")
 include("TracerVarianceEquation.jl")
 include("FlowDiagnostics.jl")
-include("PotentialEnergyEquationTerms.jl")
+include("PotentialEnergyEquation.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TKEEquation, .TracerEquation, .TracerVarianceEquation, .FlowDiagnostics, .ProgressMessengers
-using .PotentialEnergyEquationTerms
+using .PotentialEnergyEquation
 
 end # module

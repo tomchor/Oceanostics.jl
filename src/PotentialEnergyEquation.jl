@@ -1,4 +1,4 @@
-module PotentialEnergyEquationTerms
+module PotentialEnergyEquation
 
 using DocStringExtensions
 
@@ -49,7 +49,7 @@ Usage with a `BuoyancyTracer` buoyacny model
 ```jldoctest
 julia> using Oceananigans
 
-julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
+julia> using Oceanostics.PotentialEnergyEquation: PotentialEnergy
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
@@ -79,7 +79,7 @@ when the equation of state is a `BoussinesqEquationOfState`:
 ```jldoctest
 julia> using Oceananigans, SeawaterPolynomials.TEOS10
 
-julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
+julia> using Oceanostics.PotentialEnergyEquation: PotentialEnergy
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
@@ -122,7 +122,7 @@ and pass this the function. For example,
 ```jldoctest
 julia> using Oceananigans, SeawaterPolynomials.TEOS10;
 
-julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy;
+julia> using Oceanostics.PotentialEnergyEquation: PotentialEnergy;
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
 
