@@ -2,13 +2,7 @@ module Oceanostics
 using DocStringExtensions
 
 #+++ Module export
-export TracerEquation, TKEEquation
-#---
-
-#+++ TracerVarianceBudgetTerms exports
-export TracerVarianceTendency
-export TracerVarianceDiffusiveTerm
-export TracerVarianceDissipationRate
+export TracerEquation, TKEEquation, TracerVarianceEquation
 #---
 
 #+++ FlowDiagnostics exports
@@ -133,12 +127,12 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
 
 include("TracerEquation.jl")
 include("TKEEquation.jl")
-include("TracerVarianceBudgetTerms.jl")
+include("TracerVarianceEquation.jl")
 include("FlowDiagnostics.jl")
 include("PotentialEnergyEquationTerms.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
-using .TKEEquation, .TracerEquation, .TracerVarianceBudgetTerms, .FlowDiagnostics, .ProgressMessengers
+using .TKEEquation, .TracerEquation, .TracerVarianceEquation, .FlowDiagnostics, .ProgressMessengers
 using .PotentialEnergyEquationTerms
 
 end # module

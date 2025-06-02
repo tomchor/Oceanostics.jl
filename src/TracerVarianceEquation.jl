@@ -1,4 +1,4 @@
-module TracerVarianceBudgetTerms
+module TracerVarianceEquation
 using DocStringExtensions
 
 export TracerVarianceDissipationRate, TracerVarianceTendency, TracerVarianceDiffusiveTerm
@@ -53,7 +53,7 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1, 1, 1));
 
 julia> model = NonhydrostaticModel(; grid, tracers=:b);
 
-julia> using Oceanostics.TracerVarianceBudgetTerms: TracerVarianceTendency
+julia> using Oceanostics.TracerVarianceEquation: TracerVarianceTendency
 
 julia> χ = TracerVarianceTendency(model, :b)
 KernelFunctionOperation at (Center, Center, Center)

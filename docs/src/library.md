@@ -24,10 +24,10 @@ Modules = [Oceanostics.TracerEquation]
 Private = false
 ```
 
-## Oceanostics.TracerVarianceBudgetTerms
+## Oceanostics.TracerVarianceEquation
 
 ```@autodocs
-Modules = [Oceanostics.TracerVarianceBudgetTerms]
+Modules = [Oceanostics.TracerVarianceEquation]
 Private = false
 ```
 

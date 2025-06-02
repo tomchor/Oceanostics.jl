@@ -42,36 +42,36 @@ model_types = (NonhydrostaticModel,
 
 #+++ Test functions
 function test_tracer_variance_terms(model)
-    χ = TracerVarianceDissipationRate(model, :b)
+    χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)
     χ_field = compute!(Field(χ))
     @test χ isa AbstractOperation
     @test χ_field isa Field
 
     b̄ = Field(Average(model.tracers.b, dims=(1,2)))
     b′ = model.tracers.b - b̄
-    χ = TracerVarianceDissipationRate(model, :b, tracer=b′)
+    χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b, tracer=b′)
     χ_field = compute!(Field(χ))
     @test χ isa AbstractOperation
     @test χ_field isa Field
 
-    χ = TracerVarianceDiffusiveTerm(model, :b)
+    χ = TracerVarianceEquation.TracerVarianceDiffusiveTerm(model, :b)
     χ_field = compute!(Field(χ))
     @test χ isa AbstractOperation
     @test χ_field isa Field
 
     grid_noise(x, y, z) = randn()
     set!(model, u = (x, y, z) -> z, v = grid_noise, w = grid_noise, b = grid_noise)
-    @compute ε̄ₚ = Field(Average(TracerVarianceDissipationRate(model, :b)))
-    @compute ε̄ₚ₂ = Field(Average(TracerVarianceDiffusiveTerm(model, :b)))
+    @compute ε̄ₚ = Field(Average(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)))
+    @compute ε̄ₚ₂ = Field(Average(TracerVarianceEquation.TracerVarianceDiffusiveTerm(model, :b)))
     @test ≈(Array(interior(ε̄ₚ, 1, 1, 1)), Array(interior(ε̄ₚ₂, 1, 1, 1)), rtol=1e-12, atol=2*eps())
 
     if model isa NonhydrostaticModel
-        χ = TracerVarianceTendency(model, :b)
+        χ = TracerVarianceEquation.TracerVarianceTendency(model, :b)
         χ_field = compute!(Field(χ))
         @test χ isa AbstractOperation
         @test χ_field isa Field
 
-        @compute ∂ₜc² = Field(Average(TracerVarianceTendency(model, :b)))
+        @compute ∂ₜc² = Field(Average(TracerVarianceEquation.TracerVarianceTendency(model, :b)))
     end
 
     return nothing

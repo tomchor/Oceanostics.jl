@@ -204,7 +204,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
         @test ε isa AbstractOperation
         @test ε_field isa Field
 
-        @compute ∂ₜKE = Field(Average(TracerVarianceTendency(model, :b)))
+        @compute ∂ₜKE = Field(Average(TracerVarianceEquation.TracerVarianceTendency(model, :b)))
     end
 
     return nothing
