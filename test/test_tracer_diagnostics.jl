@@ -50,57 +50,57 @@ model_types = (NonhydrostaticModel,
 #+++ Test functions
 function test_tracer_terms(model)
     if model isa NonhydrostaticModel
-        ADV = TracerAdvection(model, model.velocities..., model.tracers.a, model.advection)
+        ADV = TracerEquation.TracerAdvection(model, model.velocities..., model.tracers.a, model.advection)
     elseif model isa HydrostaticFreeSurfaceModel
-        ADV = TracerAdvection(model, model.velocities..., model.tracers.a, model.advection.a)
+        ADV = TracerEquation.TracerAdvection(model, model.velocities..., model.tracers.a, model.advection.a)
     end
     @compute ADV_field = Field(ADV)
     @test ADV isa AbstractOperation
     @test ADV_field isa Field
 
-    ADV = TracerAdvection(model, :a)
+    ADV = TracerEquation.TracerAdvection(model, :a)
     @compute ADV_field = Field(ADV)
     @test ADV isa AbstractOperation
     @test ADV_field isa Field
 
-    DIFF = TracerDiffusion(model, :a, model.tracers.a, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy)
+    DIFF = TracerEquation.TracerDiffusion(model, :a, model.tracers.a, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy)
     @compute DIFF_field = Field(DIFF)
     @test DIFF isa AbstractOperation
     @test DIFF_field isa Field
 
-    DIFF = TracerDiffusion(model, :a)
+    DIFF = TracerEquation.TracerDiffusion(model, :a)
     @compute DIFF_field = Field(DIFF)
     @test DIFF isa AbstractOperation
     @test DIFF_field isa Field
 
-    DIFF = ImmersedTracerDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
+    DIFF = TracerEquation.ImmersedTracerDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
                                    model.closure, model.diffusivity_fields, Val(:a), model.clock, fields(model))
     @compute DIFF_field = Field(DIFF)
     @test DIFF isa AbstractOperation
     @test DIFF_field isa Field
 
-    DIFF = ImmersedTracerDiffusion(model, :a)
+    DIFF = TracerEquation.ImmersedTracerDiffusion(model, :a)
     @compute DIFF_field = Field(DIFF)
     @test DIFF isa AbstractOperation
     @test DIFF_field isa Field
 
-    DIFF = TotalTracerDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
+    DIFF = TracerEquation.TotalTracerDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
                                 model.closure, model.diffusivity_fields, Val(:a), model.clock, fields(model), model.buoyancy)
     @compute DIFF_field = Field(DIFF)
     @test DIFF isa AbstractOperation
     @test DIFF_field isa Field
 
-    DIFF = TotalTracerDiffusion(model, :a)
+    DIFF = TracerEquation.TotalTracerDiffusion(model, :a)
     @compute DIFF_field = Field(DIFF)
     @test DIFF isa AbstractOperation
     @test DIFF_field isa Field
 
-    FORC = TracerForcing(model, model.forcing.a, model.clock, fields(model))
+    FORC = TracerEquation.TracerForcing(model, model.forcing.a, model.clock, fields(model))
     @compute FORC_field = Field(FORC)
     @test FORC isa AbstractOperation
     @test FORC_field isa Field
 
-    FORC = TracerForcing(model, :a)
+    FORC = TracerEquation.TracerForcing(model, :a)
     @compute FORC_field = Field(FORC)
     @test FORC isa AbstractOperation
     @test FORC_field isa Field

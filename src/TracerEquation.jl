@@ -1,4 +1,4 @@
-module TracerBudgetTerms
+module TracerEquation
 using DocStringExtensions
 
 using Oceananigans: fields, Center, KernelFunctionOperation

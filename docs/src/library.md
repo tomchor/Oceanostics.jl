@@ -17,10 +17,10 @@ Modules = [Oceanostics.TKEEquation]
 Private = false
 ```
 
-## Oceanostics.TracerBudgetTerms
+## Oceanostics.TracerEquation
 
 ```@autodocs
-Modules = [Oceanostics.TracerBudgetTerms]
+Modules = [Oceanostics.TracerEquation]
 Private = false
 ```
 
