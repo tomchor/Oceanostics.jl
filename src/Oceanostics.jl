@@ -122,13 +122,12 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
 #---
 
 include("TracerEquation.jl")
-include("TKEEquation.jl")
 include("TracerVarianceEquation.jl")
-include("FlowDiagnostics.jl")
+include("TKEEquation.jl")
 include("PotentialEnergyEquation.jl")
+include("FlowDiagnostics.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
-using .TKEEquation, .TracerEquation, .TracerVarianceEquation, .FlowDiagnostics, .ProgressMessengers
-using .PotentialEnergyEquation
+using .TracerEquation, .TracerVarianceEquation, .TKEEquation, .PotentialEnergyEquation, .FlowDiagnostics, .ProgressMessengers
 
 end # module
