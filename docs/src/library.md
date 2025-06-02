@@ -1,18 +1,19 @@
+@meta
+EditURL = "<unknown>/library.md"
+```
+
+```@contents
+Pages = ["library.md"]
+```
+
 # Library
 
 Documentation for the public user interface.
 
-## Oceanostics.jl
+## Oceanostics.TKEEquation
 
 ```@autodocs
-Modules = [Oceanostics]
-Private = false
-```
-
-## Oceanostics.TKEBudgetTerms
-
-```@autodocs
-Modules = [Oceanostics.TKEBudgetTerms]
+Modules = [Oceanostics.TKEEquation]
 Private = false
 ```
 

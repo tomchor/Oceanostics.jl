@@ -1,14 +1,6 @@
 module Oceanostics
 using DocStringExtensions
 
-#+++ TKEBudgetTerms exports
-export TurbulentKineticEnergy, KineticEnergy
-export KineticEnergyTendency, KineticEnergyStressTerm, KineticEnergyForcingTerm
-export IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate
-export PressureRedistributionTerm
-export XShearProductionRate, YShearProductionRate, ZShearProductionRate
-#---
-
 #+++ TracerBudgetTerms exports
 export TracerAdvection, TracerDiffusion, ImmersedTracerDiffusion, TotalTracerDiffusion, TracerForcing
 #---
@@ -25,6 +17,7 @@ export ErtelPotentialVorticity, ThermalWindPotentialVorticity
 export DirectionalErtelPotentialVorticity
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
+export BottomValue
 #---
 
 #+++ PotentialEnergyEquationTerms exports
@@ -139,13 +132,13 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
 #---
 
 include("TracerBudgetTerms.jl")
-include("TKEBudgetTerms.jl")
+include("TKEEquation.jl")
 include("TracerVarianceBudgetTerms.jl")
 include("FlowDiagnostics.jl")
 include("PotentialEnergyEquationTerms.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
-using .TKEBudgetTerms, .TracerBudgetTerms, .TracerVarianceBudgetTerms, .FlowDiagnostics, .ProgressMessengers
+using .TKEEquation, .TracerBudgetTerms, .TracerVarianceBudgetTerms, .FlowDiagnostics, .ProgressMessengers
 using .PotentialEnergyEquationTerms
 
 end # module

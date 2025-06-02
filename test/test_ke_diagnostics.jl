@@ -8,7 +8,11 @@ using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 
 using Oceanostics
-using Oceanostics: BuoyancyProductionTerm, AdvectionTerm
+using Oceanostics.TKEEquation: TurbulentKineticEnergy, KineticEnergy, KineticEnergyTendency, AdvectionTerm,
+                               KineticEnergyStressTerm, KineticEnergyForcingTerm,
+                               IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate,
+                               PressureRedistributionTerm, BuoyancyProductionTerm,
+                               XShearProductionRate, YShearProductionRate, ZShearProductionRate
 
 #+++ Default grids
 arch = has_cuda_gpu() ? GPU() : CPU()
