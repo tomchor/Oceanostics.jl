@@ -6,7 +6,6 @@ using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 
 using Oceanostics
-using Oceanostics.TKEEquation: KineticEnergyDissipationRate
 
 #+++ Default grids
 arch = has_cuda_gpu() ? GPU() : CPU()
@@ -48,7 +47,7 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
 
     u, v, w = model.velocities
 
-    @compute ε = Field(KineticEnergyDissipationRate(model))
+    @compute ε = Field(TKEEquation.KineticEnergyDissipationRate(model))
     @compute S = Field(StrainRateTensorModulus(model))
     @compute Ω = Field(VorticityTensorModulus(model))
     @compute q = Field(QVelocityGradientTensorInvariant(model))
@@ -85,7 +84,7 @@ function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, clo
 
     u, v, w = model.velocities
 
-    @compute ε = Field(KineticEnergyDissipationRate(model))
+    @compute ε = Field(TKEEquation.KineticEnergyDissipationRate(model))
     @compute S = Field(StrainRateTensorModulus(model))
     @compute Ω = Field(VorticityTensorModulus(model))
     @compute q = Field(QVelocityGradientTensorInvariant(model))
@@ -119,7 +118,7 @@ function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=S
 
     u, v, w = model.velocities
 
-    @compute ε = Field(KineticEnergyDissipationRate(model))
+    @compute ε = Field(TKEEquation.KineticEnergyDissipationRate(model))
     @compute S = Field(StrainRateTensorModulus(model))
     @compute Ω = Field(VorticityTensorModulus(model))
     @compute q = Field(QVelocityGradientTensorInvariant(model))

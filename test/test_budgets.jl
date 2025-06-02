@@ -4,7 +4,6 @@ using CUDA: has_cuda_gpu
 using Oceananigans
 using Oceananigans.Fields: @compute
 using Oceanostics
-using Oceanostics.TKEEquation: KineticEnergy, KineticEnergyDissipationRate
 using Random
 using Statistics
 
@@ -64,9 +63,9 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, closure = ScalarDi
     progress(sim) = @info "$(time(sim)) of $stop_time with Δt = $(prettytime(sim.Δt))"
     add_callback!(simulation, progress, IterationInterval(100))
 
-    ε  = KineticEnergyDissipationRate(model)
+    ε  = TKEEquation.KineticEnergyDissipationRate(model)
     @compute ∫εdV   = Field(Integral(ε))
-    @compute ∫KEdV  = Field(Integral(KineticEnergy(model)))
+    @compute ∫KEdV  = Field(Integral(TKEEquation.KineticEnergy(model)))
     ∫∫εdVdt = Ref(0.0)
     ∫KEdV_t⁰ = parent(∫KEdV)[1,1,1]
 

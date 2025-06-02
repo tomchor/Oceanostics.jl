@@ -1,8 +1,8 @@
 module Oceanostics
 using DocStringExtensions
 
-#+++ TracerEquation export
-export TracerEquation
+#+++ Module export
+export TracerEquation, TKEEquation
 #---
 
 #+++ TracerVarianceBudgetTerms exports
