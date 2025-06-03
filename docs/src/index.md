@@ -31,13 +31,13 @@ julia> ke = KineticEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×5×6 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
-└── arguments: ("4×5×6 Field{Face, Center, Center} on RectilinearGrid on CPU", "4×5×6 Field{Center, Face, Center} on RectilinearGrid on CPU", "4×5×7 Field{Center, Center, Face} on RectilinearGrid on CPU", "0", "0", "0")
+└── arguments: ("Field", "Field", "Field", "Int64", "Int64", "Int64")
 
 julia> ε = KineticEnergyDissipationRate(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×5×6 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
-└── arguments: ("(νₑ=4×5×6 Field{Center, Center, Center} on RectilinearGrid on CPU,)", "(u=4×5×6 Field{Face, Center, Center} on RectilinearGrid on CPU, v=4×5×6 Field{Center, Face, Center} on RectilinearGrid on CPU, w=4×5×7 Field{Center, Center, Face} on RectilinearGrid on CPU)", "(closure=Smagorinsky with coefficient = LillyCoefficient(smagorinsky = 0.16, reduction_factor = 1.0), Pr=NamedTuple(), clock=Clock{Float64, Float64}(time=0 seconds, iteration=0, last_Δt=Inf days), buoyancy=Nothing)")
+└── arguments: ("NamedTuple", "NamedTuple", "NamedTuple")
 
 julia> run!(simulation)
 [ Info: Initializing simulation...

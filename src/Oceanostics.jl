@@ -11,7 +11,11 @@ export ErtelPotentialVorticity, ThermalWindPotentialVorticity
 export DirectionalErtelPotentialVorticity
 export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
-export BottomValue
+export BottomCellValue
+#---
+
+#+++ PotentialEnergyEquationTerms exports
+export PotentialEnergy
 #---
 
 #+++ ProgressMessengers
