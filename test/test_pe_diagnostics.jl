@@ -10,7 +10,6 @@ using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
 
 using Oceanostics
-using Oceanostics: PotentialEnergy, PotentialEnergyEquationTerms.BuoyancyBoussinesqEOSModel
 
 #+++ Default grids
 arch = has_cuda_gpu() ? GPU() : CPU()
@@ -55,22 +54,22 @@ model_types = (NonhydrostaticModel,
 #+++ Test functions
 function test_potential_energy_equation_terms_errors(model)
 
-    @test_throws ArgumentError PotentialEnergy(model)
-    @test_throws ArgumentError PotentialEnergy(model, geopotential_height = 0)
+    @test_throws ArgumentError PotentialEnergyEquation.PotentialEnergy(model)
+    @test_throws ArgumentError PotentialEnergyEquation.PotentialEnergy(model, geopotential_height = 0)
 
     return nothing
 end
 
 function test_potential_energy_equation_terms(model; geopotential_height = nothing)
 
-    Eₚ = isnothing(geopotential_height) ? PotentialEnergy(model) :
-                                          PotentialEnergy(model; geopotential_height)
+    Eₚ = isnothing(geopotential_height) ? PotentialEnergyEquation.PotentialEnergy(model) :
+                                          PotentialEnergyEquation.PotentialEnergy(model; geopotential_height)
 
     @compute Eₚ_field = Field(Eₚ)
     @test Eₚ isa AbstractOperation
     @test Eₚ_field isa Field
 
-    if model.buoyancy isa BuoyancyBoussinesqEOSModel
+    if model.buoyancy isa PotentialEnergyEquation.BuoyancyBoussinesqEOSModel
         @compute ρ = isnothing(geopotential_height) ? Field(seawater_density(model)) :
                                                       Field(seawater_density(model; geopotential_height))
 
@@ -97,8 +96,8 @@ function test_PEbuoyancytracer_equals_PElineareos(grid)
         KernelFunctionOperation{Center, Center, Center}(buoyancy_perturbationᶜᶜᶜ, grid, buoyancy, tracers)
     @compute b_field = Field(linear_eos_buoyancy(model_lineareos.grid, model_lineareos.buoyancy.formulation, model_lineareos.tracers))
     set!(model_buoyancytracer, b = interior(b_field))
-    @compute pe_buoyancytracer = Field(PotentialEnergy(model_buoyancytracer))
-    @compute pe_lineareos = Field(PotentialEnergy(model_lineareos))
+    @compute pe_buoyancytracer = Field(PotentialEnergyEquation.PotentialEnergy(model_buoyancytracer))
+    @compute pe_lineareos = Field(PotentialEnergyEquation.PotentialEnergy(model_lineareos))
 
     @test all(interior(pe_buoyancytracer) .== interior(pe_lineareos))
 
