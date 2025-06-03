@@ -27,6 +27,10 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
         include("test_tracer_variance_diagnostics.jl")
     end
 
+    if group == :general_flow_diagnostics || group == :all
+        include("test_general_flow_diagnostics.jl")
+    end
+
     if group == :canonical_flows || group == :all
         include("test_canonical_flows.jl")
     end

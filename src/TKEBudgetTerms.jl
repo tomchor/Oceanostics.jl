@@ -126,7 +126,7 @@ julia> ke_tendency = KineticEnergyTendency(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢGᵢᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("Centered(order=2)", "Nothing", "Nothing", "Nothing", "FluxBoundaryCondition: Nothing", "FluxBoundaryCondition: Nothing", "FluxBoundaryCondition: Nothing", "Nothing", "(velocities=(u=ZeroField{Int64}, v=ZeroField{Int64}, w=ZeroField{Int64}), tracers=NamedTuple())", "(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "NamedTuple()", "NamedTuple()", "Nothing", "Nothing", "Clock{Float64, Float64}(time=0 seconds, iteration=0, last_Δt=Inf days)", "(u=zeroforcing (generic function with 1 method), v=zeroforcing (generic function with 1 method), w=zeroforcing (generic function with 1 method))")
+└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "BoundaryCondition", "BoundaryCondition", "BoundaryCondition", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "NamedTuple")
 ```
 """
 function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
@@ -184,7 +184,7 @@ julia> ADV = AdvectionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ⱼuⱼuᵢᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "Centered(order=2)")
+└── arguments: ("NamedTuple", "Centered")
 ```
 """
 function AdvectionTerm(model::NonhydrostaticModel; velocities = model.velocities, location = (Center, Center, Center))
@@ -395,7 +395,7 @@ julia> ∇u⃗p = PressureRedistributionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU")
+└── arguments: ("NamedTuple", "Field")
 ```
 
 We can also pass `velocities` and `pressure` keywords to perform more specific calculations. The
@@ -407,7 +407,7 @@ julia> ∇u⃗pNHS = PressureRedistributionTerm(model, pressure=model.pressures.
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU")
+└── arguments: ("NamedTuple", "Field")
 ```
 """
 function PressureRedistributionTerm(model::NonhydrostaticModel; velocities = model.velocities,
@@ -453,7 +453,7 @@ julia> wb = BuoyancyProductionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "BuoyancyTracer with ĝ = NegativeZDirection()", "(b=1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU,)")
+└── arguments: ("NamedTuple", "BuoyancyForce", "NamedTuple")
 ```
 
 If we want to calculate only the _turbulent_ buoyancy production rate, we can do so by passing
@@ -468,7 +468,7 @@ julia> w′b′ = BuoyancyProductionTerm(model, velocities=(u=model.velocities.u
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("(u=1×1×4 Field{Face, Center, Center} on RectilinearGrid on CPU, v=1×1×4 Field{Center, Face, Center} on RectilinearGrid on CPU, w=1×1×5 Field{Center, Center, Face} on RectilinearGrid on CPU)", "BuoyancyTracer with ĝ = NegativeZDirection()", "(b=1×1×4 Field{Center, Center, Center} on RectilinearGrid on CPU,)")
+└── arguments: ("NamedTuple", "BuoyancyForce", "NamedTuple")
 ```
 """
 function BuoyancyProductionTerm(model::NonhydrostaticModel; velocities = model.velocities, tracers = model.tracers, location = (Center, Center, Center))
