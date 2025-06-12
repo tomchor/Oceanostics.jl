@@ -1,32 +1,33 @@
+@meta
+EditURL = "<unknown>/library.md"
+```
+
+```@contents
+Pages = ["library.md"]
+```
+
 # Library
 
 Documentation for the public user interface.
 
-## Oceanostics.jl
+## Oceanostics.TKEEquation
 
 ```@autodocs
-Modules = [Oceanostics]
+Modules = [Oceanostics.TKEEquation]
 Private = false
 ```
 
-## Oceanostics.TKEBudgetTerms
+## Oceanostics.TracerEquation
 
 ```@autodocs
-Modules = [Oceanostics.TKEBudgetTerms]
+Modules = [Oceanostics.TracerEquation]
 Private = false
 ```
 
-## Oceanostics.TracerBudgetTerms
+## Oceanostics.TracerVarianceEquation
 
 ```@autodocs
-Modules = [Oceanostics.TracerBudgetTerms]
-Private = false
-```
-
-## Oceanostics.TracerVarianceBudgetTerms
-
-```@autodocs
-Modules = [Oceanostics.TracerVarianceBudgetTerms]
+Modules = [Oceanostics.TracerVarianceEquation]
 Private = false
 ```
 
@@ -37,9 +38,9 @@ Modules = [Oceanostics.FlowDiagnostics]
 Private = false
 ```
 
-## Oceanostics.PotentialEnergyEquationTerms
+## Oceanostics.PotentialEnergyEquation
 
 ```@autodocs
-Modules = [Oceanostics.PotentialEnergyEquationTerms]
+Modules = [Oceanostics.PotentialEnergyEquation]
 Private = false
 ```
