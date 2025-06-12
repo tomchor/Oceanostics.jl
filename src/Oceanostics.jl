@@ -132,6 +132,8 @@ include("PotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
-using .TracerEquation, .TracerVarianceEquation, .TKEEquation, .PotentialEnergyEquation, .FlowDiagnostics, .ProgressMessengers
+using .TracerEquation, .TracerVarianceEquation, .TKEEquation, .PotentialEnergyEquation
+using .FlowDiagnostics
+using .ProgressMessengers
 
 end # module
