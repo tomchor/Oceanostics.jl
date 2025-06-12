@@ -107,7 +107,7 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
     return u∂ₜu + v∂ₜv + w∂ₜw
 end
 
-const KineticEnergyTendency = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(Oceanostics.TKEEquation.uᵢGᵢᶜᶜᶜ)}
+const KineticEnergyTendency = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢGᵢᶜᶜᶜ)}
 
 """
     $(SIGNATURES)
