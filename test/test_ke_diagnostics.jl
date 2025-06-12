@@ -23,7 +23,7 @@ function test_ke_calculation(model)
     @test all(interior(compute!(ke_c)) .≈ 0)
 
     op = TKEEquation.TurbulentKineticEnergy(model, U=U, V=V, W=W)
-    @test op isa AbstractOperation
+    @test op isa TKEEquation.TurbulentKineticEnergy
     tke_c = Field(op)
     @test all(interior(compute!(tke_c)) .≈ 0)
 
