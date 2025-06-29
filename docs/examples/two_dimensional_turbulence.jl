@@ -61,8 +61,8 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 # Using Oceanostics we can easily calculate two important diagnostics, the kinetic energy KE and
 # its dissipation rate ε
 
-KE = KineticEnergy(model)
-ε = KineticEnergyDissipationRate(model)
+KE = KineticEnergyEquation.KineticEnergy(model)
+ε = KineticEnergyEquation.KineticEnergyDissipationRate(model)
 
 # And we can define their volume-integrals
 
@@ -78,7 +78,7 @@ KE = KineticEnergy(model)
 # where ``\tau_{ij}`` is the diffusive flux of ``i`` momentum in the ``j``-th direction.
 #
 
-∫εᴰ = Integral(KineticEnergyStressTerm(model))
+∫εᴰ = Integral(KineticEnergyEquation.KineticEnergyStressTerm(model))
 
 # The idea in calculating this term is that, in integrated form, all transport contributions in it
 # should equal zero and `∫εᴰ` should equal `∫ε`.
