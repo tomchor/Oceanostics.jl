@@ -9,6 +9,18 @@ using Oceanostics: validate_location
 
 export TracerAdvection, TracerDiffusion, ImmersedTracerDiffusion, TotalTracerDiffusion, TracerForcing
 
+# Inline function for total diffusion
+@inline total_∇_dot_qᶜ(i, j, k, grid, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields, buoyancy) =
+    ∇_dot_qᶜ(i, j, k, grid, closure, diffusivity_fields, val_tracer_index, c, clock, model_fields, buoyancy) +
+    immersed_∇_dot_qᶜ(i, j, k, grid, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields, buoyancy)
+
+# Type aliases for major functions
+const TracerAdvection = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(div_Uc)}
+const TracerDiffusion = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(∇_dot_qᶜ)}
+const ImmersedTracerDiffusion = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(immersed_∇_dot_qᶜ)}
+const TotalTracerDiffusion = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(total_∇_dot_qᶜ)}
+const TracerForcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any}
+
 #+++ Advection
 """
     $(SIGNATURES)
@@ -121,10 +133,6 @@ function ImmersedTracerDiffusion(model, tracer_name; kwargs...)
     immersed_bc = tracer.boundary_conditions.immersed
     return ImmersedTracerDiffusion(model, tracer, immersed_bc, model.closure, model.diffusivity_fields, Val(tracer_index), model.clock, fields(model); kwargs...)
 end
-
-@inline total_∇_dot_qᶜ(i, j, k, grid, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields, buoyancy) =
-    ∇_dot_qᶜ(i, j, k, grid, closure, diffusivity_fields, val_tracer_index, c, clock, model_fields, buoyancy) +
-    immersed_∇_dot_qᶜ(i, j, k, grid, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields, buoyancy)
 
 """
     $(SIGNATURES)

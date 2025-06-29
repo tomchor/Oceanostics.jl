@@ -36,6 +36,8 @@ using Oceananigans.TurbulenceClosures: ∇_dot_qᶜ, diffusive_flux_x, diffusive
                                                                    tracers,
                                                                    args...)
 
+const TracerVarianceTendency = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(c∂ₜcᶜᶜᶜ)}
+
 """
     $(SIGNATURES)
 
@@ -47,15 +49,13 @@ where `c` is the tracer and `∂ₜc` is the tracer tendency (computed using
 Oceananigans' tracer tendency kernel).
 
 ```jldoctest
-julia> using Oceananigans
+julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1, 1, 1));
 
 julia> model = NonhydrostaticModel(; grid, tracers=:b);
 
-julia> using Oceanostics.TracerVarianceEquation: TracerVarianceTendency
-
-julia> χ = TracerVarianceTendency(model, :b)
+julia> χ = TracerVarianceEquation.TracerVarianceTendency(model, :b)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: c∂ₜcᶜᶜᶜ (generic function with 1 method)
@@ -93,6 +93,8 @@ end
                                  args...) =
     @inbounds 2 * tracer[i, j, k] * ∇_dot_qᶜ(i, j, k, grid, closure, diffusivities, val_tracer_index, tracer, args...)
 
+const TracerVarianceDiffusiveTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(c∇_dot_qᶜ)}
+
 """
     $(SIGNATURES)
 
@@ -104,11 +106,18 @@ prognostic equation using Oceananigans' diffusive tracer flux divergence kernel:
 ```
 where `c` is the tracer, and `Fⱼ` is the tracer's diffusive flux in the `j`-th direction.
 
-```julia
-grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
-model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly())
+```jldoctest
+julia> using Oceananigans, Oceanostics
 
-DIFF = TracerVarianceDiffusiveTerm(model, :b)
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
+
+julia> model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly())
+
+julia> DIFF = TracerVarianceEquation.TracerVarianceDiffusiveTerm(model, :b)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: c∇_dot_qᶜ (generic function with 1 method)
+└── arguments: ("Nothing", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
 ```
 """
 function TracerVarianceDiffusiveTerm(model, tracer_name; location = (Center, Center, Center))
@@ -145,6 +154,8 @@ end
          ℑzᵃᵃᶜ(i, j, k, grid, Azᶜᶜᶠ_δcᶜᶜᶠ_q₃ᶜᶜᶠ, args...)   # C, C, F  → C, C, C
          ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δc above, ensures a derivative operation
 
+const TracerVarianceDissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(tracer_variance_dissipation_rate_ccc)}
+
 """
     $(SIGNATURES)
 
@@ -163,14 +174,28 @@ Note that often `χ` is written as `χ = 2κ (∇c ⋅ ∇c)`, which is the spec
 Here `tracer_name` is needed even when passing `tracer` in order to get the appropriate `tracer_index`.
 When passing `tracer`, this function should be used as
 
-```julia
-grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
-model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly())
+```jldoctest
+julia> using Oceananigans, Oceanostics
 
-b̄ = Field(Average(model.tracers.b, dims=(1,2)))
-b′ = model.tracers.b - b̄
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
 
-χb = TracerVarianceDissipationRate(model, :b, tracer=b′)
+julia> model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly())
+
+julia> χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: ("Nothing", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+
+julia> b̄ = Field(Average(model.tracers.b, dims=(1,2)))
+
+julia> b′ = model.tracers.b - b̄
+
+julia> χb = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b, tracer=b′)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: ("Nothing", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
 ```
 """
 function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))
