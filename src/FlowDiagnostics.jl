@@ -63,6 +63,8 @@ end
     return dbdz / duₕdz^2
 end
 
+const RichardsonNumber = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(richardson_number_ccf)}
+
 """
     $(SIGNATURES)
 
@@ -115,6 +117,8 @@ end
 
     return (ω_x*params.fx + ω_y*params.fy + ω_z*params.fz)/(params.fx^2 + params.fy^2 + params.fz^2)
 end
+
+const RossbyNumber = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(rossby_number_fff)}
 
 """
     $(SIGNATURES)
@@ -175,6 +179,8 @@ end
     return pv_barot + pv_baroc
 end
 
+const ThermalWindPotentialVorticity = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(potential_vorticity_in_thermal_wind_fff)}
+
 """
     $(SIGNATURES)
 
@@ -219,6 +225,8 @@ end
 
     return pv_x + pv_y + pv_z
 end
+
+const ErtelPotentialVorticity = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(ertel_potential_vorticity_fff)}
 
 """
     $(SIGNATURES)
@@ -313,6 +321,7 @@ end
     return (params.f_dir + ω_dir) * dbddir
 end
 
+const DirectionalErtelPotentialVorticity = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(directional_ertel_potential_vorticity_fff)}
 
 """
     $(SIGNATURES)
@@ -358,6 +367,8 @@ function strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)
     return √(Sˣˣ² + Sʸʸ² + Sᶻᶻ² + 2 * (Sˣʸ² + Sˣᶻ² + Sʸᶻ²))
 end
 
+const StrainRateTensorModulus = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(strain_rate_tensor_modulus_ccc)}
+
 """
     $(SIGNATURES)
 
@@ -392,6 +403,8 @@ function vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)
     return √(Ωˣʸ² + Ωˣᶻ² + Ωʸᶻ² + Ωʸˣ² + Ωᶻˣ² + Ωᶻʸ²)
 end
 
+const VorticityTensorModulus = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(vorticity_tensor_modulus_ccc)}
+
 """
     $(SIGNATURES)
 
@@ -419,6 +432,8 @@ end
     Ω² = vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
     return (Ω² - S²) / 2
 end
+
+const QVelocityGradientTensorInvariant = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(Q_velocity_gradient_tensor_invariant_ccc)}
 #---
 
 #+++ Mixed layer depth
