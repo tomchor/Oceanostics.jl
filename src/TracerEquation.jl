@@ -26,7 +26,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(; grid, tracers=:a);
 
-julia> ADV = TracerAdvection(model, :a)
+julia> ADV = TracerEquation.TracerAdvection(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: div_Uc (generic function with 10 methods)
@@ -67,7 +67,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(; grid, tracers=:a);
 
-julia> DIFF = TracerDiffusion(model, :a)
+julia> DIFF = TracerEquation.TracerDiffusion(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ∇_dot_qᶜ (generic function with 10 methods)
@@ -143,7 +143,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(; grid, tracers=:a);
 
-julia> DIFF = TotalTracerDiffusion(model, :a)
+julia> DIFF = TracerEquation.TotalTracerDiffusion(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: total_∇_dot_qᶜ (generic function with 1 method)
