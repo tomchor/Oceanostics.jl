@@ -115,7 +115,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(; grid, tracers=:a);
 
-julia> DIFF = ImmersedTracerDiffusion(model, :a)
+julia> DIFF = TracerEquation.ImmersedTracerDiffusion(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: immersed_∇_dot_qᶜ (generic function with 2 methods)
@@ -184,7 +184,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(; grid, tracers=:a);
 
-julia> FORC = TracerForcing(model, :a)
+julia> FORC = TracerEquation.TracerForcing(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: zeroforcing (generic function with 1 method)
