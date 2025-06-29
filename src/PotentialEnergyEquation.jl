@@ -55,9 +55,7 @@ Example
 
 Usage with a `BuoyancyTracer` buoyacny model
 ```jldoctest
-julia> using Oceananigans
-
-julia> using Oceanostics.PotentialEnergyEquation: PotentialEnergy
+julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
@@ -75,7 +73,7 @@ NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 ├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
 └── coriolis: Nothing
 
-julia> PotentialEnergy(model)
+julia> PotentialEnergyEquation.PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
@@ -85,9 +83,7 @@ KernelFunctionOperation at (Center, Center, Center)
 The default behaviour of `PotentialEnergy` uses the *in-situ density* in the calculation
 when the equation of state is a `BoussinesqEquationOfState`:
 ```jldoctest
-julia> using Oceananigans, SeawaterPolynomials.TEOS10
-
-julia> using Oceanostics.PotentialEnergyEquation: PotentialEnergy
+julia> using Oceananigans, SeawaterPolynomials.TEOS10, Oceanostics
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
@@ -118,7 +114,7 @@ NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 ├── buoyancy: SeawaterBuoyancy with g=9.80665 and BoussinesqEquationOfState{Float64} with ĝ = NegativeZDirection()
 └── coriolis: Nothing
 
-julia> PotentialEnergy(model)
+julia> PotentialEnergyEquation.PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
@@ -128,9 +124,7 @@ KernelFunctionOperation at (Center, Center, Center)
 To use a reference density set a constant value for the keyword argument `geopotential_height`
 and pass this the function. For example,
 ```jldoctest
-julia> using Oceananigans, SeawaterPolynomials.TEOS10;
-
-julia> using Oceanostics.PotentialEnergyEquation: PotentialEnergy;
+julia> using Oceananigans, SeawaterPolynomials.TEOS10, Oceanostics
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
 
@@ -144,7 +138,7 @@ julia> model = NonhydrostaticModel(; grid, buoyancy, tracers);
 
 julia> geopotential_height = 0; # density variable will be σ₀
 
-julia> PotentialEnergy(model)
+julia> PotentialEnergyEquation.PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
