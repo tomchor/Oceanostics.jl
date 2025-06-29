@@ -36,12 +36,12 @@ function test_shear_production_terms(model)
     W = Field(Average(w, dims=(2, 3)))
 
     op = TKEEquation.XShearProductionRate(model, u, v, w, U, V, W)
-    @test op isa AbstractOperation
+    @test op isa TKEEquation.XShearProductionRate
     XSP = Field(op)
     @test all(interior(compute!(XSP)) .≈ 0)
 
     op = TKEEquation.XShearProductionRate(model; U=U, V=V, W=W)
-    @test op isa AbstractOperation
+    @test op isa TKEEquation.XShearProductionRate
     XSP = Field(op)
     @test all(interior(compute!(XSP)) .≈ 0)
 
@@ -50,12 +50,12 @@ function test_shear_production_terms(model)
     W = Field(Average(w, dims=(1, 3)))
 
     op = TKEEquation.YShearProductionRate(model; U=U, V=V, W=W)
-    @test op isa AbstractOperation
+    @test op isa TKEEquation.YShearProductionRate
     YSP = Field(op)
     @test all(interior(compute!(YSP)) .≈ 0)
 
     op = TKEEquation.YShearProductionRate(model, u, v, w, U, V, W)
-    @test op isa AbstractOperation
+    @test op isa TKEEquation.YShearProductionRate
     YSP = Field(op)
     @test all(interior(compute!(YSP)) .≈ 0)
 
@@ -65,12 +65,12 @@ function test_shear_production_terms(model)
     W = Field(Average(w, dims=(1, 2)))
 
     op = TKEEquation.ZShearProductionRate(model, u, v, w, U, V, W)
-    @test op isa AbstractOperation
+    @test op isa TKEEquation.ZShearProductionRate
     ZSP = Field(op)
     @test all(interior(compute!(ZSP)) .≈ 0)
 
     op = TKEEquation.ZShearProductionRate(model; U=U, V=V, W=W)
-    @test op isa AbstractOperation
+    @test op isa TKEEquation.ZShearProductionRate
     ZSP = Field(op)
     @test all(interior(compute!(ZSP)) .≈ 0)
 
@@ -78,17 +78,17 @@ end
 
 function test_pressure_term(model)
     u⃗∇p = TKEEquation.PressureRedistributionTerm(model)
-    @test u⃗∇p isa AbstractOperation
+    @test u⃗∇p isa TKEEquation.PressureRedistributionTerm
     @test compute!(Field(u⃗∇p)) isa Field
 
     u⃗∇pNHS = TKEEquation.PressureRedistributionTerm(model, pressure=model.pressures.pNHS)
-    @test u⃗∇pNHS isa AbstractOperation
+    @test u⃗∇pNHS isa TKEEquation.PressureRedistributionTerm
     @test compute!(Field(u⃗∇pNHS)) isa Field
 
     # Test calculation with a hydrostatic pressure separation
     model2 = NonhydrostaticModel(grid=model.grid, hydrostatic_pressure_anomaly=CenterField(model.grid))
     u⃗∇p_from_model2 = TKEEquation.PressureRedistributionTerm(model2)
-    @test u⃗∇p_from_model2 isa AbstractOperation
+    @test u⃗∇p_from_model2 isa TKEEquation.PressureRedistributionTerm
     @test compute!(Field(u⃗∇p_from_model2)) isa Field
 
     return nothing
@@ -101,7 +101,7 @@ function test_momentum_advection_term(grid; model_type=NonhydrostaticModel)
 
     ADV = TKEEquation.AdvectionTerm(model)
     @compute ADV_field = Field(ADV)
-    @test ADV isa AbstractOperation
+    @test ADV isa TKEEquation.AdvectionTerm
     @test ADV_field isa Field
 
     # Test excluding the grid boundaries
@@ -116,7 +116,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     if !(model.closure isa Tuple) || all(isa.(model.closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
         ε_iso = TKEEquation.IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0)
         ε_iso_field = compute!(Field(ε_iso))
-        @test ε_iso isa AbstractOperation
+        @test ε_iso isa TKEEquation.IsotropicKineticEnergyDissipationRate
         @test ε_iso_field isa Field
     end
 
@@ -125,12 +125,12 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 
     ε = TKEEquation.KineticEnergyDissipationRate(model)
     ε_field = compute!(Field(ε))
-    @test ε isa AbstractOperation
+    @test ε isa TKEEquation.KineticEnergyDissipationRate
     @test ε_field isa Field
 
     εp = TKEEquation.KineticEnergyDissipationRate(model; U=Field(Average(model.velocities.u, dims=(1,2))))
     εp_field = compute!(Field(εp))
-    @test εp isa AbstractOperation
+    @test εp isa TKEEquation.KineticEnergyDissipationRate
     @test εp_field isa Field
 
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2)
@@ -151,7 +151,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 
     ε = TKEEquation.KineticEnergyStressTerm(model)
     ε_field = compute!(Field(ε))
-    @test ε isa AbstractOperation
+    @test ε isa TKEEquation.KineticEnergyStressTerm
     @test ε_field isa Field
 
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
@@ -164,7 +164,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 
         ε = TKEEquation.KineticEnergyTendency(model)
         @compute ε_field = Field(ε)
-        @test ε isa AbstractOperation
+        @test ε isa TKEEquation.KineticEnergyTendency
         @test ε_field isa Field
 
         @compute ∂ₜKE = Field(Average(TracerVarianceEquation.TracerVarianceTendency(model, :b)))
@@ -187,7 +187,7 @@ function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
 
     ε = TKEEquation.KineticEnergyForcingTerm(model)
     @compute ε_field = Field(ε)
-    @test ε isa AbstractOperation
+    @test ε isa TKEEquation.KineticEnergyForcingTerm
     @test ε_field isa Field
 
     @compute ε_truth = Field(@at (Center, Center, Center) (-model.velocities.u^2 -model.velocities.v^2 -model.velocities.w^2))
@@ -204,7 +204,7 @@ function test_buoyancy_production_term(grid; model_type=NonhydrostaticModel)
 
     wb = TKEEquation.BuoyancyProductionTerm(model)
     @compute wb_field = Field(wb)
-    @test wb isa AbstractOperation
+    @test wb isa TKEEquation.BuoyancyProductionTerm
     @test wb_field isa Field
     @test Array(interior(wb_field, 1, 1, 2)) .== w₀ * b₀
 
@@ -212,7 +212,7 @@ function test_buoyancy_production_term(grid; model_type=NonhydrostaticModel)
     b′ = Field(model.tracers.b - Field(Average(model.tracers.b)))
     w′b′ = TKEEquation.BuoyancyProductionTerm(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
     @compute w′b′_field = Field(w′b′)
-    @test w′b′ isa AbstractOperation
+    @test w′b′ isa TKEEquation.BuoyancyProductionTerm
     @test w′b′_field isa Field
     @test .≈(Array(interior(w′b′_field, 1, 1, 2)), 0, rtol=1e-12, atol=1e-13) # less accurate for stretched grid
 

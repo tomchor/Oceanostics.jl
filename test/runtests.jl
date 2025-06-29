@@ -11,8 +11,8 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
         include("test_tracer_diagnostics.jl")
     end
 
-    if group == :ke_diagnostics || group == :all
-        include("test_ke_diagnostics.jl")
+    if group == :tke_diagnostics || group == :all
+        include("test_tke_diagnostics.jl")
     end
 
     if group == :pe_diagnostics || group == :all
