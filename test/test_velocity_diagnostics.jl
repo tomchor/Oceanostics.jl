@@ -2,7 +2,6 @@ using Test
 using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
-using Oceananigans.AbstractOperations: AbstractOperation
 
 using Oceanostics
 using Oceanostics: perturbation_fields
@@ -40,33 +39,33 @@ model_types = (NonhydrostaticModel,
 #+++ Test functions
 function test_velocity_only_flow_diagnostics(model)
     op = RossbyNumber(model;)
-    @test op isa AbstractOperation
+    @test op isa RossbyNumber
     Ro = Field(op)
     @test all(interior(compute!(Ro)) .≈ 0)
 
     op = RossbyNumber(model, model.velocities..., model.coriolis)
-    @test op isa AbstractOperation
+    @test op isa RossbyNumber
     Ro = Field(op)
     @test all(interior(compute!(Ro)) .≈ 0)
 
     op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1)
-    @test op isa AbstractOperation
+    @test op isa RossbyNumber
     Ro = Field(op)
     @test all(interior(compute!(Ro)) .≈ 0)
 
     op = StrainRateTensorModulus(model)
-    @test op isa AbstractOperation
+    @test op isa StrainRateTensorModulus
     S = Field(op)
     @test all(interior(compute!(S)) .≈ 0)
 
     op = VorticityTensorModulus(model)
-    @test op isa AbstractOperation
+    @test op isa VorticityTensorModulus
     Ω = Field(op)
     @test all(interior(compute!(Ω)) .≈ 0)
 
     op = QVelocityGradientTensorInvariant(model)
     @allowscalar @test op == Oceanostics.Q(model)
-    @test op isa AbstractOperation
+    @test op isa QVelocityGradientTensorInvariant
     q = Field(op)
     @test all(interior(compute!(q)) .≈ 0)
 

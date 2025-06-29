@@ -263,7 +263,7 @@ KernelFunctionOperation at (Face, Face, Face)
 ├── kernel_function: ertel_potential_vorticity_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Int64", "Int64", "Float64")
 
-julia> interior(compute!(Field(EPV)))
+julia> interior(Field(EPV))
 1×1×5 view(::Array{Float64, 3}, 1:1, 1:1, 4:8) with eltype Float64:
 [:, :, 1] =
  0.0

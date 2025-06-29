@@ -2,7 +2,6 @@ using Test
 using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
-using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 
 using Oceanostics
@@ -47,15 +46,15 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
 
     u, v, w = model.velocities
 
-    @compute ε = Field(TKEEquation.KineticEnergyDissipationRate(model))
-    @compute S = Field(StrainRateTensorModulus(model))
-    @compute Ω = Field(VorticityTensorModulus(model))
-    @compute q = Field(QVelocityGradientTensorInvariant(model))
+    ε = Field(TKEEquation.KineticEnergyDissipationRate(model))
+    S = Field(StrainRateTensorModulus(model))
+    Ω = Field(VorticityTensorModulus(model))
+    q = Field(QVelocityGradientTensorInvariant(model))
 
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
     if model.closure isa Tuple
-        @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
+        ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
     else
         ν_field = viscosity(model.closure, model.diffusivity_fields)
     end
@@ -84,15 +83,15 @@ function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, clo
 
     u, v, w = model.velocities
 
-    @compute ε = Field(TKEEquation.KineticEnergyDissipationRate(model))
-    @compute S = Field(StrainRateTensorModulus(model))
-    @compute Ω = Field(VorticityTensorModulus(model))
-    @compute q = Field(QVelocityGradientTensorInvariant(model))
+    ε = Field(TKEEquation.KineticEnergyDissipationRate(model))
+    S = Field(StrainRateTensorModulus(model))
+    Ω = Field(VorticityTensorModulus(model))
+    q = Field(QVelocityGradientTensorInvariant(model))
 
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
     if model.closure isa Tuple
-        @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
+        ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
     else
         ν_field = viscosity(model.closure, model.diffusivity_fields)
     end
@@ -118,15 +117,15 @@ function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=S
 
     u, v, w = model.velocities
 
-    @compute ε = Field(TKEEquation.KineticEnergyDissipationRate(model))
-    @compute S = Field(StrainRateTensorModulus(model))
-    @compute Ω = Field(VorticityTensorModulus(model))
-    @compute q = Field(QVelocityGradientTensorInvariant(model))
+    ε = Field(TKEEquation.KineticEnergyDissipationRate(model))
+    S = Field(StrainRateTensorModulus(model))
+    Ω = Field(VorticityTensorModulus(model))
+    q = Field(QVelocityGradientTensorInvariant(model))
 
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
     if model.closure isa Tuple
-        @compute ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
+        ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
     else
         ν_field = viscosity(model.closure, model.diffusivity_fields)
     end

@@ -2,7 +2,6 @@ using Test
 using CUDA: @allowscalar
 using Oceananigans: fill_halo_regions!
 using Oceananigans.AbstractOperations: AbstractOperation
-using Oceananigans.Fields: @compute
 using Oceananigans.Grids: znode
 using Oceananigans.BuoyancyFormulations: buoyancy
 using SeawaterPolynomials: BoussinesqEquationOfState
@@ -62,58 +61,58 @@ function test_buoyancy_diagnostics(model)
     if model.buoyancy != nothing && model.buoyancy.formulation isa SeawaterBuoyancy{<:Any, <:LinearEquationOfState}
         EPV = ErtelPotentialVorticity(model, tracer_name = :T)
         @test EPV isa ErtelPotentialVorticity
-        EPV_field = compute!(Field(EPV))
+        EPV_field = Field(EPV)
         @test EPV_field isa Field
         @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S) / (g * α)
 
     else
         EPV = ErtelPotentialVorticity(model)
         @test EPV isa ErtelPotentialVorticity
-        EPV_field = compute!(Field(EPV))
+        EPV_field = Field(EPV)
         @test EPV_field isa Field
         @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
     end
 
     EPV = ErtelPotentialVorticity(model, u, v, w, b, model.coriolis)
     @test EPV isa ErtelPotentialVorticity
-    EPV_field = compute!(Field(EPV))
+    EPV_field = Field(EPV)
     @test EPV_field isa Field
     @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
 
     PVtw = ThermalWindPotentialVorticity(model)
     @test PVtw isa ThermalWindPotentialVorticity
-    @test compute!(Field(PVtw)) isa Field
+    @test Field(PVtw) isa Field
 
     PVtw = ThermalWindPotentialVorticity(model, u, v, b, FPlane(1e-4))
     @test PVtw isa ThermalWindPotentialVorticity
-    @test compute!(Field(PVtw)) isa Field
+    @test Field(PVtw) isa Field
 
     DEPV = DirectionalErtelPotentialVorticity(model, (0, 0, 1))
     @test DEPV isa DirectionalErtelPotentialVorticity
-    @test compute!(Field(DEPV)) isa Field
+    @test Field(DEPV) isa Field
 
     DEPV = DirectionalErtelPotentialVorticity(model, (0, 0, 1), u, v, w, b, model.coriolis)
     @test DEPV isa DirectionalErtelPotentialVorticity
-    @test compute!(Field(DEPV)) isa Field
+    @test Field(DEPV) isa Field
 
     return nothing
 end
 
 function test_tracer_diagnostics(model)
     χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)
-    χ_field = compute!(Field(χ))
+    χ_field = Field(χ)
     @test χ isa TracerVarianceEquation.TracerVarianceDissipationRate
     @test χ_field isa Field
 
     b̄ = Field(Average(model.tracers.b, dims=(1,2)))
     b′ = model.tracers.b - b̄
     χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b, tracer=b′)
-    χ_field = compute!(Field(χ))
+    χ_field = Field(χ)
     @test χ isa TracerVarianceEquation.TracerVarianceDissipationRate
     @test χ_field isa Field
 
     χ = TracerVarianceEquation.TracerVarianceDiffusiveTerm(model, :b)
-    χ_field = compute!(Field(χ))
+    χ_field = Field(χ)
     @test χ isa TracerVarianceEquation.TracerVarianceDiffusiveTerm
     @test χ_field isa Field
 
@@ -124,7 +123,7 @@ function test_tracer_diagnostics(model)
 
     if model isa NonhydrostaticModel
         χ = TracerVarianceEquation.TracerVarianceTendency(model, :b)
-        χ_field = compute!(Field(χ))
+        χ_field = Field(χ)
         @test χ isa TracerVarianceEquation.TracerVarianceTendency
         @test χ_field isa Field
 
