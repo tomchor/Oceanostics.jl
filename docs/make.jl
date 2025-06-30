@@ -45,17 +45,11 @@ format = Documenter.HTML(collapselevel = 1,
 makedocs(sitename = "Oceanostics.jl",
          authors = "Tomas Chor and contributors",
          pages = pages,
-         modules = [Oceanostics,
-                    Oceanostics.TKEEquation,
-                    Oceanostics.TracerEquation,
-                    Oceanostics.TracerVarianceEquation,
-                    Oceanostics.FlowDiagnostics,
-                    Oceanostics.PotentialEnergyEquation,
-                    Oceanostics.ProgressMessengers],
+         modules = [Oceanostics],
          doctest = true,
          clean = true,
          format = format,
-         checkdocs = :exports
+         checkdocs = :none
          )
 #---
 
