@@ -9,6 +9,10 @@ export TracerEquation, TKEEquation, TracerVarianceEquation, PotentialEnergyEquat
 export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing
 #---
 
+#+++ TracerVarianceEquation exports
+export TracerVarianceDissipationRate, TracerVarianceTendency, TracerVarianceDiffusiveTerm
+#---
+
 #+++ FlowDiagnostics exports
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity

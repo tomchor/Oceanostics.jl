@@ -1,7 +1,8 @@
 module TracerVarianceEquation
 using DocStringExtensions
 
-export TracerVarianceDissipationRate, TracerVarianceTendency, TracerVarianceDiffusiveTerm
+export DissipationRate, Tendency, DiffusiveTerm,
+       TracerVarianceDissipationRate, TracerVarianceTendency, TracerVarianceDiffusiveTerm
 
 using Oceanostics: validate_location, validate_dissipative_closure
 
@@ -36,7 +37,8 @@ using Oceananigans.TurbulenceClosures: ∇_dot_qᶜ, diffusive_flux_x, diffusive
                                                                    tracers,
                                                                    args...)
 
-const TracerVarianceTendency = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(c∂ₜcᶜᶜᶜ)}
+const Tendency = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(c∂ₜcᶜᶜᶜ)}
+const TracerVarianceTendency = Tendency
 
 """
     $(SIGNATURES)
@@ -93,7 +95,8 @@ end
                                  args...) =
     @inbounds 2 * tracer[i, j, k] * ∇_dot_qᶜ(i, j, k, grid, closure, diffusivities, val_tracer_index, tracer, args...)
 
-const TracerVarianceDiffusiveTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(c∇_dot_qᶜ)}
+const DiffusiveTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(c∇_dot_qᶜ)}
+const TracerVarianceDiffusiveTerm = DiffusiveTerm
 
 """
     $(SIGNATURES)
@@ -154,7 +157,8 @@ end
          ℑzᵃᵃᶜ(i, j, k, grid, Azᶜᶜᶠ_δcᶜᶜᶠ_q₃ᶜᶜᶠ, args...)   # C, C, F  → C, C, C
          ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δc above, ensures a derivative operation
 
-const TracerVarianceDissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(tracer_variance_dissipation_rate_ccc)}
+const DissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(tracer_variance_dissipation_rate_ccc)}
+const TracerVarianceDissipationRate = DissipationRate
 
 """
     $(SIGNATURES)

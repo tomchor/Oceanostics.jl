@@ -101,19 +101,22 @@ end
 function test_tracer_diagnostics(model)
     χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)
     χ_field = Field(χ)
-    @test χ isa TracerVarianceEquation.TracerVarianceDissipationRate
+    @test χ isa TracerVarianceEquation.DissipationRate
+    @test χ isa TracerVarianceDissipationRate
     @test χ_field isa Field
 
     b̄ = Field(Average(model.tracers.b, dims=(1,2)))
     b′ = model.tracers.b - b̄
     χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b, tracer=b′)
     χ_field = Field(χ)
-    @test χ isa TracerVarianceEquation.TracerVarianceDissipationRate
+    @test χ isa TracerVarianceEquation.DissipationRate
+    @test χ isa TracerVarianceDissipationRate
     @test χ_field isa Field
 
     χ = TracerVarianceEquation.TracerVarianceDiffusiveTerm(model, :b)
     χ_field = Field(χ)
-    @test χ isa TracerVarianceEquation.TracerVarianceDiffusiveTerm
+    @test χ isa TracerVarianceEquation.DiffusiveTerm
+    @test χ isa TracerVarianceDiffusiveTerm
     @test χ_field isa Field
 
     set!(model, u = (x, y, z) -> z, v = grid_noise, w = grid_noise, b = grid_noise)
@@ -124,7 +127,8 @@ function test_tracer_diagnostics(model)
     if model isa NonhydrostaticModel
         χ = TracerVarianceEquation.TracerVarianceTendency(model, :b)
         χ_field = Field(χ)
-        @test χ isa TracerVarianceEquation.TracerVarianceTendency
+        @test χ isa TracerVarianceEquation.Tendency
+        @test χ isa TracerVarianceTendency
         @test χ_field isa Field
 
         ∂ₜc² = Field(Average(TracerVarianceEquation.TracerVarianceTendency(model, :b)))
