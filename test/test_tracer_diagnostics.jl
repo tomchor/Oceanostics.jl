@@ -48,59 +48,68 @@ model_types = (NonhydrostaticModel,
 #+++ Test functions
 function test_tracer_terms(model)
     if model isa NonhydrostaticModel
-        ADV = TracerEquation.TracerAdvection(model, model.velocities..., model.tracers.a, model.advection)
+        ADV = TracerEquation.Advection(model, model.velocities..., model.tracers.a, model.advection)
     elseif model isa HydrostaticFreeSurfaceModel
-        ADV = TracerEquation.TracerAdvection(model, model.velocities..., model.tracers.a, model.advection.a)
+        ADV = TracerEquation.Advection(model, model.velocities..., model.tracers.a, model.advection.a)
     end
     ADV_field = Field(ADV)
-    @test ADV isa TracerEquation.TracerAdvection
+    @test ADV isa TracerEquation.Advection
+    @test ADV isa TracerAdvection
     @test ADV_field isa Field
 
-    ADV = TracerEquation.TracerAdvection(model, :a)
+    ADV = TracerEquation.Advection(model, :a)
+    @test ADV isa TracerEquation.Advection
     ADV_field = Field(ADV)
-    @test ADV isa TracerEquation.TracerAdvection
     @test ADV_field isa Field
 
     DIFF = TracerEquation.TracerDiffusion(model, :a, model.tracers.a, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy)
     DIFF_field = Field(DIFF)
-    @test DIFF isa TracerEquation.TracerDiffusion
+    @test DIFF isa TracerEquation.Diffusion
+    @test DIFF isa TracerDiffusion
     @test DIFF_field isa Field
 
     DIFF = TracerEquation.TracerDiffusion(model, :a)
     DIFF_field = Field(DIFF)
-    @test DIFF isa TracerEquation.TracerDiffusion
+    @test DIFF isa TracerEquation.Diffusion
+    @test DIFF isa TracerDiffusion
     @test DIFF_field isa Field
 
-    DIFF = TracerEquation.ImmersedTracerDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
+    DIFF = TracerEquation.ImmersedDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
                                    model.closure, model.diffusivity_fields, Val(:a), model.clock, fields(model))
     DIFF_field = Field(DIFF)
-    @test DIFF isa TracerEquation.ImmersedTracerDiffusion
+    @test DIFF isa TracerEquation.ImmersedDiffusion
+    @test DIFF isa TracerImmersedDiffusion
     @test DIFF_field isa Field
 
-    DIFF = TracerEquation.ImmersedTracerDiffusion(model, :a)
+    DIFF = TracerEquation.ImmersedDiffusion(model, :a)
     DIFF_field = Field(DIFF)
-    @test DIFF isa TracerEquation.ImmersedTracerDiffusion
+    @test DIFF isa TracerEquation.ImmersedDiffusion
+    @test DIFF isa TracerImmersedDiffusion
     @test DIFF_field isa Field
 
-    DIFF = TracerEquation.TotalTracerDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
+    DIFF = TracerEquation.TotalDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
                                 model.closure, model.diffusivity_fields, Val(:a), model.clock, fields(model), model.buoyancy)
     DIFF_field = Field(DIFF)
-    @test DIFF isa TracerEquation.TotalTracerDiffusion
+    @test DIFF isa TracerEquation.TotalDiffusion
+    @test DIFF isa TracerTotalDiffusion
     @test DIFF_field isa Field
 
-    DIFF = TracerEquation.TotalTracerDiffusion(model, :a)
+    DIFF = TracerEquation.TotalDiffusion(model, :a)
     DIFF_field = Field(DIFF)
-    @test DIFF isa TracerEquation.TotalTracerDiffusion
+    @test DIFF isa TracerEquation.TotalDiffusion
+    @test DIFF isa TracerTotalDiffusion
     @test DIFF_field isa Field
 
-    FORC = TracerEquation.TracerForcing(model, model.forcing.a, model.clock, fields(model))
+    FORC = TracerEquation.Forcing(model, model.forcing.a, model.clock, fields(model))
     FORC_field = Field(FORC)
-    @test FORC isa TracerEquation.TracerForcing
+    @test FORC isa TracerEquation.Forcing
+    @test FORC isa TracerForcing
     @test FORC_field isa Field
 
-    FORC = TracerEquation.TracerForcing(model, :a)
+    FORC = TracerEquation.Forcing(model, :a)
     FORC_field = Field(FORC)
-    @test FORC isa TracerEquation.TracerForcing
+    @test FORC isa TracerEquation.Forcing
+    @test FORC isa TracerForcing
     @test FORC_field isa Field
 
     return nothing
