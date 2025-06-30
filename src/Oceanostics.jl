@@ -5,6 +5,10 @@ using DocStringExtensions
 export TracerEquation, TKEEquation, TracerVarianceEquation, PotentialEnergyEquation
 #---
 
+#+++ TracerEquation exports
+export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing
+#---
+
 #+++ FlowDiagnostics exports
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity
