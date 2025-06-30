@@ -1,52 +1,13 @@
 using Test
-using CUDA: has_cuda_gpu, @allowscalar
-
-using Oceananigans
+using CUDA: @allowscalar
 using Oceananigans.AbstractOperations: AbstractOperation
-using Oceananigans.Fields: @compute
 using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
-using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 
 using Oceanostics
-using Oceanostics: BuoyancyProductionTerm, AdvectionTerm
+using Oceanostics.TracerVarianceEquation: TracerVarianceTendency
 
-#+++ Default grids
-arch = has_cuda_gpu() ? GPU() : CPU()
-
-N = 6
-regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
-
-S = .99 # Stretching factor. Positive number ∈ (0, 1]
-f_asin(k) = -asin(S*(2k - N - 2) / N)/π + 1/2
-F1 = f_asin(1); F2 = f_asin(N+1)
-z_faces(k) = ((F1 + F2)/2 - f_asin(k)) / (F1 - F2)
-
-stretched_grid = RectilinearGrid(arch, size=(N, N, N), x=(0, 1), y=(0, 1), z=z_faces)
-
-grid_noise(x, y, z) = randn()
-#---
-
-#+++ Test options
-model_kwargs = (buoyancy = BuoyancyForce(BuoyancyTracer()),
-                coriolis = FPlane(1e-4),
-                tracers = :b)
-
-closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
-            SmagorinskyLilly(),
-            Smagorinsky(coefficient=DynamicCoefficient(averaging=(1, 2))),
-            Smagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
-            (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
-
-coriolis_formulations = (nothing,
-                         FPlane(1e-4),
-                         ConstantCartesianCoriolis(fx=1e-4, fy=1e-4, fz=1e-4))
-
-grids = Dict("regular grid" => regular_grid,
-             "stretched grid" => stretched_grid)
-
-model_types = (NonhydrostaticModel,
-               HydrostaticFreeSurfaceModel)
-#---
+# Include common test utilities
+include("test_utils.jl")
 
 #+++ Test functions
 function test_ke_calculation(model)
@@ -55,15 +16,15 @@ function test_ke_calculation(model)
     V = Field(Average(v, dims=(2, 3)))
     W = Field(Average(w, dims=(2, 3)))
 
-    ke_op = KineticEnergy(model)
+    ke_op = TKEEquation.KineticEnergy(model)
     @test ke_op isa AbstractOperation
     ke_c = Field(ke_op)
-    @test all(interior(compute!(ke_c)) .≈ 0)
+    @test all(interior(Field(ke_c)) .≈ 0)
 
-    op = TurbulentKineticEnergy(model, U=U, V=V, W=W)
-    @test op isa AbstractOperation
+    op = TKEEquation.TurbulentKineticEnergy(model, U=U, V=V, W=W)
+    @test op isa TKEEquation.TurbulentKineticEnergy
     tke_c = Field(op)
-    @test all(interior(compute!(tke_c)) .≈ 0)
+    @test all(interior(Field(tke_c)) .≈ 0)
 
     return nothing
 end
@@ -73,61 +34,61 @@ function test_shear_production_terms(model)
     V = Field(Average(v, dims=(2, 3)))
     W = Field(Average(w, dims=(2, 3)))
 
-    op = XShearProductionRate(model, u, v, w, U, V, W)
-    @test op isa AbstractOperation
+    op = TKEEquation.XShearProductionRate(model, u, v, w, U, V, W)
+    @test op isa TKEEquation.XShearProductionRate
     XSP = Field(op)
-    @test all(interior(compute!(XSP)) .≈ 0)
+    @test all(interior(Field(XSP)) .≈ 0)
 
-    op = XShearProductionRate(model; U=U, V=V, W=W)
-    @test op isa AbstractOperation
+    op = TKEEquation.XShearProductionRate(model; U=U, V=V, W=W)
+    @test op isa TKEEquation.XShearProductionRate
     XSP = Field(op)
-    @test all(interior(compute!(XSP)) .≈ 0)
+    @test all(interior(Field(XSP)) .≈ 0)
 
     U = Field(Average(u, dims=(1, 3)))
     V = Field(Average(v, dims=(1, 3)))
     W = Field(Average(w, dims=(1, 3)))
 
-    op = YShearProductionRate(model; U=U, V=V, W=W)
-    @test op isa AbstractOperation
+    op = TKEEquation.YShearProductionRate(model; U=U, V=V, W=W)
+    @test op isa TKEEquation.YShearProductionRate
     YSP = Field(op)
-    @test all(interior(compute!(YSP)) .≈ 0)
+    @test all(interior(Field(YSP)) .≈ 0)
 
-    op = YShearProductionRate(model, u, v, w, U, V, W)
-    @test op isa AbstractOperation
+    op = TKEEquation.YShearProductionRate(model, u, v, w, U, V, W)
+    @test op isa TKEEquation.YShearProductionRate
     YSP = Field(op)
-    @test all(interior(compute!(YSP)) .≈ 0)
+    @test all(interior(Field(YSP)) .≈ 0)
 
 
     U = Field(Average(u, dims=(1, 2)))
     V = Field(Average(v, dims=(1, 2)))
     W = Field(Average(w, dims=(1, 2)))
 
-    op = ZShearProductionRate(model, u, v, w, U, V, W)
-    @test op isa AbstractOperation
+    op = TKEEquation.ZShearProductionRate(model, u, v, w, U, V, W)
+    @test op isa TKEEquation.ZShearProductionRate
     ZSP = Field(op)
-    @test all(interior(compute!(ZSP)) .≈ 0)
+    @test all(interior(Field(ZSP)) .≈ 0)
 
-    op = ZShearProductionRate(model; U=U, V=V, W=W)
-    @test op isa AbstractOperation
+    op = TKEEquation.ZShearProductionRate(model; U=U, V=V, W=W)
+    @test op isa TKEEquation.ZShearProductionRate
     ZSP = Field(op)
-    @test all(interior(compute!(ZSP)) .≈ 0)
+    @test all(interior(Field(ZSP)) .≈ 0)
 
 end
 
 function test_pressure_term(model)
-    u⃗∇p = PressureRedistributionTerm(model)
-    @test u⃗∇p isa AbstractOperation
-    @test compute!(Field(u⃗∇p)) isa Field
+    u⃗∇p = TKEEquation.PressureRedistributionTerm(model)
+    @test u⃗∇p isa TKEEquation.PressureRedistributionTerm
+    @test Field(u⃗∇p) isa Field
 
-    u⃗∇pNHS = PressureRedistributionTerm(model, pressure=model.pressures.pNHS)
-    @test u⃗∇pNHS isa AbstractOperation
-    @test compute!(Field(u⃗∇pNHS)) isa Field
+    u⃗∇pNHS = TKEEquation.PressureRedistributionTerm(model, pressure=model.pressures.pNHS)
+    @test u⃗∇pNHS isa TKEEquation.PressureRedistributionTerm
+    @test Field(u⃗∇pNHS) isa Field
 
     # Test calculation with a hydrostatic pressure separation
     model2 = NonhydrostaticModel(grid=model.grid, hydrostatic_pressure_anomaly=CenterField(model.grid))
-    u⃗∇p_from_model2 = PressureRedistributionTerm(model2)
-    @test u⃗∇p_from_model2 isa AbstractOperation
-    @test compute!(Field(u⃗∇p_from_model2)) isa Field
+    u⃗∇p_from_model2 = TKEEquation.PressureRedistributionTerm(model2)
+    @test u⃗∇p_from_model2 isa TKEEquation.PressureRedistributionTerm
+    @test Field(u⃗∇p_from_model2) isa Field
 
     return nothing
 end
@@ -137,9 +98,9 @@ function test_momentum_advection_term(grid; model_type=NonhydrostaticModel)
     C₁ = 2; C₂ = 3
     set!(model, u=(x, y, z) -> C₁*y, v=C₂)
 
-    ADV = AdvectionTerm(model)
-    @compute ADV_field = Field(ADV)
-    @test ADV isa AbstractOperation
+    ADV = TKEEquation.AdvectionTerm(model)
+    ADV_field = Field(ADV)
+    @test ADV isa TKEEquation.AdvectionTerm
     @test ADV_field isa Field
 
     # Test excluding the grid boundaries
@@ -152,29 +113,29 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     model = model_type(; grid, closure, buoyancy=BuoyancyTracer(), tracers=:b)
 
     if !(model.closure isa Tuple) || all(isa.(model.closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
-        ε_iso = IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0)
-        ε_iso_field = compute!(Field(ε_iso))
-        @test ε_iso isa AbstractOperation
+        ε_iso = TKEEquation.IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0)
+        ε_iso_field = Field(ε_iso)
+        @test ε_iso isa TKEEquation.IsotropicKineticEnergyDissipationRate
         @test ε_iso_field isa Field
     end
 
     dudz = 2
     set!(model, u=(x, y, z) -> dudz*z)
 
-    ε = KineticEnergyDissipationRate(model)
-    ε_field = compute!(Field(ε))
-    @test ε isa AbstractOperation
+    ε = TKEEquation.KineticEnergyDissipationRate(model)
+    ε_field = Field(ε)
+    @test ε isa TKEEquation.KineticEnergyDissipationRate
     @test ε_field isa Field
 
-    εp = KineticEnergyDissipationRate(model; U=Field(Average(model.velocities.u, dims=(1,2))))
-    εp_field = compute!(Field(εp))
-    @test εp isa AbstractOperation
+    εp = TKEEquation.KineticEnergyDissipationRate(model; U=Field(Average(model.velocities.u, dims=(1,2))))
+    εp_field = Field(εp)
+    @test εp isa TKEEquation.KineticEnergyDissipationRate
     @test εp_field isa Field
 
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2)
 
     if closure isa Tuple
-        @compute ν_field = Field(sum(viscosity(closure, model.diffusivity_fields)))
+        ν_field = Field(sum(viscosity(closure, model.diffusivity_fields)))
     else
         ν_field = viscosity(closure, model.diffusivity_fields)
     end
@@ -187,25 +148,25 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
         @test isapprox(getindex(εp_field, idxs...), 0.0,    rtol=rtol, atol=eps())
     end
 
-    ε = KineticEnergyStressTerm(model)
-    ε_field = compute!(Field(ε))
-    @test ε isa AbstractOperation
+    ε = TKEEquation.KineticEnergyStressTerm(model)
+    ε_field = Field(ε)
+    @test ε isa TKEEquation.KineticEnergyStressTerm
     @test ε_field isa Field
 
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
-    @compute ε̄ₖ = Field(Average(KineticEnergyDissipationRate(model)))
-    @compute ε̄ₖ₂= Field(Average(KineticEnergyStressTerm(model)))
+    ε̄ₖ = Field(Average(TKEEquation.KineticEnergyDissipationRate(model)))
+    ε̄ₖ₂= Field(Average(TKEEquation.KineticEnergyStressTerm(model)))
 
 
     if model isa NonhydrostaticModel
         @test Array(interior(ε̄ₖ, 1, 1, 1)) ≈ Array(interior(ε̄ₖ₂, 1, 1, 1))
 
-        ε = KineticEnergyTendency(model)
-        @compute ε_field = Field(ε)
-        @test ε isa AbstractOperation
+        ε = TKEEquation.KineticEnergyTendency(model)
+        ε_field = Field(ε)
+        @test ε isa TKEEquation.KineticEnergyTendency
         @test ε_field isa Field
 
-        @compute ∂ₜKE = Field(Average(TracerVarianceTendency(model, :b)))
+        ∂ₜKE = Field(Average(TracerVarianceEquation.TracerVarianceTendency(model, :b)))
     end
 
     return nothing
@@ -223,12 +184,12 @@ function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
     model = model_type(; grid, forcing = (u=Fᵘ, v=Fᵛ, w=Fʷ))
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise)
 
-    ε = KineticEnergyForcingTerm(model)
-    @compute ε_field = Field(ε)
-    @test ε isa AbstractOperation
+    ε = TKEEquation.KineticEnergyForcingTerm(model)
+    ε_field = Field(ε)
+    @test ε isa TKEEquation.KineticEnergyForcingTerm
     @test ε_field isa Field
 
-    @compute ε_truth = Field(@at (Center, Center, Center) (-model.velocities.u^2 -model.velocities.v^2 -model.velocities.w^2))
+    ε_truth = Field(@at (Center, Center, Center) (-model.velocities.u^2 -model.velocities.v^2 -model.velocities.w^2))
 
     @test isapprox(Array(interior(ε_field, 1, 1, 1)), Array(interior(ε_truth, 1, 1, 1)), rtol=1e-12, atol=eps())
 
@@ -240,17 +201,17 @@ function test_buoyancy_production_term(grid; model_type=NonhydrostaticModel)
     w₀ = 2; b₀ = 3
     set!(model, w=w₀, b=b₀, enforce_incompressibility=false)
 
-    wb = BuoyancyProductionTerm(model)
-    @compute wb_field = Field(wb)
-    @test wb isa AbstractOperation
+    wb = TKEEquation.BuoyancyProductionTerm(model)
+    wb_field = Field(wb)
+    @test wb isa TKEEquation.BuoyancyProductionTerm
     @test wb_field isa Field
     @test Array(interior(wb_field, 1, 1, 2)) .== w₀ * b₀
 
     w′ = Field(model.velocities.w - Field(Average(model.velocities.w)))
     b′ = Field(model.tracers.b - Field(Average(model.tracers.b)))
-    w′b′ = BuoyancyProductionTerm(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
-    @compute w′b′_field = Field(w′b′)
-    @test w′b′ isa AbstractOperation
+    w′b′ = TKEEquation.BuoyancyProductionTerm(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
+    w′b′_field = Field(w′b′)
+    @test w′b′ isa TKEEquation.BuoyancyProductionTerm
     @test w′b′_field isa Field
     @test .≈(Array(interior(w′b′_field, 1, 1, 2)), 0, rtol=1e-12, atol=1e-13) # less accurate for stretched grid
 
@@ -299,7 +260,7 @@ end
 
         for closure in invalid_closures
             model = NonhydrostaticModel(grid = regular_grid; model_kwargs..., closure)
-            @test_throws ErrorException IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0)
+            @test_throws ErrorException TKEEquation.IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0)
         end
 
     end

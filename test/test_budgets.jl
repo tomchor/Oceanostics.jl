@@ -2,7 +2,6 @@ using Test
 using CUDA: has_cuda_gpu
 
 using Oceananigans
-using Oceananigans.Fields: @compute
 using Oceanostics
 using Random
 using Statistics
@@ -52,7 +51,7 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, closure = ScalarDi
     u.data.parent .-= mean(u)
 
     κ = diffusivity(model.closure, model.diffusivity_fields, Val(:c))
-    @compute κ = κ isa Tuple ? Field(sum(κ)) : κ
+    κ = κ isa Tuple ? Field(sum(κ)) : κ
     Δt = min(minimum_zspacing(grid)^2/maximum(κ)/10, minimum_zspacing(grid)/maximum(u) / 10)
     stop_time = 0.1
     simulation = Simulation(model; Δt, stop_time)
@@ -63,15 +62,15 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, closure = ScalarDi
     progress(sim) = @info "$(time(sim)) of $stop_time with Δt = $(prettytime(sim.Δt))"
     add_callback!(simulation, progress, IterationInterval(100))
 
-    ε  = KineticEnergyDissipationRate(model)
-    @compute ∫εdV   = Field(Integral(ε))
-    @compute ∫KEdV  = Field(Integral(KineticEnergy(model)))
+    ε  = TKEEquation.KineticEnergyDissipationRate(model)
+    ∫εdV   = Field(Integral(ε))
+    ∫KEdV  = Field(Integral(TKEEquation.KineticEnergy(model)))
     ∫∫εdVdt = Ref(0.0)
     ∫KEdV_t⁰ = parent(∫KEdV)[1,1,1]
 
-    χ  = TracerVarianceDissipationRate(model, :c)
-    @compute ∫χdV   = Field(Integral(χ))
-    @compute ∫c²dV  = Field(Integral(c^2))
+    χ  = TracerVarianceEquation.TracerVarianceDissipationRate(model, :c)
+    ∫χdV   = Field(Integral(χ))
+    ∫c²dV  = Field(Integral(c^2))
     ∫∫χdVdt = Ref(0.0)
     ∫c²dV_t⁰ = parent(∫c²dV)[1,1,1]
 

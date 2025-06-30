@@ -1,4 +1,4 @@
-module TKEBudgetTerms
+module TKEEquation
 using DocStringExtensions
 
 export TurbulentKineticEnergy, KineticEnergy
@@ -43,6 +43,8 @@ using Oceanostics: validate_location, validate_dissipative_closure, perturbation
 @inline turbulent_kinetic_energy_ccc(i, j, k, grid, u, v, w, U, V, W) = (ℑxᶜᵃᵃ(i, j, k, grid, ψ′², u, U) +
                                                                          ℑyᵃᶜᵃ(i, j, k, grid, ψ′², v, V) +
                                                                          ℑzᵃᵃᶜ(i, j, k, grid, ψ′², w, W)) / 2
+
+const TurbulentKineticEnergy = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(turbulent_kinetic_energy_ccc)}
 
 """
     $(SIGNATURES)
@@ -105,6 +107,8 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
     return u∂ₜu + v∂ₜv + w∂ₜw
 end
 
+const KineticEnergyTendency = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢGᵢᶜᶜᶜ)}
+
 """
     $(SIGNATURES)
 
@@ -120,7 +124,7 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1, 1, 1));
 
 julia> model = NonhydrostaticModel(; grid);
 
-julia> using Oceanostics.TKEBudgetTerms: KineticEnergyTendency
+julia> using Oceanostics.TKEEquation: KineticEnergyTendency
 
 julia> ke_tendency = KineticEnergyTendency(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -159,6 +163,8 @@ end
     return u∂ⱼuⱼu + v∂ⱼuⱼv + w∂ⱼuⱼw
 end
 
+const AdvectionTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ)}
+
 """
     $(SIGNATURES)
 
@@ -176,9 +182,7 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
 julia> model = NonhydrostaticModel(grid=grid);
 
-julia> using Oceanostics.TKEBudgetTerms: BuoyancyProductionTerm
-
-julia> using Oceanostics.TKEBudgetTerms: AdvectionTerm
+julia> using Oceanostics.TKEEquation: AdvectionTerm
 
 julia> ADV = AdvectionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -208,6 +212,8 @@ end
 
     return 2ν * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
+
+const IsotropicKineticEnergyDissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(isotropic_viscous_dissipation_rate_ccc)}
 
 """
     $(SIGNATURES)
@@ -264,6 +270,8 @@ Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo,
      Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy)   # C, C, C
      ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δuᵢ above, ensures a derivative operation
 
+const KineticEnergyDissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(viscous_dissipation_rate_ccc)}
+
 """
     $(SIGNATURES)
 
@@ -301,6 +309,8 @@ end
 
     return u∂ⱼ_τ₁ⱼ+ v∂ⱼ_τ₂ⱼ + w∂ⱼ_τ₃ⱼ
 end
+
+const KineticEnergyStressTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ)}
 
 """
     $(SIGNATURES)
@@ -342,6 +352,8 @@ end
     return uFᵘ+ vFᵛ + wFʷ
 end
 
+const KineticEnergyForcingTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢFᵤᵢᶜᶜᶜ)}
+
 """
     $(SIGNATURES)
 
@@ -373,6 +385,8 @@ end
     return u∂x_p + v∂y_p + w∂z_p
 end
 
+const PressureRedistributionTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ᵢpᶜᶜᶜ)}
+
 """
     $(SIGNATURES)
 
@@ -389,7 +403,7 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
 julia> model = NonhydrostaticModel(grid=grid);
 
-julia> using Oceanostics.TKEBudgetTerms: PressureRedistributionTerm
+julia> using Oceanostics.TKEEquation: PressureRedistributionTerm
 
 julia> ∇u⃗p = PressureRedistributionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -426,6 +440,8 @@ end
     return ubˣ + vbʸ + wbᶻ
 end
 
+const BuoyancyProductionTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢbᵢᶜᶜᶜ)}
+
 """
     $(SIGNATURES)
 
@@ -447,7 +463,7 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
 julia> model = NonhydrostaticModel(grid=grid, buoyancy=BuoyancyTracer(), tracers=:b);
 
-julia> using Oceanostics.TKEBudgetTerms: BuoyancyProductionTerm
+julia> using Oceanostics.TKEEquation: BuoyancyProductionTerm
 
 julia> wb = BuoyancyProductionTerm(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -496,6 +512,8 @@ end
     return -(uu∂xU + vu∂xV + wu∂xW)
 end
 
+const XShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_x_ccc)}
+
 """
     $(SIGNATURES)
 
@@ -538,6 +556,8 @@ end
     return -(uv∂yU + vv∂yV + wv∂yW)
 end
 
+const YShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_y_ccc)}
+
 """
     $(SIGNATURES)
 
@@ -579,6 +599,8 @@ end
 
     return - (uw∂zU + vw∂zV + ww∂zW)
 end
+
+const ZShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_z_ccc)}
 
 """
     $(SIGNATURES)

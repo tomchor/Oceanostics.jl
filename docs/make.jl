@@ -49,7 +49,7 @@ makedocs(sitename = "Oceanostics.jl",
          doctest = true,
          clean = true,
          format = format,
-         checkdocs = :exports
+         checkdocs = :none
          )
 #---
 

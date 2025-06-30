@@ -1,22 +1,12 @@
 module Oceanostics
 using DocStringExtensions
 
-#+++ TKEBudgetTerms exports
-export TurbulentKineticEnergy, KineticEnergy
-export KineticEnergyTendency, KineticEnergyStressTerm, KineticEnergyForcingTerm
-export IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate
-export PressureRedistributionTerm
-export XShearProductionRate, YShearProductionRate, ZShearProductionRate
+#+++ Module export
+export TracerEquation, TKEEquation, TracerVarianceEquation, PotentialEnergyEquation
 #---
 
-#+++ TracerBudgetTerms exports
-export TracerAdvection, TracerDiffusion, ImmersedTracerDiffusion, TotalTracerDiffusion, TracerForcing
-#---
-
-#+++ TracerVarianceBudgetTerms exports
-export TracerVarianceTendency
-export TracerVarianceDiffusiveTerm
-export TracerVarianceDissipationRate
+#+++ TracerEquation exports
+export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing
 #---
 
 #+++ FlowDiagnostics exports
@@ -139,14 +129,15 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
                                                                      _νᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], K[2:end], clock)
 #---
 
-include("TracerBudgetTerms.jl")
-include("TKEBudgetTerms.jl")
-include("TracerVarianceBudgetTerms.jl")
+include("TracerEquation.jl")
+include("TracerVarianceEquation.jl")
+include("TKEEquation.jl")
+include("PotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
-include("PotentialEnergyEquationTerms.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
-using .TKEBudgetTerms, .TracerBudgetTerms, .TracerVarianceBudgetTerms, .FlowDiagnostics, .ProgressMessengers
-using .PotentialEnergyEquationTerms
+using .TracerEquation, .TracerVarianceEquation, .TKEEquation, .PotentialEnergyEquation
+using .FlowDiagnostics
+using .ProgressMessengers
 
 end # module

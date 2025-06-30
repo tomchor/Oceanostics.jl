@@ -2,9 +2,7 @@ using Test
 using CUDA: has_cuda_gpu
 
 using Oceananigans
-using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
-using Oceananigans.Fields: @compute
 
 using Oceanostics
 
@@ -50,59 +48,68 @@ model_types = (NonhydrostaticModel,
 #+++ Test functions
 function test_tracer_terms(model)
     if model isa NonhydrostaticModel
-        ADV = TracerAdvection(model, model.velocities..., model.tracers.a, model.advection)
+        ADV = TracerEquation.Advection(model, model.velocities..., model.tracers.a, model.advection)
     elseif model isa HydrostaticFreeSurfaceModel
-        ADV = TracerAdvection(model, model.velocities..., model.tracers.a, model.advection.a)
+        ADV = TracerEquation.Advection(model, model.velocities..., model.tracers.a, model.advection.a)
     end
-    @compute ADV_field = Field(ADV)
-    @test ADV isa AbstractOperation
+    ADV_field = Field(ADV)
+    @test ADV isa TracerEquation.Advection
+    @test ADV isa TracerAdvection
     @test ADV_field isa Field
 
-    ADV = TracerAdvection(model, :a)
-    @compute ADV_field = Field(ADV)
-    @test ADV isa AbstractOperation
+    ADV = TracerEquation.Advection(model, :a)
+    @test ADV isa TracerEquation.Advection
+    ADV_field = Field(ADV)
     @test ADV_field isa Field
 
-    DIFF = TracerDiffusion(model, :a, model.tracers.a, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy)
-    @compute DIFF_field = Field(DIFF)
-    @test DIFF isa AbstractOperation
+    DIFF = TracerEquation.TracerDiffusion(model, :a, model.tracers.a, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy)
+    DIFF_field = Field(DIFF)
+    @test DIFF isa TracerEquation.Diffusion
+    @test DIFF isa TracerDiffusion
     @test DIFF_field isa Field
 
-    DIFF = TracerDiffusion(model, :a)
-    @compute DIFF_field = Field(DIFF)
-    @test DIFF isa AbstractOperation
+    DIFF = TracerEquation.TracerDiffusion(model, :a)
+    DIFF_field = Field(DIFF)
+    @test DIFF isa TracerEquation.Diffusion
+    @test DIFF isa TracerDiffusion
     @test DIFF_field isa Field
 
-    DIFF = ImmersedTracerDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
+    DIFF = TracerEquation.ImmersedDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
                                    model.closure, model.diffusivity_fields, Val(:a), model.clock, fields(model))
-    @compute DIFF_field = Field(DIFF)
-    @test DIFF isa AbstractOperation
+    DIFF_field = Field(DIFF)
+    @test DIFF isa TracerEquation.ImmersedDiffusion
+    @test DIFF isa TracerImmersedDiffusion
     @test DIFF_field isa Field
 
-    DIFF = ImmersedTracerDiffusion(model, :a)
-    @compute DIFF_field = Field(DIFF)
-    @test DIFF isa AbstractOperation
+    DIFF = TracerEquation.ImmersedDiffusion(model, :a)
+    DIFF_field = Field(DIFF)
+    @test DIFF isa TracerEquation.ImmersedDiffusion
+    @test DIFF isa TracerImmersedDiffusion
     @test DIFF_field isa Field
 
-    DIFF = TotalTracerDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
+    DIFF = TracerEquation.TotalDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
                                 model.closure, model.diffusivity_fields, Val(:a), model.clock, fields(model), model.buoyancy)
-    @compute DIFF_field = Field(DIFF)
-    @test DIFF isa AbstractOperation
+    DIFF_field = Field(DIFF)
+    @test DIFF isa TracerEquation.TotalDiffusion
+    @test DIFF isa TracerTotalDiffusion
     @test DIFF_field isa Field
 
-    DIFF = TotalTracerDiffusion(model, :a)
-    @compute DIFF_field = Field(DIFF)
-    @test DIFF isa AbstractOperation
+    DIFF = TracerEquation.TotalDiffusion(model, :a)
+    DIFF_field = Field(DIFF)
+    @test DIFF isa TracerEquation.TotalDiffusion
+    @test DIFF isa TracerTotalDiffusion
     @test DIFF_field isa Field
 
-    FORC = TracerForcing(model, model.forcing.a, model.clock, fields(model))
-    @compute FORC_field = Field(FORC)
-    @test FORC isa AbstractOperation
+    FORC = TracerEquation.Forcing(model, model.forcing.a, model.clock, fields(model))
+    FORC_field = Field(FORC)
+    @test FORC isa TracerEquation.Forcing
+    @test FORC isa TracerForcing
     @test FORC_field isa Field
 
-    FORC = TracerForcing(model, :a)
-    @compute FORC_field = Field(FORC)
-    @test FORC isa AbstractOperation
+    FORC = TracerEquation.Forcing(model, :a)
+    FORC_field = Field(FORC)
+    @test FORC isa TracerEquation.Forcing
+    @test FORC isa TracerForcing
     @test FORC_field isa Field
 
     return nothing
