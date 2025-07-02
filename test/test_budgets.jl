@@ -62,9 +62,9 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, closure = ScalarDi
     progress(sim) = @info "$(time(sim)) of $stop_time with Δt = $(prettytime(sim.Δt))"
     add_callback!(simulation, progress, IterationInterval(100))
 
-    ε  = TKEEquation.KineticEnergyDissipationRate(model)
+    ε  = TurbulentKineticEnergyEquation.KineticEnergyDissipationRate(model)
     ∫εdV   = Field(Integral(ε))
-    ∫KEdV  = Field(Integral(TKEEquation.KineticEnergy(model)))
+    ∫KEdV  = Field(Integral(KineticEnergyEquation.KineticEnergy(model)))
     ∫∫εdVdt = Ref(0.0)
     ∫KEdV_t⁰ = parent(∫KEdV)[1,1,1]
 

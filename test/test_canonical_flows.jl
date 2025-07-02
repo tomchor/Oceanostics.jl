@@ -46,7 +46,7 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
 
     u, v, w = model.velocities
 
-    ε = Field(TKEEquation.KineticEnergyDissipationRate(model))
+    ε = Field(TurbulentKineticEnergyEquation.KineticEnergyDissipationRate(model))
     S = Field(StrainRateTensorModulus(model))
     Ω = Field(VorticityTensorModulus(model))
     q = Field(QVelocityGradientTensorInvariant(model))
@@ -83,7 +83,7 @@ function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, clo
 
     u, v, w = model.velocities
 
-    ε = Field(TKEEquation.KineticEnergyDissipationRate(model))
+    ε = Field(TurbulentKineticEnergyEquation.KineticEnergyDissipationRate(model))
     S = Field(StrainRateTensorModulus(model))
     Ω = Field(VorticityTensorModulus(model))
     q = Field(QVelocityGradientTensorInvariant(model))
@@ -117,7 +117,7 @@ function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=S
 
     u, v, w = model.velocities
 
-    ε = Field(TKEEquation.KineticEnergyDissipationRate(model))
+    ε = Field(TurbulentKineticEnergyEquation.KineticEnergyDissipationRate(model))
     S = Field(StrainRateTensorModulus(model))
     Ω = Field(VorticityTensorModulus(model))
     q = Field(QVelocityGradientTensorInvariant(model))
