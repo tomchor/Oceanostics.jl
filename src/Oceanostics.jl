@@ -13,6 +13,10 @@ export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDif
 export TracerVarianceDissipationRate, TracerVarianceTendency, TracerVarianceDiffusiveTerm
 #---
 
+#+++ KineticEnergyEquation exports
+export KineticEnergyDissipationRate
+#---
+
 #+++ FlowDiagnostics exports
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity

@@ -82,14 +82,14 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     dudz = 2
     set!(model, u=(x, y, z) -> dudz*z)
 
-    ε = TurbulentKineticEnergyEquation.KineticEnergyDissipationRate(model)
+    ε = KineticEnergyEquation.KineticEnergyDissipationRate(model)
     ε_field = Field(ε)
-    @test ε isa TurbulentKineticEnergyEquation.KineticEnergyDissipationRate
+    @test ε isa KineticEnergyEquation.KineticEnergyDissipationRate
     @test ε_field isa Field
 
-    εp = TurbulentKineticEnergyEquation.KineticEnergyDissipationRate(model; U=Field(Average(model.velocities.u, dims=(1,2))))
+    εp = KineticEnergyEquation.KineticEnergyDissipationRate(model; U=Field(Average(model.velocities.u, dims=(1,2))))
     εp_field = Field(εp)
-    @test εp isa TurbulentKineticEnergyEquation.KineticEnergyDissipationRate
+    @test εp isa KineticEnergyEquation.KineticEnergyDissipationRate
     @test εp_field isa Field
 
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2)
@@ -109,7 +109,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     end
 
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
-    ε̄ₖ = Field(Average(TurbulentKineticEnergyEquation.KineticEnergyDissipationRate(model)))
+    ε̄ₖ = Field(Average(KineticEnergyEquation.KineticEnergyDissipationRate(model)))
 
     return nothing
 end
