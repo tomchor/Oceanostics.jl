@@ -2,7 +2,7 @@ module Oceanostics
 using DocStringExtensions
 
 #+++ Module export
-export TracerEquation, TKEEquation, TracerVarianceEquation, PotentialEnergyEquation
+export TracerEquation, KineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation
 #---
 
 #+++ TracerEquation exports
@@ -42,7 +42,6 @@ validate_location(location, type, valid_location=(Center, Center, Center)) =
 validate_dissipative_closure(closure) = error("Cannot calculate dissipation rate for $closure")
 validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}) = nothing
 validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_closure(c) for c in closure_tuple)
-
 #---
 
 #+++ Utils for background fields
@@ -135,12 +134,13 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
 
 include("TracerEquation.jl")
 include("TracerVarianceEquation.jl")
-include("TKEEquation.jl")
+include("KineticEnergyEquation.jl")
+include("TurbulentKineticEnergyEquation.jl")
 include("PotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
-using .TracerEquation, .TracerVarianceEquation, .TKEEquation, .PotentialEnergyEquation
+using .TracerEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
 using .FlowDiagnostics
 using .ProgressMessengers
 
