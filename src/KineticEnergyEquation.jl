@@ -5,8 +5,8 @@ export KineticEnergy
 export KineticEnergyTendency
 export AdvectionTerm
 export KineticEnergyStressTerm
-export KineticEnergyForcingTerm
-export PressureRedistributionTerm, KineticEnergyPressureRedistribution
+export Forcing, KineticEnergyForcing
+export PressureRedistribution, KineticEnergyPressureRedistribution
 export BuoyancyProduction, KineticEnergyBuoyancyProduction
 export DissipationRate, KineticEnergyDissipationRate
 
@@ -228,7 +228,8 @@ end
     return uFᵘ+ vFᵛ + wFʷ
 end
 
-const KineticEnergyForcingTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢFᵤᵢᶜᶜᶜ)}
+const KineticEnergyForcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢFᵤᵢᶜᶜᶜ)}
+const Forcing = KineticEnergyForcing
 
 """
     $(SIGNATURES)
@@ -242,8 +243,8 @@ Return a `KernelFunctionOperation` that computes the forcing term of the KE prog
 where `uᵢ` are the velocity components and `Fᵤᵢ` is the forcing term(s) in the `uᵢ`
 prognostic equation (i.e. the forcing for `uᵢ`).
 """
-function KineticEnergyForcingTerm(model::NonhydrostaticModel; location = (Center, Center, Center))
-    validate_location(location, "KineticEnergyForcingTerm")
+function KineticEnergyForcing(model::NonhydrostaticModel; location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyForcing")
     model_fields = fields(model)
 
     dependencies = (model.forcing,
@@ -262,7 +263,7 @@ end
 end
 
 const KineticEnergyPressureRedistribution = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ᵢpᶜᶜᶜ)}
-const PressureRedistributionTerm = KineticEnergyPressureRedistribution # backward compatibility
+const PressureRedistribution = KineticEnergyPressureRedistribution
 
 """
     $(SIGNATURES)
@@ -307,12 +308,9 @@ function KineticEnergyPressureRedistribution(model::NonhydrostaticModel; velocit
     validate_location(location, "KineticEnergyPressureRedistribution")
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
 end
-
-# Backward compatibility
-PressureRedistributionTerm(model::NonhydrostaticModel; kwargs...) = KineticEnergyPressureRedistribution(model; kwargs...)
 #---
 
-#+++ Buoyancy conversion term
+#+++ Buoyancy production term
 @inline function uᵢbᵢᶜᶜᶜ(i, j, k, grid, velocities, buoyancy_model, tracers)
     ubˣ = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, x_dot_g_bᶠᶜᶜ, buoyancy_model, tracers)
     vbʸ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, y_dot_g_bᶜᶠᶜ, buoyancy_model, tracers)
@@ -320,8 +318,8 @@ PressureRedistributionTerm(model::NonhydrostaticModel; kwargs...) = KineticEnerg
     return ubˣ + vbʸ + wbᶻ
 end
 
-const BuoyancyProduction = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢbᵢᶜᶜᶜ)}
-const KineticEnergyBuoyancyProduction = BuoyancyProduction
+const KineticEnergyBuoyancyProduction = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢbᵢᶜᶜᶜ)}
+const BuoyancyProduction = KineticEnergyBuoyancyProduction
 
 """
     $(SIGNATURES)
@@ -374,7 +372,7 @@ function BuoyancyProduction(model::NonhydrostaticModel; velocities = model.veloc
 end
 #---
 
-#+++ Kinetic energy dissipation rate
+#+++ Dissipation rate term
 # ∂ⱼu₁ ⋅ F₁ⱼ
 Axᶜᶜᶜ_δuᶜᶜᶜ_F₁₁ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, fields.u) * viscous_flux_ux(i, j, k, grid, closure, K_fields, clo, fields, b)
 Ayᶠᶠᶜ_δuᶠᶠᶜ_F₁₂ᶠᶠᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶠᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, fields.u) * viscous_flux_uy(i, j, k, grid, closure, K_fields, clo, fields, b)
@@ -404,8 +402,8 @@ Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo,
      Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy)   # C, C, C
      ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δuᵢ above, ensures a derivative operation
 
-const DissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(viscous_dissipation_rate_ccc)}
-const KineticEnergyDissipationRate = DissipationRate
+const KineticEnergyDissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(viscous_dissipation_rate_ccc)}
+const DissipationRate = KineticEnergyDissipationRate
 
 """
     $(SIGNATURES)

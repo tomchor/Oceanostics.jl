@@ -93,9 +93,9 @@ function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
     model = model_type(; grid, forcing = (u=Fᵘ, v=Fᵛ, w=Fʷ))
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise)
 
-    ε = KineticEnergyEquation.KineticEnergyForcingTerm(model)
+    ε = KineticEnergyEquation.KineticEnergyForcing(model)
     ε_field = Field(ε)
-    @test ε isa KineticEnergyEquation.KineticEnergyForcingTerm
+    @test ε isa KineticEnergyEquation.KineticEnergyForcing
     @test ε_field isa Field
 
     ε_truth = Field(@at (Center, Center, Center) (-model.velocities.u^2 -model.velocities.v^2 -model.velocities.w^2))
