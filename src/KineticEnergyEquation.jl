@@ -3,8 +3,8 @@ using DocStringExtensions
 
 export KineticEnergy
 export KineticEnergyTendency
-export AdvectionTerm
-export KineticEnergyStressTerm
+export Advection, KineticEnergyAdvection
+export Stress, KineticEnergyStress
 export Forcing, KineticEnergyForcing
 export PressureRedistribution, KineticEnergyPressureRedistribution
 export BuoyancyProduction, KineticEnergyBuoyancyProduction
@@ -138,7 +138,8 @@ end
     return u∂ⱼuⱼu + v∂ⱼuⱼv + w∂ⱼuⱼw
 end
 
-const AdvectionTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ)}
+const KineticEnergyAdvection = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ)}
+const Advection = KineticEnergyAdvection
 
 """
     $(SIGNATURES)
@@ -157,17 +158,17 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
 julia> model = NonhydrostaticModel(grid=grid);
 
-julia> using Oceanostics.KineticEnergyEquation: AdvectionTerm
+julia> using Oceanostics.KineticEnergyEquation: KineticEnergyAdvection
 
-julia> ADV = AdvectionTerm(model)
+julia> ADV = KineticEnergyAdvection(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ⱼuⱼuᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "Centered")
 ```
 """
-function AdvectionTerm(model::NonhydrostaticModel; velocities = model.velocities, location = (Center, Center, Center))
-    validate_location(location, "AdvectionTerm")
+function KineticEnergyAdvection(model::NonhydrostaticModel; velocities = model.velocities, location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyAdvection")
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ, model.grid, velocities, model.advection)
 end
 #---
@@ -186,7 +187,8 @@ end
     return u∂ⱼ_τ₁ⱼ+ v∂ⱼ_τ₂ⱼ + w∂ⱼ_τ₃ⱼ
 end
 
-const KineticEnergyStressTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ)}
+const KineticEnergyStress = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ)}
+const Stress = KineticEnergyStress
 
 """
     $(SIGNATURES)
@@ -200,8 +202,8 @@ Return a `KernelFunctionOperation` that computes the diffusive term of the KE pr
 where `uᵢ` are the velocity components and `τᵢⱼ` is the diffusive flux of `i` momentum in the
 `j`-th direction.
 """
-function KineticEnergyStressTerm(model; location = (Center, Center, Center))
-    validate_location(location, "KineticEnergyStressTerm")
+function KineticEnergyStress(model; location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyStress")
     model_fields = fields(model)
 
     if model isa HydrostaticFreeSurfaceModel

@@ -44,9 +44,9 @@ function test_momentum_advection_term(grid; model_type=NonhydrostaticModel)
     C₁ = 2; C₂ = 3
     set!(model, u=(x, y, z) -> C₁*y, v=C₂)
 
-    ADV = KineticEnergyEquation.AdvectionTerm(model)
+    ADV = KineticEnergyEquation.KineticEnergyAdvection(model)
     ADV_field = Field(ADV)
-    @test ADV isa KineticEnergyEquation.AdvectionTerm
+    @test ADV isa KineticEnergyEquation.KineticEnergyAdvection
     @test ADV_field isa Field
 
     # Test excluding the grid boundaries
@@ -61,13 +61,13 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     dudz = 2
     set!(model, u=(x, y, z) -> dudz*z)
 
-    ε = KineticEnergyEquation.KineticEnergyStressTerm(model)
+    ε = KineticEnergyEquation.KineticEnergyStress(model)
     ε_field = Field(ε)
-    @test ε isa KineticEnergyEquation.KineticEnergyStressTerm
+    @test ε isa KineticEnergyEquation.KineticEnergyStress
     @test ε_field isa Field
 
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
-    ε̄ₖ₂= Field(Average(KineticEnergyEquation.KineticEnergyStressTerm(model)))
+    ε̄ₖ₂= Field(Average(KineticEnergyEquation.KineticEnergyStress(model)))
 
     if model isa NonhydrostaticModel
         ε = KineticEnergyEquation.KineticEnergyTendency(model)
