@@ -6,9 +6,9 @@ export KineticEnergyTendency
 export AdvectionTerm
 export KineticEnergyStressTerm
 export KineticEnergyForcingTerm
-export PressureRedistributionTerm
-export BuoyancyProductionTerm
-export KineticEnergyDissipationRate
+export PressureRedistributionTerm, KineticEnergyPressureRedistribution
+export BuoyancyProduction, KineticEnergyBuoyancyProduction
+export DissipationRate, KineticEnergyDissipationRate
 
 using Oceananigans: NonhydrostaticModel, HydrostaticFreeSurfaceModel, fields
 using Oceananigans.Operators
@@ -261,7 +261,8 @@ end
     return u∂x_p + v∂y_p + w∂z_p
 end
 
-const PressureRedistributionTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ᵢpᶜᶜᶜ)}
+const KineticEnergyPressureRedistribution = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ᵢpᶜᶜᶜ)}
+const PressureRedistributionTerm = KineticEnergyPressureRedistribution # backward compatibility
 
 """
     $(SIGNATURES)
@@ -279,9 +280,9 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
 julia> model = NonhydrostaticModel(grid=grid);
 
-julia> using Oceanostics.KineticEnergyEquation: PressureRedistributionTerm
+julia> using Oceanostics.KineticEnergyEquation: KineticEnergyPressureRedistribution
 
-julia> ∇u⃗p = PressureRedistributionTerm(model)
+julia> ∇u⃗p = KineticEnergyPressureRedistribution(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
@@ -293,19 +294,22 @@ example below illustrates calculation of the nonhydrostatic contribution to the 
 redistrubution term:
 
 ```jldoctest ∇u⃗p_example
-julia> ∇u⃗pNHS = PressureRedistributionTerm(model, pressure=model.pressures.pNHS)
+julia> ∇u⃗pNHS = KineticEnergyPressureRedistribution(model, pressure=model.pressures.pNHS)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "Field")
 ```
 """
-function PressureRedistributionTerm(model::NonhydrostaticModel; velocities = model.velocities,
+function KineticEnergyPressureRedistribution(model::NonhydrostaticModel; velocities = model.velocities,
                                     pressure = model.pressures.pHY′ == nothing ? model.pressures.pNHS : sum(model.pressures),
                                     location = (Center, Center, Center))
-    validate_location(location, "PressureRedistributionTerm")
+    validate_location(location, "KineticEnergyPressureRedistribution")
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
 end
+
+# Backward compatibility
+PressureRedistributionTerm(model::NonhydrostaticModel; kwargs...) = KineticEnergyPressureRedistribution(model; kwargs...)
 #---
 
 #+++ Buoyancy conversion term
@@ -316,7 +320,8 @@ end
     return ubˣ + vbʸ + wbᶻ
 end
 
-const BuoyancyProductionTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢbᵢᶜᶜᶜ)}
+const BuoyancyProduction = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢbᵢᶜᶜᶜ)}
+const KineticEnergyBuoyancyProduction = BuoyancyProduction
 
 """
     $(SIGNATURES)
@@ -339,9 +344,9 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
 julia> model = NonhydrostaticModel(grid=grid, buoyancy=BuoyancyTracer(), tracers=:b);
 
-julia> using Oceanostics.KineticEnergyEquation: BuoyancyProductionTerm
+julia> using Oceanostics.KineticEnergyEquation: BuoyancyProduction
 
-julia> wb = BuoyancyProductionTerm(model)
+julia> wb = BuoyancyProduction(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
@@ -356,15 +361,15 @@ julia> w′ = Field(model.velocities.w - Field(Average(model.velocities.w)));
 
 julia> b′ = Field(model.tracers.b - Field(Average(model.tracers.b)));
 
-julia> w′b′ = BuoyancyProductionTerm(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
+julia> w′b′ = BuoyancyProduction(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "BuoyancyForce", "NamedTuple")
 ```
 """
-function BuoyancyProductionTerm(model::NonhydrostaticModel; velocities = model.velocities, tracers = model.tracers, location = (Center, Center, Center))
-    validate_location(location, "BuoyancyProductionTerm")
+function BuoyancyProduction(model::NonhydrostaticModel; velocities = model.velocities, tracers = model.tracers, location = (Center, Center, Center))
+    validate_location(location, "BuoyancyProduction")
     return KernelFunctionOperation{Center, Center, Center}(uᵢbᵢᶜᶜᶜ, model.grid, velocities, model.buoyancy, tracers)
 end
 #---
@@ -399,7 +404,8 @@ Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo,
      Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy)   # C, C, C
      ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δuᵢ above, ensures a derivative operation
 
-const KineticEnergyDissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(viscous_dissipation_rate_ccc)}
+const DissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(viscous_dissipation_rate_ccc)}
+const KineticEnergyDissipationRate = DissipationRate
 
 """
     $(SIGNATURES)
@@ -411,9 +417,9 @@ Calculate the Kinetic Energy Dissipation Rate, defined as
 
 where ∂ⱼuᵢ is the velocity gradient tensor and Fᵢⱼ is the stress tensor.
 """
-function KineticEnergyDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
+function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
                                                location = (Center, Center, Center))
-    validate_location(location, "KineticEnergyDissipationRate")
+    validate_location(location, "DissipationRate")
     mean_velocities = (u=U, v=V, w=W)
     model_fields = perturbation_fields(model; mean_velocities...)
     parameters = (; model.closure,

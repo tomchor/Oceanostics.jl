@@ -22,18 +22,18 @@ function test_ke_calculation(model)
 end
 
 function test_pressure_term(model)
-    u⃗∇p = KineticEnergyEquation.PressureRedistributionTerm(model)
-    @test u⃗∇p isa KineticEnergyEquation.PressureRedistributionTerm
+    u⃗∇p = KineticEnergyEquation.PressureRedistribution(model)
+    @test u⃗∇p isa KineticEnergyEquation.KineticEnergyPressureRedistribution
     @test Field(u⃗∇p) isa Field
 
-    u⃗∇pNHS = KineticEnergyEquation.PressureRedistributionTerm(model, pressure=model.pressures.pNHS)
-    @test u⃗∇pNHS isa KineticEnergyEquation.PressureRedistributionTerm
+    u⃗∇pNHS = KineticEnergyEquation.PressureRedistribution(model, pressure=model.pressures.pNHS)
+    @test u⃗∇pNHS isa KineticEnergyEquation.KineticEnergyPressureRedistribution
     @test Field(u⃗∇pNHS) isa Field
 
     # Test calculation with a hydrostatic pressure separation
     model2 = NonhydrostaticModel(grid=model.grid, hydrostatic_pressure_anomaly=CenterField(model.grid))
-    u⃗∇p_from_model2 = KineticEnergyEquation.PressureRedistributionTerm(model2)
-    @test u⃗∇p_from_model2 isa KineticEnergyEquation.PressureRedistributionTerm
+    u⃗∇p_from_model2 = KineticEnergyEquation.PressureRedistribution(model2)
+    @test u⃗∇p_from_model2 isa KineticEnergyEquation.KineticEnergyPressureRedistribution
     @test Field(u⃗∇p_from_model2) isa Field
 
     return nothing
@@ -110,17 +110,17 @@ function test_buoyancy_production_term(grid; model_type=NonhydrostaticModel)
     w₀ = 2; b₀ = 3
     set!(model, w=w₀, b=b₀, enforce_incompressibility=false)
 
-    wb = KineticEnergyEquation.BuoyancyProductionTerm(model)
+    wb = KineticEnergyEquation.BuoyancyProduction(model)
     wb_field = Field(wb)
-    @test wb isa KineticEnergyEquation.BuoyancyProductionTerm
+    @test wb isa KineticEnergyEquation.BuoyancyProduction
     @test wb_field isa Field
     @test Array(interior(wb_field, 1, 1, 2)) .== w₀ * b₀
 
     w′ = Field(model.velocities.w - Field(Average(model.velocities.w)))
     b′ = Field(model.tracers.b - Field(Average(model.tracers.b)))
-    w′b′ = KineticEnergyEquation.BuoyancyProductionTerm(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
+    w′b′ = KineticEnergyEquation.BuoyancyProduction(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
     w′b′_field = Field(w′b′)
-    @test w′b′ isa KineticEnergyEquation.BuoyancyProductionTerm
+    @test w′b′ isa KineticEnergyEquation.BuoyancyProduction
     @test w′b′_field isa Field
     @test .≈(Array(interior(w′b′_field, 1, 1, 2)), 0, rtol=1e-12, atol=1e-13) # less accurate for stretched grid
 

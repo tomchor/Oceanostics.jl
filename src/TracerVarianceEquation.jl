@@ -1,8 +1,9 @@
 module TracerVarianceEquation
 using DocStringExtensions
 
-export DissipationRate, Tendency, DiffusiveTerm,
-       TracerVarianceDissipationRate, TracerVarianceTendency, TracerVarianceDiffusiveTerm
+export Tendency, TracerVarianceTendency
+export DissipationRate, DiffusiveTerm, TracerVarianceDissipationRate
+export TracerVarianceDiffusiveTerm
 
 using Oceanostics: validate_location, validate_dissipative_closure
 

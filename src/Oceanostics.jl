@@ -14,7 +14,7 @@ export TracerVarianceDissipationRate, TracerVarianceTendency, TracerVarianceDiff
 #---
 
 #+++ KineticEnergyEquation exports
-export KineticEnergyDissipationRate
+export KineticEnergyBuoyancyProduction, KineticEnergyDissipationRate, KineticEnergyPressureRedistribution
 #---
 
 #+++ FlowDiagnostics exports
