@@ -79,7 +79,7 @@ Q = QVelocityGradientTensorInvariant(model)
 # be equal.
 
 ∫χᴰ = Integral(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b))
-∫χ = Integral(TracerVarianceEquation.TracerVarianceDiffusiveTerm(model, :b))
+∫χ = Integral(TracerVarianceEquation.TracerVarianceDiffusion(model, :b))
 
 
 # Now we write these quantities, along with `b`, to a NetCDF:
@@ -163,6 +163,6 @@ end
 # ![](kelvin_helmholtz.mp4)
 #
 # Similarly to the kinetic energy dissipation rate (see the [Two-dimensional turbulence example](@ref two_d_turbulence_example)),
-# `TracerVarianceDissipationRate` and `TracerVarianceDiffusiveTerm` are implemented
+# `TracerVarianceDissipationRate` and `TracerVarianceDiffusion` are implemented
 # with a energy-conserving formulation, which means that (for `NoFlux` boundary conditions) their
 # volume-integral should be exactly (up to machine precision) the same.

@@ -10,7 +10,7 @@ export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDif
 #---
 
 #+++ TracerVarianceEquation exports
-export TracerVarianceDissipationRate, TracerVarianceTendency, TracerVarianceDiffusiveTerm
+export TracerVarianceTendency, TracerVarianceDissipationRate, TracerVarianceDiffusion
 #---
 
 #+++ KineticEnergyEquation exports

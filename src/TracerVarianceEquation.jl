@@ -2,8 +2,8 @@ module TracerVarianceEquation
 using DocStringExtensions
 
 export Tendency, TracerVarianceTendency
-export DissipationRate, DiffusiveTerm, TracerVarianceDissipationRate
-export TracerVarianceDiffusiveTerm
+export DissipationRate, TracerVarianceDissipationRate
+export Diffusion, TracerVarianceDiffusion
 
 using Oceanostics: validate_location, validate_dissipative_closure
 
@@ -96,8 +96,8 @@ end
                                  args...) =
     @inbounds 2 * tracer[i, j, k] * ∇_dot_qᶜ(i, j, k, grid, closure, diffusivities, val_tracer_index, tracer, args...)
 
-const DiffusiveTerm = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(c∇_dot_qᶜ)}
-const TracerVarianceDiffusiveTerm = DiffusiveTerm
+const Diffusion = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(c∇_dot_qᶜ)}
+const TracerVarianceDiffusion = Diffusion
 
 """
     $(SIGNATURES)
@@ -117,15 +117,15 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly());
 
-julia> DIFF = TracerVarianceEquation.TracerVarianceDiffusiveTerm(model, :b)
+julia> DIFF = TracerVarianceEquation.TracerVarianceDiffusion(model, :b)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: c∇_dot_qᶜ (generic function with 1 method)
 └── arguments: ("Smagorinsky", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
 ```
 """
-function TracerVarianceDiffusiveTerm(model, tracer_name; location = (Center, Center, Center))
-    validate_location(location, "TracerVarianceDiffusiveTerm")
+function TracerVarianceDiffusion(model, tracer_name; location = (Center, Center, Center))
+    validate_location(location, "TracerVarianceDiffusion")
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
 
     dependencies = (model.closure,
