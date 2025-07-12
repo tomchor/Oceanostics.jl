@@ -490,7 +490,7 @@ function MixedLayerDepth(grid::AbstractGrid, args...; criterion = BuoyancyAnomal
     return KernelFunctionOperation{Center, Center, Nothing}(MLD, grid, args...)
 end
 
-function (MLD::MixedLayerDepthKernel)(i, j, k, grid, args...)
+@inline function (MLD::MixedLayerDepthKernel)(i, j, k, grid, args...)
     kₘₗ = -1
 
     for k in grid.Nz-1:-1:1
