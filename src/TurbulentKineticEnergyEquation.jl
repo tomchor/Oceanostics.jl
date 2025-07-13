@@ -33,18 +33,6 @@ const TurbulentKineticEnergy = KernelFunctionOperation{<:Any, <:Any, <:Any, <:An
 """
     $(SIGNATURES)
 
-Calculate the turbulent kinetic energy of `model` manually specifying `u`, `v`, `w` and optionally
-background velocities `U`, `V` and `W`.
-"""
-function TurbulentKineticEnergy(model, u, v, w; U=0, V=0, W=0, location = (Center, Center, Center))
-    validate_location(location, "TurbulentKineticEnergy")
-    return KernelFunctionOperation{Center, Center, Center}(turbulent_kinetic_energy_ccc, model.grid,
-                                                           u, v, w, U, V, W)
-end
-
-"""
-    $(SIGNATURES)
-
 Calculate the turbulent kinetic energy of `model`.
 
 ```jldoctest
@@ -61,6 +49,12 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("Field", "Field", "Field", "Int64", "Int64", "Int64")
 ```
 """
+function TurbulentKineticEnergy(model, u, v, w; U=ZeroField(), V=ZeroField(), W=ZeroField(), location = (Center, Center, Center))
+    validate_location(location, "TurbulentKineticEnergy")
+    return KernelFunctionOperation{Center, Center, Center}(turbulent_kinetic_energy_ccc, model.grid,
+                                                           u, v, w, U, V, W)
+end
+
 TurbulentKineticEnergy(model; kwargs...) = TurbulentKineticEnergy(model, model.velocities...; kwargs...)
 #---
 

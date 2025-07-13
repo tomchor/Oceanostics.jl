@@ -19,7 +19,8 @@ export KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyB
 #---
 
 #+++ TurbulentKineticEnergyEquation exports
-export TurbulentKineticEnergyIsotropicDissipationRate,
+export TurbulentKineticEnergy,
+       TurbulentKineticEnergyIsotropicDissipationRate,
        TurbulentKineticEnergyXShearProductionRate,
        TurbulentKineticEnergyYShearProductionRate,
        TurbulentKineticEnergyZShearProductionRate,
