@@ -33,7 +33,7 @@ using Oceanostics: validate_location, validate_dissipative_closure, perturbation
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
 @inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
-#++++ Kinetic energy
+#++++ KineticEnergy
 @inline kinetic_energy_ccc(i, j, k, grid, u, v, w) = (ℑxᶜᵃᵃ(i, j, k, grid, ψ², u) +
                                                       ℑyᵃᶜᵃ(i, j, k, grid, ψ², v) +
                                                       ℑzᵃᵃᶜ(i, j, k, grid, ψ², w)) / 2
@@ -58,7 +58,7 @@ Calculate the kinetic energy of `model`.
 KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwargs...)
 #------
 
-#+++ Kinetic energy tendency
+#+++ KineticEnergyTendency
 @inline ψf(i, j, k, grid, ψ, f, args...) = @inbounds ψ[i, j, k] * f(i, j, k, grid, args...)
 
 @inline function uᵢGᵢᶜᶜᶜ(i, j, k, grid, advection,
@@ -132,7 +132,7 @@ function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, C
 end
 #---
 
-#+++ Advection term
+#+++ KineticEnergyAdvection
 @inline function uᵢ∂ⱼuⱼuᵢᶜᶜᶜ(i, j, k, grid, velocities, advection)
     u∂ⱼuⱼu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, div_𝐯u, advection, velocities, velocities.u)
     v∂ⱼuⱼv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, div_𝐯v, advection, velocities, velocities.v)
@@ -175,7 +175,7 @@ function KineticEnergyAdvection(model::NonhydrostaticModel; velocities = model.v
 end
 #---
 
-#+++ Kinetic energy diffusive term
+#+++ KineticEnergyStress
 @inline function uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ(i, j, k, grid, closure,
                                             diffusivity_fields,
                                             clock,
@@ -220,7 +220,7 @@ function KineticEnergyStress(model; location = (Center, Center, Center))
 end
 #---
 
-#+++ Kinetic energy forcing term
+#+++ KineticEnergyForcing
 @inline function uᵢFᵤᵢᶜᶜᶜ(i, j, k, grid, forcings,
                                          clock,
                                          model_fields)
@@ -258,7 +258,7 @@ function KineticEnergyForcing(model::NonhydrostaticModel; location = (Center, Ce
 end
 #---
 
-#+++ Pressure redistribution term
+#+++ KineticEnergyPressureRedistribution
 @inline function uᵢ∂ᵢpᶜᶜᶜ(i, j, k, grid, velocities, pressure)
     u∂x_p = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, ∂xᶠᶜᶜ, pressure)
     v∂y_p = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, ∂yᶜᶠᶜ, pressure)
@@ -314,7 +314,7 @@ function KineticEnergyPressureRedistribution(model::NonhydrostaticModel; velocit
 end
 #---
 
-#+++ Buoyancy production term
+#+++ KineticEnergyBuoyancyProduction
 @inline function uᵢbᵢᶜᶜᶜ(i, j, k, grid, velocities, buoyancy_model, tracers)
     ubˣ = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, x_dot_g_bᶠᶜᶜ, buoyancy_model, tracers)
     vbʸ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, y_dot_g_bᶜᶠᶜ, buoyancy_model, tracers)
@@ -376,7 +376,7 @@ function BuoyancyProduction(model::NonhydrostaticModel; velocities = model.veloc
 end
 #---
 
-#+++ Dissipation rate term
+#+++ KineticEnergyDissipationRate
 # ∂ⱼu₁ ⋅ F₁ⱼ
 Axᶜᶜᶜ_δuᶜᶜᶜ_F₁₁ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, fields.u) * viscous_flux_ux(i, j, k, grid, closure, K_fields, clo, fields, b)
 Ayᶠᶠᶜ_δuᶠᶠᶜ_F₁₂ᶠᶠᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶠᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, fields.u) * viscous_flux_uy(i, j, k, grid, closure, K_fields, clo, fields, b)
@@ -433,7 +433,7 @@ function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
 end
 #---
 
-#+++ Isotropic kinetic energy dissipation rate
+#+++ KineticEnergyIsotropicDissipationRate
 @inline function isotropic_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
 
     Σˣˣ² = ∂xᶜᶜᶜ(i, j, k, grid, u)^2

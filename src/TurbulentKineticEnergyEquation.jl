@@ -3,7 +3,7 @@ using DocStringExtensions
 
 export TurbulentKineticEnergy
 export IsotropicDissipationRate, TurbulentKineticEnergyIsotropicDissipationRate
-export XShearProductionRate, YShearProductionRate, ZShearProductionRate
+export TurbulentKineticEnergyXShearProductionRate, TurbulentKineticEnergyYShearProductionRate, TurbulentKineticEnergyZShearProductionRate
 
 using Oceananigans: NonhydrostaticModel, HydrostaticFreeSurfaceModel, fields
 using Oceananigans.Operators
@@ -30,7 +30,7 @@ using Oceanostics.KineticEnergyEquation: KineticEnergyIsotropicDissipationRate
 @inline ψ′²(i, j, k, grid, ψ, ψ̄) = @inbounds (ψ[i, j, k] - ψ̄[i, j, k])^2
 @inline ψ′²(i, j, k, grid, ψ, ψ̄::Number) = @inbounds (ψ[i, j, k] - ψ̄)^2
 
-#++++ Turbulent kinetic energy
+#+++ TurbulentKineticEnergy
 @inline turbulent_kinetic_energy_ccc(i, j, k, grid, u, v, w, U, V, W) = (ℑxᶜᵃᵃ(i, j, k, grid, ψ′², u, U) +
                                                                          ℑyᵃᶜᵃ(i, j, k, grid, ψ′², v, V) +
                                                                          ℑzᵃᵃᶜ(i, j, k, grid, ψ′², w, W)) / 2
@@ -55,9 +55,9 @@ end
 Calculate the turbulent kinetic energy of `model`.
 """
 TurbulentKineticEnergy(model; kwargs...) = TurbulentKineticEnergy(model, model.velocities...; kwargs...)
-#------
+#---
 
-#+++ Turbulent kinetic energy isotropic dissipation rate
+#+++ TurbulentKineticEnergyIsotropicDissipationRate
 """
     $(SIGNATURES)
 
@@ -79,7 +79,7 @@ end
 const IsotropicDissipationRate = TurbulentKineticEnergyIsotropicDissipationRate
 #---
 
-#++++ Shear production terms
+#+++ TurbulentKineticEnergyXShearProductionRate
 @inline function shear_production_rate_x_ccc(i, j, k, grid, u, v, w, U, V, W)
     u_int = ℑxᶜᵃᵃ(i, j, k, grid, u) # F, C, C  → C, C, C
 
@@ -98,7 +98,8 @@ const IsotropicDissipationRate = TurbulentKineticEnergyIsotropicDissipationRate
     return -(uu∂xU + vu∂xV + wu∂xW)
 end
 
-const XShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_x_ccc)}
+const TurbulentKineticEnergyXShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_x_ccc)}
+const XShearProductionRate = TurbulentKineticEnergyXShearProductionRate
 
 """
     $(SIGNATURES)
@@ -106,8 +107,8 @@ const XShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any,
 Calculate the shear production rate in the `model`'s `x` direction, considering velocities
 `u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
 """
-function XShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
-    validate_location(location, "XShearProductionRate")
+function TurbulentKineticEnergyXShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
+    validate_location(location, "TurbulentKineticEnergyXShearProductionRate")
     return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_x_ccc, model.grid,
                                                            u, v, w, U, V, W)
 end
@@ -118,12 +119,13 @@ end
 Calculate the shear production rate in the `model`'s `x` direction. At least one of the mean
 velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
 """
-function XShearProductionRate(model; U=0, V=0, W=0, kwargs...)
+function TurbulentKineticEnergyXShearProductionRate(model; U=0, V=0, W=0, kwargs...)
     u, v, w = model.velocities
-    return XShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
+    return TurbulentKineticEnergyXShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
 end
+#---
 
-
+#+++ TurbulentKineticEnergyYShearProductionRate
 @inline function shear_production_rate_y_ccc(i, j, k, grid, u, v, w, U, V, W)
     v_int = ℑyᵃᶜᵃ(i, j, k, grid, v) # C, F, C  → C, C, C
 
@@ -142,7 +144,8 @@ end
     return -(uv∂yU + vv∂yV + wv∂yW)
 end
 
-const YShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_y_ccc)}
+const TurbulentKineticEnergyYShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_y_ccc)}
+const YShearProductionRate = TurbulentKineticEnergyYShearProductionRate
 
 """
     $(SIGNATURES)
@@ -150,8 +153,8 @@ const YShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any,
 Calculate the shear production rate in the `model`'s `y` direction, considering velocities
 `u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
 """
-function YShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
-    validate_location(location, "YShearProductionRate")
+function TurbulentKineticEnergyYShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
+    validate_location(location, "TurbulentKineticEnergyYShearProductionRate")
     return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_y_ccc, model.grid,
                                                            u, v, w, U, V, W)
 end
@@ -162,12 +165,13 @@ end
 Calculate the shear production rate in the `model`'s `y` direction. At least one of the mean
 velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
 """
-function YShearProductionRate(model; U=0, V=0, W=0, kwargs...)
+function TurbulentKineticEnergyYShearProductionRate(model; U=0, V=0, W=0, kwargs...)
     u, v, w = model.velocities
-    return YShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
+    return TurbulentKineticEnergyYShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
 end
+#---
 
-
+#+++ TurbulentKineticEnergyZShearProductionRate
 @inline function shear_production_rate_z_ccc(i, j, k, grid, u, v, w, U, V, W)
     w_int = ℑzᵃᵃᶜ(i, j, k, grid, w) # C, C, F  → C, C, C
 
@@ -186,7 +190,8 @@ end
     return - (uw∂zU + vw∂zV + ww∂zW)
 end
 
-const ZShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_z_ccc)}
+const TurbulentKineticEnergyZShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_z_ccc)}
+const ZShearProductionRate = TurbulentKineticEnergyZShearProductionRate
 
 """
     $(SIGNATURES)
@@ -194,8 +199,8 @@ const ZShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any,
 Calculate the shear production rate in the `model`'s `z` direction, considering velocities
 `u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
 """
-function ZShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
-    validate_location(location, "ZShearProductionRate")
+function TurbulentKineticEnergyZShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
+    validate_location(location, "TurbulentKineticEnergyZShearProductionRate")
     return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_z_ccc, model.grid,
                                                            u, v, w, U, V, W)
 end
@@ -206,10 +211,10 @@ end
 Calculate the shear production rate in the `model`'s `z` direction. At least one of the mean
 velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
 """
-function ZShearProductionRate(model; U=0, V=0, W=0, kwargs...)
+function TurbulentKineticEnergyZShearProductionRate(model; U=0, V=0, W=0, kwargs...)
     u, v, w = model.velocities
-    return ZShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
+    return TurbulentKineticEnergyZShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
 end
-#----
+#---
 
 end # module 
