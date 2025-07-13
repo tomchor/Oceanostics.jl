@@ -30,8 +30,8 @@ julia> simulation.callbacks[:progress] = Callback(ProgressMessengers.TimedMessen
 julia> ke = KineticEnergyEquation.KineticEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×5×6 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
-└── arguments: ("Field", "Field", "Field", "Int64", "Int64", "Int64")
+├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field")
 
 julia> ε = KineticEnergyEquation.KineticEnergyDissipationRate(model)
 KernelFunctionOperation at (Center, Center, Center)
