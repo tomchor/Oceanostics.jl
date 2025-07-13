@@ -20,7 +20,10 @@ export KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyB
 
 #+++ TurbulentKineticEnergyEquation exports
 export TurbulentKineticEnergyIsotropicDissipationRate,
-       TurbulentKineticEnergyXShearProductionRate, TurbulentKineticEnergyYShearProductionRate, TurbulentKineticEnergyZShearProductionRate
+       TurbulentKineticEnergyXShearProductionRate,
+       TurbulentKineticEnergyYShearProductionRate,
+       TurbulentKineticEnergyZShearProductionRate,
+       TurbulentKineticEnergyShearProductionRate
 #---
 
 #+++ FlowDiagnostics exports

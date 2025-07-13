@@ -66,6 +66,22 @@ function test_shear_production_terms(model)
     ZSP = Field(op)
     @test all(interior(ZSP) .≈ 0)
 
+    # Test total shear production rate
+    U = Field(Average(u, dims=(1, 2)))
+    V = Field(Average(v, dims=(1, 2)))
+    W = Field(Average(w, dims=(1, 2)))
+
+    op = TurbulentKineticEnergyEquation.TurbulentKineticEnergyShearProductionRate(model; U=U, V=V, W=W)
+    @test op isa TurbulentKineticEnergyEquation.TurbulentKineticEnergyShearProductionRate
+    SP = Field(op)
+    @test all(interior(SP) .≈ 0)
+
+    # Test with ShearProductionRate alias
+    op_alias = TurbulentKineticEnergyEquation.ShearProductionRate(model; U=U, V=V, W=W)
+    @test op_alias isa TurbulentKineticEnergyEquation.TurbulentKineticEnergyShearProductionRate
+    SP_alias = Field(op_alias)
+    @test all(interior(SP_alias) .≈ 0)
+
 end
 
 function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1))

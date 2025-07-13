@@ -3,25 +3,18 @@ using DocStringExtensions
 
 export TurbulentKineticEnergy
 export IsotropicDissipationRate, TurbulentKineticEnergyIsotropicDissipationRate
-export TurbulentKineticEnergyXShearProductionRate, TurbulentKineticEnergyYShearProductionRate, TurbulentKineticEnergyZShearProductionRate
+export XShearProductionRate, TurbulentKineticEnergyXShearProductionRate,
+       YShearProductionRate, TurbulentKineticEnergyYShearProductionRate,
+       ZShearProductionRate, TurbulentKineticEnergyZShearProductionRate,
+       ShearProductionRate, TurbulentKineticEnergyShearProductionRate
 
-using Oceananigans: NonhydrostaticModel, HydrostaticFreeSurfaceModel, fields
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceananigans.Grids: Center, Face
+using Oceananigans.Grids: Center
 using Oceananigans.Fields: ZeroField
-using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
-using Oceananigans.Advection: div_𝐯u, div_𝐯v, div_𝐯w
-using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz,
-                                       viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
-                                       viscous_flux_wx, viscous_flux_wy, viscous_flux_wz,
-                                       ∂ⱼ_τ₁ⱼ, ∂ⱼ_τ₂ⱼ, ∂ⱼ_τ₃ⱼ
-using Oceananigans.TurbulenceClosures: immersed_∂ⱼ_τ₁ⱼ, immersed_∂ⱼ_τ₂ⱼ, immersed_∂ⱼ_τ₃ⱼ
-using Oceananigans.BuoyancyFormulations: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
 
-using Oceanostics: _νᶜᶜᶜ
-using Oceanostics: validate_location, validate_dissipative_closure, perturbation_fields
+using Oceanostics: validate_location
 using Oceanostics.KineticEnergyEquation: KineticEnergyIsotropicDissipationRate
 
 # Some useful operators
@@ -81,21 +74,21 @@ const IsotropicDissipationRate = TurbulentKineticEnergyIsotropicDissipationRate
 
 #+++ TurbulentKineticEnergyXShearProductionRate
 @inline function shear_production_rate_x_ccc(i, j, k, grid, u, v, w, U, V, W)
-    u_int = ℑxᶜᵃᵃ(i, j, k, grid, u) # F, C, C  → C, C, C
+    u′_int = ℑxᶜᵃᵃ(i, j, k, grid, u′) # F, C, C  → C, C, C
 
     ∂xU = ∂xᶜᶜᶜ(i, j, k, grid, U) # F, C, C  → C, C, C
-    uu = ℑxᶜᵃᵃ(i, j, k, grid, ψ², u)
-    uu∂xU = uu * ∂xU
+    u′u′ = ℑxᶜᵃᵃ(i, j, k, grid, ψ², u′)
+    u′u′∂xU = u′u′ * ∂xU
 
     ∂xV = ℑxyᶜᶜᵃ(i, j, k, grid, ∂xᶠᶠᶜ, V) # C, F, C  → F, F, C  → C, C, C
-    vu = ℑyᵃᶜᵃ(i, j, k, grid, v) * u_int
-    vu∂xV = vu * ∂xV
+    v′u′ = ℑyᵃᶜᵃ(i, j, k, grid, v′) * u′_int
+    v′u′∂xV = v′u′ * ∂xV
 
     ∂xW = ℑxzᶜᵃᶜ(i, j, k, grid, ∂xᶠᶜᶠ, W) # C, C, F  → F, C, F  → C, C, C
-    wu = ℑzᵃᵃᶜ(i, j, k, grid, w) * u_int
-    wu∂xW = wu * ∂xW
+    w′u′ = ℑzᵃᵃᶜ(i, j, k, grid, w′) * u′_int
+    w′u′∂xW = w′u′ * ∂xW
 
-    return -(uu∂xU + vu∂xV + wu∂xW)
+    return -(u′u′∂xU + v′u′∂xV + w′u′∂xW)
 end
 
 const TurbulentKineticEnergyXShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_x_ccc)}
@@ -104,44 +97,59 @@ const XShearProductionRate = TurbulentKineticEnergyXShearProductionRate
 """
     $(SIGNATURES)
 
-Calculate the shear production rate in the `model`'s `x` direction, considering velocities
-`u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
+Calculate the shear production rate in the `model`'s `x` direction:
+
+    XSHEAR = uᵢ′u′∂x(Uᵢ)
+
+where `uᵢ′` is the velocity perturbation in the `i` direction, `u′` is the velocity perturbation in the `x` direction,
+`Uᵢ` is the background velocity in the `i` direction, and `∂x` is the horizontal derivative.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(; grid);
+
+julia> XSHEAR = TurbulentKineticEnergyEquation.XShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_x_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+```
 """
-function TurbulentKineticEnergyXShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
+function TurbulentKineticEnergyXShearProductionRate(u′, v′, w′, U, V, W;
+                                                    grid = u′.grid,
+                                                    location = (Center, Center, Center))
     validate_location(location, "TurbulentKineticEnergyXShearProductionRate")
-    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_x_ccc, model.grid,
-                                                           u, v, w, U, V, W)
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_x_ccc, grid,
+                                                           u′, v′, w′, U, V, W)
 end
 
-"""
-    $(SIGNATURES)
 
-Calculate the shear production rate in the `model`'s `x` direction. At least one of the mean
-velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
-"""
-function TurbulentKineticEnergyXShearProductionRate(model; U=0, V=0, W=0, kwargs...)
+function TurbulentKineticEnergyXShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
     u, v, w = model.velocities
-    return TurbulentKineticEnergyXShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
+    return TurbulentKineticEnergyXShearProductionRate(u-U, v-V, w-W, U, V, W; kwargs...)
 end
 #---
 
 #+++ TurbulentKineticEnergyYShearProductionRate
-@inline function shear_production_rate_y_ccc(i, j, k, grid, u, v, w, U, V, W)
-    v_int = ℑyᵃᶜᵃ(i, j, k, grid, v) # C, F, C  → C, C, C
+@inline function shear_production_rate_y_ccc(i, j, k, grid, u′, v′, w′, U, V, W)
+    v′_int = ℑyᵃᶜᵃ(i, j, k, grid, v′) # C, F, C  → C, C, C
 
     ∂yU = ℑxyᶜᶜᵃ(i, j, k, grid, ∂yᶠᶠᶜ, U) # F, C, C  → F, F, C  → C, C, C
-    uv = ℑxᶜᵃᵃ(i, j, k, grid, u) * v_int
-    uv∂yU = uv * ∂yU
+    u′v′ = ℑxᶜᵃᵃ(i, j, k, grid, u′) * v′_int
+    u′v′∂yU = u′v′ * ∂yU
 
     ∂yV = ∂yᶜᶜᶜ(i, j, k, grid, V) # C, F, C  → C, C C
-    vv = ℑyᵃᶜᵃ(i, j, k, grid, ψ², v) # C, F, C  → C, C, C
-    vv∂yV = vv * ∂yV
+    v′v′ = ℑyᵃᶜᵃ(i, j, k, grid, ψ², v′) # C, F, C  → C, C, C
+    v′v′∂yV = v′v′ * ∂yV
 
     ∂yW = ℑyzᵃᶜᶜ(i, j, k, grid, ∂yᶜᶠᶠ, W) # C, C, F  → C, F, F  → C, C, C
-    wv = ℑzᵃᵃᶜ(i, j, k, grid, w) * v_int
-    wv∂yW = wv * ∂yW
+    w′v′ = ℑzᵃᵃᶜ(i, j, k, grid, w′) * v′_int
+    w′v′∂yW = w′v′ * ∂yW
 
-    return -(uv∂yU + vv∂yV + wv∂yW)
+    return -(u′v′∂yU + v′v′∂yV + w′v′∂yW)
 end
 
 const TurbulentKineticEnergyYShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_y_ccc)}
@@ -150,44 +158,58 @@ const YShearProductionRate = TurbulentKineticEnergyYShearProductionRate
 """
     $(SIGNATURES)
 
-Calculate the shear production rate in the `model`'s `y` direction, considering velocities
-`u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
+Calculate the shear production rate in the `model`'s `y` direction:
+
+    YSHEAR = uᵢ′v′∂y(Uᵢ)
+
+where `uᵢ′` is the velocity perturbation in the `i` direction, `v′` is the velocity perturbation in the `y` direction,
+`Uᵢ` is the background velocity in the `i` direction, and `∂y` is the vertical derivative.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(; grid);
+
+julia> YSHEAR = TurbulentKineticEnergyEquation.YShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_y_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+```
 """
-function TurbulentKineticEnergyYShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
+function TurbulentKineticEnergyYShearProductionRate(u′, v′, w′, U, V, W;
+                                                    grid = u′.grid,
+                                                    location = (Center, Center, Center))
     validate_location(location, "TurbulentKineticEnergyYShearProductionRate")
-    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_y_ccc, model.grid,
-                                                           u, v, w, U, V, W)
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_y_ccc, grid,
+                                                           u′, v′, w′, U, V, W)
 end
 
-"""
-    $(SIGNATURES)
-
-Calculate the shear production rate in the `model`'s `y` direction. At least one of the mean
-velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
-"""
-function TurbulentKineticEnergyYShearProductionRate(model; U=0, V=0, W=0, kwargs...)
+function TurbulentKineticEnergyYShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
     u, v, w = model.velocities
-    return TurbulentKineticEnergyYShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
+    return TurbulentKineticEnergyYShearProductionRate(u-U, v-V, w-W, U, V, W; kwargs...)
 end
 #---
 
 #+++ TurbulentKineticEnergyZShearProductionRate
-@inline function shear_production_rate_z_ccc(i, j, k, grid, u, v, w, U, V, W)
-    w_int = ℑzᵃᵃᶜ(i, j, k, grid, w) # C, C, F  → C, C, C
+@inline function shear_production_rate_z_ccc(i, j, k, grid, u′, v′, w′, U, V, W)
+    w′_int = ℑzᵃᵃᶜ(i, j, k, grid, w′) # C, C, F  → C, C, C
 
     ∂zU = ℑxzᶜᵃᶜ(i, j, k, grid, ∂zᶠᶜᶠ, U) # F, C, C  → F, C, F  → C, C, C
-    uw = ℑxᶜᵃᵃ(i, j, k, grid, u) * w_int
-    uw∂zU = uw * ∂zU
+    u′w′ = ℑxᶜᵃᵃ(i, j, k, grid, u′) * w′_int
+    u′w′∂zU = u′w′ * ∂zU
 
     ∂zV = ℑyzᵃᶜᶜ(i, j, k, grid, ∂zᶜᶠᶠ, V) # C, F, C  → C, F, F  → C, C, C
-    vw = ℑyᵃᶜᵃ(i, j, k, grid, v) * w_int
-    vw∂zV = vw * ∂zV
+    v′w′ = ℑyᵃᶜᵃ(i, j, k, grid, v′) * w′_int
+    v′w′∂zV = v′w′ * ∂zV
 
     ∂zW = ∂zᶜᶜᶜ(i, j, k, grid, W) # C, C, F  → C, C, C
-    ww = ℑzᵃᵃᶜ(i, j, k, grid, ψ², w) # C, C, F  → C, C, C
-    ww∂zW = ww * ∂zW
+    w′w′ = ℑzᵃᵃᶜ(i, j, k, grid, ψ², w′) # C, C, F  → C, C, C
+    w′w′∂zW = w′w′ * ∂zW
 
-    return - (uw∂zU + vw∂zV + ww∂zW)
+    return - (u′w′∂zU + v′w′∂zV + w′w′∂zW)
 end
 
 const TurbulentKineticEnergyZShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_z_ccc)}
@@ -196,25 +218,85 @@ const ZShearProductionRate = TurbulentKineticEnergyZShearProductionRate
 """
     $(SIGNATURES)
 
-Calculate the shear production rate in the `model`'s `z` direction, considering velocities
-`u`, `v`, `w` and background (or average) velocities `U`, `V` and `W`.
+Calculate the shear production rate in the `model`'s `z` direction:
+
+    ZSHEAR = uᵢ′w′∂z(Uᵢ)
+
+where `uᵢ′` is the velocity perturbation in the `i` direction, `w′` is the vertical velocity perturbation,
+`Uᵢ` is the background velocity in the `i` direction, and `∂z` is the vertical derivative.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(; grid);
+
+julia> ZSHEAR = TurbulentKineticEnergyEquation.ZShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_z_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+```
 """
-function TurbulentKineticEnergyZShearProductionRate(model, u, v, w, U, V, W; location = (Center, Center, Center))
+function TurbulentKineticEnergyZShearProductionRate(u′, v′, w′, U, V, W;
+                                                    grid = u′.grid,
+                                                    location = (Center, Center, Center))
     validate_location(location, "TurbulentKineticEnergyZShearProductionRate")
-    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_z_ccc, model.grid,
-                                                           u, v, w, U, V, W)
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_z_ccc, grid,
+                                                           u′, v′, w′, U, V, W)
 end
+
+function TurbulentKineticEnergyZShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
+    u, v, w = model.velocities
+    return TurbulentKineticEnergyZShearProductionRate(u-U, v-V, w-W, U, V, W; kwargs...)
+end
+#---
+
+#+++ TurbulentKineticEnergyShearProductionRate
+@inline function shear_production_rate_ccc(args...)
+    return TurbulentKineticEnergyXShearProductionRate(args...) +
+           TurbulentKineticEnergyYShearProductionRate(args...) +
+           TurbulentKineticEnergyZShearProductionRate(args...)
+end
+
+const TurbulentKineticEnergyShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_ccc)}
+const ShearProductionRate = TurbulentKineticEnergyShearProductionRate
 
 """
     $(SIGNATURES)
 
-Calculate the shear production rate in the `model`'s `z` direction. At least one of the mean
-velocities `U`, `V` and `W` must be specified otherwise the output will be zero.
+Calculate the total shear production rate (sum of the shear production rates in the `model`'s `x`, `y` and `z` directions):
+
+    SHEAR = XSHEAR + YSHEAR + ZSHEAR = uᵢ′uⱼ′∂ⱼ(Uᵢ)
+
+where `XSHEAR`, `YSHEAR` and `ZSHEAR` are the shear production rates in the `x`, `y` and `z` directions, respectively,
+`uᵢ′` and `uⱼ′` are the velocity perturbations in the `i` and `j` directions, respectively, and `∂ⱼ` is the derivative in the `j` direction.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(; grid);
+
+julia> SHEAR = TurbulentKineticEnergyEquation.ShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+```
 """
-function TurbulentKineticEnergyZShearProductionRate(model; U=0, V=0, W=0, kwargs...)
-    u, v, w = model.velocities
-    return TurbulentKineticEnergyZShearProductionRate(model, u-U, v-V, w-W, U, V, W; kwargs...)
+function TurbulentKineticEnergyShearProductionRate(u′, v′, w′, U, V, W;
+                                                   grid = u′.grid,
+                                                   location = (Center, Center, Center))
+    validate_location(location, "TurbulentKineticEnergyShearProductionRate")
+    return KernelFunctionOperation{Center, Center, Center}(shear_production_rate_ccc, grid,
+                                                           u′, v′, w′, U, V, W)
 end
+
+@inline TurbulentKineticEnergyShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...) =
+    TurbulentKineticEnergyShearProductionRate(model.velocities..., U, V, W; kwargs...)
 #---
 
-end # module 
+end
