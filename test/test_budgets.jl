@@ -21,7 +21,7 @@ function periodic_locations(N_locations, flip_z=true)
     return x₀, y₀, z₀
 end
 
-function test_tracer_variance_budget(; arch, N=16, rtol=0.01, closure = ScalarDiffusivity(ν=1, κ=1), regular_grid=true)
+function test_tracer_variance_budget(; arch, N=16, rtol=0.01, stop_time=0.1, closure = ScalarDiffusivity(ν=1, κ=1), regular_grid=true)
 
     if regular_grid
         grid = RectilinearGrid(topology=(Periodic, Flat, Periodic), size=(N,N), extent=(1,1))
@@ -53,10 +53,9 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, closure = ScalarDi
     κ = diffusivity(model.closure, model.diffusivity_fields, Val(:c))
     κ = κ isa Tuple ? Field(sum(κ)) : κ
     Δt = min(minimum_zspacing(grid)^2/maximum(κ)/10, minimum_zspacing(grid)/maximum(u) / 10)
-    stop_time = 0.1
     simulation = Simulation(model; Δt, stop_time)
 
-    wizard = TimeStepWizard(cfl=0.1, diffusive_cfl=0.1)
+    wizard = TimeStepWizard(cfl=0.2, diffusive_cfl=0.2)
     simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
 
     progress(sim) = @info "$(time(sim)) of $stop_time with Δt = $(prettytime(sim.Δt))"
@@ -104,9 +103,9 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, closure = ScalarDi
 end
 
 arch = has_cuda_gpu() ? GPU() : CPU()
-rtol = 0.02; N = 80
+rtol = 0.02; N = 80; stop_time = 0.1
 @info "    Testing tracer variance budget on and a regular grid with N=$N and tolerance $rtol"
-test_tracer_variance_budget(; arch, N, rtol, regular_grid=true)
+test_tracer_variance_budget(; arch, N, rtol, stop_time, regular_grid=true)
 
 @info "    Testing tracer variance budget on and a stetched grid with N=$N and tolerance $rtol"
-test_tracer_variance_budget(; arch, N, rtol, regular_grid=false)
+test_tracer_variance_budget(; arch, N, rtol, stop_time, regular_grid=false)
