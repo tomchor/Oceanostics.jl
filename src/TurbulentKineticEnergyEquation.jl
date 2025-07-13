@@ -2,7 +2,7 @@ module TurbulentKineticEnergyEquation
 using DocStringExtensions
 
 export TurbulentKineticEnergy
-export IsotropicKineticEnergyDissipationRate
+export IsotropicDissipationRate, TurbulentKineticEnergyIsotropicDissipationRate
 export XShearProductionRate, YShearProductionRate, ZShearProductionRate
 
 using Oceananigans: NonhydrostaticModel, HydrostaticFreeSurfaceModel, fields
@@ -58,50 +58,21 @@ Calculate the turbulent kinetic energy of `model`.
 TurbulentKineticEnergy(model; kwargs...) = TurbulentKineticEnergy(model, model.velocities...; kwargs...)
 #------
 
-#+++ Kinetic energy dissipation rate
-@inline function isotropic_viscous_dissipation_rate_ccc(i, j, k, grid, u, v, w, p)
-
-    Σˣˣ² = ∂xᶜᶜᶜ(i, j, k, grid, u)^2
-    Σʸʸ² = ∂yᶜᶜᶜ(i, j, k, grid, v)^2
-    Σᶻᶻ² = ∂zᶜᶜᶜ(i, j, k, grid, w)^2
-
-    Σˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_plus_gφ², ∂yᶠᶠᶜ, u, ∂xᶠᶠᶜ, v) / 4
-    Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4
-    Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶜᶠᶠ, v, ∂yᶜᶠᶠ, w) / 4
-
-    ν = _νᶜᶜᶜ(i, j, k, grid, p.closure, p.diffusivity_fields, p.clock)
-
-    return 2ν * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
-end
-
-const IsotropicKineticEnergyDissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(isotropic_viscous_dissipation_rate_ccc)}
-
+#+++ Turbulent kinetic energy isotropic dissipation rate
 """
     $(SIGNATURES)
 
 Calculate the Viscous Dissipation Rate, defined as
 
-    ε = 2 ν SᵢⱼSᵢⱼ,
+    ε = 2 ν S'ᵢⱼS'ᵢⱼ,
 
-where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a
+where S'ᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
-function IsotropicKineticEnergyDissipationRate(model; U=0, V=0, W=0,
-                                         location = (Center, Center, Center))
+@inline TurbulentKineticEnergyIsotropicDissipationRate(u, v, w, args...; U=ZeroField(), V=ZeroField(), W=ZeroField(), location = (Center, Center, Center)) =
+    IsotropicKineticEnergyDissipationRate((u - U), (v - V), (w - W), args...; location)
 
-    validate_location(location, "IsotropicKineticEnergyDissipationRate")
-    validate_dissipative_closure(model.closure)
-
-    u, v, w = model.velocities
-
-    parameters = (closure = model.closure,
-                  diffusivity_fields = model.diffusivity_fields,
-                  clock = model.clock)
-
-    return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_ccc, model.grid,
-                                                           (u - U), (v - V), (w - W), parameters)
-end
-
+const IsotropicDissipationRate = TurbulentKineticEnergyIsotropicDissipationRate
 #---
 
 #++++ Shear production terms
