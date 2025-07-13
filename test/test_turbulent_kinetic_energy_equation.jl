@@ -28,7 +28,7 @@ function test_shear_production_terms(model)
     V = Field(Average(v, dims=(2, 3)))
     W = Field(Average(w, dims=(2, 3)))
 
-    op = TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate(model, u, v, w, U, V, W)
+    op = TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate(u, v, w, U, V, W)
     @test op isa TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate
     XSP = Field(op)
     @test all(interior(XSP) .≈ 0)
@@ -47,7 +47,7 @@ function test_shear_production_terms(model)
     YSP = Field(op)
     @test all(interior(YSP) .≈ 0)
 
-    op = TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate(model, u, v, w, U, V, W)
+    op = TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate(u, v, w, U, V, W)
     @test op isa TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate
     YSP = Field(op)
     @test all(interior(YSP) .≈ 0)
@@ -56,7 +56,7 @@ function test_shear_production_terms(model)
     V = Field(Average(v, dims=(1, 2)))
     W = Field(Average(w, dims=(1, 2)))
 
-    op = TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate(model, u, v, w, U, V, W)
+    op = TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate(u, v, w, U, V, W)
     @test op isa TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate
     ZSP = Field(op)
     @test all(interior(ZSP) .≈ 0)

@@ -94,7 +94,7 @@ const IsotropicDissipationRate = TurbulentKineticEnergyIsotropicDissipationRate
 #---
 
 #+++ TurbulentKineticEnergyXShearProductionRate
-@inline function shear_production_rate_x_ccc(i, j, k, grid, u, v, w, U, V, W)
+@inline function shear_production_rate_x_ccc(i, j, k, grid, u′, v′, w′, U, V, W)
     u′_int = ℑxᶜᵃᵃ(i, j, k, grid, u′) # F, C, C  → C, C, C
 
     ∂xU = ∂xᶜᶜᶜ(i, j, k, grid, U) # F, C, C  → C, C, C
