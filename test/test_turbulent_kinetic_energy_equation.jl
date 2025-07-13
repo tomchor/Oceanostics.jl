@@ -1,7 +1,6 @@
 using Test
 using CUDA: @allowscalar
-using Oceananigans.AbstractOperations: AbstractOperation
-using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
+using Oceananigans.TurbulenceClosures: AbstractScalarDiffusivity, ThreeDimensionalFormulation
 
 using Oceanostics
 
@@ -72,7 +71,7 @@ end
 function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1))
     model = model_type(; grid, closure, buoyancy=BuoyancyTracer(), tracers=:b)
 
-    if !(model.closure isa Tuple) || all(isa.(model.closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
+    if model.closure isa AbstractScalarDiffusivity{<:Any, <:ThreeDimensionalFormulation}
         ε_iso = TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate(model; U=0, V=0, W=0)
         @test ε_iso isa KineticEnergyEquation.IsotropicDissipationRate
 
@@ -130,7 +129,7 @@ end
                 test_ke_dissipation_rate_terms(grid; model_type, closure)
 
                 if model_type == NonhydrostaticModel
-                    @info "          Testing velocity-only diagnostics"
+                    @info "          Testing shear production terms"
                     test_shear_production_terms(model)
                 end
             end

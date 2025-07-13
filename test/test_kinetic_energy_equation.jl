@@ -1,7 +1,6 @@
 using Test
 using CUDA: @allowscalar
-using Oceananigans.AbstractOperations: AbstractOperation
-using Oceananigans.TurbulenceClosures: ThreeDimensionalFormulation
+using Oceananigans.TurbulenceClosures: AbstractScalarDiffusivity, ThreeDimensionalFormulation
 
 using Oceanostics
 using Oceanostics.TracerVarianceEquation: TracerVarianceTendency
@@ -14,7 +13,7 @@ function test_ke_calculation(model)
     u, v, w = model.velocities
 
     ke_op = KineticEnergyEquation.KineticEnergy(model)
-    @test ke_op isa AbstractOperation
+    @test ke_op isa KineticEnergy
     ke_c = Field(ke_op)
     @test all(interior(Field(ke_c)) .≈ 0)
 
@@ -67,7 +66,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     @test ε_field isa Field
 
     # Test both signatures of KineticEnergyIsotropicDissipationRate
-    if !(model.closure isa Tuple) || all(isa.(model.closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
+    if model.closure isa AbstractScalarDiffusivity{<:Any, <:ThreeDimensionalFormulation}
         # Test the convenience signature: KineticEnergyIsotropicDissipationRate(model; location)
         ε_iso1 = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(model)
         ε_iso1_field = Field(ε_iso1)
