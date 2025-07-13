@@ -31,6 +31,7 @@ using Oceanostics: validate_location, validate_dissipative_closure, perturbation
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
+@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
 #++++ Kinetic energy
 @inline kinetic_energy_ccc(i, j, k, grid, u, v, w) = (ℑxᶜᵃᵃ(i, j, k, grid, ψ², u) +

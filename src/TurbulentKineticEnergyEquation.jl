@@ -30,8 +30,6 @@ using Oceanostics.KineticEnergyEquation: KineticEnergyIsotropicDissipationRate
 @inline ψ′²(i, j, k, grid, ψ, ψ̄) = @inbounds (ψ[i, j, k] - ψ̄[i, j, k])^2
 @inline ψ′²(i, j, k, grid, ψ, ψ̄::Number) = @inbounds (ψ[i, j, k] - ψ̄)^2
 
-@inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
-
 #++++ Turbulent kinetic energy
 @inline turbulent_kinetic_energy_ccc(i, j, k, grid, u, v, w, U, V, W) = (ℑxᶜᵃᵃ(i, j, k, grid, ψ′², u, U) +
                                                                          ℑyᵃᶜᵃ(i, j, k, grid, ψ′², v, V) +
