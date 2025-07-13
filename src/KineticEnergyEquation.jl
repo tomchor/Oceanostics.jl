@@ -463,10 +463,10 @@ turbulence closure where ν (eddy or not) is the same for all directions).
 """
 function KineticEnergyIsotropicDissipationRate(u, v, w, closure, diffusivity_fields, clock; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyIsotropicDissipationRate")
-    validate_dissipative_closure(model.closure)
+    validate_dissipative_closure(closure)
 
     parameters = (; closure, diffusivity_fields, clock)
-    return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_ccc, model.grid,
+    return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_ccc, u.grid,
                                                            u, v, w, parameters)
 end
 

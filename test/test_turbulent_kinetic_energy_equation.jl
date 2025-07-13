@@ -74,9 +74,10 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 
     if !(model.closure isa Tuple) || all(isa.(model.closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
         ε_iso = TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate(model; U=0, V=0, W=0)
-        ε_iso_field = Field(ε_iso)
-        @test ε_iso isa TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate
-        @test ε_iso_field isa Field
+        @test ε_iso isa KineticEnergyEquation.IsotropicDissipationRate
+
+        ε_iso2 = TurbulentKineticEnergyEquation.IsotropicDissipationRate(model; U=0, V=0, W=0)
+        @test ε_iso2 isa KineticEnergyEquation.IsotropicDissipationRate
     end
 
     dudz = 2
