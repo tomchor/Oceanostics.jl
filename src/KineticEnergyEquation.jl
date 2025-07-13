@@ -54,6 +54,20 @@ end
     $(SIGNATURES)
 
 Calculate the kinetic energy of `model`.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(; grid);
+
+julia> KE = KineticEnergyEquation.KineticEnergy(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field")
+```
 """
 KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwargs...)
 #------
@@ -203,6 +217,20 @@ Return a `KernelFunctionOperation` that computes the diffusive term of the KE pr
 
 where `uᵢ` are the velocity components and `τᵢⱼ` is the diffusive flux of `i` momentum in the
 `j`-th direction.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-4));
+
+julia> DIFF = KineticEnergyEquation.KineticEnergyStress(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ (generic function with 1 method)
+└── arguments: ("ScalarDiffusivity", "Nothing", "Clock", "NamedTuple", "Nothing")
+```
 """
 function KineticEnergyStress(model; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyStress")
@@ -246,6 +274,20 @@ Return a `KernelFunctionOperation` that computes the forcing term of the KE prog
 
 where `uᵢ` are the velocity components and `Fᵤᵢ` is the forcing term(s) in the `uᵢ`
 prognostic equation (i.e. the forcing for `uᵢ`).
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(; grid);
+
+julia> FORC = KineticEnergyEquation.KineticEnergyForcing(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: uᵢFᵤᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: ("NamedTuple", "Clock", "NamedTuple")
+```
 """
 function KineticEnergyForcing(model::NonhydrostaticModel; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyForcing")
@@ -418,6 +460,20 @@ Calculate the Kinetic Energy Dissipation Rate, defined as
     ε = ∂ⱼuᵢ ⋅ Fᵢⱼ
 
 where ∂ⱼuᵢ is the velocity gradient tensor and Fᵢⱼ is the stress tensor.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-4));
+
+julia> ε = KineticEnergyEquation.DissipationRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: ("NamedTuple", "NamedTuple", "NamedTuple")
+```
 """
 function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
                                                location = (Center, Center, Center))
@@ -461,6 +517,20 @@ Calculate the Viscous Dissipation Rate as
 
 where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a
 turbulence closure where ν (eddy or not) is the same for all directions).
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-4));
+
+julia> ε = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "NamedTuple")
+```
 """
 function KineticEnergyIsotropicDissipationRate(u, v, w, closure, diffusivity_fields, clock; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyIsotropicDissipationRate")

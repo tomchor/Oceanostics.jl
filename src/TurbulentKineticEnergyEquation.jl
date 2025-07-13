@@ -46,6 +46,20 @@ end
     $(SIGNATURES)
 
 Calculate the turbulent kinetic energy of `model`.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(; grid);
+
+julia> TKE = TurbulentKineticEnergyEquation.TurbulentKineticEnergy(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "Int64", "Int64", "Int64")
+```
 """
 TurbulentKineticEnergy(model; kwargs...) = TurbulentKineticEnergy(model, model.velocities...; kwargs...)
 #---
@@ -60,6 +74,13 @@ Calculate the Viscous Dissipation Rate, defined as
 
 where S'ᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a
 turbulence closure where ν (eddy or not) is the same for all directions.
+
+```jldoctest
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "NamedTuple")
+```
 """
 @inline TurbulentKineticEnergyIsotropicDissipationRate(u, v, w, args...; U=ZeroField(), V=ZeroField(), W=ZeroField(), location = (Center, Center, Center)) =
     KineticEnergyIsotropicDissipationRate((u - U), (v - V), (w - W), args...; location)
