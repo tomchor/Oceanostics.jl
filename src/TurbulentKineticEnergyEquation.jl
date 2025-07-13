@@ -276,9 +276,9 @@ end
 
 #+++ TurbulentKineticEnergyShearProductionRate
 @inline function shear_production_rate_ccc(args...)
-    return TurbulentKineticEnergyXShearProductionRate(args...) +
-           TurbulentKineticEnergyYShearProductionRate(args...) +
-           TurbulentKineticEnergyZShearProductionRate(args...)
+    return shear_production_rate_x_ccc(args...) +
+           shear_production_rate_y_ccc(args...) +
+           shear_production_rate_z_ccc(args...)
 end
 
 const TurbulentKineticEnergyShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_ccc)}
