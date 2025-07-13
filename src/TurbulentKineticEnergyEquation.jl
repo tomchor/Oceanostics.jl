@@ -22,7 +22,7 @@ using Oceananigans.BuoyancyFormulations: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ,
 
 using Oceanostics: _νᶜᶜᶜ
 using Oceanostics: validate_location, validate_dissipative_closure, perturbation_fields
-using Oceanostics.KineticEnergyEquation: IsotropicKineticEnergyDissipationRate
+using Oceanostics.KineticEnergyEquation: KineticEnergyIsotropicDissipationRate
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -71,7 +71,7 @@ where S'ᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulen
 turbulence closure where ν (eddy or not) is the same for all directions.
 """
 @inline TurbulentKineticEnergyIsotropicDissipationRate(u, v, w, args...; U=ZeroField(), V=ZeroField(), W=ZeroField(), location = (Center, Center, Center)) =
-    IsotropicKineticEnergyDissipationRate((u - U), (v - V), (w - W), args...; location)
+    KineticEnergyIsotropicDissipationRate((u - U), (v - V), (w - W), args...; location)
 
 const IsotropicDissipationRate = TurbulentKineticEnergyIsotropicDissipationRate
 #---

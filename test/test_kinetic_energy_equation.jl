@@ -66,6 +66,30 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     @test ε isa KineticEnergyEquation.KineticEnergyStress
     @test ε_field isa Field
 
+    # Test both signatures of KineticEnergyIsotropicDissipationRate
+    if !(model.closure isa Tuple) || all(isa.(model.closure, ScalarDiffusivity{ThreeDimensionalFormulation}))
+        # Test the convenience signature: KineticEnergyIsotropicDissipationRate(model; location)
+        ε_iso1 = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(model)
+        ε_iso1_field = Field(ε_iso1)
+        @test ε_iso1 isa KineticEnergyEquation.KineticEnergyIsotropicDissipationRate
+
+        # Test the full signature: KineticEnergyIsotropicDissipationRate(u, v, w, closure, diffusivity_fields, clock; location)
+        u, v, w = model.velocities
+        ε_iso2 = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(u, v, w, model.closure, model.diffusivity_fields, model.clock)
+        ε_iso2_field = Field(ε_iso2)
+        @test ε_iso2 isa KineticEnergyEquation.KineticEnergyIsotropicDissipationRate
+
+        # Test that both signatures produce the same result
+        @test all(interior(ε_iso1_field) .≈ interior(ε_iso2_field))
+
+        # Test with different location parameters
+        ε_iso1_ccc = KineticEnergyEquation.IsotropicDissipationRate(model; location = (Center, Center, Center))
+        ε_iso2_ccc = KineticEnergyEquation.IsotropicDissipationRate(u, v, w, model.closure, model.diffusivity_fields, model.clock; location = (Center, Center, Center))
+        @test ε_iso1_ccc isa KineticEnergyEquation.IsotropicDissipationRate
+        @test ε_iso2_ccc isa KineticEnergyEquation.IsotropicDissipationRate
+        @test all(interior(Field(ε_iso1_ccc)) .≈ interior(Field(ε_iso2_ccc)))
+    end
+
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
     ε̄ₖ₂= Field(Average(KineticEnergyEquation.KineticEnergyStress(model)))
 

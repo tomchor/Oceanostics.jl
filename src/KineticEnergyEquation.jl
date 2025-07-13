@@ -9,7 +9,7 @@ export Forcing, KineticEnergyForcing
 export PressureRedistribution, KineticEnergyPressureRedistribution
 export BuoyancyProduction, KineticEnergyBuoyancyProduction
 export DissipationRate, KineticEnergyDissipationRate
-export IsotropicDissipationRate, IsotropicKineticEnergyDissipationRate
+export KineticEnergyIsotropicDissipationRate
 
 using Oceananigans: NonhydrostaticModel, HydrostaticFreeSurfaceModel, fields
 using Oceananigans.Operators
@@ -448,8 +448,8 @@ end
     return 2ν * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
 
-const IsotropicKineticEnergyDissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(isotropic_viscous_dissipation_rate_ccc)}
-const IsotropicDissipationRate = IsotropicKineticEnergyDissipationRate
+const KineticEnergyIsotropicDissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(isotropic_viscous_dissipation_rate_ccc)}
+const IsotropicDissipationRate = KineticEnergyIsotropicDissipationRate
 
 """
     $(SIGNATURES)
@@ -461,8 +461,8 @@ Calculate the Viscous Dissipation Rate as
 where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a
 turbulence closure where ν (eddy or not) is the same for all directions).
 """
-function IsotropicKineticEnergyDissipationRate(u, v, w, closure, diffusivity_fields, clock; location = (Center, Center, Center))
-    validate_location(location, "IsotropicKineticEnergyDissipationRate")
+function KineticEnergyIsotropicDissipationRate(u, v, w, closure, diffusivity_fields, clock; location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyIsotropicDissipationRate")
     validate_dissipative_closure(model.closure)
 
     parameters = (; closure, diffusivity_fields, clock)
@@ -470,8 +470,8 @@ function IsotropicKineticEnergyDissipationRate(u, v, w, closure, diffusivity_fie
                                                            u, v, w, parameters)
 end
 
-@inline IsotropicKineticEnergyDissipationRate(model; location = (Center, Center, Center)) =
-    IsotropicKineticEnergyDissipationRate(model.velocities..., model.closure, model.diffusivity_fields, model.clock; location = location)
+@inline KineticEnergyIsotropicDissipationRate(model; location = (Center, Center, Center)) =
+    KineticEnergyIsotropicDissipationRate(model.velocities..., model.closure, model.diffusivity_fields, model.clock; location = location)
 #---
 
 end # module 
