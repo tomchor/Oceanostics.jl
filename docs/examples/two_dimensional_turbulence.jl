@@ -62,7 +62,7 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 # its dissipation rate ε
 
 KE = KineticEnergyEquation.KineticEnergy(model)
-ε = KineticEnergyEquation.KineticEnergyDissipationRate(model)
+ε = KineticEnergyEquation.DissipationRate(model)
 
 # And we can define their volume-integrals
 
@@ -78,7 +78,7 @@ KE = KineticEnergyEquation.KineticEnergy(model)
 # where ``\tau_{ij}`` is the diffusive flux of ``i`` momentum in the ``j``-th direction.
 #
 
-∫εᴰ = Integral(KineticEnergyEquation.KineticEnergyStress(model))
+∫εᴰ = Integral(KineticEnergyEquation.Stress(model))
 
 # The idea in calculating this term is that, in integrated form, all transport contributions in it
 # should equal zero and `∫εᴰ` should equal `∫ε`.

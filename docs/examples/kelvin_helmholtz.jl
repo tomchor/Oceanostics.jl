@@ -78,8 +78,8 @@ Q = QVelocityGradientTensorInvariant(model)
 # variance dissipation rate and diffusive term. When volume-integrated, these two quantities should
 # be equal.
 
-∫χᴰ = Integral(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b))
-∫χ = Integral(TracerVarianceEquation.TracerVarianceDiffusion(model, :b))
+∫χᴰ = Integral(TracerVarianceEquation.DissipationRate(model, :b))
+∫χ = Integral(TracerVarianceEquation.Diffusion(model, :b))
 
 
 # Now we write these quantities, along with `b`, to a NetCDF:
