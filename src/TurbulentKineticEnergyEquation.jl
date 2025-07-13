@@ -75,6 +75,8 @@ turbulence closure where ν (eddy or not) is the same for all directions.
     u, v, w = model.velocities
     return TurbulentKineticEnergyIsotropicDissipationRate((u - U), (v - V), (w - W), model.closure, model.diffusivity_fields, model.clock; kwargs...)
 end
+
+const IsotropicDissipationRate = TurbulentKineticEnergyIsotropicDissipationRate
 #---
 
 #++++ Shear production terms
