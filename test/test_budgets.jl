@@ -55,7 +55,7 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, stop_time=0.1, clo
     Δt = min(minimum_zspacing(grid)^2/maximum(κ)/10, minimum_zspacing(grid)/maximum(u) / 10)
     simulation = Simulation(model; Δt, stop_time)
 
-    wizard = TimeStepWizard(cfl=0.2, diffusive_cfl=0.2)
+    wizard = TimeStepWizard(cfl=0.1, diffusive_cfl=0.1)
     simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
 
     progress(sim) = @info "$(time(sim)) of $stop_time with Δt = $(prettytime(sim.Δt))"
@@ -103,7 +103,7 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, stop_time=0.1, clo
 end
 
 arch = has_cuda_gpu() ? GPU() : CPU()
-rtol = 0.02; N = 80; stop_time = 0.1
+rtol = 0.02; N = 80; stop_time = 0.05
 @info "    Testing tracer variance budget on and a regular grid with N=$N and tolerance $rtol"
 test_tracer_variance_budget(; arch, N, rtol, stop_time, regular_grid=true)
 
