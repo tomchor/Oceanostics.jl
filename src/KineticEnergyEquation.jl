@@ -472,7 +472,7 @@ julia> ε = KineticEnergyEquation.DissipationRate(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
-└── arguments: ("NamedTuple", "NamedTuple", "NamedTuple")
+└── arguments: ("Nothing", "NamedTuple", "NamedTuple")
 ```
 """
 function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),

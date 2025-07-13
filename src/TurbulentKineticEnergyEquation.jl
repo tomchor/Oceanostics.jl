@@ -68,7 +68,7 @@ TurbulentKineticEnergy(model; kwargs...) = TurbulentKineticEnergy(model, model.v
 """
     $(SIGNATURES)
 
-Calculate the Viscous Dissipation Rate, defined as
+Calculate the Turbulent Kinetic Energy Isotropic Dissipation Rate, defined as
 
     ε = 2 ν S'ᵢⱼS'ᵢⱼ,
 
@@ -76,6 +76,13 @@ where S'ᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulen
 turbulence closure where ν (eddy or not) is the same for all directions.
 
 ```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-4));
+
+julia> TurbulentKineticEnergyEquation.IsotropicDissipationRate(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
