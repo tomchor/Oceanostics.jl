@@ -10,7 +10,8 @@ export BottomCellValue
 using Oceanostics: validate_location,
                    validate_dissipative_closure,
                    add_background_fields,
-                   get_coriolis_frequency_components
+                   get_coriolis_frequency_components,
+                   CustomKFO
 
 using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyField, BuoyancyTracer, location
 using Oceananigans.BuoyancyFormulations: get_temperature_and_salinity, SeawaterBuoyancy, g_Earth, buoyancy_perturbationᶜᶜᶜ
@@ -62,6 +63,8 @@ end
 
     return dbdz / duₕdz^2
 end
+
+const RichardsonNumber = CustomKFO{<:typeof(richardson_number_ccf)}
 
 """
     $(SIGNATURES)
@@ -115,6 +118,8 @@ end
 
     return (ω_x*params.fx + ω_y*params.fy + ω_z*params.fz)/(params.fx^2 + params.fy^2 + params.fz^2)
 end
+
+const RossbyNumber = CustomKFO{<:typeof(rossby_number_fff)}
 
 """
     $(SIGNATURES)
@@ -175,6 +180,8 @@ end
     return pv_barot + pv_baroc
 end
 
+const ThermalWindPotentialVorticity = CustomKFO{<:typeof(potential_vorticity_in_thermal_wind_fff)}
+
 """
     $(SIGNATURES)
 
@@ -220,6 +227,8 @@ end
     return pv_x + pv_y + pv_z
 end
 
+const ErtelPotentialVorticity = CustomKFO{<:typeof(ertel_potential_vorticity_fff)}
+
 """
     $(SIGNATURES)
 
@@ -255,7 +264,7 @@ KernelFunctionOperation at (Face, Face, Face)
 ├── kernel_function: ertel_potential_vorticity_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Int64", "Int64", "Float64")
 
-julia> interior(compute!(Field(EPV)))
+julia> interior(Field(EPV))
 1×1×5 view(::Array{Float64, 3}, 1:1, 1:1, 4:8) with eltype Float64:
 [:, :, 1] =
  0.0
@@ -313,6 +322,7 @@ end
     return (params.f_dir + ω_dir) * dbddir
 end
 
+const DirectionalErtelPotentialVorticity = CustomKFO{<:typeof(directional_ertel_potential_vorticity_fff)}
 
 """
     $(SIGNATURES)
@@ -358,6 +368,8 @@ function strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)
     return √(Sˣˣ² + Sʸʸ² + Sᶻᶻ² + 2 * (Sˣʸ² + Sˣᶻ² + Sʸᶻ²))
 end
 
+const StrainRateTensorModulus = CustomKFO{<:typeof(strain_rate_tensor_modulus_ccc)}
+
 """
     $(SIGNATURES)
 
@@ -392,6 +404,8 @@ function vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)
     return √(Ωˣʸ² + Ωˣᶻ² + Ωʸᶻ² + Ωʸˣ² + Ωᶻˣ² + Ωᶻʸ²)
 end
 
+const VorticityTensorModulus = CustomKFO{<:typeof(vorticity_tensor_modulus_ccc)}
+
 """
     $(SIGNATURES)
 
@@ -419,6 +433,8 @@ end
     Ω² = vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
     return (Ω² - S²) / 2
 end
+
+const QVelocityGradientTensorInvariant = CustomKFO{<:typeof(Q_velocity_gradient_tensor_invariant_ccc)}
 #---
 
 #+++ Mixed layer depth
@@ -475,7 +491,7 @@ function MixedLayerDepth(grid::AbstractGrid, args...; criterion = BuoyancyAnomal
     return KernelFunctionOperation{Center, Center, Nothing}(MLD, grid, args...)
 end
 
-function (MLD::MixedLayerDepthKernel)(i, j, k, grid, args...)
+@inline function (MLD::MixedLayerDepthKernel)(i, j, k, grid, args...)
     kₘₗ = -1
 
     for k in grid.Nz-1:-1:1

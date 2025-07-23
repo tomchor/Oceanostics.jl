@@ -177,9 +177,7 @@ run!(simulation)
 
 # Now we'll read the results and plot an animation
 
-using Rasters
-
-ds = RasterStack(simulation.output_writers[:nc].filepath)
+ds = NCDataset(simulation.output_writers[:nc].filepath)
 
 # We now use Makie to create the figure and its axes
 
@@ -198,31 +196,31 @@ ax3 = Axis(fig[2, 3]; title = "PV", kwargs...);
 
 n = Observable(1)
 
-x_caa = Array(dims(ds, :x_caa))
-x_faa = Array(dims(ds, :x_faa))
-z_aac = Array(dims(ds, :z_aac))
-z_aaf = Array(dims(ds, :z_aaf))
+x_caa = ds["x_caa"][:]
+x_faa = ds["x_faa"][:]
+z_aac = ds["z_aac"][:]
+z_aaf = ds["z_aaf"][:]
 
-bₙ = @lift Array(ds.b[Ti=$n, y_aca=Near(0)])
+bₙ = @lift ds["b"][:, :, $n]
 
-Riₙ = @lift Array(ds.Ri[Ti=$n, y_aca=Near(0)])
+Riₙ = @lift ds["Ri"][:, :, $n]
 hm1 = heatmap!(ax1, x_caa, z_aaf, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
 contour!(ax1, x_caa, z_aac, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
 Colorbar(fig[3, 1], hm1, vertical=false, height=8, ticklabelsize=14)
 
-Roₙ = @lift Array(ds.Ro[Ti=$n, y_afa=Near(0)])
+Roₙ = @lift ds["Ro"][:, :, $n]
 hm2 = heatmap!(ax2, x_faa, z_aaf, Roₙ; colormap = :balance, colorrange = (-10, +10))
 contour!(ax2, x_caa, z_aac, bₙ; levels=10, color=:black, linestyle=:dash, linewidth=0.5)
 Colorbar(fig[3, 2], hm2, vertical=false, height=8, ticklabelsize=14)
 
-PVₙ = @lift Array(ds.PV[Ti=$n, y_afa=Near(0)])
+PVₙ = @lift ds["PV"][:, :, $n]
 hm3 = heatmap!(ax3, x_faa, z_aaf, PVₙ; colormap = :coolwarm, colorrange = N²*f₀.*(-1.5, +1.5))
 contour!(ax3, x_caa, z_aac, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
 Colorbar(fig[3, 3], hm3, vertical=false, height=8, ticklabelsize=14);
 
 # Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
 
-times = dims(ds, :Ti)
+times = ds["time"][:]
 title = @lift "Time = " * string(prettytime(times[$n]))
 fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);
 
@@ -234,6 +232,8 @@ resize_to_layout!(fig)
 record(fig, filename * ".mp4", 1:length(times), framerate=10) do i
        n[] = i
 end
+
+close(ds)
 
 # ![](tilted_bottom_boundary_layer.mp4)
 #

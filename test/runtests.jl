@@ -12,7 +12,11 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
     end
 
     if group == :ke_diagnostics || group == :all
-        include("test_ke_diagnostics.jl")
+        include("test_kinetic_energy_equation.jl")
+    end
+
+    if group == :tke_diagnostics || group == :all
+        include("test_turbulent_kinetic_energy_equation.jl")
     end
 
     if group == :pe_diagnostics || group == :all

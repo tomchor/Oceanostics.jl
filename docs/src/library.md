@@ -1,45 +1,20 @@
+```@contents
+Pages = ["library.md"]
+```
+
 # Library
 
 Documentation for the public user interface.
 
-## Oceanostics.jl
-
 ```@autodocs
-Modules = [Oceanostics]
-Private = false
-```
-
-## Oceanostics.TKEBudgetTerms
-
-```@autodocs
-Modules = [Oceanostics.TKEBudgetTerms]
-Private = false
-```
-
-## Oceanostics.TracerBudgetTerms
-
-```@autodocs
-Modules = [Oceanostics.TracerBudgetTerms]
-Private = false
-```
-
-## Oceanostics.TracerVarianceBudgetTerms
-
-```@autodocs
-Modules = [Oceanostics.TracerVarianceBudgetTerms]
-Private = false
-```
-
-## Oceanostics.FlowDiagnostics
-
-```@autodocs
-Modules = [Oceanostics.FlowDiagnostics]
-Private = false
-```
-
-## Oceanostics.PotentialEnergyEquationTerms
-
-```@autodocs
-Modules = [Oceanostics.PotentialEnergyEquationTerms]
-Private = false
+Modules = [Oceanostics,
+           Oceanostics.TracerEquation,
+           Oceanostics.TracerVarianceEquation,
+           Oceanostics.TurbulentKineticEnergyEquation,
+           Oceanostics.KineticEnergyEquation,
+           Oceanostics.FlowDiagnostics,
+           Oceanostics.PotentialEnergyEquation,
+           Oceanostics.ProgressMessengers]
+Order = [:function, :type, :macro]
+Filter = t -> true
 ```

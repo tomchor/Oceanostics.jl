@@ -1,4 +1,4 @@
-module PotentialEnergyEquationTerms
+module PotentialEnergyEquation
 
 using DocStringExtensions
 
@@ -12,7 +12,7 @@ using Oceananigans.Grids: NegativeZDirection
 using Oceananigans.BuoyancyFormulations: BuoyancyForce, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
 using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
-using Oceanostics: validate_location
+using Oceanostics: validate_location, CustomKFO
 using SeawaterPolynomials: BoussinesqEquationOfState
 
 const NoBuoyancyModel = Union{Nothing, ShallowWaterModel}
@@ -21,6 +21,14 @@ const LinearSeawaterBuoyancy = SeawaterBuoyancy{FT, <:LinearEquationOfState, T, 
 const BuoyancyLinearEOSModel = BuoyancyForce{<:LinearSeawaterBuoyancy, g} where {g}
 const BoussinesqSeawaterBuoyancy = SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, T, S} where {FT, T, S}
 const BuoyancyBoussinesqEOSModel = BuoyancyForce{<:BoussinesqSeawaterBuoyancy, g} where {g}
+
+# Inline functions for potential energy calculation
+@inline minus_bz_ccc(i, j, k, grid, b) = -b[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
+@inline minus_bz_ccc(i, j, k, grid, b::LinearSeawaterBuoyancy, C) = -buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, b, C) * Zᶜᶜᶜ(i, j, k, grid)
+@inline minus_bz_ccc(i, j, k, grid, ρ, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
+
+# Type aliases for major functions
+const PotentialEnergy = CustomKFO{<:typeof(minus_bz_ccc)}
 
 validate_gravity_unit_vector(gravity_unit_vector::NegativeZDirection) = nothing
 validate_gravity_unit_vector(gravity_unit_vector) =
@@ -47,9 +55,7 @@ Example
 
 Usage with a `BuoyancyTracer` buoyacny model
 ```jldoctest
-julia> using Oceananigans
-
-julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
+julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
@@ -67,7 +73,7 @@ NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 ├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
 └── coriolis: Nothing
 
-julia> PotentialEnergy(model)
+julia> PotentialEnergyEquation.PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
@@ -77,9 +83,7 @@ KernelFunctionOperation at (Center, Center, Center)
 The default behaviour of `PotentialEnergy` uses the *in-situ density* in the calculation
 when the equation of state is a `BoussinesqEquationOfState`:
 ```jldoctest
-julia> using Oceananigans, SeawaterPolynomials.TEOS10
-
-julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy
+julia> using Oceananigans, SeawaterPolynomials.TEOS10, Oceanostics
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
@@ -110,7 +114,7 @@ NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 ├── buoyancy: SeawaterBuoyancy with g=9.80665 and BoussinesqEquationOfState{Float64} with ĝ = NegativeZDirection()
 └── coriolis: Nothing
 
-julia> PotentialEnergy(model)
+julia> PotentialEnergyEquation.PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
@@ -120,9 +124,7 @@ KernelFunctionOperation at (Center, Center, Center)
 To use a reference density set a constant value for the keyword argument `geopotential_height`
 and pass this the function. For example,
 ```jldoctest
-julia> using Oceananigans, SeawaterPolynomials.TEOS10;
-
-julia> using Oceanostics.PotentialEnergyEquationTerms: PotentialEnergy;
+julia> using Oceananigans, SeawaterPolynomials.TEOS10, Oceanostics
 
 julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
 
@@ -136,7 +138,7 @@ julia> model = NonhydrostaticModel(; grid, buoyancy, tracers);
 
 julia> geopotential_height = 0; # density variable will be σ₀
 
-julia> PotentialEnergy(model)
+julia> PotentialEnergyEquation.PotentialEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
@@ -163,8 +165,6 @@ end
     return KernelFunctionOperation{Center, Center, Center}(minus_bz_ccc, grid, b)
 end
 
-@inline minus_bz_ccc(i, j, k, grid, b) = -b[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
-
 @inline function PotentialEnergy(model, buoyancy_model::BuoyancyLinearEOSModel, geopotential_height)
 
     grid = model.grid
@@ -173,9 +173,6 @@ end
 
     return KernelFunctionOperation{Center, Center, Center}(minus_bz_ccc, grid, b, C)
 end
-
-@inline minus_bz_ccc(i, j, k, grid, b::LinearSeawaterBuoyancy, C) =
-    -buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, b, C) * Zᶜᶜᶜ(i, j, k, grid)
 
 @inline function PotentialEnergy(model, buoyancy_model::BuoyancyBoussinesqEOSModel, geopotential_height)
 
@@ -186,7 +183,5 @@ end
 
     return KernelFunctionOperation{Center, Center, Center}(minus_bz_ccc, grid, ρ, parameters)
 end
-
-@inline minus_bz_ccc(i, j, k, grid, ρ, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
 
 end # module

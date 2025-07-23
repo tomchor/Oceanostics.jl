@@ -1,22 +1,33 @@
 module Oceanostics
 using DocStringExtensions
+using Oceananigans.AbstractOperations: KernelFunctionOperation
 
-#+++ TKEBudgetTerms exports
-export TurbulentKineticEnergy, KineticEnergy
-export KineticEnergyTendency, KineticEnergyStressTerm, KineticEnergyForcingTerm
-export IsotropicKineticEnergyDissipationRate, KineticEnergyDissipationRate
-export PressureRedistributionTerm
-export XShearProductionRate, YShearProductionRate, ZShearProductionRate
+const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, F}
+
+#+++ Module export
+export TracerEquation, KineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation
 #---
 
-#+++ TracerBudgetTerms exports
-export TracerAdvection, TracerDiffusion, ImmersedTracerDiffusion, TotalTracerDiffusion, TracerForcing
+#+++ TracerEquation exports
+export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing
 #---
 
-#+++ TracerVarianceBudgetTerms exports
-export TracerVarianceTendency
-export TracerVarianceDiffusiveTerm
-export TracerVarianceDissipationRate
+#+++ TracerVarianceEquation exports
+export TracerVarianceTendency, TracerVarianceDissipationRate, TracerVarianceDiffusion
+#---
+
+#+++ KineticEnergyEquation exports
+export KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyBuoyancyProduction,
+       KineticEnergyDissipationRate, KineticEnergyIsotropicDissipationRate
+#---
+
+#+++ TurbulentKineticEnergyEquation exports
+export TurbulentKineticEnergy,
+       TurbulentKineticEnergyIsotropicDissipationRate,
+       TurbulentKineticEnergyXShearProductionRate,
+       TurbulentKineticEnergyYShearProductionRate,
+       TurbulentKineticEnergyZShearProductionRate,
+       TurbulentKineticEnergyShearProductionRate
 #---
 
 #+++ FlowDiagnostics exports
@@ -48,7 +59,6 @@ validate_location(location, type, valid_location=(Center, Center, Center)) =
 validate_dissipative_closure(closure) = error("Cannot calculate dissipation rate for $closure")
 validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}) = nothing
 validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_closure(c) for c in closure_tuple)
-
 #---
 
 #+++ Utils for background fields
@@ -139,14 +149,16 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
                                                                      _νᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], K[2:end], clock)
 #---
 
-include("TracerBudgetTerms.jl")
-include("TKEBudgetTerms.jl")
-include("TracerVarianceBudgetTerms.jl")
+include("TracerEquation.jl")
+include("TracerVarianceEquation.jl")
+include("KineticEnergyEquation.jl")
+include("TurbulentKineticEnergyEquation.jl")
+include("PotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
-include("PotentialEnergyEquationTerms.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
-using .TKEBudgetTerms, .TracerBudgetTerms, .TracerVarianceBudgetTerms, .FlowDiagnostics, .ProgressMessengers
-using .PotentialEnergyEquationTerms
+using .TracerEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
+using .FlowDiagnostics
+using .ProgressMessengers
 
 end # module

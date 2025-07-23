@@ -1,6 +1,5 @@
 using Test
 using Oceananigans
-using Oceananigans.Fields: @compute
 using Oceananigans.AbstractOperations: volume
 using Oceanostics
 
@@ -27,7 +26,7 @@ using Oceanostics
 
             cᵇ = BottomCellValue(c)
 
-            @compute bottom_mass = Field(Integral(cᵇ))
+            bottom_mass = Field(Integral(cᵇ))
             @test bottom_mass[] ≈ bottom_mass_truth
         end
 
@@ -56,7 +55,7 @@ using Oceanostics
 
             cᵇ = BottomCellValue(c)
 
-            @compute bottom_mass = Field(Integral(cᵇ))
+            bottom_mass = Field(Integral(cᵇ))
             @test bottom_mass[] ≈ bottom_mass_truth
         end
     end
