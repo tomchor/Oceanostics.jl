@@ -27,7 +27,7 @@ using Oceananigans.TurbulenceClosures: immersed_∂ⱼ_τ₁ⱼ, immersed_∂ⱼ
 using Oceananigans.BuoyancyFormulations: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
 
 using Oceanostics: _νᶜᶜᶜ
-using Oceanostics: validate_location, validate_dissipative_closure, perturbation_fields
+using Oceanostics: validate_location, validate_dissipative_closure, perturbation_fields, CustomKFO
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2

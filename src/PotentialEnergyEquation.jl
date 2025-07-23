@@ -12,7 +12,7 @@ using Oceananigans.Grids: NegativeZDirection
 using Oceananigans.BuoyancyFormulations: BuoyancyForce, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
 using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
-using Oceanostics: validate_location
+using Oceanostics: validate_location, CustomKFO
 using SeawaterPolynomials: BoussinesqEquationOfState
 
 const NoBuoyancyModel = Union{Nothing, ShallowWaterModel}

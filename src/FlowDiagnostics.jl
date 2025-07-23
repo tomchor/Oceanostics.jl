@@ -10,7 +10,8 @@ export BottomCellValue
 using Oceanostics: validate_location,
                    validate_dissipative_closure,
                    add_background_fields,
-                   get_coriolis_frequency_components
+                   get_coriolis_frequency_components,
+                   CustomKFO
 
 using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyField, BuoyancyTracer, location
 using Oceananigans.BuoyancyFormulations: get_temperature_and_salinity, SeawaterBuoyancy, g_Earth, buoyancy_perturbationᶜᶜᶜ

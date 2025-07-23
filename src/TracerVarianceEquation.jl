@@ -5,7 +5,7 @@ export Tendency, TracerVarianceTendency
 export DissipationRate, TracerVarianceDissipationRate
 export Diffusion, TracerVarianceDiffusion
 
-using Oceanostics: validate_location, validate_dissipative_closure
+using Oceanostics: validate_location, validate_dissipative_closure, CustomKFO
 
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations: KernelFunctionOperation

@@ -14,7 +14,7 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center
 using Oceananigans.Fields: ZeroField
 
-using Oceanostics: validate_location
+using Oceanostics: validate_location, CustomKFO
 using Oceanostics.KineticEnergyEquation: KineticEnergyIsotropicDissipationRate
 
 # Some useful operators

@@ -5,7 +5,7 @@ using Oceananigans: fields, Center, KernelFunctionOperation
 using Oceananigans.Models: HydrostaticFreeSurfaceModel
 using Oceananigans.Models.NonhydrostaticModels: div_Uc, ∇_dot_qᶜ, immersed_∇_dot_qᶜ, biogeochemical_transition
 
-using Oceanostics: validate_location
+using Oceanostics: validate_location, CustomKFO
 
 export Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, Forcing,
        TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing
