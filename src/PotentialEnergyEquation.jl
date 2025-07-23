@@ -28,7 +28,7 @@ const BuoyancyBoussinesqEOSModel = BuoyancyForce{<:BoussinesqSeawaterBuoyancy, g
 @inline minus_bz_ccc(i, j, k, grid, ρ, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
 
 # Type aliases for major functions
-const PotentialEnergy = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(minus_bz_ccc)}
+const PotentialEnergy = CustomKFO{<:typeof(minus_bz_ccc)}
 
 validate_gravity_unit_vector(gravity_unit_vector::NegativeZDirection) = nothing
 validate_gravity_unit_vector(gravity_unit_vector) =

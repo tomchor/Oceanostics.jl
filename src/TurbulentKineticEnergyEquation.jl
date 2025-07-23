@@ -28,7 +28,7 @@ using Oceanostics.KineticEnergyEquation: KineticEnergyIsotropicDissipationRate
                                                                          ℑyᵃᶜᵃ(i, j, k, grid, ψ′², v, V) +
                                                                          ℑzᵃᵃᶜ(i, j, k, grid, ψ′², w, W)) / 2
 
-const TurbulentKineticEnergy = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(turbulent_kinetic_energy_ccc)}
+const TurbulentKineticEnergy = CustomKFO{<:typeof(turbulent_kinetic_energy_ccc)}
 
 """
     $(SIGNATURES)
@@ -113,7 +113,7 @@ const IsotropicDissipationRate = TurbulentKineticEnergyIsotropicDissipationRate
     return -(u′u′∂xU + v′u′∂xV + w′u′∂xW)
 end
 
-const TurbulentKineticEnergyXShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_x_ccc)}
+const TurbulentKineticEnergyXShearProductionRate = CustomKFO{<:typeof(shear_production_rate_x_ccc)}
 const XShearProductionRate = TurbulentKineticEnergyXShearProductionRate
 
 """
@@ -174,7 +174,7 @@ end
     return -(u′v′∂yU + v′v′∂yV + w′v′∂yW)
 end
 
-const TurbulentKineticEnergyYShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_y_ccc)}
+const TurbulentKineticEnergyYShearProductionRate = CustomKFO{<:typeof(shear_production_rate_y_ccc)}
 const YShearProductionRate = TurbulentKineticEnergyYShearProductionRate
 
 """
@@ -234,7 +234,7 @@ end
     return - (u′w′∂zU + v′w′∂zV + w′w′∂zW)
 end
 
-const TurbulentKineticEnergyZShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_z_ccc)}
+const TurbulentKineticEnergyZShearProductionRate = CustomKFO{<:typeof(shear_production_rate_z_ccc)}
 const ZShearProductionRate = TurbulentKineticEnergyZShearProductionRate
 
 """
@@ -282,7 +282,7 @@ end
            shear_production_rate_z_ccc(args...)
 end
 
-const TurbulentKineticEnergyShearProductionRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(shear_production_rate_ccc)}
+const TurbulentKineticEnergyShearProductionRate = CustomKFO{<:typeof(shear_production_rate_ccc)}
 const ShearProductionRate = TurbulentKineticEnergyShearProductionRate
 
 """

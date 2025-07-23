@@ -38,7 +38,7 @@ using Oceanostics: validate_location, validate_dissipative_closure, perturbation
                                                       ℑyᵃᶜᵃ(i, j, k, grid, ψ², v) +
                                                       ℑzᵃᵃᶜ(i, j, k, grid, ψ², w)) / 2
 
-const KineticEnergy = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(kinetic_energy_ccc)}
+const KineticEnergy = CustomKFO{<:typeof(kinetic_energy_ccc)}
 
 """
     $(SIGNATURES)
@@ -98,7 +98,7 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
     return u∂ₜu + v∂ₜv + w∂ₜw
 end
 
-const KineticEnergyTendency = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢGᵢᶜᶜᶜ)}
+const KineticEnergyTendency = CustomKFO{<:typeof(uᵢGᵢᶜᶜᶜ)}
 
 """
     $(SIGNATURES)
@@ -154,7 +154,7 @@ end
     return u∂ⱼuⱼu + v∂ⱼuⱼv + w∂ⱼuⱼw
 end
 
-const KineticEnergyAdvection = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ)}
+const KineticEnergyAdvection = CustomKFO{<:typeof(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ)}
 const Advection = KineticEnergyAdvection
 
 """
@@ -203,7 +203,7 @@ end
     return u∂ⱼ_τ₁ⱼ+ v∂ⱼ_τ₂ⱼ + w∂ⱼ_τ₃ⱼ
 end
 
-const KineticEnergyStress = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ)}
+const KineticEnergyStress = CustomKFO{<:typeof(uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ)}
 const Stress = KineticEnergyStress
 
 """
@@ -260,7 +260,7 @@ end
     return uFᵘ+ vFᵛ + wFʷ
 end
 
-const KineticEnergyForcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢFᵤᵢᶜᶜᶜ)}
+const KineticEnergyForcing = CustomKFO{<:typeof(uᵢFᵤᵢᶜᶜᶜ)}
 const Forcing = KineticEnergyForcing
 
 """
@@ -308,7 +308,7 @@ end
     return u∂x_p + v∂y_p + w∂z_p
 end
 
-const KineticEnergyPressureRedistribution = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢ∂ᵢpᶜᶜᶜ)}
+const KineticEnergyPressureRedistribution = CustomKFO{<:typeof(uᵢ∂ᵢpᶜᶜᶜ)}
 const PressureRedistribution = KineticEnergyPressureRedistribution
 
 """
@@ -364,7 +364,7 @@ end
     return ubˣ + vbʸ + wbᶻ
 end
 
-const KineticEnergyBuoyancyProduction = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(uᵢbᵢᶜᶜᶜ)}
+const KineticEnergyBuoyancyProduction = CustomKFO{<:typeof(uᵢbᵢᶜᶜᶜ)}
 const BuoyancyProduction = KineticEnergyBuoyancyProduction
 
 """
@@ -448,7 +448,7 @@ Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo,
      Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy)   # C, C, C
      ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δuᵢ above, ensures a derivative operation
 
-const KineticEnergyDissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(viscous_dissipation_rate_ccc)}
+const KineticEnergyDissipationRate = CustomKFO{<:typeof(viscous_dissipation_rate_ccc)}
 const DissipationRate = KineticEnergyDissipationRate
 
 """
@@ -504,7 +504,7 @@ end
     return 2ν * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
 
-const KineticEnergyIsotropicDissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(isotropic_viscous_dissipation_rate_ccc)}
+const KineticEnergyIsotropicDissipationRate = CustomKFO{<:typeof(isotropic_viscous_dissipation_rate_ccc)}
 const IsotropicDissipationRate = KineticEnergyIsotropicDissipationRate
 
 """

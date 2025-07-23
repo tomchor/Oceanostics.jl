@@ -14,7 +14,7 @@ N = 6
 regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
 
 # Stretched grid functions and setup
-S = .99 # Stretching factor. Positive number ∈ (0, 1]
+S = 0.99 # Stretching factor. Positive number ∈ (0, 1]
 f_asin(k) = -asin(S*(2k - N - 2) / N)/π + 1/2
 F1 = f_asin(1); F2 = f_asin(N+1)
 z_faces(k) = ((F1 + F2)/2 - f_asin(k)) / (F1 - F2)

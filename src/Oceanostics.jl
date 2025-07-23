@@ -1,5 +1,8 @@
 module Oceanostics
 using DocStringExtensions
+using Oceananigans.AbstractOperations: KernelFunctionOperation
+
+const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, F}
 
 #+++ Module export
 export TracerEquation, KineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation

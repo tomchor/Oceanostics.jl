@@ -38,7 +38,7 @@ using Oceananigans.TurbulenceClosures: ∇_dot_qᶜ, diffusive_flux_x, diffusive
                                                                    tracers,
                                                                    args...)
 
-const Tendency = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(c∂ₜcᶜᶜᶜ)}
+const Tendency = CustomKFO{<:typeof(c∂ₜcᶜᶜᶜ)}
 const TracerVarianceTendency = Tendency
 
 """
@@ -96,7 +96,7 @@ end
                                  args...) =
     @inbounds 2 * tracer[i, j, k] * ∇_dot_qᶜ(i, j, k, grid, closure, diffusivities, val_tracer_index, tracer, args...)
 
-const Diffusion = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(c∇_dot_qᶜ)}
+const Diffusion = CustomKFO{<:typeof(c∇_dot_qᶜ)}
 const TracerVarianceDiffusion = Diffusion
 
 """
@@ -158,7 +158,7 @@ end
          ℑzᵃᵃᶜ(i, j, k, grid, Azᶜᶜᶠ_δcᶜᶜᶠ_q₃ᶜᶜᶠ, args...)   # C, C, F  → C, C, C
          ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δc above, ensures a derivative operation
 
-const DissipationRate = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(tracer_variance_dissipation_rate_ccc)}
+const DissipationRate = CustomKFO{<:typeof(tracer_variance_dissipation_rate_ccc)}
 const TracerVarianceDissipationRate = DissipationRate
 
 """

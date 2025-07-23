@@ -16,10 +16,10 @@ export Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, Forcing,
     immersed_∇_dot_qᶜ(i, j, k, grid, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields, buoyancy)
 
 # Type aliases for major functions
-const Advection = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(div_Uc)}
-const Diffusion = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(∇_dot_qᶜ)}
-const ImmersedDiffusion = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(immersed_∇_dot_qᶜ)}
-const TotalDiffusion = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:typeof(total_∇_dot_qᶜ)}
+const Advection = CustomKFO{<:typeof(div_Uc)}
+const Diffusion = CustomKFO{<:typeof(∇_dot_qᶜ)}
+const ImmersedDiffusion = CustomKFO{<:typeof(immersed_∇_dot_qᶜ)}
+const TotalDiffusion = CustomKFO{<:typeof(total_∇_dot_qᶜ)}
 const Forcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any}
 
 const TracerAdvection = Advection
