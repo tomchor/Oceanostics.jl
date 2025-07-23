@@ -11,7 +11,7 @@ SeawaterPolynomials = "d496a93d-167e-4197-9f49-d3af4ff8fe40"
 
 [compat]
 DocStringExtensions = "0.9"
-Oceananigans = "^0.96.30"
+Oceananigans = "^0.96.30, 0.97"
 SeawaterPolynomials = "0.3"
 julia = "1.9"
 
