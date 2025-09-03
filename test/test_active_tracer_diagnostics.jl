@@ -142,14 +142,14 @@ function test_mixed_layer_depth(grid, buoyancy; zₘₓₗ = 0.5, δb = -1e-4 * 
     ∂z_b = - δb / zₘₓₗ
 
     if buoyancy isa BuoyancyTracer
-        boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_b))
+        boundary_conditions = FieldBoundaryConditions(grid, (Center(), Center(), Center()); top = GradientBoundaryCondition(∂z_b))
         C = (; b = CenterField(grid; boundary_conditions))
 
     else
         g = buoyancy.gravitational_acceleration
         ∂z_T = ∂z_b / (g * naive_thermal_expansion)
 
-        boundary_conditions = FieldBoundaryConditions(grid, (Center, Center, Center); top = GradientBoundaryCondition(∂z_T))
+        boundary_conditions = FieldBoundaryConditions(grid, (Center(), Center(), Center()); top = GradientBoundaryCondition(∂z_T))
         C = (; T = CenterField(grid; boundary_conditions), S = CenterField(grid))
     end
 
