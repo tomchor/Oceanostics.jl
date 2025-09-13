@@ -126,7 +126,7 @@ julia> DIFF = TracerEquation.ImmersedDiffusion(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: immersed_∇_dot_qᶜ (generic function with 2 methods)
-└── arguments: ("Field", "BoundaryCondition", "Nothing", "Nothing", "Val", "Clock", "NamedTuple")
+└── arguments: ("Field", "Nothing", "Nothing", "Nothing", "Val", "Clock", "NamedTuple")
 ```
 """
 function ImmersedDiffusion(model, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields; location = (Center, Center, Center))
