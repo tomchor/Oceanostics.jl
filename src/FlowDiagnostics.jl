@@ -14,7 +14,7 @@ using Oceanostics: validate_location,
                    CustomKFO
 
 using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyField, BuoyancyTracer, location
-using Oceananigans.BuoyancyFormulations: get_temperature_and_salinity, SeawaterBuoyancy, g_Earth, buoyancy_perturbationᶜᶜᶜ
+using Oceananigans.BuoyancyFormulations: get_temperature_and_salinity, SeawaterBuoyancy, buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -485,7 +485,7 @@ supplied where `buoyancy_formulation` should be the buoyancy model, and `C` shou
 tuple of `(; T, S)`, `(; T)` or `(; S)` (the latter two if the buoyancy model
 specifies a constant salinity or temperature).
 """
-function MixedLayerDepth(grid::AbstractGrid, args...; criterion = BuoyancyAnomalyCriterion(convert(eltype(grid), -1e-4 * g_Earth)))
+function MixedLayerDepth(grid::AbstractGrid, args...; criterion = BuoyancyAnomalyCriterion(convert(eltype(grid), -1e-4 * Oceananigans.defaults.gravitational_acceleration)))
     validate_criterion_model(criterion, args...)
     MLD = MixedLayerDepthKernel(criterion)
     return KernelFunctionOperation{Center, Center, Nothing}(MLD, grid, args...)
@@ -547,7 +547,7 @@ When this model is used, the arguments `buoyancy_formulation` and `C` should be 
 should be the named tuple `(; b)`, with `b` the buoyancy tracer.
 """
 @kwdef struct BuoyancyAnomalyCriterion{FT} <: AbstractAnomalyCriterion
-    threshold :: FT = -1e-4 * g_Earth
+    threshold :: FT = -1e-4 * Oceananigans.defaults.gravitational_acceleration
 end
 
 validate_criterion_model(::BuoyancyAnomalyCriterion, args...) =
@@ -570,7 +570,7 @@ temperature).
 """
 @kwdef struct DensityAnomalyCriterion{FT} <: AbstractAnomalyCriterion
              reference_density :: FT = 1020.0
-    gravitational_acceleration :: FT = g_Earth
+    gravitational_acceleration :: FT = Oceananigans.defaults.gravitational_acceleration
                      threshold :: FT = 0.125
 end
 
