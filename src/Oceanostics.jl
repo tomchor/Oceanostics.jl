@@ -5,11 +5,17 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, F}
 
 #+++ Module export
-export TracerEquation, KineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation
+export TracerEquation, KineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation, UMomentumEquation
 #---
 
 #+++ TracerEquation exports
 export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing
+#---
+
+#+++ UMomentumEquation exports
+export UAdvection, UBuoyancyAcceleration, UCoriolisAcceleration, UPressureGradient,
+       UViscousDissipation, UImmersedViscousDissipation, UTotalViscousDissipation,
+       UStokesShear, UStokesTendency, UForcing, UTotalTendency
 #---
 
 #+++ TracerVarianceEquation exports
@@ -150,6 +156,7 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
 #---
 
 include("TracerEquation.jl")
+include("UMomentumEquation.jl")
 include("TracerVarianceEquation.jl")
 include("KineticEnergyEquation.jl")
 include("TurbulentKineticEnergyEquation.jl")
@@ -157,7 +164,7 @@ include("PotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
-using .TracerEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
+using .TracerEquation, .UMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
 using .FlowDiagnostics
 using .ProgressMessengers
 
