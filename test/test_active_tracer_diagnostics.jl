@@ -137,7 +137,7 @@ function test_tracer_diagnostics(model)
     return nothing
 end
 
-function test_mixed_layer_depth(grid, buoyancy; zₘₓₗ = 0.5, δb = -1e-4 * 9.81, naive_thermal_expansion=0.000167)
+function test_mixed_layer_depth(grid, buoyancy; zₘₓₗ = 0.5, δb = -1e-4 * Oceananigans.defaults.gravitational_acceleration, naive_thermal_expansion=0.000167)
     density_is_defined = (!(buoyancy isa BuoyancyTracer)) && (buoyancy.equation_of_state isa BoussinesqEquationOfState)
     ∂z_b = - δb / zₘₓₗ
 
