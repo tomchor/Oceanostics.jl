@@ -74,7 +74,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 
         # Test the full signature: KineticEnergyIsotropicDissipationRate(u, v, w, closure, closure_fields, clock; location)
         u, v, w = model.velocities
-        ε_iso2 = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(u, v, w, model.closure, model.closure_fields, model.clock)
+        ε_iso2 = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(u, v, w, model.closure, model.closure_fields, fields(model), model.clock)
         ε_iso2_field = Field(ε_iso2)
         @test ε_iso2 isa KineticEnergyEquation.KineticEnergyIsotropicDissipationRate
 
@@ -83,7 +83,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 
         # Test with different location parameters
         ε_iso1_ccc = KineticEnergyEquation.IsotropicDissipationRate(model; location = (Center, Center, Center))
-        ε_iso2_ccc = KineticEnergyEquation.IsotropicDissipationRate(u, v, w, model.closure, model.closure_fields, model.clock; location = (Center, Center, Center))
+        ε_iso2_ccc = KineticEnergyEquation.IsotropicDissipationRate(u, v, w, model.closure, model.closure_fields, fields(model), model.clock; location = (Center, Center, Center))
         @test ε_iso1_ccc isa KineticEnergyEquation.IsotropicDissipationRate
         @test ε_iso2_ccc isa KineticEnergyEquation.IsotropicDissipationRate
         @test all(interior(Field(ε_iso1_ccc)) .≈ interior(Field(ε_iso2_ccc)))

@@ -531,17 +531,17 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
 ```
 """
-function KineticEnergyIsotropicDissipationRate(u, v, w, closure, closure_fields, clock; location = (Center, Center, Center))
+function KineticEnergyIsotropicDissipationRate(u, v, w, closure, closure_fields, model_fields, clock; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyIsotropicDissipationRate")
     validate_dissipative_closure(closure)
 
-    parameters = (; closure, closure_fields, clock, model_fields=fields(model))
+    parameters = (; closure, closure_fields, clock, model_fields)
     return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_ccc, u.grid,
                                                            u, v, w, parameters)
 end
 
 @inline KineticEnergyIsotropicDissipationRate(model; location = (Center, Center, Center)) =
-    KineticEnergyIsotropicDissipationRate(model.velocities..., model.closure, model.closure_fields, model.clock; location = location)
+    KineticEnergyIsotropicDissipationRate(model.velocities..., model.closure, model.closure_fields, fields(model), model.clock; location = location)
 #---
 
 end # module 
