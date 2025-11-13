@@ -499,7 +499,7 @@ end
     Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4
     Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶜᶠᶠ, v, ∂yᶜᶠᶠ, w) / 4
 
-    ν = _νᶜᶜᶜ(i, j, k, grid, p.closure, p.closure_fields, p.clock)
+    ν = _νᶜᶜᶜ(i, j, k, grid, p.closure, p.closure_fields, p.clock, p.model_fields)
 
     return 2ν * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
@@ -535,7 +535,7 @@ function KineticEnergyIsotropicDissipationRate(u, v, w, closure, closure_fields,
     validate_location(location, "KineticEnergyIsotropicDissipationRate")
     validate_dissipative_closure(closure)
 
-    parameters = (; closure, closure_fields, clock)
+    parameters = (; closure, closure_fields, clock, model_fields=fields(model))
     return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_ccc, u.grid,
                                                            u, v, w, parameters)
 end
