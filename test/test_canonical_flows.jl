@@ -25,8 +25,8 @@ grid_noise(x, y, z) = randn()
 #+++ Test options
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
-            DynamicSmagorinsky(coefficient=DynamicCoefficient(averaging=(1, 2))),
-            DynamicSmagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
+            DynamicSmagorinsky(averaging=(1, 2)),
+            DynamicSmagorinsky(averaging=LagrangianAveraging()),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
 
 grids = Dict("regular grid" => regular_grid,

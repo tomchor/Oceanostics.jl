@@ -41,8 +41,8 @@ model_kwargs = (buoyancy = BuoyancyForce(BuoyancyTracer()),
 # Common closures
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
-            DynamicSmagorinsky(coefficient=DynamicCoefficient(averaging=(1, 2))),
-            DynamicSmagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
+            DynamicSmagorinsky(averaging=(1, 2)),
+            DynamicSmagorinsky(averaging=LagrangianAveraging()),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
 
 # Common buoyancy formulations
