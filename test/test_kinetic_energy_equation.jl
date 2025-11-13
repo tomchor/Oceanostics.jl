@@ -72,7 +72,7 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
         ε_iso1_field = Field(ε_iso1)
         @test ε_iso1 isa KineticEnergyEquation.KineticEnergyIsotropicDissipationRate
 
-        # Test the full signature: KineticEnergyIsotropicDissipationRate(u, v, w, closure, closure_fields, clock; location)
+        # Test the full signature: KineticEnergyIsotropicDissipationRate(u, v, w, closure, closure_fields, fields(model), clock; location)
         u, v, w = model.velocities
         ε_iso2 = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(u, v, w, model.closure, model.closure_fields, fields(model), model.clock)
         ε_iso2_field = Field(ε_iso2)
