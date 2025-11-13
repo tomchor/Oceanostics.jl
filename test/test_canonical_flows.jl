@@ -2,7 +2,7 @@ using Test
 using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
-using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
+using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging, DynamicCoefficient
 
 using Oceanostics
 

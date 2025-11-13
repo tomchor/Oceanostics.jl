@@ -3,6 +3,7 @@ using CUDA: has_cuda_gpu
 
 using Oceananigans
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
+using Oceananigans.TurbulenceClosures: DynamicCoefficient, LagrangianAveraging
 using Oceanostics
 using Oceanostics.ProgressMessengers
 
