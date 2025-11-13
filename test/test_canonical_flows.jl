@@ -2,7 +2,7 @@ using Test
 using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
-using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
+using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging, DynamicCoefficient
 
 using Oceanostics
 
@@ -25,8 +25,8 @@ grid_noise(x, y, z) = randn()
 #+++ Test options
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
-            Smagorinsky(coefficient=DynamicCoefficient(averaging=(1, 2))),
-            Smagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
+            DynamicSmagorinsky(averaging=(1, 2)),
+            DynamicSmagorinsky(averaging=LagrangianAveraging()),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
 
 grids = Dict("regular grid" => regular_grid,
@@ -54,9 +54,9 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
     if model.closure isa Tuple
-        ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
+        ν_field = Field(sum(viscosity(model.closure, model.closure_fields)))
     else
-        ν_field = viscosity(model.closure, model.diffusivity_fields)
+        ν_field = viscosity(model.closure, model.closure_fields)
     end
 
     @allowscalar begin
@@ -91,9 +91,9 @@ function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, clo
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
     if model.closure isa Tuple
-        ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
+        ν_field = Field(sum(viscosity(model.closure, model.closure_fields)))
     else
-        ν_field = viscosity(model.closure, model.diffusivity_fields)
+        ν_field = viscosity(model.closure, model.closure_fields)
     end
 
     @allowscalar begin
@@ -125,9 +125,9 @@ function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=S
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
     if model.closure isa Tuple
-        ν_field = Field(sum(viscosity(model.closure, model.diffusivity_fields)))
+        ν_field = Field(sum(viscosity(model.closure, model.closure_fields)))
     else
-        ν_field = viscosity(model.closure, model.diffusivity_fields)
+        ν_field = viscosity(model.closure, model.closure_fields)
     end
 
     @allowscalar begin

@@ -109,9 +109,9 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2)
 
     if closure isa Tuple
-        ν_field = Field(sum(viscosity(closure, model.diffusivity_fields)))
+        ν_field = Field(sum(viscosity(closure, model.closure_fields)))
     else
-        ν_field = viscosity(closure, model.diffusivity_fields)
+        ν_field = viscosity(closure, model.closure_fields)
     end
 
     rtol = zspacings(grid, Center()) isa Number ? 1e-12 : 0.06 # less accurate for stretched grid

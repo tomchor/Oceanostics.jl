@@ -80,7 +80,7 @@ function TracerVarianceTendency(model::NonhydrostaticModel, tracer_name; locatio
                     model.velocities,
                     model.tracers,
                     model.auxiliary_fields,
-                    model.diffusivity_fields,
+                    model.closure_fields,
                     model.clock,
                     model.forcing[tracer_name])
 
@@ -121,7 +121,7 @@ julia> DIFF = TracerVarianceEquation.TracerVarianceDiffusion(model, :b)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: c∇_dot_qᶜ (generic function with 1 method)
-└── arguments: ("Smagorinsky", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+└── arguments: ("Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
 ```
 """
 function TracerVarianceDiffusion(model, tracer_name; location = (Center, Center, Center))
@@ -129,7 +129,7 @@ function TracerVarianceDiffusion(model, tracer_name; location = (Center, Center,
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
 
     dependencies = (model.closure,
-                    model.diffusivity_fields,
+                    model.closure_fields,
                     Val(tracer_index),
                     model.tracers[tracer_name],
                     model.clock,
@@ -141,16 +141,16 @@ end
 
 #+++ Tracer variance dissipation rate
 # Variance dissipation rate at fcc
-@inline Axᶠᶜᶜ_δcᶠᶜᶜ_q₁ᶠᶜᶜ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
-    - Axᶠᶜᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, c) * diffusive_flux_x(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
+@inline Axᶠᶜᶜ_δcᶠᶜᶜ_q₁ᶠᶜᶜ(i, j, k, grid, closure, closure_fields, id, c, args...) =
+    - Axᶠᶜᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, c) * diffusive_flux_x(i, j, k, grid, closure, closure_fields, id, c, args...)
 
 # Variance dissipation rate at cfc
-@inline Ayᶜᶠᶜ_δcᶜᶠᶜ_q₂ᶜᶠᶜ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
-    - Ayᶜᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, c) * diffusive_flux_y(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
+@inline Ayᶜᶠᶜ_δcᶜᶠᶜ_q₂ᶜᶠᶜ(i, j, k, grid, closure, closure_fields, id, c, args...) =
+    - Ayᶜᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, c) * diffusive_flux_y(i, j, k, grid, closure, closure_fields, id, c, args...)
 
 # Variance dissipation rate at ccf
-@inline Azᶜᶜᶠ_δcᶜᶜᶠ_q₃ᶜᶜᶠ(i, j, k, grid, closure, diffusivity_fields, id, c, args...) =
-    - Azᶜᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, c) * diffusive_flux_z(i, j, k, grid, closure, diffusivity_fields, id, c, args...)
+@inline Azᶜᶜᶠ_δcᶜᶜᶠ_q₃ᶜᶜᶠ(i, j, k, grid, closure, closure_fields, id, c, args...) =
+    - Azᶜᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, c) * diffusive_flux_z(i, j, k, grid, closure, closure_fields, id, c, args...)
 
 @inline tracer_variance_dissipation_rate_ccc(i, j, k, grid, args...) =
     2 * (ℑxᶜᵃᵃ(i, j, k, grid, Axᶠᶜᶜ_δcᶠᶜᶜ_q₁ᶠᶜᶜ, args...) + # F, C, C  → C, C, C
@@ -190,7 +190,7 @@ julia> χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
-└── arguments: ("Smagorinsky", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+└── arguments: ("Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
 
 julia> b̄ = Field(Average(model.tracers.b, dims=(1,2)));
 
@@ -200,7 +200,7 @@ julia> χb = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b, tra
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
-└── arguments: ("Smagorinsky", "NamedTuple", "Val", "Oceananigans.AbstractOperations.BinaryOperation", "Clock", "NamedTuple", "Nothing")
+└── arguments: ("Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky", "NamedTuple", "Val", "Oceananigans.AbstractOperations.BinaryOperation", "Clock", "NamedTuple", "Nothing")
 ```
 """
 function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))
@@ -213,7 +213,7 @@ function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, loc
     tracer = tracer == nothing ? model.tracers[tracer_name] : tracer
     return KernelFunctionOperation{Center, Center, Center}(tracer_variance_dissipation_rate_ccc, model.grid,
                                                            model.closure,
-                                                           model.diffusivity_fields,
+                                                           model.closure_fields,
                                                            Val(tracer_index),
                                                            tracer,
                                                            model.clock,

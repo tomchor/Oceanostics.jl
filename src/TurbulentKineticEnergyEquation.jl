@@ -13,6 +13,7 @@ using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center
 using Oceananigans.Fields: ZeroField
+using Oceananigans: fields
 
 using Oceanostics: validate_location, CustomKFO
 using Oceanostics.KineticEnergyEquation: KineticEnergyIsotropicDissipationRate
@@ -88,7 +89,7 @@ KernelFunctionOperation at (Center, Center, Center)
 
 @inline function TurbulentKineticEnergyIsotropicDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
     u, v, w = model.velocities
-    return TurbulentKineticEnergyIsotropicDissipationRate((u - U), (v - V), (w - W), model.closure, model.diffusivity_fields, model.clock; kwargs...)
+    return TurbulentKineticEnergyIsotropicDissipationRate((u - U), (v - V), (w - W), model.closure, model.closure_fields, fields(model), model.clock; kwargs...)
 end
 
 const IsotropicDissipationRate = TurbulentKineticEnergyIsotropicDissipationRate
