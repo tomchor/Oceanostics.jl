@@ -88,7 +88,7 @@ KernelFunctionOperation at (Center, Center, Center)
 
 @inline function TurbulentKineticEnergyIsotropicDissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
     u, v, w = model.velocities
-    return TurbulentKineticEnergyIsotropicDissipationRate((u - U), (v - V), (w - W), model.closure, model.diffusivity_fields, model.clock; kwargs...)
+    return TurbulentKineticEnergyIsotropicDissipationRate((u - U), (v - V), (w - W), model.closure, model.closure_fields, model.clock; kwargs...)
 end
 
 const IsotropicDissipationRate = TurbulentKineticEnergyIsotropicDissipationRate

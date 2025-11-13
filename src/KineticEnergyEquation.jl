@@ -87,11 +87,11 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
                                         velocities,
                                         tracers,
                                         auxiliary_fields,
-                                        diffusivity_fields,
+                                        closure_fields,
                                         pHY′,
                                         clock,
                                         forcings)
-    common_args = (buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivity_fields, pHY′, clock)
+    common_args = (buoyancy, background_fields, velocities, tracers, auxiliary_fields, closure_fields, pHY′, clock)
     u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, u_velocity_tendency, advection, coriolis, stokes_drift, closure, u_immersed_bc, common_args..., forcings.u)
     v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, v_velocity_tendency, advection, coriolis, stokes_drift, closure, v_immersed_bc, common_args..., forcings.v)
     w∂ₜw = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, w_velocity_tendency, advection, coriolis, stokes_drift, closure, w_immersed_bc, common_args..., forcings.w)
@@ -138,7 +138,7 @@ function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, C
                     model.velocities,
                     model.tracers,
                     model.auxiliary_fields,
-                    model.diffusivity_fields,
+                    model.closure_fields,
                     model.pressures.pHY′,
                     model.clock,
                     model.forcing,)
@@ -191,14 +191,14 @@ end
 
 #+++ KineticEnergyStress
 @inline function uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ(i, j, k, grid, closure,
-                                            diffusivity_fields,
+                                            closure_fields,
                                             clock,
                                             model_fields,
                                             buoyancy)
 
-    u∂ⱼ_τ₁ⱼ = ℑxᶜᵃᵃ(i, j, k, grid, ψf, model_fields.u, ∂ⱼ_τ₁ⱼ, closure, diffusivity_fields, clock, model_fields, buoyancy)
-    v∂ⱼ_τ₂ⱼ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, model_fields.v, ∂ⱼ_τ₂ⱼ, closure, diffusivity_fields, clock, model_fields, buoyancy)
-    w∂ⱼ_τ₃ⱼ = ℑzᵃᵃᶜ(i, j, k, grid, ψf, model_fields.w, ∂ⱼ_τ₃ⱼ, closure, diffusivity_fields, clock, model_fields, buoyancy)
+    u∂ⱼ_τ₁ⱼ = ℑxᶜᵃᵃ(i, j, k, grid, ψf, model_fields.u, ∂ⱼ_τ₁ⱼ, closure, closure_fields, clock, model_fields, buoyancy)
+    v∂ⱼ_τ₂ⱼ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, model_fields.v, ∂ⱼ_τ₂ⱼ, closure, closure_fields, clock, model_fields, buoyancy)
+    w∂ⱼ_τ₃ⱼ = ℑzᵃᵃᶜ(i, j, k, grid, ψf, model_fields.w, ∂ⱼ_τ₃ⱼ, closure, closure_fields, clock, model_fields, buoyancy)
 
     return u∂ⱼ_τ₁ⱼ+ v∂ⱼ_τ₂ⱼ + w∂ⱼ_τ₃ⱼ
 end
@@ -240,7 +240,7 @@ function KineticEnergyStress(model; location = (Center, Center, Center))
         model_fields = (; model_fields..., w=ZeroField())
     end
     dependencies = (model.closure,
-                    model.diffusivity_fields,
+                    model.closure_fields,
                     model.clock,
                     fields(model),
                     model.buoyancy)
@@ -434,18 +434,18 @@ Axᶠᶜᶠ_δwᶠᶜᶠ_F₃₁ᶠᶜᶠ(i, j, k, grid, closure, K_fields, clo,
 Ayᶜᶠᶠ_δwᶜᶠᶠ_F₃₂ᶜᶠᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, fields.w) * viscous_flux_wy(i, j, k, grid, closure, K_fields, clo, fields, b)
 Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, fields.w) * viscous_flux_wz(i, j, k, grid, closure, K_fields, clo, fields, b)
 
-@inline viscous_dissipation_rate_ccc(i, j, k, grid, diffusivity_fields, fields, p) =
-    (Axᶜᶜᶜ_δuᶜᶜᶜ_F₁₁ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, C, C
-     ℑxyᶜᶜᵃ(i, j, k, grid, Ayᶠᶠᶜ_δuᶠᶠᶜ_F₁₂ᶠᶠᶜ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
-     ℑxzᶜᵃᶜ(i, j, k, grid, Azᶠᶜᶠ_δuᶠᶜᶠ_F₁₃ᶠᶜᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
+@inline viscous_dissipation_rate_ccc(i, j, k, grid, closure_fields, fields, p) =
+    (Axᶜᶜᶜ_δuᶜᶜᶜ_F₁₁ᶜᶜᶜ(i, j, k, grid,         p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, C, C
+     ℑxyᶜᶜᵃ(i, j, k, grid, Ayᶠᶠᶜ_δuᶠᶠᶜ_F₁₂ᶠᶠᶜ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
+     ℑxzᶜᵃᶜ(i, j, k, grid, Azᶠᶜᶠ_δuᶠᶜᶠ_F₁₃ᶠᶜᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
 
-     ℑxyᶜᶜᵃ(i, j, k, grid, Axᶠᶠᶜ_δvᶠᶠᶜ_F₂₁ᶠᶠᶜ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
-     Ayᶜᶜᶜ_δvᶜᶜᶜ_F₂₂ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, C, C
-     ℑyzᵃᶜᶜ(i, j, k, grid, Azᶜᶠᶠ_δvᶜᶠᶠ_F₂₃ᶜᶠᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
+     ℑxyᶜᶜᵃ(i, j, k, grid, Axᶠᶠᶜ_δvᶠᶠᶜ_F₂₁ᶠᶠᶜ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
+     Ayᶜᶜᶜ_δvᶜᶜᶜ_F₂₂ᶜᶜᶜ(i, j, k, grid,         p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, C, C
+     ℑyzᵃᶜᶜ(i, j, k, grid, Azᶜᶠᶠ_δvᶜᶠᶠ_F₂₃ᶜᶠᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
 
-     ℑxzᶜᵃᶜ(i, j, k, grid, Axᶠᶜᶠ_δwᶠᶜᶠ_F₃₁ᶠᶜᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
-     ℑyzᵃᶜᶜ(i, j, k, grid, Ayᶜᶠᶠ_δwᶜᶠᶠ_F₃₂ᶜᶠᶠ, p.closure, diffusivity_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
-     Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid,         p.closure, diffusivity_fields, p.clock, fields, p.buoyancy)   # C, C, C
+     ℑxzᶜᵃᶜ(i, j, k, grid, Axᶠᶜᶠ_δwᶠᶜᶠ_F₃₁ᶠᶜᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
+     ℑyzᵃᶜᶜ(i, j, k, grid, Ayᶜᶠᶠ_δwᶜᶠᶠ_F₃₂ᶜᶠᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
+     Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid,         p.closure, closure_fields, p.clock, fields, p.buoyancy)   # C, C, C
      ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δuᵢ above, ensures a derivative operation
 
 const KineticEnergyDissipationRate = CustomKFO{<:typeof(viscous_dissipation_rate_ccc)}
@@ -484,7 +484,7 @@ function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
                   model.buoyancy)
 
     return KernelFunctionOperation{Center, Center, Center}(viscous_dissipation_rate_ccc, model.grid,
-                                                           model.diffusivity_fields, model_fields, parameters)
+                                                           model.closure_fields, model_fields, parameters)
 end
 #---
 
@@ -499,7 +499,7 @@ end
     Σˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4
     Σʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_plus_gφ², ∂zᶜᶠᶠ, v, ∂yᶜᶠᶠ, w) / 4
 
-    ν = _νᶜᶜᶜ(i, j, k, grid, p.closure, p.diffusivity_fields, p.clock)
+    ν = _νᶜᶜᶜ(i, j, k, grid, p.closure, p.closure_fields, p.clock)
 
     return 2ν * (Σˣˣ² + Σʸʸ² + Σᶻᶻ² + 2 * (Σˣʸ² + Σˣᶻ² + Σʸᶻ²))
 end
@@ -531,17 +531,17 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
 ```
 """
-function KineticEnergyIsotropicDissipationRate(u, v, w, closure, diffusivity_fields, clock; location = (Center, Center, Center))
+function KineticEnergyIsotropicDissipationRate(u, v, w, closure, closure_fields, clock; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyIsotropicDissipationRate")
     validate_dissipative_closure(closure)
 
-    parameters = (; closure, diffusivity_fields, clock)
+    parameters = (; closure, closure_fields, clock)
     return KernelFunctionOperation{Center, Center, Center}(isotropic_viscous_dissipation_rate_ccc, u.grid,
                                                            u, v, w, parameters)
 end
 
 @inline KineticEnergyIsotropicDissipationRate(model; location = (Center, Center, Center)) =
-    KineticEnergyIsotropicDissipationRate(model.velocities..., model.closure, model.diffusivity_fields, model.clock; location = location)
+    KineticEnergyIsotropicDissipationRate(model.velocities..., model.closure, model.closure_fields, model.clock; location = location)
 #---
 
 end # module 

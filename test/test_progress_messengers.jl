@@ -17,8 +17,8 @@ regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
 #+++ Testing options
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
-            Smagorinsky(coefficient=DynamicCoefficient(averaging=(1, 2))),
-            Smagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
+            DynamicSmagorinsky(coefficient=DynamicCoefficient(averaging=(1, 2))),
+            DynamicSmagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
 #---
 

@@ -11,9 +11,9 @@ export Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, Forcing,
        TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing
 
 # Inline function for total diffusion
-@inline total_∇_dot_qᶜ(i, j, k, grid, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields, buoyancy) =
-    ∇_dot_qᶜ(i, j, k, grid, closure, diffusivity_fields, val_tracer_index, c, clock, model_fields, buoyancy) +
-    immersed_∇_dot_qᶜ(i, j, k, grid, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields, buoyancy)
+@inline total_∇_dot_qᶜ(i, j, k, grid, c, c_immersed_bc, closure, closure_fields, val_tracer_index, clock, model_fields, buoyancy) =
+    ∇_dot_qᶜ(i, j, k, grid, closure, closure_fields, val_tracer_index, c, clock, model_fields, buoyancy) +
+    immersed_∇_dot_qᶜ(i, j, k, grid, c, c_immersed_bc, closure, closure_fields, val_tracer_index, clock, model_fields, buoyancy)
 
 # Type aliases for major functions
 const Advection = CustomKFO{<:typeof(div_Uc)}
@@ -93,15 +93,15 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("Nothing", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
 ```
 """
-function Diffusion(model, val_tracer_index, c, closure, diffusivity_fields, clock, model_fields, buoyancy; location = (Center, Center, Center))
+function Diffusion(model, val_tracer_index, c, closure, closure_fields, clock, model_fields, buoyancy; location = (Center, Center, Center))
     validate_location(location, "Diffusion", (Center, Center, Center))
-    return KernelFunctionOperation{Center, Center, Center}(∇_dot_qᶜ, model.grid, closure, diffusivity_fields, val_tracer_index, c, clock, model_fields, buoyancy)
+    return KernelFunctionOperation{Center, Center, Center}(∇_dot_qᶜ, model.grid, closure, closure_fields, val_tracer_index, c, clock, model_fields, buoyancy)
 end
 
 function Diffusion(model, tracer_name; kwargs...)
     tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
     @inbounds c = model.tracers[tracer_name]
-    return Diffusion(model, Val(tracer_index), c, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy; kwargs...)
+    return Diffusion(model, Val(tracer_index), c, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
 end
 
 
@@ -129,16 +129,16 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("Field", "Nothing", "Nothing", "Nothing", "Val", "Clock", "NamedTuple")
 ```
 """
-function ImmersedDiffusion(model, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields; location = (Center, Center, Center))
+function ImmersedDiffusion(model, c, c_immersed_bc, closure, closure_fields, val_tracer_index, clock, model_fields; location = (Center, Center, Center))
     validate_location(location, "ImmersedDiffusion", (Center, Center, Center))
-    return KernelFunctionOperation{Center, Center, Center}(immersed_∇_dot_qᶜ, model.grid, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields)
+    return KernelFunctionOperation{Center, Center, Center}(immersed_∇_dot_qᶜ, model.grid, c, c_immersed_bc, closure, closure_fields, val_tracer_index, clock, model_fields)
 end
 
 function ImmersedDiffusion(model, tracer_name; kwargs...)
     tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
     tracer = model.tracers[tracer_name]
     immersed_bc = tracer.boundary_conditions.immersed
-    return ImmersedDiffusion(model, tracer, immersed_bc, model.closure, model.diffusivity_fields, Val(tracer_index), model.clock, fields(model); kwargs...)
+    return ImmersedDiffusion(model, tracer, immersed_bc, model.closure, model.closure_fields, Val(tracer_index), model.clock, fields(model); kwargs...)
 end
 
 """
@@ -165,16 +165,16 @@ KernelFunctionOperation at (Center, Center, Center)
 └── arguments: ("Field", "Nothing", "Nothing", "Nothing", "Val", "Clock", "NamedTuple", "Nothing")
 ```
 """
-function TotalDiffusion(model, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields, buoyancy; location = (Center, Center, Center))
+function TotalDiffusion(model, c, c_immersed_bc, closure, closure_fields, val_tracer_index, clock, model_fields, buoyancy; location = (Center, Center, Center))
     validate_location(location, "TotalDiffusion", (Center, Center, Center))
-    return KernelFunctionOperation{Center, Center, Center}(total_∇_dot_qᶜ, model.grid, c, c_immersed_bc, closure, diffusivity_fields, val_tracer_index, clock, model_fields, buoyancy)
+    return KernelFunctionOperation{Center, Center, Center}(total_∇_dot_qᶜ, model.grid, c, c_immersed_bc, closure, closure_fields, val_tracer_index, clock, model_fields, buoyancy)
 end
 
 function TotalDiffusion(model, tracer_name; kwargs...)
     tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
     tracer = model.tracers[tracer_index]
     immersed_bc = tracer.boundary_conditions.immersed
-    return TotalDiffusion(model, tracer, immersed_bc, model.closure, model.diffusivity_fields, Val(tracer_index), model.clock, fields(model), model.buoyancy; kwargs...)
+    return TotalDiffusion(model, tracer, immersed_bc, model.closure, model.closure_fields, Val(tracer_index), model.clock, fields(model), model.buoyancy; kwargs...)
 end
 #---
 

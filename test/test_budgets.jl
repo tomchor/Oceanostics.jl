@@ -50,7 +50,7 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, stop_time=0.1, clo
     c.data.parent .-= mean(c)
     u.data.parent .-= mean(u)
 
-    κ = diffusivity(model.closure, model.diffusivity_fields, Val(:c))
+    κ = diffusivity(model.closure, model.closure_fields, Val(:c))
     κ = κ isa Tuple ? Field(sum(κ)) : κ
     Δt = min(minimum_zspacing(grid)^2/maximum(κ)/10, minimum_zspacing(grid)/maximum(u) / 10)
     simulation = Simulation(model; Δt, stop_time)
