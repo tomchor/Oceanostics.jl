@@ -18,7 +18,7 @@ using Oceananigans.BuoyancyFormulations: get_temperature_and_salinity, SeawaterB
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceananigans.BuoyancyFormulations: buoyancy
+using Oceananigans.Models: buoyancy_operation
 using Oceananigans.Grids: AbstractGrid, Center, Face, NegativeZDirection, ZDirection, znode, bottommost_active_node
 
 using SeawaterPolynomials: ρ′, BoussinesqEquationOfState
@@ -79,7 +79,7 @@ where `z` is the true vertical direction (ie anti-parallel to gravity).
 """
 function RichardsonNumber(model; loc = (Center, Center, Face))
     validate_location(loc, "RichardsonNumber", (Center, Center, Face))
-    return RichardsonNumber(model, model.velocities..., buoyancy(model); loc)
+    return RichardsonNumber(model, model.velocities..., buoyancy_operation(model); loc)
 end
 
 function RichardsonNumber(model, u, v, w, b; loc = (Center, Center, Face))
