@@ -3,7 +3,7 @@ using CUDA: @allowscalar
 using Oceananigans: fill_halo_regions!
 using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.Grids: znode
-using Oceananigans.BuoyancyFormulations: buoyancy
+using Oceananigans.Models: buoyancy_operation
 using SeawaterPolynomials: BoussinesqEquationOfState
 using SeawaterPolynomials.SecondOrderSeawaterPolynomials: LinearRoquetSeawaterPolynomial
 
@@ -47,7 +47,7 @@ function test_buoyancy_diagnostics(model)
         @test Ri_field isa Field
         @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
 
-        b = buoyancy(model)
+        b = buoyancy_operation(model)
         Ri = RichardsonNumber(model, u, v, w, b)
         @test Ri isa RichardsonNumber
         Ri_field = Field(Ri)
