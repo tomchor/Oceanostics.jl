@@ -194,7 +194,7 @@ julia> model = NonhydrostaticModel(; grid, tracers=:a);
 julia> FORC = TracerEquation.Forcing(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: zeroforcing (generic function with 1 method)
+├── kernel_function: Returns (generic function with 1 method)
 └── arguments: ("Clock", "NamedTuple")
 ```
 """
