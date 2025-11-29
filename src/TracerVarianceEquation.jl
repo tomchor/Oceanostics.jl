@@ -62,7 +62,7 @@ julia> χ = TracerVarianceEquation.TracerVarianceTendency(model, :b)
 KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: c∂ₜcᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("Val", "Val", "Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Clock", "typeof(Oceananigans.Forcings.zeroforcing)")
+└── arguments: ("Val", "Val", "Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Clock", "Returns")
 ```
 """
 function TracerVarianceTendency(model::NonhydrostaticModel, tracer_name; location = (Center, Center, Center))
