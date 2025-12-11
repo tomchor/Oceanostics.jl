@@ -1,6 +1,6 @@
 name = "Oceanostics"
 uuid = "d0ccf422-c8fb-49b5-a76d-74acdde946ac"
-version = "0.16.6"
+version = "0.16.7"
 authors = ["tomchor <tomaschor@gmail.com>"]
 
 [deps]
