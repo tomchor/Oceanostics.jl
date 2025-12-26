@@ -11,6 +11,10 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
         include("test_tracer_diagnostics.jl")
     end
 
+    if group == :u_momentum_diagnostics || group == :all
+        include("test_u_momentum_diagnostics.jl")
+    end
+
     if group == :ke_diagnostics || group == :all
         include("test_kinetic_energy_equation.jl")
     end
