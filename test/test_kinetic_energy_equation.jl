@@ -30,7 +30,7 @@ function test_pressure_term(model)
     @test Field(u⃗∇pNHS) isa Field
 
     # Test calculation with a hydrostatic pressure separation
-    model2 = NonhydrostaticModel(grid=model.grid, hydrostatic_pressure_anomaly=CenterField(model.grid))
+    model2 = NonhydrostaticModel(model.grid; hydrostatic_pressure_anomaly=CenterField(model.grid))
     u⃗∇p_from_model2 = KineticEnergyEquation.PressureRedistribution(model2)
     @test u⃗∇p_from_model2 isa KineticEnergyEquation.KineticEnergyPressureRedistribution
     @test Field(u⃗∇p_from_model2) isa Field
@@ -39,7 +39,7 @@ function test_pressure_term(model)
 end
 
 function test_momentum_advection_term(grid; model_type=NonhydrostaticModel)
-    model = model_type(; grid)
+    model = model_type(grid)
     C₁ = 2; C₂ = 3
     set!(model, u=(x, y, z) -> C₁*y, v=C₂)
 
@@ -55,7 +55,7 @@ function test_momentum_advection_term(grid; model_type=NonhydrostaticModel)
 end
 
 function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1))
-    model = model_type(; grid, closure, buoyancy=BuoyancyTracer(), tracers=:b)
+    model = model_type(grid; closure, buoyancy=BuoyancyTracer(), tracers=:b)
 
     dudz = 2
     set!(model, u=(x, y, z) -> dudz*z)
@@ -113,7 +113,7 @@ function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
     Fᵛ = Forcing(Fᵛ_func, field_dependencies = :v)
     Fʷ = Forcing(Fʷ_func, field_dependencies = :w)
 
-    model = model_type(; grid, forcing = (u=Fᵘ, v=Fᵛ, w=Fʷ))
+    model = model_type(grid; forcing = (u=Fᵘ, v=Fᵛ, w=Fʷ))
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise)
 
     ε = KineticEnergyEquation.KineticEnergyForcing(model)
@@ -129,7 +129,7 @@ function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
 end
 
 function test_buoyancy_production_term(grid; model_type=NonhydrostaticModel)
-    model = model_type(grid=grid, buoyancy=BuoyancyTracer(), tracers=:b)
+    model = model_type(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     w₀ = 2; b₀ = 3
     set!(model, w=w₀, b=b₀, enforce_incompressibility=false)
 
@@ -159,7 +159,7 @@ end
             @info "      with $model_type"
             for closure in closures
                 @info "        with closure $(summary(closure))"
-                model = model_type(; grid, closure, model_kwargs...)
+                model = model_type(grid; closure, model_kwargs...)
 
                 if model isa NonhydrostaticModel
                     @info "          Testing pressure terms"

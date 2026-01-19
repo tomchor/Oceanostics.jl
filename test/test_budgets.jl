@@ -30,7 +30,7 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, stop_time=0.1, clo
         zᵃᵃᶠ(k) = (tanh(S * (2 * (k - 1) / N - 1)) / tanh(S) - 1) / 2 # [-1.0, 0.0]
         grid = RectilinearGrid(topology=(Periodic, Flat, Bounded), size=(N,N), x=(0,1), z=zᵃᵃᶠ)
     end
-    model = NonhydrostaticModel(grid=grid, tracers=:c, closure=closure)
+    model = NonhydrostaticModel(grid; tracers=:c, closure=closure)
 
     # A kind of convoluted way to create x-periodic, resolved initial noise
     σx = 4grid.Δxᶜᵃᵃ # x length scale of the noise

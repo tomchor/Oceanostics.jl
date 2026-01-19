@@ -192,7 +192,7 @@ end
                 for coriolis in coriolis_formulations
                     @info "          with $(summary(coriolis))"
                     tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T, :b)
-                    model = model_type(; grid, buoyancy, tracers, coriolis)
+                    model = model_type(grid; buoyancy, tracers, coriolis)
                     buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
 
                     @info "            Testing buoyancy diagnostics"

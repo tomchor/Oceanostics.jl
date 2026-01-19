@@ -24,7 +24,7 @@ N = 128
 L = 10
 grid = RectilinearGrid(size=(N, N), x=(-L/2, +L/2), z=(-L/2, +L/2), topology=(Periodic, Flat, Bounded))
 
-model = NonhydrostaticModel(; grid, timestepper = :RungeKutta3,
+model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = UpwindBiased(order=5),
                             closure = ScalarDiffusivity(ν=2e-5, κ=2e-5),
                             buoyancy = BuoyancyTracer(), tracers = :b)

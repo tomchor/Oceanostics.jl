@@ -250,7 +250,7 @@ julia> N² = 1e-6;
 
 julia> b_bcs = FieldBoundaryConditions(top=GradientBoundaryCondition(N²));
 
-julia> model = NonhydrostaticModel(; grid, coriolis=FPlane(1e-4), buoyancy=BuoyancyTracer(), tracers=:b, boundary_conditions=(; b=b_bcs));
+julia> model = NonhydrostaticModel(grid; coriolis=FPlane(1e-4), buoyancy=BuoyancyTracer(), tracers=:b, boundary_conditions=(; b=b_bcs));
 
 julia> stratification(z) = N² * z;
 

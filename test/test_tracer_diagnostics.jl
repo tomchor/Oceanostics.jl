@@ -122,7 +122,7 @@ end
         @info "    with $grid_class"
         for model_type in model_types
             @info "      with $model_type"
-            model = model_type(; grid, model_kwargs...)
+            model = model_type(grid; model_kwargs...)
 
             @info "        Testing tracer terms"
             test_tracer_terms(model)

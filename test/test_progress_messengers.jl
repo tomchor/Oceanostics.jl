@@ -34,7 +34,7 @@ end
 @testset "ProgressMessenger tests" begin
     @info "    Testing ProgressMessengers"
     for closure in closures
-        model = NonhydrostaticModel(grid = regular_grid;
+        model = NonhydrostaticModel(regular_grid;
                                     buoyancy = BuoyancyForce(BuoyancyTracer()),
                                     coriolis = FPlane(1e-4),
                                     tracers = :b,

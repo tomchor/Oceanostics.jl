@@ -56,7 +56,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid, tracers=:b);
+julia> model = NonhydrostaticModel(grid; tracers=:b);
 
 julia> χ = TracerVarianceEquation.TracerVarianceTendency(model, :b)
 KernelFunctionOperation at (Center, Center, Center)
@@ -115,7 +115,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly());
+julia> model = NonhydrostaticModel(grid; tracers=:b, closure=SmagorinskyLilly());
 
 julia> DIFF = TracerVarianceEquation.TracerVarianceDiffusion(model, :b)
 KernelFunctionOperation at (Center, Center, Center)
@@ -184,7 +184,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly());
+julia> model = NonhydrostaticModel(grid; tracers=:b, closure=SmagorinskyLilly());
 
 julia> χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)
 KernelFunctionOperation at (Center, Center, Center)

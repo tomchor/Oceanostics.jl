@@ -41,7 +41,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> TKE = TurbulentKineticEnergyEquation.TurbulentKineticEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -75,7 +75,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-4));
+julia> model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
 
 julia> TurbulentKineticEnergyEquation.IsotropicDissipationRate(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -132,7 +132,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> XSHEAR = TurbulentKineticEnergyEquation.XShearProductionRate(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -193,7 +193,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> YSHEAR = TurbulentKineticEnergyEquation.YShearProductionRate(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -253,7 +253,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> ZSHEAR = TurbulentKineticEnergyEquation.ZShearProductionRate(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -301,7 +301,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> SHEAR = TurbulentKineticEnergyEquation.ShearProductionRate(model)
 KernelFunctionOperation at (Center, Center, Center)
