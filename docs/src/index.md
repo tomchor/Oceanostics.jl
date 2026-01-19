@@ -21,7 +21,7 @@ julia> using Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 5, 6), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(grid=grid, closure=SmagorinskyLilly());
+julia> model = NonhydrostaticModel(grid, closure=SmagorinskyLilly());
 
 julia> simulation = Simulation(model, Δt=1, stop_time=10);
 

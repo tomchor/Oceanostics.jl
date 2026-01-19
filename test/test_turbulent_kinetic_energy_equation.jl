@@ -155,7 +155,7 @@ end
                             (ScalarDiffusivity(ν=1e-6, κ=1e-7), HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7))]
 
         for closure in invalid_closures
-            model = NonhydrostaticModel(grid = regular_grid; model_kwargs..., closure)
+            model = NonhydrostaticModel(regular_grid; model_kwargs..., closure)
             @test_throws ErrorException TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate(model; U=0, V=0, W=0)
         end
 

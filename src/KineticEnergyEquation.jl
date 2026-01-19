@@ -172,7 +172,7 @@ julia> using Oceananigans
 
 julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
-julia> model = NonhydrostaticModel(grid=grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> using Oceanostics.KineticEnergyEquation: KineticEnergyAdvection
 
@@ -325,7 +325,7 @@ julia> using Oceananigans
 
 julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
-julia> model = NonhydrostaticModel(grid=grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> using Oceanostics.KineticEnergyEquation: KineticEnergyPressureRedistribution
 
@@ -386,7 +386,7 @@ julia> using Oceananigans
 
 julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
-julia> model = NonhydrostaticModel(grid=grid, buoyancy=BuoyancyTracer(), tracers=:b);
+julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
 
 julia> using Oceanostics.KineticEnergyEquation: BuoyancyProduction
 

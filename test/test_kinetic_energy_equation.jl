@@ -30,7 +30,7 @@ function test_pressure_term(model)
     @test Field(u⃗∇pNHS) isa Field
 
     # Test calculation with a hydrostatic pressure separation
-    model2 = NonhydrostaticModel(grid=model.grid, hydrostatic_pressure_anomaly=CenterField(model.grid))
+    model2 = NonhydrostaticModel(model.grid; hydrostatic_pressure_anomaly=CenterField(model.grid))
     u⃗∇p_from_model2 = KineticEnergyEquation.PressureRedistribution(model2)
     @test u⃗∇p_from_model2 isa KineticEnergyEquation.KineticEnergyPressureRedistribution
     @test Field(u⃗∇p_from_model2) isa Field
@@ -39,7 +39,7 @@ function test_pressure_term(model)
 end
 
 function test_momentum_advection_term(grid; model_type=NonhydrostaticModel)
-    model = model_type(; grid)
+    model = model_type(grid)
     C₁ = 2; C₂ = 3
     set!(model, u=(x, y, z) -> C₁*y, v=C₂)
 
