@@ -129,7 +129,7 @@ function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
 end
 
 function test_buoyancy_production_term(grid; model_type=NonhydrostaticModel)
-    model = model_type(grid=grid, buoyancy=BuoyancyTracer(), tracers=:b)
+    model = model_type(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     w₀ = 2; b₀ = 3
     set!(model, w=w₀, b=b₀, enforce_incompressibility=false)
 
