@@ -55,7 +55,7 @@ function test_momentum_advection_term(grid; model_type=NonhydrostaticModel)
 end
 
 function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1))
-    model = model_type(; grid, closure, buoyancy=BuoyancyTracer(), tracers=:b)
+    model = model_type(grid; closure, buoyancy=BuoyancyTracer(), tracers=:b)
 
     dudz = 2
     set!(model, u=(x, y, z) -> dudz*z)
@@ -113,7 +113,7 @@ function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
     Fᵛ = Forcing(Fᵛ_func, field_dependencies = :v)
     Fʷ = Forcing(Fʷ_func, field_dependencies = :w)
 
-    model = model_type(; grid, forcing = (u=Fᵘ, v=Fᵛ, w=Fʷ))
+    model = model_type(grid; forcing = (u=Fᵘ, v=Fᵛ, w=Fʷ))
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise)
 
     ε = KineticEnergyEquation.KineticEnergyForcing(model)
@@ -159,7 +159,7 @@ end
             @info "      with $model_type"
             for closure in closures
                 @info "        with closure $(summary(closure))"
-                model = model_type(; grid, closure, model_kwargs...)
+                model = model_type(grid; closure, model_kwargs...)
 
                 if model isa NonhydrostaticModel
                     @info "          Testing pressure terms"

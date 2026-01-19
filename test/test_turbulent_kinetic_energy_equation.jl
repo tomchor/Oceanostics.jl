@@ -85,7 +85,7 @@ function test_shear_production_terms(model)
 end
 
 function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1))
-    model = model_type(; grid, closure, buoyancy=BuoyancyTracer(), tracers=:b)
+    model = model_type(grid; closure, buoyancy=BuoyancyTracer(), tracers=:b)
 
     if model.closure isa AbstractScalarDiffusivity{<:Any, <:ThreeDimensionalFormulation}
         ε_iso = TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate(model; U=0, V=0, W=0)
@@ -137,7 +137,7 @@ end
             @info "      with $model_type"
             for closure in closures
                 @info "        with closure $(summary(closure))"
-                model = model_type(; grid, closure, model_kwargs...)
+                model = model_type(grid; closure, model_kwargs...)
 
                 @info "          Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(grid; model_type, closure)

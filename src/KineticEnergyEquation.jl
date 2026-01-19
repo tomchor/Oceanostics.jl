@@ -60,7 +60,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> KE = KineticEnergyEquation.KineticEnergy(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -113,7 +113,7 @@ julia> using Oceananigans
 
 julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> using Oceanostics.KineticEnergyEquation: KineticEnergyTendency
 
@@ -223,7 +223,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-4));
+julia> model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
 
 julia> DIFF = KineticEnergyEquation.KineticEnergyStress(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -280,7 +280,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> FORC = KineticEnergyEquation.KineticEnergyForcing(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -465,7 +465,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-4));
+julia> model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
 
 julia> ε = KineticEnergyEquation.DissipationRate(model)
 KernelFunctionOperation at (Center, Center, Center)
@@ -522,7 +522,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-4));
+julia> model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
 
 julia> ε = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(model)
 KernelFunctionOperation at (Center, Center, Center)

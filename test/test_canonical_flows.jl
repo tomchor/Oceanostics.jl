@@ -39,7 +39,7 @@ Test that KineticEnergyDissipationRate, StrainRateTensorModulus, VorticityTensor
 and QVelocityGradientTensorInvariant have the right values for a uniform strain flow.
 """
 function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1), α=1)
-    model = model_type(; grid, closure)
+    model = model_type(grid; closure)
     u₀(x, y, z) = +α*x
     v₀(x, y, z) = -α*y
     set!(model, u=u₀, v=v₀, w=0, enforce_incompressibility=false)
@@ -76,7 +76,7 @@ Test that KineticEnergyDissipationRate, StrainRateTensorModulus, VorticityTensor
 and QVelocityGradientTensorInvariant have the right values for a solid body rotation flow.
 """
 function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1), ζ=1)
-    model = model_type(; grid, closure)
+    model = model_type(grid; closure)
     u₀(x, y, z) = +ζ*y / 2
     v₀(x, y, z) = -ζ*x / 2
     set!(model, u=u₀, v=v₀, w=0, enforce_incompressibility=false)
@@ -111,7 +111,7 @@ and QVelocityGradientTensorInvariant have the right values for a uniform shear f
 """
 
 function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1), σ=1)
-    model = model_type(; grid, closure)
+    model = model_type(grid; closure)
     u₀(x, y, z) = σ * y
     set!(model, u=u₀, v=0, w=0, enforce_incompressibility=false)
 

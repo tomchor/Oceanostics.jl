@@ -43,7 +43,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid, tracers=:a);
+julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> ADV = TracerEquation.Advection(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
@@ -84,7 +84,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid, tracers=:a);
+julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> DIFF = TracerEquation.Diffusion(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
@@ -120,7 +120,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid, tracers=:a);
+julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> DIFF = TracerEquation.ImmersedDiffusion(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
@@ -156,7 +156,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid, tracers=:a);
+julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> DIFF = TracerEquation.TotalDiffusion(model, :a)
 KernelFunctionOperation at (Center, Center, Center)
@@ -189,7 +189,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid, tracers=:a);
+julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> FORC = TracerEquation.Forcing(model, :a)
 KernelFunctionOperation at (Center, Center, Center)

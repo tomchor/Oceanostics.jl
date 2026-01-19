@@ -49,8 +49,8 @@ end
 
 function test_PEbuoyancytracer_equals_PElineareos(grid)
 
-    model_buoyancytracer = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=:b)
-    model_lineareos = NonhydrostaticModel(; grid, buoyancy=SeawaterBuoyancy(), tracers=(:S, :T))
+    model_buoyancytracer = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    model_lineareos = NonhydrostaticModel(grid; buoyancy=SeawaterBuoyancy(), tracers=(:S, :T))
     C_grad(x, y, z) = 0.01 * z
     set!(model_lineareos, S = C_grad, T = C_grad)
     linear_eos_buoyancy(grid, buoyancy, tracers) =
@@ -76,7 +76,7 @@ end
                 @info "        with $(summary(buoyancy))"
 
                 tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T)
-                model = model_type(; grid, buoyancy, tracers)
+                model = model_type(grid; buoyancy, tracers)
                 buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
 
                 if isnothing(buoyancy)
