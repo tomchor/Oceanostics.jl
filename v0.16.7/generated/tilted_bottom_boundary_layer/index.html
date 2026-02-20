@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tilted bottom boundary layer · Oceanostics.jl</title><meta name="title" content="Tilted bottom boundary layer · Oceanostics.jl"/><meta property="og:title" content="Tilted bottom boundary layer · Oceanostics.jl"/><meta property="twitter:title" content="Tilted bottom boundary layer · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox" checked/><label class="tocitem" for="menuitem-2"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li><a class="tocitem" href="../kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li class="is-active"><a class="tocitem" href>Tilted bottom boundary layer</a><ul class="internal"><li><a class="tocitem" href="#Grid"><span>Grid</span></a></li><li><a class="tocitem" href="#Tilting-the-domain"><span>Tilting the domain</span></a></li><li><a class="tocitem" href="#Bottom-drag"><span>Bottom drag</span></a></li><li><a class="tocitem" href="#Create-model-and-simulation"><span>Create model and simulation</span></a></li><li><a class="tocitem" href="#Model-diagnostics"><span>Model diagnostics</span></a></li><li><a class="tocitem" href="#Run-the-simulation-and-process-results"><span>Run the simulation and process results</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Tilted bottom boundary layer</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tilted bottom boundary layer</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/examples/tilted_bottom_boundary_layer.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Tilted-bottom-boundary-layer-example"><a class="docs-heading-anchor" href="#Tilted-bottom-boundary-layer-example">Tilted bottom boundary layer example</a><a id="Tilted-bottom-boundary-layer-example-1"></a><a class="docs-heading-anchor-permalink" href="#Tilted-bottom-boundary-layer-example" title="Permalink"></a></h1><p>This example is based on the similar <a href="https://clima.github.io/OceananigansDocumentation/stable/literated/tilted_bottom_boundary_layer/">Oceananigans example</a> and simulates a two-dimensional oceanic bottom boundary layer in a domain that&#39;s tilted with respect to gravity. We simulate the perturbation away from a constant along-slope (y-direction) velocity constant density stratification.  This perturbation develops into a turbulent bottom boundary layer due to momentum loss at the bottom boundary.</p><p>First let&#39;s make sure we have all required packages installed.</p><pre><code class="language-julia hljs">using Pkg
+pkg&quot;add Oceananigans, Oceanostics, Rasters, CairoMakie&quot;</code></pre><h2 id="Grid"><a class="docs-heading-anchor" href="#Grid">Grid</a><a id="Grid-1"></a><a class="docs-heading-anchor-permalink" href="#Grid" title="Permalink"></a></h2><p>We start by creating a <span>$x, z$</span> grid with 64² cells and finer resolution near the bottom:</p><pre><code class="language-julia hljs">using Oceananigans
+using Oceananigans.Units
+
+Lx = 200meters
+Lz = 100meters
+Nx = 64
+Nz = 64
+
+refinement = 1.8 # controls spacing near surface (higher means finer spaced)
+stretching = 10  # controls rate of stretching at bottom
+
+h(k) = (Nz + 1 - k) / Nz
+ζ(k) = 1 + (h(k) - 1) / refinement
+Σ(k) = (1 - exp(-stretching * h(k))) / (1 - exp(-stretching))
+z_faces(k) = - Lz * (ζ(k) * Σ(k) - 1)
+
+grid = RectilinearGrid(topology = (Periodic, Flat, Bounded), size = (Nx, Nz),
+                       x = (0, Lx), z = z_faces)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">64×1×64 RectilinearGrid{Float64, Periodic, Flat, Bounded} on CPU with 3×0×3 halo
+├── Periodic x ∈ [0.0, 200.0)  regularly spaced with Δx=3.125
+├── Flat y                     
+└── Bounded  z ∈ [-0.0, 100.0] variably spaced with min(Δz)=0.868817, max(Δz)=6.55496</code></pre><p>Note that, with the <code>z</code> faces defined as above, the spacings near the bottom are approximately constant, becoming progressively coarser moving up.</p><h2 id="Tilting-the-domain"><a class="docs-heading-anchor" href="#Tilting-the-domain">Tilting the domain</a><a id="Tilting-the-domain-1"></a><a class="docs-heading-anchor-permalink" href="#Tilting-the-domain" title="Permalink"></a></h2><p>We use a domain that&#39;s tilted with respect to gravity by</p><pre><code class="language-julia hljs">θ = 5; # degrees</code></pre><p>so that <span>$x$</span> is the along-slope direction, <span>$z$</span> is the across-sloce direction that is perpendicular to the bottom, and the unit vector anti-aligned with gravity is</p><pre><code class="language-julia hljs">ĝ = [sind(θ), 0, cosd(θ)]</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">3-element Vector{Float64}:
+ 0.08715574274765818
+ 0.0
+ 0.9961946980917455</code></pre><p>Changing the vertical direction impacts both the <code>gravity_unit_vector</code> for <code>Buoyancy</code> as well as the <code>rotation_axis</code> for Coriolis forces,</p><pre><code class="language-julia hljs">buoyancy = BuoyancyForce(BuoyancyTracer(), gravity_unit_vector = -ĝ)
+
+f₀ = 1e-4/second
+coriolis = ConstantCartesianCoriolis(f = f₀, rotation_axis = ĝ)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">ConstantCartesianCoriolis{Float64}: fx = 8.72e-06, fy = 0.00e+00, fz = 9.96e-05</code></pre><p>The tilting also affects the kind of density stratified flows we can model. The simulate an environment that&#39;s uniformly stratified, with a stratification frequency</p><pre><code class="language-julia hljs">N² = 1e-5/second^2;</code></pre><p>In a tilted coordinate, this can be achieved with</p><pre><code class="language-julia hljs">@inline constant_stratification(x, z, t, p) = p.N² * (x * p.ĝ[1] + z * p.ĝ[3]);</code></pre><p>However, this distribution is <em>not</em> periodic in <span>$x$</span> and can&#39;t be explicitly modelled on an <span>$x$</span>-periodic grid such as the one used here. Instead, we simulate periodic <em>perturbations</em> away from the constant density stratification by imposing a constant stratification as a <code>BackgroundField</code>,</p><pre><code class="language-julia hljs">B_field = BackgroundField(constant_stratification, parameters=(; ĝ, N²))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BackgroundField{typeof(Main.constant_stratification), @NamedTuple{ĝ::Vector{Float64}, N²::Float64}}
+├── func: constant_stratification (generic function with 1 method)
+└── parameters: (ĝ = [0.08715574274765818, 0.0, 0.9961946980917455], N² = 1.0e-5)</code></pre><h2 id="Bottom-drag"><a class="docs-heading-anchor" href="#Bottom-drag">Bottom drag</a><a id="Bottom-drag-1"></a><a class="docs-heading-anchor-permalink" href="#Bottom-drag" title="Permalink"></a></h2><p>We impose bottom drag that follows Monin-Obukhov theory and include the background flow in the drag calculation, which is the only effect the background flow has on the problem</p><pre><code class="language-julia hljs">V∞ = 0.1meters/second
+z₀ = 0.1meters # (roughness length)
+κ = 0.4 # von Karman constant
+z₁ = znodes(grid, Center())[1] # Closest grid center to the bottom
+cᴰ = (κ / log(z₁ / z₀))^2 # Drag coefficient
+
+@inline drag_u(x, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * u
+@inline drag_v(x, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * (v + p.V∞)
+
+drag_bc_u = FluxBoundaryCondition(drag_u, field_dependencies=(:u, :v), parameters=(; cᴰ, V∞))
+drag_bc_v = FluxBoundaryCondition(drag_v, field_dependencies=(:u, :v), parameters=(; cᴰ, V∞))
+
+u_bcs = FieldBoundaryConditions(bottom = drag_bc_u)
+v_bcs = FieldBoundaryConditions(bottom = drag_bc_v)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Oceananigans.FieldBoundaryConditions, with boundary conditions
+├── west: DefaultBoundaryCondition (FluxBoundaryCondition: Nothing)
+├── east: DefaultBoundaryCondition (FluxBoundaryCondition: Nothing)
+├── south: DefaultBoundaryCondition (FluxBoundaryCondition: Nothing)
+├── north: DefaultBoundaryCondition (FluxBoundaryCondition: Nothing)
+├── bottom: FluxBoundaryCondition: ContinuousBoundaryFunction drag_v at (Nothing, Nothing, Nothing)
+├── top: DefaultBoundaryCondition (FluxBoundaryCondition: Nothing)
+└── immersed: DefaultBoundaryCondition (FluxBoundaryCondition: Nothing)</code></pre><h2 id="Create-model-and-simulation"><a class="docs-heading-anchor" href="#Create-model-and-simulation">Create model and simulation</a><a id="Create-model-and-simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Create-model-and-simulation" title="Permalink"></a></h2><p>We are now ready to create the model. We create a <code>NonhydrostaticModel</code> with a 5th <code>UpwindBiased</code> advection scheme, a <code>RungeKutta3</code> timestepper, and a constant viscosity and diffusivity.</p><pre><code class="language-julia hljs">closure = ScalarDiffusivity(ν=2e-4, κ=2e-4)
+
+model = NonhydrostaticModel(; grid, buoyancy, coriolis, closure,
+                            timestepper = :RungeKutta3,
+                            advection = UpwindBiased(order=5),
+                            tracers = :b,
+                            boundary_conditions = (u=u_bcs, v=v_bcs),
+                            background_fields = (; b=B_field))
+
+noise(x, z) = 1e-3 * randn() * exp(-(10z)^2/grid.Lz^2)
+set!(model, u=noise, w=noise)</code></pre><p>The bottom-intensified noise above should accelerate the emergence of turbulence close to the wall.</p><p>We are now ready to create the simulation. We begin by setting the initial time step conservatively, based on the smallest grid size of our domain and set-up a</p><pre><code class="language-julia hljs">using Oceananigans.Units
+
+simulation = Simulation(model, Δt = 0.5 * minimum_zspacing(grid) / V∞, stop_time = 12hours)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Simulation of NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── Next time step: 4.344 seconds
+├── run_wall_time: 0 seconds
+├── run_wall_time / iteration: NaN days
+├── stop_time: 12 hours
+├── stop_iteration: Inf
+├── wall_time_limit: Inf
+├── minimum_relative_step: 0.0
+├── callbacks: OrderedDict with 4 entries:
+│   ├── stop_time_exceeded =&gt; Callback of stop_time_exceeded on IterationInterval(1)
+│   ├── stop_iteration_exceeded =&gt; Callback of stop_iteration_exceeded on IterationInterval(1)
+│   ├── wall_time_limit_exceeded =&gt; Callback of wall_time_limit_exceeded on IterationInterval(1)
+│   └── nan_checker =&gt; Callback of NaNChecker for u on IterationInterval(100)
+└── output_writers: OrderedDict with no entries</code></pre><p>We use <code>TimeStepWizard</code> to maximize Δt</p><pre><code class="language-julia hljs">wizard = TimeStepWizard(max_change=1.1, cfl=0.7)
+simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Callback of TimeStepWizard(cfl=0.7, max_Δt=Inf, min_Δt=0.0) on IterationInterval(4)</code></pre><h2 id="Model-diagnostics"><a class="docs-heading-anchor" href="#Model-diagnostics">Model diagnostics</a><a id="Model-diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Model-diagnostics" title="Permalink"></a></h2><p>We set-up a custom progress messenger using <code>Oceanostics.ProgressMessengers</code>, which allows us to combine different <code>ProgressMessenger</code>s into one:</p><pre><code class="language-julia hljs">using Oceanostics.ProgressMessengers
+
+walltime_per_timestep = StepDuration() # This needs to instantiated here, and not in the function below
+progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false) + SimulationTime() + TimeStep() + MaxVelocities() + AdvectiveCFLNumber() + walltime_per_timestep)(simulation)
+
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(400))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Callback of progress on IterationInterval(400)</code></pre><p>We now define some useful diagnostics for the flow. Namely, we define <code>RichardsonNumber</code>, <code>RossbyNumber</code> and <code>ErtelPotentialVorticity</code>:</p><pre><code class="language-julia hljs">using Oceanostics
+
+b = model.tracers.b + model.background_fields.tracers.b
+Ri = RichardsonNumber(model, model.velocities..., b)
+Ro = RossbyNumber(model)
+PV = ErtelPotentialVorticity(model, model.velocities..., b, model.coriolis)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">KernelFunctionOperation at (Face, Face, Face)
+├── grid: 64×1×64 RectilinearGrid{Float64, Periodic, Flat, Bounded} on CPU with 3×0×3 halo
+├── kernel_function: ertel_potential_vorticity_fff (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.AbstractOperations.BinaryOperation&quot;, &quot;Float64&quot;, &quot;Float64&quot;, &quot;Float64&quot;)</code></pre><p>Note that the calculation of these quantities depends on the alignment with the true (geophysical) vertical and the rotation axis. Oceanostics already takes that into consideration by using <code>model.buoyancy</code> and <code>model.coriolis</code>, making their calculation much easier. Furthermore, passing the flag <code>add_background=true</code> automatically adds the <code>model</code>&#39;s <code>BackgroundField</code>s to the resolved perturbations, which is important in our case for the correct calculation of <span>$\nabla b$</span> with the background stratification.</p><p>Now we write these quantities to a NetCDF file:</p><pre><code class="language-julia hljs">output_fields = (; Ri, Ro, PV, b)
+
+using NCDatasets
+filename = &quot;tilted_bottom_boundary_layer&quot;
+simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
+                                              filename = joinpath(@__DIR__, filename),
+                                              schedule = TimeInterval(20minutes),
+                                              overwrite_existing = true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NetCDFWriter scheduled on TimeInterval(20 minutes):
+├── filepath: build/generated/tilted_bottom_boundary_layer.nc
+├── dimensions: time(0), x_faa(64), x_caa(64), z_aaf(65), z_aac(64)
+├── 4 outputs: (Ri, b, PV, Ro)
+├── array_type: Array{Float32}
+├── file_splitting: NoFileSplitting
+└── file size: 28.8 KiB</code></pre><h2 id="Run-the-simulation-and-process-results"><a class="docs-heading-anchor" href="#Run-the-simulation-and-process-results">Run the simulation and process results</a><a id="Run-the-simulation-and-process-results-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-simulation-and-process-results" title="Permalink"></a></h2><p>To run the simulation:</p><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>Initializing simulation...
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>000.00%,  time = 0 seconds,  Δt = 4.778 seconds,  |u⃗|ₘₐₓ = [3.02e-03,  0.00e+00,  1.20e-03] m/s,  advective CFL = 0.0077,  walltime / timestep = 0 seconds
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>    ... simulation initialization complete (20.755 seconds)
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Executing initial time step...
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>    ... initial time step complete (4.952 seconds).
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>084.89%,  time = 10.187 hours,  Δt = 1.053 minutes,  |u⃗|ₘₐₓ = [1.39e-02,  9.41e-02,  8.69e-03] m/s,  advective CFL = 0.7,  walltime / timestep = 33.340 ms
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulation is stopping after running for 29.704 seconds.
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulation time 12 hours equals or exceeds stop time 12 hours.</code></pre><p>Now we&#39;ll read the results and plot an animation</p><pre><code class="language-julia hljs">ds = NCDataset(simulation.output_writers[:nc].filepath)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr31">Dataset: /home/runner/work/Oceanostics.jl/Oceanostics.jl/docs/build/generated/tilted_bottom_boundary_layer.nc</span>
+Group: /
+
+<span class="sgr31">Dimensions</span>
+   time = 37
+   x_faa = 64
+   x_caa = 64
+   z_aaf = 65
+   z_aac = 64
+
+<span class="sgr31">Variables</span>
+<span class="sgr32">  time</span>   (37)
+    Datatype:    <span class="sgr1">Float64</span> (Float64)
+    Dimensions:  time
+    Attributes:
+     units                = <span class="sgr36">seconds</span>
+     long_name            = <span class="sgr36">Time</span>
+
+<span class="sgr32">  x_faa</span>   (64)
+    Datatype:    <span class="sgr1">Float64</span> (Float64)
+    Dimensions:  x_faa
+    Attributes:
+     units                = <span class="sgr36">m</span>
+     long_name            = <span class="sgr36">Cell face locations in the x-direction.</span>
+
+<span class="sgr32">  x_caa</span>   (64)
+    Datatype:    <span class="sgr1">Float64</span> (Float64)
+    Dimensions:  x_caa
+    Attributes:
+     units                = <span class="sgr36">m</span>
+     long_name            = <span class="sgr36">Cell center locations in the x-direction.</span>
+
+<span class="sgr32">  z_aaf</span>   (65)
+    Datatype:    <span class="sgr1">Float64</span> (Float64)
+    Dimensions:  z_aaf
+    Attributes:
+     units                = <span class="sgr36">m</span>
+     long_name            = <span class="sgr36">Cell face locations in the z-direction.</span>
+
+<span class="sgr32">  z_aac</span>   (64)
+    Datatype:    <span class="sgr1">Float64</span> (Float64)
+    Dimensions:  z_aac
+    Attributes:
+     units                = <span class="sgr36">m</span>
+     long_name            = <span class="sgr36">Cell center locations in the z-direction.</span>
+
+<span class="sgr32">  Δx_caa</span>   (64)
+    Datatype:    <span class="sgr1">Float32</span> (Float32)
+    Dimensions:  x_caa
+    Attributes:
+     units                = <span class="sgr36">m</span>
+     long_name            = <span class="sgr36">Spacings between cell faces (located at the cell centers) in the x-direction.</span>
+
+<span class="sgr32">  Δx_faa</span>   (64)
+    Datatype:    <span class="sgr1">Float32</span> (Float32)
+    Dimensions:  x_faa
+    Attributes:
+     units                = <span class="sgr36">m</span>
+     long_name            = <span class="sgr36">Spacings between cell centers (located at the cell faces) in the x-direction.</span>
+
+<span class="sgr32">  Δz_aac</span>   (64)
+    Datatype:    <span class="sgr1">Float32</span> (Float32)
+    Dimensions:  z_aac
+    Attributes:
+     units                = <span class="sgr36">m</span>
+     long_name            = <span class="sgr36">Spacings between cell faces (located at cell centers) in the z-direction.</span>
+
+<span class="sgr32">  Δz_aaf</span>   (65)
+    Datatype:    <span class="sgr1">Float32</span> (Float32)
+    Dimensions:  z_aaf
+    Attributes:
+     units                = <span class="sgr36">m</span>
+     long_name            = <span class="sgr36">Spacings between cell centers (located at cell faces) in the z-direction.</span>
+
+<span class="sgr32">  PV</span>   (64 × 65 × 37)
+    Datatype:    <span class="sgr1">Float32</span> (Float32)
+    Dimensions:  x_faa × z_aaf × time
+
+<span class="sgr32">  Ri</span>   (64 × 65 × 37)
+    Datatype:    <span class="sgr1">Float32</span> (Float32)
+    Dimensions:  x_caa × z_aaf × time
+
+<span class="sgr32">  Ro</span>   (64 × 65 × 37)
+    Datatype:    <span class="sgr1">Float32</span> (Float32)
+    Dimensions:  x_faa × z_aaf × time
+
+<span class="sgr32">  b</span>   (64 × 64 × 37)
+    Datatype:    <span class="sgr1">Float32</span> (Float32)
+    Dimensions:  x_caa × z_aac × time
+    Attributes:
+     units                = <span class="sgr36">m/s²</span>
+     long_name            = <span class="sgr36">Buoyancy</span>
+
+<span class="sgr31">Global attributes</span>
+  Julia                = <span class="sgr36">This file was generated using </span>
+  Oceananigans         = <span class="sgr36">This file was generated using </span>
+  date                 = <span class="sgr36">This file was generated on 2025-12-11T11:15:35.979 local time (2025-12-11T11:15:35.979 UTC).</span>
+  interval             = <span class="sgr36">1200.0</span>
+  output time interval = <span class="sgr36">Output was saved every 20 minutes.</span>
+  schedule             = <span class="sgr36">TimeInterval</span>
+<span class="sgr31">Groups</span>
+<span class="sgr31">  Dataset: /home/runner/work/Oceanostics.jl/Oceanostics.jl/docs/build/generated/tilted_bottom_boundary_layer.nc</span>
+  Group: underlying_grid_reconstruction_args
+
+<span class="sgr31">  Global attributes</span>
+    architecture         = <span class="sgr36">CPU()</span>
+    number_type          = <span class="sgr36">Float64</span>
+<span class="sgr31">  Dataset: /home/runner/work/Oceanostics.jl/Oceanostics.jl/docs/build/generated/tilted_bottom_boundary_layer.nc</span>
+  Group: underlying_grid_reconstruction_kwargs
+
+<span class="sgr31">  Global attributes</span>
+    y                    = <span class="sgr36">nothing</span>
+    topology             = <span class="sgr36">(Periodic, Flat, Bounded)</span>
+    size                 = <span class="sgr36">Int32[64, 64]</span>
+    z                    = <span class="sgr36">[-0.0, 0.8688167217695386, 1.7377477131710894, 2.606810981466634, 3.476027356407174, 4.345420929876043, 5.215019563509693, 6.084855474714113, 6.954965913074862, 7.82539394097409, 8.69618933431573, 9.567409621656775, 10.439121282797704, 11.31140113104603, 12.184337906997655, 13.058034115844674, 13.93260814499544, 14.808196704270127, 15.684957637212193, 16.563073159249154, 17.442753586671923, 18.324241629831196, 19.207817334737108, 20.09380376958597, 20.98257356684128, 21.874556447608175, 22.77024787343882, 23.67021899170262, 24.57512806460187, 25.48573359920815, 26.40290942698612, 27.327662016660003, 28.261150344531682, 29.20470869210868, 30.159872792854326, 31.1284098088207, 32.11235268474748, 33.114039502884104, 34.13615854740102, 35.181799883994536, 36.254514369474734, 37.35838112919988, 38.498084678759405, 39.67900302202091, 40.90730823239098, 42.19008121987715, 43.535442605382535, 44.95270186783517, 46.45252720155675, 48.04713882307357, 49.75052880073696, 51.57871084936875, 53.550003937850576, 55.6853540020535, 58.00869854026516, 60.54737939423015, 63.332609586143754, 66.40000068934629, 69.79015785542121, 73.54935029823353, 77.73026573883033, 82.3928580333185, 87.60529792372387, 93.44503754878271, 100.0]</span>
+    halo                 = <span class="sgr36">Int32[3, 3]</span>
+    x                    = <span class="sgr36">[0.0, 200.0]</span>
+<span class="sgr31">  Dataset: /home/runner/work/Oceanostics.jl/Oceanostics.jl/docs/build/generated/tilted_bottom_boundary_layer.nc</span>
+  Group: grid_reconstruction_metadata
+
+<span class="sgr31">  Global attributes</span>
+    immersed_boundary_type = <span class="sgr36">nothing</span>
+    underlying_grid_type = <span class="sgr36">RectilinearGrid</span>
+</code></pre><p>We now use Makie to create the figure and its axes</p><pre><code class="language-julia hljs">using CairoMakie
+
+set_theme!(Theme(fontsize = 20))
+fig = Figure()
+
+kwargs = (xlabel=&quot;x [m]&quot;, ylabel=&quot;z [m]&quot;, height=150, width=250)
+ax1 = Axis(fig[2, 1]; title = &quot;Ri&quot;, kwargs...)
+ax2 = Axis(fig[2, 2]; title = &quot;Ro&quot;, kwargs...)
+ax3 = Axis(fig[2, 3]; title = &quot;PV&quot;, kwargs...);</code></pre><p>Next we an <code>Observable</code> to lift the values at each specific time and plot heatmaps, along with their colorbars, with buoyancy contours on top</p><pre><code class="language-julia hljs">n = Observable(1)
+
+x_caa = ds[&quot;x_caa&quot;][:]
+x_faa = ds[&quot;x_faa&quot;][:]
+z_aac = ds[&quot;z_aac&quot;][:]
+z_aaf = ds[&quot;z_aaf&quot;][:]
+
+bₙ = @lift ds[&quot;b&quot;][:, :, $n]
+
+Riₙ = @lift ds[&quot;Ri&quot;][:, :, $n]
+hm1 = heatmap!(ax1, x_caa, z_aaf, Riₙ; colormap = :coolwarm, colorrange = (-1, +1))
+contour!(ax1, x_caa, z_aac, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
+Colorbar(fig[3, 1], hm1, vertical=false, height=8, ticklabelsize=14)
+
+Roₙ = @lift ds[&quot;Ro&quot;][:, :, $n]
+hm2 = heatmap!(ax2, x_faa, z_aaf, Roₙ; colormap = :balance, colorrange = (-10, +10))
+contour!(ax2, x_caa, z_aac, bₙ; levels=10, color=:black, linestyle=:dash, linewidth=0.5)
+Colorbar(fig[3, 2], hm2, vertical=false, height=8, ticklabelsize=14)
+
+PVₙ = @lift ds[&quot;PV&quot;][:, :, $n]
+hm3 = heatmap!(ax3, x_faa, z_aaf, PVₙ; colormap = :coolwarm, colorrange = N²*f₀.*(-1.5, +1.5))
+contour!(ax3, x_caa, z_aac, bₙ; levels=10, color=:white, linestyle=:dash, linewidth=0.5)
+Colorbar(fig[3, 3], hm3, vertical=false, height=8, ticklabelsize=14);</code></pre><p>Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title</p><pre><code class="language-julia hljs">times = ds[&quot;time&quot;][:]
+title = @lift &quot;Time = &quot; * string(prettytime(times[$n]))
+fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);</code></pre><p>Finally, we adjust the figure dimensions to fit all the panels and record a movie</p><pre><code class="language-julia hljs">resize_to_layout!(fig)
+
+@info &quot;Animating...&quot;
+record(fig, filename * &quot;.mp4&quot;, 1:length(times), framerate=10) do i
+       n[] = i
+end
+
+close(ds)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">closed Dataset</code></pre><p><video src="../tilted_bottom_boundary_layer.mp4" controls="true" title><a href="../tilted_bottom_boundary_layer.mp4"></a></video></p><p>The animation shows negative PV being produced at the bottom due to drag, which leads to the emergence of centrifulgal-symmetric instabilities, which become turbulent and erode stratification (as can be seen by inspecting <span>$Ri$</span>). Note that there are some boundary effects on the upper boundary, likely caused by interaction internal waves that are produced by the bottom turbulence. These effects are, to some degree, expected, and a sponge/relaxation layer at the top is needed to minimize them in a production-ready code.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../kelvin_helmholtz/">« Kelvin-Helmholtz instability</a><a class="docs-footer-nextpage" href="../../library/">Function library »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Thursday 11 December 2025 11:18">Thursday 11 December 2025</span>. Using Julia version 1.12.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

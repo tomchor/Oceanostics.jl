@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Function library · Oceanostics.jl</title><meta name="title" content="Function library · Oceanostics.jl"/><meta property="og:title" content="Function library · Oceanostics.jl"/><meta property="twitter:title" content="Function library · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox"/><label class="tocitem" for="menuitem-2"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../generated/two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li><a class="tocitem" href="../generated/kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li><a class="tocitem" href="../generated/tilted_bottom_boundary_layer/">Tilted bottom boundary layer</a></li></ul></li><li class="is-active"><a class="tocitem" href>Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Function library</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Function library</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/src/library.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><ul><li><a href="#Library">Library</a></li></ul><h1 id="Library"><a class="docs-heading-anchor" href="#Library">Library</a><a id="Library-1"></a><a class="docs-heading-anchor-permalink" href="#Library" title="Permalink"></a></h1><p>Documentation for the public user interface.</p><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.add_background_fields-Tuple{Any}" href="#Oceanostics.add_background_fields-Tuple{Any}"><code>Oceanostics.add_background_fields</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">add_background_fields(model)
+</code></pre><p>Add background fields (velocities and tracers only) to their perturbations.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/Oceanostics.jl#L66-L70">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.perturbation_fields-Tuple{Any}" href="#Oceanostics.perturbation_fields-Tuple{Any}"><code>Oceanostics.perturbation_fields</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">perturbation_fields(model; kwargs...)
+</code></pre><p>Remove mean fields from the model resolved fields.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/Oceanostics.jl#L93-L97">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TracerEquation.Advection-NTuple{6, Any}" href="#Oceanostics.TracerEquation.Advection-NTuple{6, Any}"><code>Oceanostics.TracerEquation.Advection</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Advection(model, u, v, w, c, advection; location)
+</code></pre><p>Calculates the advection of the tracer <code>c</code> as</p><pre><code class="nohighlight hljs">ADV = ∂ⱼ (uⱼ c)</code></pre><p>using Oceananigans&#39; kernel <a href="https://clima.github.io/OceananigansDocumentation/stable/appendix/library/#Oceananigans.Advection.div_Uc-NTuple{7,%20Any}"><code>div_Uc</code>.</a></p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid, tracers=:a);
+
+julia&gt; ADV = TracerEquation.Advection(model, :a)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: div_Uc (generic function with 10 methods)
+└── arguments: (&quot;Centered&quot;, &quot;NamedTuple&quot;, &quot;Field&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TracerEquation.jl#L32-L54">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TracerEquation.Diffusion-NTuple{8, Any}" href="#Oceanostics.TracerEquation.Diffusion-NTuple{8, Any}"><code>Oceanostics.TracerEquation.Diffusion</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Diffusion(
+    model,
+    val_tracer_index,
+    c,
+    closure,
+    diffusivity_fields,
+    clock,
+    model_fields,
+    buoyancy;
+    location
+)
+</code></pre><p>Calculates the diffusion term (excluding anything due to the bathymetry) as</p><pre><code class="nohighlight hljs">DIFF = ∂ⱼ qᶜⱼ,</code></pre><p>where qᶜⱼ is the diffusion tensor for tracer <code>c</code>, using the Oceananigans&#39; kernel <code>∇_dot_qᶜ</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid, tracers=:a);
+
+julia&gt; DIFF = TracerEquation.Diffusion(model, :a)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ∇_dot_qᶜ (generic function with 10 methods)
+└── arguments: (&quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Val&quot;, &quot;Field&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TracerEquation.jl#L73-L95">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TracerEquation.Forcing-NTuple{4, Any}" href="#Oceanostics.TracerEquation.Forcing-NTuple{4, Any}"><code>Oceanostics.TracerEquation.Forcing</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">Forcing(model, forcing, clock, model_fields; location)
+</code></pre><p>Calculate the forcing term <code>Fᶜ</code> on the equation for tracer <code>c</code> for <code>model</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid, tracers=:a);
+
+julia&gt; FORC = TracerEquation.Forcing(model, :a)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: zeroforcing (generic function with 1 method)
+└── arguments: (&quot;Clock&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TracerEquation.jl#L182-L200">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TracerEquation.ImmersedDiffusion-NTuple{8, Any}" href="#Oceanostics.TracerEquation.ImmersedDiffusion-NTuple{8, Any}"><code>Oceanostics.TracerEquation.ImmersedDiffusion</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">ImmersedDiffusion(
+    model,
+    c,
+    c_immersed_bc,
+    closure,
+    diffusivity_fields,
+    val_tracer_index,
+    clock,
+    model_fields;
+    location
+)
+</code></pre><p>Calculates the diffusion term due to the bathymetry term as</p><pre><code class="nohighlight hljs">DIFF = ∂ⱼ 𝓆ᶜⱼ,</code></pre><p>where 𝓆ᶜⱼ is the bathymetry-led diffusion tensor for tracer <code>c</code>, using the Oceananigans&#39; kernel <code>immersed_∇_dot_qᶜ</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid, tracers=:a);
+
+julia&gt; DIFF = TracerEquation.ImmersedDiffusion(model, :a)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: immersed_∇_dot_qᶜ (generic function with 2 methods)
+└── arguments: (&quot;Field&quot;, &quot;BoundaryCondition&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Val&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TracerEquation.jl#L108-L131">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TracerEquation.TotalDiffusion-NTuple{9, Any}" href="#Oceanostics.TracerEquation.TotalDiffusion-NTuple{9, Any}"><code>Oceanostics.TracerEquation.TotalDiffusion</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">TotalDiffusion(
+    model,
+    c,
+    c_immersed_bc,
+    closure,
+    diffusivity_fields,
+    val_tracer_index,
+    clock,
+    model_fields,
+    buoyancy;
+    location
+)
+</code></pre><p>Calculates the total diffusion term as</p><pre><code class="nohighlight hljs">DIFF = ∂ⱼ qᶜⱼ + ∂ⱼ 𝓆ᶜⱼ,</code></pre><p><code>c</code>. The calculation is done using the Oceananigans&#39; kernels <code>∇_dot_qᶜ</code> and <code>immersed_∇_dot_qᶜ</code>. where qᶜⱼ is the interior diffusion tensor and 𝓆ᶜⱼ is the bathymetry-led diffusion tensor for tracer</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid, tracers=:a);
+
+julia&gt; DIFF = TracerEquation.TotalDiffusion(model, :a)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: total_∇_dot_qᶜ (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;BoundaryCondition&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Val&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TracerEquation.jl#L144-L167">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TracerVarianceEquation.TracerVarianceDiffusion-Tuple{Any, Any}" href="#Oceanostics.TracerVarianceEquation.TracerVarianceDiffusion-Tuple{Any, Any}"><code>Oceanostics.TracerVarianceEquation.TracerVarianceDiffusion</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">TracerVarianceDiffusion(model, tracer_name; location)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the diffusive term of the tracer variance prognostic equation using Oceananigans&#39; diffusive tracer flux divergence kernel:</p><pre><code class="nohighlight hljs">    DIFF = 2 c ∂ⱼFⱼ</code></pre><p>where <code>c</code> is the tracer, and <code>Fⱼ</code> is the tracer&#39;s diffusive flux in the <code>j</code>-th direction.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly());
+
+julia&gt; DIFF = TracerVarianceEquation.TracerVarianceDiffusion(model, :b)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: c∇_dot_qᶜ (generic function with 1 method)
+└── arguments: (&quot;Smagorinsky&quot;, &quot;NamedTuple&quot;, &quot;Val&quot;, &quot;Field&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TracerVarianceEquation.jl#L102-L126">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TracerVarianceEquation.TracerVarianceDissipationRate-Tuple{Any, Any}" href="#Oceanostics.TracerVarianceEquation.TracerVarianceDissipationRate-Tuple{Any, Any}"><code>Oceanostics.TracerVarianceEquation.TracerVarianceDissipationRate</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">TracerVarianceDissipationRate(
+    model,
+    tracer_name;
+    tracer,
+    location
+)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the isotropic variance dissipation rate for <code>tracer_name</code> in <code>model.tracers</code>. The isotropic variance dissipation rate is defined as</p><pre><code class="nohighlight hljs">    χ = 2 ∂ⱼc ⋅ Fⱼ</code></pre><p>where <code>Fⱼ</code> is the diffusive flux of <code>c</code> in the <code>j</code>-th direction and <code>∂ⱼ</code> is the gradient operator. <code>χ</code> is implemented in its conservative formulation based on the equation above.</p><p>Note that often <code>χ</code> is written as <code>χ = 2κ (∇c ⋅ ∇c)</code>, which is the special case for Fickian diffusion (<code>κ</code> is the tracer diffusivity).</p><p>Here <code>tracer_name</code> is needed even when passing <code>tracer</code> in order to get the appropriate <code>tracer_index</code>. When passing <code>tracer</code>, this function should be used as</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid=grid, tracers=:b, closure=SmagorinskyLilly());
+
+julia&gt; χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Smagorinsky&quot;, &quot;NamedTuple&quot;, &quot;Val&quot;, &quot;Field&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)
+
+julia&gt; b̄ = Field(Average(model.tracers.b, dims=(1,2)));
+
+julia&gt; b′ = model.tracers.b - b̄;
+
+julia&gt; χb = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b, tracer=b′)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Smagorinsky&quot;, &quot;NamedTuple&quot;, &quot;Val&quot;, &quot;Oceananigans.AbstractOperations.BinaryOperation&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TracerVarianceEquation.jl#L164-L205">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TracerVarianceEquation.TracerVarianceTendency-Tuple{NonhydrostaticModel, Any}" href="#Oceanostics.TracerVarianceEquation.TracerVarianceTendency-Tuple{NonhydrostaticModel, Any}"><code>Oceanostics.TracerVarianceEquation.TracerVarianceTendency</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">TracerVarianceTendency(model, tracer_name; location)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the tracer variance tendency:</p><pre><code class="nohighlight hljs">TEND = 2 c ∂ₜc</code></pre><p>where <code>c</code> is the tracer and <code>∂ₜc</code> is the tracer tendency (computed using Oceananigans&#39; tracer tendency kernel).</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size = (1, 1, 4), extent = (1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid, tracers=:b);
+
+julia&gt; χ = TracerVarianceEquation.TracerVarianceTendency(model, :b)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: c∂ₜcᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;Val&quot;, &quot;Val&quot;, &quot;Centered&quot;, &quot;Nothing&quot;, &quot;BoundaryCondition&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Oceananigans.Models.NonhydrostaticModels.BackgroundFields&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;typeof(Oceananigans.Forcings.zeroforcing)&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TracerVarianceEquation.jl#L44-L67">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate-Tuple{Any, Any, Any, Vararg{Any}}" href="#Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate-Tuple{Any, Any, Any, Vararg{Any}}"><code>Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">TurbulentKineticEnergyIsotropicDissipationRate(
+    u,
+    v,
+    w,
+    args;
+    U,
+    V,
+    W,
+    location
+)
+</code></pre><p>Calculate the Turbulent Kinetic Energy Isotropic Dissipation Rate, defined as</p><pre><code class="nohighlight hljs">ε = 2 ν S&#39;ᵢⱼS&#39;ᵢⱼ,</code></pre><p>where S&#39;ᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a turbulence closure where ν (eddy or not) is the same for all directions.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-4));
+
+julia&gt; TurbulentKineticEnergyEquation.IsotropicDissipationRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TurbulentKineticEnergyEquation.jl#L62-L85">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergy-NTuple{4, Any}" href="#Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergy-NTuple{4, Any}"><code>Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergy</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">TurbulentKineticEnergy(model, u, v, w; U, V, W, location)
+</code></pre><p>Calculate the turbulent kinetic energy of <code>model</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid);
+
+julia&gt; TKE = TurbulentKineticEnergyEquation.TurbulentKineticEnergy(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TurbulentKineticEnergyEquation.jl#L33-L51">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyShearProductionRate-NTuple{6, Any}" href="#Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyShearProductionRate-NTuple{6, Any}"><code>Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyShearProductionRate</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">TurbulentKineticEnergyShearProductionRate(
+    u′,
+    v′,
+    w′,
+    U,
+    V,
+    W;
+    grid,
+    location
+)
+</code></pre><p>Calculate the total shear production rate (sum of the shear production rates in the <code>model</code>&#39;s <code>x</code>, <code>y</code> and <code>z</code> directions):</p><pre><code class="nohighlight hljs">SHEAR = XSHEAR + YSHEAR + ZSHEAR = uᵢ′uⱼ′∂ⱼ(Uᵢ)</code></pre><p>where <code>XSHEAR</code>, <code>YSHEAR</code> and <code>ZSHEAR</code> are the shear production rates in the <code>x</code>, <code>y</code> and <code>z</code> directions, respectively, <code>uᵢ′</code> and <code>uⱼ′</code> are the velocity perturbations in the <code>i</code> and <code>j</code> directions, respectively, and <code>∂ⱼ</code> is the derivative in the <code>j</code> direction.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid);
+
+julia&gt; SHEAR = TurbulentKineticEnergyEquation.ShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TurbulentKineticEnergyEquation.jl#L288-L311">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate-NTuple{6, Any}" href="#Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate-NTuple{6, Any}"><code>Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">TurbulentKineticEnergyXShearProductionRate(
+    u′,
+    v′,
+    w′,
+    U,
+    V,
+    W;
+    grid,
+    location
+)
+</code></pre><p>Calculate the shear production rate in the <code>model</code>&#39;s <code>x</code> direction:</p><pre><code class="nohighlight hljs">XSHEAR = uᵢ′u′∂x(Uᵢ)</code></pre><p>where <code>uᵢ′</code> is the velocity perturbation in the <code>i</code> direction, <code>u′</code> is the velocity perturbation in the <code>x</code> direction, <code>Uᵢ</code> is the background velocity in the <code>i</code> direction, and <code>∂x</code> is the horizontal derivative.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid);
+
+julia&gt; XSHEAR = TurbulentKineticEnergyEquation.XShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_x_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TurbulentKineticEnergyEquation.jl#L119-L142">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate-NTuple{6, Any}" href="#Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate-NTuple{6, Any}"><code>Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">TurbulentKineticEnergyYShearProductionRate(
+    u′,
+    v′,
+    w′,
+    U,
+    V,
+    W;
+    grid,
+    location
+)
+</code></pre><p>Calculate the shear production rate in the <code>model</code>&#39;s <code>y</code> direction:</p><pre><code class="nohighlight hljs">YSHEAR = uᵢ′v′∂y(Uᵢ)</code></pre><p>where <code>uᵢ′</code> is the velocity perturbation in the <code>i</code> direction, <code>v′</code> is the velocity perturbation in the <code>y</code> direction, <code>Uᵢ</code> is the background velocity in the <code>i</code> direction, and <code>∂y</code> is the vertical derivative.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid);
+
+julia&gt; YSHEAR = TurbulentKineticEnergyEquation.YShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_y_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TurbulentKineticEnergyEquation.jl#L180-L203">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate-NTuple{6, Any}" href="#Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate-NTuple{6, Any}"><code>Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">TurbulentKineticEnergyZShearProductionRate(
+    u′,
+    v′,
+    w′,
+    U,
+    V,
+    W;
+    grid,
+    location
+)
+</code></pre><p>Calculate the shear production rate in the <code>model</code>&#39;s <code>z</code> direction:</p><pre><code class="nohighlight hljs">ZSHEAR = uᵢ′w′∂z(Uᵢ)</code></pre><p>where <code>uᵢ′</code> is the velocity perturbation in the <code>i</code> direction, <code>w′</code> is the vertical velocity perturbation, <code>Uᵢ</code> is the background velocity in the <code>i</code> direction, and <code>∂z</code> is the vertical derivative.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid);
+
+julia&gt; ZSHEAR = TurbulentKineticEnergyEquation.ZShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_z_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/TurbulentKineticEnergyEquation.jl#L240-L263">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.KineticEnergyEquation.BuoyancyProduction-Tuple{NonhydrostaticModel}" href="#Oceanostics.KineticEnergyEquation.BuoyancyProduction-Tuple{NonhydrostaticModel}"><code>Oceanostics.KineticEnergyEquation.BuoyancyProduction</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">BuoyancyProduction(model; velocities, tracers, location)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the buoyancy production term, defined as</p><pre><code class="nohighlight hljs">BP = uᵢbᵢ</code></pre><p>where bᵢ is the component of the buoyancy acceleration in the <code>i</code>-th direction (which is zero for x and y, except when <code>gravity_unit_vector</code> isn&#39;t aligned with the grid&#39;s z-direction) and all three components of <code>i=1,2,3</code> are added up.</p><p>By default, the buoyancy production will be calculated using the resolved <code>velocities</code> and <code>tracers</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans
+
+julia&gt; grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia&gt; model = NonhydrostaticModel(grid=grid, buoyancy=BuoyancyTracer(), tracers=:b);
+
+julia&gt; using Oceanostics.KineticEnergyEquation: BuoyancyProduction
+
+julia&gt; wb = BuoyancyProduction(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;BuoyancyForce&quot;, &quot;NamedTuple&quot;)</code></pre><p>If we want to calculate only the <em>turbulent</em> buoyancy production rate, we can do so by passing turbulent perturbations to the <code>velocities</code> and/or <code>tracers</code> options):</p><pre><code class="language-julia-repl hljs">julia&gt; w′ = Field(model.velocities.w - Field(Average(model.velocities.w)));
+
+julia&gt; b′ = Field(model.tracers.b - Field(Average(model.tracers.b)));
+
+julia&gt; w′b′ = BuoyancyProduction(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;BuoyancyForce&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/KineticEnergyEquation.jl#L370-L414">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.KineticEnergyEquation.DissipationRate-Tuple{Any}" href="#Oceanostics.KineticEnergyEquation.DissipationRate-Tuple{Any}"><code>Oceanostics.KineticEnergyEquation.DissipationRate</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">DissipationRate(model; U, V, W, location)
+</code></pre><p>Calculate the Kinetic Energy Dissipation Rate, defined as</p><pre><code class="nohighlight hljs">ε = ∂ⱼuᵢ ⋅ Fᵢⱼ</code></pre><p>where ∂ⱼuᵢ is the velocity gradient tensor and Fᵢⱼ is the stress tensor.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-4));
+
+julia&gt; ε = KineticEnergyEquation.DissipationRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Nothing&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/KineticEnergyEquation.jl#L454-L476">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.KineticEnergyEquation.KineticEnergy-NTuple{4, Any}" href="#Oceanostics.KineticEnergyEquation.KineticEnergy-NTuple{4, Any}"><code>Oceanostics.KineticEnergyEquation.KineticEnergy</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">KineticEnergy(model, u, v, w; location)
+</code></pre><p>Calculate the kinetic energy of <code>model</code> manually specifying <code>u</code>, <code>v</code> and <code>w</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/KineticEnergyEquation.jl#L43-L47">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.KineticEnergyEquation.KineticEnergy-Tuple{Any}" href="#Oceanostics.KineticEnergyEquation.KineticEnergy-Tuple{Any}"><code>Oceanostics.KineticEnergyEquation.KineticEnergy</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">KineticEnergy(model; kwargs...)
+</code></pre><p>Calculate the kinetic energy of <code>model</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid);
+
+julia&gt; KE = KineticEnergyEquation.KineticEnergy(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/KineticEnergyEquation.jl#L53-L71">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.KineticEnergyEquation.KineticEnergyAdvection-Tuple{NonhydrostaticModel}" href="#Oceanostics.KineticEnergyEquation.KineticEnergyAdvection-Tuple{NonhydrostaticModel}"><code>Oceanostics.KineticEnergyEquation.KineticEnergyAdvection</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">KineticEnergyAdvection(model; velocities, location)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the advection term, defined as</p><pre><code class="nohighlight hljs">ADV = uᵢ∂ⱼ(uᵢuⱼ)</code></pre><p>By default, the buoyancy production will be calculated using the resolved <code>velocities</code> and users cab use the keyword <code>velocities</code> to modify that behavior:</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans
+
+julia&gt; grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia&gt; model = NonhydrostaticModel(grid=grid);
+
+julia&gt; using Oceanostics.KineticEnergyEquation: KineticEnergyAdvection
+
+julia&gt; ADV = KineticEnergyAdvection(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢ∂ⱼuⱼuᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Centered&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/KineticEnergyEquation.jl#L160-L185">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.KineticEnergyEquation.KineticEnergyForcing-Tuple{NonhydrostaticModel}" href="#Oceanostics.KineticEnergyEquation.KineticEnergyForcing-Tuple{NonhydrostaticModel}"><code>Oceanostics.KineticEnergyEquation.KineticEnergyForcing</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">KineticEnergyForcing(model; location)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the forcing term of the KE prognostic equation:</p><pre><code class="nohighlight hljs">    FORC = uᵢFᵤᵢ</code></pre><p>where <code>uᵢ</code> are the velocity components and <code>Fᵤᵢ</code> is the forcing term(s) in the <code>uᵢ</code> prognostic equation (i.e. the forcing for <code>uᵢ</code>).</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid);
+
+julia&gt; FORC = KineticEnergyEquation.KineticEnergyForcing(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: uᵢFᵤᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/KineticEnergyEquation.jl#L266-L291">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.KineticEnergyEquation.KineticEnergyIsotropicDissipationRate-NTuple{6, Any}" href="#Oceanostics.KineticEnergyEquation.KineticEnergyIsotropicDissipationRate-NTuple{6, Any}"><code>Oceanostics.KineticEnergyEquation.KineticEnergyIsotropicDissipationRate</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">KineticEnergyIsotropicDissipationRate(
+    u,
+    v,
+    w,
+    closure,
+    diffusivity_fields,
+    clock;
+    location
+)
+</code></pre><p>Calculate the Viscous Dissipation Rate as</p><pre><code class="nohighlight hljs">ε = 2 ν SᵢⱼSᵢⱼ,</code></pre><p>where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a turbulence closure where ν (eddy or not) is the same for all directions).</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-4));
+
+julia&gt; ε = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/KineticEnergyEquation.jl#L510-L533">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution-Tuple{NonhydrostaticModel}" href="#Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution-Tuple{NonhydrostaticModel}"><code>Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">KineticEnergyPressureRedistribution(
+    model;
+    velocities,
+    pressure,
+    location
+)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the pressure redistribution term:</p><pre><code class="nohighlight hljs">PR = uᵢ∂ᵢp</code></pre><p>where <code>p</code> is the pressure. By default <code>p</code> is taken to be the total pressure (nonhydrostatic + hydrostatic):</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans
+
+julia&gt; grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia&gt; model = NonhydrostaticModel(grid=grid);
+
+julia&gt; using Oceanostics.KineticEnergyEquation: KineticEnergyPressureRedistribution
+
+julia&gt; ∇u⃗p = KineticEnergyPressureRedistribution(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Field&quot;)</code></pre><p>We can also pass <code>velocities</code> and <code>pressure</code> keywords to perform more specific calculations. The example below illustrates calculation of the nonhydrostatic contribution to the pressure redistrubution term:</p><pre><code class="language-julia-repl hljs">julia&gt; ∇u⃗pNHS = KineticEnergyPressureRedistribution(model, pressure=model.pressures.pNHS)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Field&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/KineticEnergyEquation.jl#L314-L350">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.KineticEnergyEquation.KineticEnergyStress-Tuple{Any}" href="#Oceanostics.KineticEnergyEquation.KineticEnergyStress-Tuple{Any}"><code>Oceanostics.KineticEnergyEquation.KineticEnergyStress</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">KineticEnergyStress(model; location)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the diffusive term of the KE prognostic equation:</p><pre><code class="nohighlight hljs">    DIFF = uᵢ∂ⱼτᵢⱼ</code></pre><p>where <code>uᵢ</code> are the velocity components and <code>τᵢⱼ</code> is the diffusive flux of <code>i</code> momentum in the <code>j</code>-th direction.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-4));
+
+julia&gt; DIFF = KineticEnergyEquation.KineticEnergyStress(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;ScalarDiffusivity&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/KineticEnergyEquation.jl#L209-L234">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.KineticEnergyEquation.KineticEnergyTendency-Tuple{NonhydrostaticModel}" href="#Oceanostics.KineticEnergyEquation.KineticEnergyTendency-Tuple{NonhydrostaticModel}"><code>Oceanostics.KineticEnergyEquation.KineticEnergyTendency</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">KineticEnergyTendency(model; location)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the tendency uᵢGᵢ of the KE, excluding the nonhydrostatic pressure contribution:</p><pre><code class="nohighlight hljs">KET = ½∂ₜuᵢ² = uᵢGᵢ - uᵢ∂ᵢpₙₕₛ</code></pre><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans
+
+julia&gt; grid = RectilinearGrid(size = (1, 1, 4), extent = (1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(; grid);
+
+julia&gt; using Oceanostics.KineticEnergyEquation: KineticEnergyTendency
+
+julia&gt; ke_tendency = KineticEnergyTendency(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢGᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;Centered&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;BoundaryCondition&quot;, &quot;BoundaryCondition&quot;, &quot;BoundaryCondition&quot;, &quot;Nothing&quot;, &quot;Oceananigans.Models.NonhydrostaticModels.BackgroundFields&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/KineticEnergyEquation.jl#L103-L126">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.BottomCellValue-Tuple{Any}" href="#Oceanostics.FlowDiagnostics.BottomCellValue-Tuple{Any}"><code>Oceanostics.FlowDiagnostics.BottomCellValue</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">BottomCellValue(diagnostic)
+</code></pre><p>Returns the value of the given <code>diagnostic</code> at the bottom, which can be either the bottom of the domain (lowest vertical level) or an immersed bottom.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L599-L604">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.MixedLayerDepth-Tuple{Oceananigans.Grids.AbstractGrid, Vararg{Any}}" href="#Oceanostics.FlowDiagnostics.MixedLayerDepth-Tuple{Oceananigans.Grids.AbstractGrid, Vararg{Any}}"><code>Oceanostics.FlowDiagnostics.MixedLayerDepth</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">MixedLayerDepth(grid, args; criterion)
+</code></pre><p>Returns the mixed layer depth defined as the depth at which <code>criterion</code> is true.</p><p>Defaults to <code>DensityAnomalyCriterion</code> where the depth is that at which the density is some threshold (defaults to 0.125kg/m³) higher than the surface density.</p><p>When <code>DensityAnomalyCriterion</code> is used, the arguments <code>buoyancy_formulation</code> and <code>C</code> should be supplied where <code>buoyancy_formulation</code> should be the buoyancy model, and <code>C</code> should be a named tuple of <code>(; T, S)</code>, <code>(; T)</code> or <code>(; S)</code> (the latter two if the buoyancy model specifies a constant salinity or temperature).</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L475-L487">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.uₕ_norm_ccc-NTuple{8, Any}" href="#Oceanostics.FlowDiagnostics.uₕ_norm_ccc-NTuple{8, Any}"><code>Oceanostics.FlowDiagnostics.uₕ_norm_ccc</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">uₕ_norm_ccc(i, j, k, grid, û, v̂, ŵ, vertical_dir)
+</code></pre><p>Return the (true) horizontal velocity magnitude.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L40-L44">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.w²_from_u⃗_tilted_ccc-NTuple{8, Any}" href="#Oceanostics.FlowDiagnostics.w²_from_u⃗_tilted_ccc-NTuple{8, Any}"><code>Oceanostics.FlowDiagnostics.w²_from_u⃗_tilted_ccc</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><p>Get <code>w</code> from <code>û</code>, <code>v̂</code>, <code>ŵ</code> and based on the direction given by the unit vector <code>vertical_dir</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L30-L32">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.AbstractAnomalyCriterion" href="#Oceanostics.FlowDiagnostics.AbstractAnomalyCriterion"><code>Oceanostics.FlowDiagnostics.AbstractAnomalyCriterion</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">abstract type AbstractAnomalyCriterion</code></pre><p>An abstract mixed layer depth criterion where the mixed layer is defined to be <code>anomaly</code> + <code>threshold</code> greater than the surface value of <code>anomaly</code>.</p><p><code>AbstractAnomalyCriterion</code> types should provide a method for the function <code>anomaly</code> in the form <code>anomaly(criterion, i, j, k, grid, args...)</code>, and should have a property <code>threshold</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L506-L514">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.BuoyancyAnomalyCriterion" href="#Oceanostics.FlowDiagnostics.BuoyancyAnomalyCriterion"><code>Oceanostics.FlowDiagnostics.BuoyancyAnomalyCriterion</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">struct BuoyancyAnomalyCriterion{FT} &lt;: Oceanostics.FlowDiagnostics.AbstractAnomalyCriterion</code></pre><p>Defines the mixed layer to be the depth at which the buoyancy is more than <code>threshold</code> greater than the surface buoyancy (but the pertubaton is usually negative).</p><p>When this model is used, the arguments <code>buoyancy_formulation</code> and <code>C</code> should be supplied where <code>C</code> should be the named tuple <code>(; b)</code>, with <code>b</code> the buoyancy tracer.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L540-L548">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.DensityAnomalyCriterion" href="#Oceanostics.FlowDiagnostics.DensityAnomalyCriterion"><code>Oceanostics.FlowDiagnostics.DensityAnomalyCriterion</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">struct DensityAnomalyCriterion{FT} &lt;: Oceanostics.FlowDiagnostics.AbstractAnomalyCriterion</code></pre><p>Defines the mixed layer to be the depth at which the density is more than <code>threshold</code> greater than the surface density.</p><p>When this model is used, the arguments <code>buoyancy_formulation</code> and <code>C</code> should be supplied where <code>buoyancy_formulation</code> should be the buoyancy model, and <code>C</code> should be a named tuple of <code>(; T, S)</code>, <code>(; T)</code> or <code>(; S)</code> (the latter two if the buoyancy model specifies a constant salinity or temperature).</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L560-L570">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.DirectionalErtelPotentialVorticity-Tuple{Any, Any}" href="#Oceanostics.FlowDiagnostics.DirectionalErtelPotentialVorticity-Tuple{Any, Any}"><code>Oceanostics.FlowDiagnostics.DirectionalErtelPotentialVorticity</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">DirectionalErtelPotentialVorticity(
+    model,
+    direction;
+    tracer_name,
+    loc
+)
+</code></pre><p>Calculate the contribution from a given <code>direction</code> to the Ertel Potential Vorticity basde on a <code>model</code> and a <code>direction</code>. The Ertel Potential Vorticity is defined as</p><pre><code class="nohighlight hljs">EPV = ωₜₒₜ ⋅ ∇b</code></pre><p>where ωₜₒₜ is the total (relative + planetary) vorticity vector, <code>b</code> is the buoyancy and ∇ is the gradient operator.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L327-L337">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.ErtelPotentialVorticity-Tuple{Any}" href="#Oceanostics.FlowDiagnostics.ErtelPotentialVorticity-Tuple{Any}"><code>Oceanostics.FlowDiagnostics.ErtelPotentialVorticity</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">ErtelPotentialVorticity(model; tracer_name, loc)
+</code></pre><p>Calculate the Ertel Potential Vorticty for <code>model</code>, where the characteristics of the Coriolis rotation are taken from <code>model.coriolis</code>. The Ertel Potential Vorticity is defined as</p><pre><code class="nohighlight hljs">EPV = ωₜₒₜ ⋅ ∇b</code></pre><p>where ωₜₒₜ is the total (relative + planetary) vorticity vector, <code>b</code> is the buoyancy and ∇ is the gradient operator.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans
+
+julia&gt; grid = RectilinearGrid(topology = (Flat, Flat, Bounded), size = 4, extent = 1);
+
+julia&gt; N² = 1e-6;
+
+julia&gt; b_bcs = FieldBoundaryConditions(top=GradientBoundaryCondition(N²));
+
+julia&gt; model = NonhydrostaticModel(; grid, coriolis=FPlane(1e-4), buoyancy=BuoyancyTracer(), tracers=:b, boundary_conditions=(; b=b_bcs));
+
+julia&gt; stratification(z) = N² * z;
+
+julia&gt; set!(model, b=stratification)
+
+julia&gt; using Oceanostics: ErtelPotentialVorticity
+
+julia&gt; EPV = ErtelPotentialVorticity(model)
+KernelFunctionOperation at (Face, Face, Face)
+├── grid: 1×1×4 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── kernel_function: ertel_potential_vorticity_fff (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Int64&quot;, &quot;Int64&quot;, &quot;Float64&quot;)
+
+julia&gt; interior(Field(EPV))
+1×1×5 view(::Array{Float64, 3}, 1:1, 1:1, 4:8) with eltype Float64:
+[:, :, 1] =
+ 0.0
+
+[:, :, 2] =
+ 1.0000000000000002e-10
+
+[:, :, 3] =
+ 9.999999999999998e-11
+
+[:, :, 4] =
+ 1.0000000000000002e-10
+
+[:, :, 5] =
+ 1.0e-10</code></pre><p>Note that EPV values are correctly calculated both in the interior and the boundaries. In the interior and top boundary, EPV = f×N² = 10⁻¹⁰, while EPV = 0 at the bottom boundary since ∂b/∂z is zero there.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L232-L288">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.MixedLayerDepthKernel" href="#Oceanostics.FlowDiagnostics.MixedLayerDepthKernel"><code>Oceanostics.FlowDiagnostics.MixedLayerDepthKernel</code></a> — <span class="docstring-category">Type</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">struct MixedLayerDepthKernel{C}</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L468-L470">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.QVelocityGradientTensorInvariant-Tuple{Any}" href="#Oceanostics.FlowDiagnostics.QVelocityGradientTensorInvariant-Tuple{Any}"><code>Oceanostics.FlowDiagnostics.QVelocityGradientTensorInvariant</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">QVelocityGradientTensorInvariant(model; loc)
+</code></pre><p>Calculate the value of the <code>Q</code> velocity gradient tensor invariant. This is usually just called <code>Q</code> and it is generally used for identifying and visualizing vortices in fluid flow.</p><p>The definition and nomenclature comes from the equation for the eigenvalues <code>λ</code> of the velocity gradient tensor <code>∂ⱼuᵢ</code>:</p><pre><code class="nohighlight hljs">    λ³ + P λ² + Q λ + T = 0</code></pre><p>from where <code>Q</code> is defined as</p><pre><code class="nohighlight hljs">    Q = ½ (ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)</code></pre><p>and where <code>Sᵢⱼ= ½(∂ⱼuᵢ + ∂ᵢuⱼ)</code> and <code>Ωᵢⱼ= ½(∂ⱼuᵢ - ∂ᵢuⱼ)</code>. More info about it can be found in doi:10.1063/1.5124245.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L441-L460">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.RichardsonNumber-Tuple{Any}" href="#Oceanostics.FlowDiagnostics.RichardsonNumber-Tuple{Any}"><code>Oceanostics.FlowDiagnostics.RichardsonNumber</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">RichardsonNumber(model; loc)
+</code></pre><p>Calculate the Richardson Number as</p><pre><code class="nohighlight hljs">    Ri = (∂b/∂z) / (|∂u⃗ₕ/∂z|²)</code></pre><p>where <code>z</code> is the true vertical direction (ie anti-parallel to gravity).</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L69-L79">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.RossbyNumber-Tuple{Any}" href="#Oceanostics.FlowDiagnostics.RossbyNumber-Tuple{Any}"><code>Oceanostics.FlowDiagnostics.RossbyNumber</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">RossbyNumber(
+    model;
+    loc,
+    add_background,
+    dWdy_bg,
+    dVdz_bg,
+    dUdz_bg,
+    dWdx_bg,
+    dUdy_bg,
+    dVdx_bg
+)
+</code></pre><p>Calculate the Rossby number using the vorticity in the rotation axis direction according to <code>model.coriolis</code>. Rossby number is defined as</p><pre><code class="nohighlight hljs">    Ro = ωᶻ / f</code></pre><p>where ωᶻ is the vorticity in the Coriolis axis of rotation and <code>f</code> is the Coriolis rotation frequency.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L124-L134">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.StrainRateTensorModulus-Tuple{Any}" href="#Oceanostics.FlowDiagnostics.StrainRateTensorModulus-Tuple{Any}"><code>Oceanostics.FlowDiagnostics.StrainRateTensorModulus</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">StrainRateTensorModulus(model; loc)
+</code></pre><p>Calculate the modulus (absolute value) of the strain rate tensor <code>S</code>, which is defined as the symmetric part of the velocity gradient tensor:</p><pre><code class="nohighlight hljs">    Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)</code></pre><p>Its modulus is then defined (using Einstein summation notation) as</p><pre><code class="nohighlight hljs">    || Sᵢⱼ || = √(Sᵢⱼ Sᵢⱼ)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L373-L387">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.ThermalWindPotentialVorticity-Tuple{Any}" href="#Oceanostics.FlowDiagnostics.ThermalWindPotentialVorticity-Tuple{Any}"><code>Oceanostics.FlowDiagnostics.ThermalWindPotentialVorticity</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">ThermalWindPotentialVorticity(model; tracer_name, loc)
+</code></pre><p>Calculate the Potential Vorticty assuming thermal wind balance for <code>model</code>, where the characteristics of the Coriolis rotation are taken from <code>model.coriolis</code>. The Potential Vorticity in this case is defined as</p><pre><code class="nohighlight hljs">    TWPV = (f + ωᶻ) ∂b/∂z - f ((∂U/∂z)² + (∂V/∂z)²)</code></pre><p>where <code>f</code> is the Coriolis frequency, <code>ωᶻ</code> is the relative vorticity in the <code>z</code> direction, <code>b</code> is the buoyancy, and <code>∂U/∂z</code> and <code>∂V/∂z</code> comprise the thermal wind shear.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L185-L197">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.FlowDiagnostics.VorticityTensorModulus-Tuple{Any}" href="#Oceanostics.FlowDiagnostics.VorticityTensorModulus-Tuple{Any}"><code>Oceanostics.FlowDiagnostics.VorticityTensorModulus</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">VorticityTensorModulus(model; loc)
+</code></pre><p>Calculate the modulus (absolute value) of the vorticity tensor <code>Ω</code>, which is defined as the antisymmetric part of the velocity gradient tensor:</p><pre><code class="nohighlight hljs">    Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)</code></pre><p>Its modulus is then defined (using Einstein summation notation) as</p><pre><code class="nohighlight hljs">    || Ωᵢⱼ || = √(Ωᵢⱼ Ωᵢⱼ)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/FlowDiagnostics.jl#L409-L423">source</a></section></article><article class="docstring"><header><a class="docstring-article-toggle-button fa-solid fa-chevron-down" href="javascript:;" title="Collapse docstring"></a><a class="docstring-binding" id="Oceanostics.PotentialEnergyEquation.PotentialEnergy-Tuple{Any}" href="#Oceanostics.PotentialEnergyEquation.PotentialEnergy-Tuple{Any}"><code>Oceanostics.PotentialEnergyEquation.PotentialEnergy</code></a> — <span class="docstring-category">Method</span><span class="is-flex-grow-1 docstring-article-toggle-button" title="Collapse docstring"></span></header><section><div><pre><code class="language-julia hljs">PotentialEnergy(model; location, geopotential_height)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> to compute the <code>PotentialEnergy</code> per unit volume,</p><p class="math-container">\[Eₚ = \frac{gρ}{ρ₀}z = -bz\]</p><p>at each grid <code>location</code> in <code>model</code>. <code>PotentialEnergy</code> is defined for both <code>BuoyancyTracer</code> and <code>SeawaterBuoyancy</code>. See the relevant Oceananigans.jl documentation on <a href="https://clima.github.io/OceananigansDocumentation/dev/model_setup/buoyancy_and_equation_of_state/">buoyancy models</a> for more information about available options.</p><p>The optional keyword argument <code>geopotential_height</code> is only used if ones wishes to calculate <code>Eₚ</code> with a potential density referenced to <code>geopotential_height</code>, rather than in-situ density, when using a <code>BoussinesqEquationOfState</code>.</p><p><strong>Example</strong></p><p>Usage with a <code>BuoyancyTracer</code> buoyacny model</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
+1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── Flat x
+├── Flat y
+└── Bounded  z ∈ [-1000.0, 0.0] regularly spaced with Δz=10.0
+
+julia&gt; model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=(:b,))
+NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: Centered(order=2)
+├── tracers: b
+├── closure: Nothing
+├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
+└── coriolis: Nothing
+
+julia&gt; PotentialEnergyEquation.PotentialEnergy(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── kernel_function: minus_bz_ccc (generic function with 3 methods)
+└── arguments: (&quot;Field&quot;,)</code></pre><p>The default behaviour of <code>PotentialEnergy</code> uses the <em>in-situ density</em> in the calculation when the equation of state is a <code>BoussinesqEquationOfState</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, SeawaterPolynomials.TEOS10, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded))
+1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── Flat x
+├── Flat y
+└── Bounded  z ∈ [-1000.0, 0.0] regularly spaced with Δz=10.0
+
+julia&gt; tracers = (:T, :S)
+(:T, :S)
+
+julia&gt; eos = TEOS10EquationOfState()
+BoussinesqEquationOfState{Float64}:
+├── seawater_polynomial: TEOS10SeawaterPolynomial{Float64}
+└── reference_density: 1020.0
+
+julia&gt; buoyancy = SeawaterBuoyancy(equation_of_state=eos)
+SeawaterBuoyancy{Float64}:
+├── gravitational_acceleration: 9.80665
+└── equation_of_state: BoussinesqEquationOfState{Float64}
+
+julia&gt; model = NonhydrostaticModel(; grid, buoyancy, tracers)
+NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: Centered(order=2)
+├── tracers: (T, S)
+├── closure: Nothing
+├── buoyancy: SeawaterBuoyancy with g=9.80665 and BoussinesqEquationOfState{Float64} with ĝ = NegativeZDirection()
+└── coriolis: Nothing
+
+julia&gt; PotentialEnergyEquation.PotentialEnergy(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── kernel_function: minus_bz_ccc (generic function with 3 methods)
+└── arguments: (&quot;KernelFunctionOperation&quot;, &quot;NamedTuple&quot;)</code></pre><p>To use a reference density set a constant value for the keyword argument <code>geopotential_height</code> and pass this the function. For example,</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, SeawaterPolynomials.TEOS10, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
+
+julia&gt; tracers = (:T, :S);
+
+julia&gt; eos = TEOS10EquationOfState();
+
+julia&gt; buoyancy = SeawaterBuoyancy(equation_of_state=eos);
+
+julia&gt; model = NonhydrostaticModel(; grid, buoyancy, tracers);
+
+julia&gt; geopotential_height = 0; # density variable will be σ₀
+
+julia&gt; PotentialEnergyEquation.PotentialEnergy(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
+├── kernel_function: minus_bz_ccc (generic function with 3 methods)
+└── arguments: (&quot;KernelFunctionOperation&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/4ee45e044577c2322f22805a931b4c0052355d05/src/PotentialEnergyEquation.jl#L37-L147">source</a></section></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../generated/tilted_bottom_boundary_layer/">« Tilted bottom boundary layer</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.14.1 on <span class="colophon-date" title="Wednesday 23 July 2025 21:00">Wednesday 23 July 2025</span>. Using Julia version 1.10.10.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
