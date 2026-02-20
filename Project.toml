@@ -1,6 +1,6 @@
 name = "Oceanostics"
 uuid = "d0ccf422-c8fb-49b5-a76d-74acdde946ac"
-version = "0.16.9"
+version = "0.16.10"
 authors = ["tomchor <tomaschor@gmail.com>"]
 
 [deps]
@@ -11,7 +11,7 @@ SeawaterPolynomials = "d496a93d-167e-4197-9f49-d3af4ff8fe40"
 
 [compat]
 DocStringExtensions = "0.9"
-Oceananigans = "0.102, 0.103, 0.104"
+Oceananigans = "0.102, 0.103, 0.104, 0.105"
 SeawaterPolynomials = "0.3"
 julia = "1.9"
 
