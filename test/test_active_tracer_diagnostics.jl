@@ -83,7 +83,7 @@ function test_buoyancy_diagnostics(model)
     @test PVtw isa ThermalWindPotentialVorticity
     @test Field(PVtw) isa Field
 
-    PVtw = ThermalWindPotentialVorticity(model, u, v, b, FPlane(1e-4))
+    PVtw = ThermalWindPotentialVorticity(model, u, v, b, FPlane(f=1e-4))
     @test PVtw isa ThermalWindPotentialVorticity
     @test Field(PVtw) isa Field
 

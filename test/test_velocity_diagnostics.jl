@@ -23,10 +23,10 @@ grid_noise(x, y, z) = randn()
 #---
 
 #+++ Test options
-model_kwargs = (coriolis = FPlane(1e-4),)
+model_kwargs = (coriolis = FPlane(f=1e-4),)
 
 coriolis_formulations = (nothing,
-                         FPlane(1e-4),
+                         FPlane(f=1e-4),
                          ConstantCartesianCoriolis(fx=1e-4, fy=1e-4, fz=1e-4))
 
 grids = Dict("regular grid" => regular_grid,
