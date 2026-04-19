@@ -35,7 +35,7 @@ grid_noise(x, y, z) = randn()
 #+++ Common model configurations
 # Common model kwargs
 model_kwargs = (buoyancy = BuoyancyForce(BuoyancyTracer()),
-                coriolis = FPlane(1e-4),
+                coriolis = FPlane(f=1e-4),
                 tracers = :b)
 
 # Common closures
@@ -52,7 +52,7 @@ buoyancy_formulations = (nothing,
 
 # Common coriolis formulations
 coriolis_formulations = (nothing,
-                         FPlane(1e-4),
+                         FPlane(f=1e-4),
                          ConstantCartesianCoriolis(fx=1e-4, fy=1e-4, fz=1e-4))
 
 # Extended buoyancy formulations (for some tests)

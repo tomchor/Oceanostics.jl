@@ -36,7 +36,7 @@ end
     for closure in closures
         model = NonhydrostaticModel(regular_grid;
                                     buoyancy = BuoyancyForce(BuoyancyTracer()),
-                                    coriolis = FPlane(1e-4),
+                                    coriolis = FPlane(f=1e-4),
                                     tracers = :b,
                                     closure = closure)
 
