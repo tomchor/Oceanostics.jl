@@ -6,46 +6,84 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceanostics
 using Oceanostics: BoxFilter
 
+# -------- Test helpers --------
+#
+# These helpers factor out the setup and reference computations that the
+# BoxFilter testsets share, so each @testset body focuses on *what* is being
+# checked rather than on the bookkeeping of building grids, setting fields,
+# and accumulating explicit stencil sums.
+
+make_grid(; Nx=8, Ny=8, Nz=8, halo=(2, 2, 2), topology=(Periodic, Periodic, Periodic)) =
+    RectilinearGrid(size = (Nx, Ny, Nz),
+                    x = (0, 1), y = (0, 1), z = (0, 1),
+                    halo = halo,
+                    topology = topology)
+
+# Create a CenterField, fill it with `f(x, y, z)`, and sync halos so any
+# subsequent boundary-adjacent stencil evaluation sees a consistent state.
+function center_field_from(grid, f)
+    c = CenterField(grid)
+    set!(c, f)
+    fill_halo_regions!(c)
+    return c
+end
+
+# Build a BoxFilter over `ψ` along `dims` with the given `width`, wrap it in a
+# Field, compute it, and return the resulting Field.
+function compute_box_filter(ψ, dims, width)
+    cf = Field(BoxFilter(ψ; dims=dims, width=width))
+    compute!(cf)
+    return cf
+end
+
+# Explicit reference for a (2*width + 1)^length(dims) box average over `dims`,
+# with mod1-wrapping along each selected direction. `Ns = (Nx, Ny, Nz)` gives
+# the wrap lengths. Used as an independent check against the compiled kernel.
+function reference_box_average(ic, dims, width, Ns)
+    Nx, Ny, Nz = Ns
+    rx = 1 in dims ? (-width:width) : (0:0)
+    ry = 2 in dims ? (-width:width) : (0:0)
+    rz = 3 in dims ? (-width:width) : (0:0)
+    n = length(rx) * length(ry) * length(rz)
+    ref = similar(ic)
+    for i in 1:Nx, j in 1:Ny, k in 1:Nz
+        s = zero(eltype(ic))
+        for di in rx, dj in ry, dk in rz
+            s += ic[mod1(i + di, Nx), mod1(j + dj, Ny), mod1(k + dk, Nz)]
+        end
+        ref[i, j, k] = s / n
+    end
+    return ref
+end
+
 @testset "Filters" begin
     @testset "BoxFilter" begin
         Nx = Ny = Nz = 8
-        Hx = Hy = Hz = 2
-        grid = RectilinearGrid(size = (Nx, Ny, Nz),
-                               x = (0, 1), y = (0, 1), z = (0, 1),
-                               halo = (Hx, Hy, Hz),
-                               topology = (Periodic, Periodic, Periodic))
+        Ns = (Nx, Ny, Nz)
+        grid = make_grid(; Nx=Nx, Ny=Ny, Nz=Nz)
 
         @testset "Constructor returns KernelFunctionOperation" begin
             # Sanity check that BoxFilter returns a KernelFunctionOperation and that
             # the `BoxFilter` type alias matches the constructor's output. Downstream
             # Oceananigans machinery (Field, compute!, Output writers) dispatches on
             # KFO, so a regression here would break every user of BoxFilter.
-            c = CenterField(grid)
-            bf = BoxFilter(c; dims=(1,), width=1)
+            bf = BoxFilter(CenterField(grid); dims=(1,), width=1)
             @test bf isa KernelFunctionOperation
             @test bf isa BoxFilter
         end
 
         @testset "Linear field is unchanged on interior (1D, 2D, 3D)" begin
-            # For a linear field, a symmetric (2w+1)-point running mean reproduces the field
-            # exactly on cells whose stencil does not cross a periodic boundary (where a
-            # linear function is not truly periodic).
-            c = CenterField(grid)
-            set!(c, (x, y, z) -> x + 2y + 3z)
-            fill_halo_regions!(c)
-
-            interior_range_x = 2:Nx-1
-            interior_range_y = 2:Ny-1
-            interior_range_z = 2:Nz-1
+            # For a linear field, a symmetric (2w+1)-point running mean reproduces
+            # the field exactly on cells whose stencil does not cross a periodic
+            # boundary (where a linear function is not truly periodic). We compare
+            # only interior cells of the filtered directions.
+            c = center_field_from(grid, (x, y, z) -> x + 2y + 3z)
 
             for dims in [(1,), (2,), (3,), (1, 2), (1, 3), (2, 3), (1, 2, 3)]
-                cf = Field(BoxFilter(c; dims=dims, width=1))
-                compute!(cf)
-
-                rx = 1 in dims ? interior_range_x : (1:Nx)
-                ry = 2 in dims ? interior_range_y : (1:Ny)
-                rz = 3 in dims ? interior_range_z : (1:Nz)
-
+                cf = compute_box_filter(c, dims, 1)
+                rx = 1 in dims ? (2:Nx-1) : (1:Nx)
+                ry = 2 in dims ? (2:Ny-1) : (1:Ny)
+                rz = 3 in dims ? (2:Nz-1) : (1:Nz)
                 @test interior(cf)[rx, ry, rz] ≈ interior(c)[rx, ry, rz]
             end
         end
@@ -54,11 +92,8 @@ using Oceanostics: BoxFilter
             # A constant field is the trivial fixed point of any averaging operator.
             # This immediately catches normalization mistakes (e.g. dividing by n+1
             # instead of n, or by (2w+1) instead of (2w+1)^d for multi-dim filters).
-            c = CenterField(grid)
-            set!(c, (x, y, z) -> 3.14)
-            fill_halo_regions!(c)
-            cf = Field(BoxFilter(c; dims=(1, 2, 3), width=2))
-            compute!(cf)
+            c = center_field_from(grid, (x, y, z) -> 3.14)
+            cf = compute_box_filter(c, (1, 2, 3), 2)
             @test all(interior(cf) .≈ 3.14)
         end
 
@@ -69,68 +104,17 @@ using Oceanostics: BoxFilter
             # (width=1, 27-point box), and 2D / 3D with width=2 (25- and 125-point
             # boxes). The wider-stencil cases matter because they stress the
             # inner-loop indexing over strides > 1 and the (2w+1)^d normalization.
-            c = CenterField(grid)
-            set!(c, (x, y, z) -> sin(2π * x) * cos(2π * y) + z^2)
-            fill_halo_regions!(c)
-
+            c  = center_field_from(grid, (x, y, z) -> sin(2π * x) * cos(2π * y) + z^2)
             ic = interior(c)
 
-            # Reference: explicit 1D average in x with width = 1 (wrap via mod1)
-            cf = Field(BoxFilter(c; dims=(1,), width=1))
-            compute!(cf)
-
-            ref = similar(ic)
-            for i in 1:Nx, j in 1:Ny, k in 1:Nz
-                ref[i, j, k] = (ic[mod1(i-1, Nx), j, k] + ic[i, j, k] + ic[mod1(i+1, Nx), j, k]) / 3
+            for (dims, width) in [((1,),      1),
+                                  ((1, 2, 3), 1),
+                                  ((1, 2),    2),
+                                  ((1, 2, 3), 2)]
+                cf  = compute_box_filter(c, dims, width)
+                ref = reference_box_average(ic, dims, width, Ns)
+                @test interior(cf) ≈ ref
             end
-            @test interior(cf) ≈ ref
-
-            # Reference: explicit 3D average with width = 1 (27-point box, wrap via mod1)
-            cf3 = Field(BoxFilter(c; dims=(1, 2, 3), width=1))
-            compute!(cf3)
-
-            ref3 = similar(ic)
-            for i in 1:Nx, j in 1:Ny, k in 1:Nz
-                s = 0.0
-                for di in -1:1, dj in -1:1, dk in -1:1
-                    s += ic[mod1(i+di, Nx), mod1(j+dj, Ny), mod1(k+dk, Nz)]
-                end
-                ref3[i, j, k] = s / 27
-            end
-            @test interior(cf3) ≈ ref3
-
-            # Reference: explicit 2D xy-average with width = 2 (5×5 = 25-point stencil).
-            # Guards against bugs where multi-dim normalization only works at width=1
-            # (e.g. dividing by (2w+1) instead of (2w+1)^d).
-            width2 = 2
-            cf2d = Field(BoxFilter(c; dims=(1, 2), width=width2))
-            compute!(cf2d)
-
-            ref2d = similar(ic)
-            for i in 1:Nx, j in 1:Ny, k in 1:Nz
-                s = 0.0
-                for di in -width2:width2, dj in -width2:width2
-                    s += ic[mod1(i+di, Nx), mod1(j+dj, Ny), k]
-                end
-                ref2d[i, j, k] = s / (2*width2 + 1)^2
-            end
-            @test interior(cf2d) ≈ ref2d
-
-            # Reference: explicit 3D average with width = 2 (5³ = 125-point box).
-            # The width-1 case (27 points) doesn't exercise strides > 1 in any
-            # direction; this one does, for all three nested 1D kernels at once.
-            cf3d2 = Field(BoxFilter(c; dims=(1, 2, 3), width=width2))
-            compute!(cf3d2)
-
-            ref3d2 = similar(ic)
-            for i in 1:Nx, j in 1:Ny, k in 1:Nz
-                s = 0.0
-                for di in -width2:width2, dj in -width2:width2, dk in -width2:width2
-                    s += ic[mod1(i+di, Nx), mod1(j+dj, Ny), mod1(k+dk, Nz)]
-                end
-                ref3d2[i, j, k] = s / (2*width2 + 1)^3
-            end
-            @test interior(cf3d2) ≈ ref3d2
         end
 
         @testset "Exact hand-computed values on a 1D periodic grid" begin
@@ -155,10 +139,8 @@ using Oceanostics: BoxFilter
             #   i=1:  (9 + 0 + 1)/3 = 10/3
             #   i=2..9: just i-1 (the arithmetic-sequence mean)
             #   i=10: (8 + 9 + 0)/3 = 17/3
-            cf1 = Field(BoxFilter(c; dims=(1,), width=1))
-            compute!(cf1)
             expected1 = [10/3, 1, 2, 3, 4, 5, 6, 7, 8, 17/3]
-            @test interior(cf1)[:] ≈ expected1
+            @test interior(compute_box_filter(c, (1,), 1))[:] ≈ expected1
 
             # width = 2, 5-point mean with periodic wrap:
             #   i=1:  (8+9+0+1+2)/5 = 4
@@ -166,10 +148,8 @@ using Oceanostics: BoxFilter
             #   i=3..8: just i-1 (the arithmetic-sequence mean)
             #   i=9:  (6+7+8+9+0)/5 = 6
             #   i=10: (7+8+9+0+1)/5 = 5
-            cf2 = Field(BoxFilter(c; dims=(1,), width=2))
-            compute!(cf2)
             expected2 = [4, 3, 2, 3, 4, 5, 6, 7, 6, 5]
-            @test interior(cf2)[:] ≈ expected2
+            @test interior(compute_box_filter(c, (1,), 2))[:] ≈ expected2
         end
 
         @testset "Output location matches input location" begin
@@ -177,15 +157,10 @@ using Oceanostics: BoxFilter
             # input, so filtering a Face-located field must yield output on the same
             # Face. A regression (e.g. hard-coding ccc) would silently move the
             # output to the wrong grid and break any downstream gradient/operator.
-            c = CenterField(grid)
-            u = XFaceField(grid)
-            v = YFaceField(grid)
-            w = ZFaceField(grid)
-
-            @test location(BoxFilter(c; dims=(1,),      width=1)) == (Center, Center, Center)
-            @test location(BoxFilter(u; dims=(1,),      width=1)) == (Face,   Center, Center)
-            @test location(BoxFilter(v; dims=(1, 2),    width=1)) == (Center, Face,   Center)
-            @test location(BoxFilter(w; dims=(1, 2, 3), width=1)) == (Center, Center, Face)
+            @test location(BoxFilter(CenterField(grid); dims=(1,),      width=1)) == (Center, Center, Center)
+            @test location(BoxFilter(XFaceField(grid);  dims=(1,),      width=1)) == (Face,   Center, Center)
+            @test location(BoxFilter(YFaceField(grid);  dims=(1, 2),    width=1)) == (Center, Face,   Center)
+            @test location(BoxFilter(ZFaceField(grid);  dims=(1, 2, 3), width=1)) == (Center, Center, Face)
         end
 
         @testset "Accepts AbstractOperation as input" begin
@@ -194,16 +169,11 @@ using Oceanostics: BoxFilter
             # without having to materialize the intermediate. The numerical check
             # confirms the filter sees the operation's values (not zeros or the
             # underlying Field unscaled).
-            c = CenterField(grid)
-            set!(c, (x, y, z) -> x + y)
-            fill_halo_regions!(c)
-
+            c  = center_field_from(grid, (x, y, z) -> x + y)
             op = 2 * c  # BinaryOperation at ccc
-            bf = BoxFilter(op; dims=(1, 2), width=1)
-            @test bf isa KernelFunctionOperation
+            @test BoxFilter(op; dims=(1, 2), width=1) isa KernelFunctionOperation
 
-            f = Field(bf)
-            compute!(f)
+            f = compute_box_filter(op, (1, 2), 1)
             @test interior(f)[2:Nx-1, 2:Ny-1, :] ≈ 2 .* interior(c)[2:Nx-1, 2:Ny-1, :]
         end
 
@@ -211,11 +181,8 @@ using Oceanostics: BoxFilter
             # Filters must compose: wrapping a BoxFilter inside another BoxFilter
             # (e.g. a 1D-y filter of a 1D-x filter) is a legitimate user pattern
             # and also exercises the recursive `f::Function` method of the kernel.
-            c = CenterField(grid)
-            set!(c, (x, y, z) -> sin(2π * x))
-            fill_halo_regions!(c)
-
-            inner = BoxFilter(c; dims=(1,), width=1)
+            c     = center_field_from(grid, (x, y, z) -> sin(2π * x))
+            inner = BoxFilter(c;     dims=(1,), width=1)
             outer = BoxFilter(inner; dims=(2,), width=1)
             @test outer isa KernelFunctionOperation
             @test location(outer) == (Center, Center, Center)
@@ -247,43 +214,27 @@ using Oceanostics: BoxFilter
         end
 
         @testset "Periodic directions need no halo" begin
-            # Fully periodic grid with a tiny halo; width ≫ halo is allowed because every
-            # selected direction is periodic and wraps via mod1.
-            small_halo_grid = RectilinearGrid(size = (Nx, Ny, Nz),
-                                              x = (0, 1), y = (0, 1), z = (0, 1),
-                                              halo = (1, 1, 1),
-                                              topology = (Periodic, Periodic, Periodic))
-            c = CenterField(small_halo_grid)
-            @test BoxFilter(c; dims=(1,),      width=3) isa KernelFunctionOperation
-            @test BoxFilter(c; dims=(1, 2, 3), width=3) isa KernelFunctionOperation
+            # Fully periodic grid with a tiny halo; width ≫ halo is allowed because
+            # every selected direction is periodic and wraps via mod1. The numerical
+            # check confirms that the mod1 path actually matches the explicit
+            # reference when the halo is too small to carry the stencil.
+            small_halo_grid = make_grid(; Nx=Nx, Ny=Ny, Nz=Nz, halo=(1, 1, 1))
+            @test BoxFilter(CenterField(small_halo_grid); dims=(1,),      width=3) isa KernelFunctionOperation
+            @test BoxFilter(CenterField(small_halo_grid); dims=(1, 2, 3), width=3) isa KernelFunctionOperation
 
-            # Numerical check: 1D filter of width = 3 on a known pattern must match a
-            # reference computed with explicit mod1 wrapping.
-            set!(c, (x, y, z) -> sin(2π * x) + cos(2π * y))
-            fill_halo_regions!(c)
-
-            width = 3
-            cf = Field(BoxFilter(c; dims=(1,), width=width))
-            compute!(cf)
-
-            ic = interior(c)
-            ref = similar(ic)
-            for i in 1:Nx, j in 1:Ny, k in 1:Nz
-                s = 0.0
-                for di in -width:width
-                    s += ic[mod1(i+di, Nx), j, k]
-                end
-                ref[i, j, k] = s / (2*width + 1)
-            end
+            c   = center_field_from(small_halo_grid, (x, y, z) -> sin(2π * x) + cos(2π * y))
+            cf  = compute_box_filter(c, (1,), 3)
+            ref = reference_box_average(interior(c), (1,), 3, Ns)
             @test interior(cf) ≈ ref
         end
 
         @testset "Mixed topology: halo enforced only on non-periodic dims" begin
-            # (Periodic, Bounded, Bounded), small halo in y and z.
-            mixed_grid = RectilinearGrid(size = (Nx, Ny, Nz),
-                                         x = (0, 1), y = (0, 1), z = (0, 1),
-                                         halo = (1, 2, 2),
-                                         topology = (Periodic, Bounded, Bounded))
+            # (Periodic, Bounded, Bounded) with small halos in y and z. Verifies
+            # that halo validation is per-direction: periodic dims skip the check
+            # entirely, while each bounded dim independently constrains width.
+            mixed_grid = make_grid(; Nx=Nx, Ny=Ny, Nz=Nz,
+                                   halo=(1, 2, 2),
+                                   topology=(Periodic, Bounded, Bounded))
             c = CenterField(mixed_grid)
 
             # Filtering only along x (periodic): width may exceed x-halo freely.
@@ -302,11 +253,11 @@ using Oceanostics: BoxFilter
         end
 
         @testset "Halo validation (fully bounded)" begin
-            # On a fully bounded grid with halo = (2, 2, 2), width = 3 must fail for any dim.
-            bounded_grid = RectilinearGrid(size = (Nx, Ny, Nz),
-                                           x = (0, 1), y = (0, 1), z = (0, 1),
-                                           halo = (2, 2, 2),
-                                           topology = (Bounded, Bounded, Bounded))
+            # On a fully bounded grid with halo = (2, 2, 2), width = 3 must fail
+            # for any selected dim since there is no periodic wrap to fall back on.
+            bounded_grid = make_grid(; Nx=Nx, Ny=Ny, Nz=Nz,
+                                     halo=(2, 2, 2),
+                                     topology=(Bounded, Bounded, Bounded))
             c = CenterField(bounded_grid)
             @test_throws ArgumentError BoxFilter(c; dims=(1,),      width=3)
             @test_throws ArgumentError BoxFilter(c; dims=(2,),      width=3)
