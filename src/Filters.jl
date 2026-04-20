@@ -289,19 +289,19 @@ function BoxFilter(ψ; dims, width, boundary=:shrink)
     # Canonical kernel nesting order (1 → 2 → 3), with boundary specs
     # reordered to match so each dim still gets its intended policy.
     sorted_dims = Tuple(d for d in (1, 2, 3) if d in dims)
-    sorted_specs = ntuple(length(sorted_dims)) do i
+    sorted_specs = ntuple(i -> begin
         user_idx = findfirst(==(sorted_dims[i]), dims)
         per_user_dim_specs[user_idx]
-    end
+    end, length(sorted_dims))
 
-    policies = ntuple(length(sorted_dims)) do i
+    policies = ntuple(i -> begin
         d = sorted_dims[i]
         if topology(grid, d) === Periodic
             PeriodicBoundary()
         else
             parse_boundary_spec(sorted_specs[i])
         end
-    end
+    end, length(sorted_dims))
 
     return build_box_filter_kfo(grid, (LX, LY, LZ), sorted_dims, width, policies, ψ)
 end
