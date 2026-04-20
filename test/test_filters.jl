@@ -291,10 +291,9 @@ end
 
             for g in (tiny_periodic, tiny_bounded, tiny_mixed)
                 c = CenterField(g)
-                @test BoxFilter(c; dims=(1,),      width=5)                      isa KernelFunctionOperation
-                @test BoxFilter(c; dims=(1, 2, 3), width=5, boundary=:edge)      isa KernelFunctionOperation
-                @test BoxFilter(c; dims=(1, 2, 3), width=5,
-                                boundary=(left=0.0, right=0.0))                  isa KernelFunctionOperation
+                @test BoxFilter(c; dims=(1,),      width=5)                                 isa KernelFunctionOperation
+                @test BoxFilter(c; dims=(1, 2, 3), width=5, boundary=:edge)                 isa KernelFunctionOperation
+                @test BoxFilter(c; dims=(1, 2, 3), width=5, boundary=(left=0.0, right=0.0)) isa KernelFunctionOperation
             end
         end
 
@@ -372,6 +371,18 @@ end
             shrink_expected = [1, 1.5, 2, 3, 4, 5, 6, 7, 7.5, 8]
             @test interior(compute_box_filter(c, (1,), 2))[:] ≈ shrink_expected
 
+            # :shrink, width=3. 7-point mean; the three cells closest to each
+            # wall have shrunken stencils.
+            #   i=1:  (ψ[1]+ψ[2]+ψ[3]+ψ[4])/4 = 6/4 = 1.5
+            #   i=2:  (ψ[1]+..+ψ[5])/5 = 10/5 = 2
+            #   i=3:  (ψ[1]+..+ψ[6])/6 = 15/6 = 2.5
+            #   i=4..7: full 7-point mean = i-1
+            #   i=8:  (ψ[5]+..+ψ[10])/6 = 39/6 = 6.5
+            #   i=9:  (ψ[6]+..+ψ[10])/5 = 35/5 = 7
+            #   i=10: (ψ[7]+..+ψ[10])/4 = 30/4 = 7.5
+            shrink_expected_w3 = [1.5, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 7.5]
+            @test interior(compute_box_filter(c, (1,), 3))[:] ≈ shrink_expected_w3
+
             # :edge, width=2. Out-of-bounds offsets clamp to ψ[1] or ψ[10].
             #   i=1: (ψ[1]+ψ[1]+ψ[1]+ψ[2]+ψ[3])/5 = 3/5 = 0.6
             #   i=2: (ψ[1]+ψ[1]+ψ[2]+ψ[3]+ψ[4])/5 = 6/5 = 1.2
@@ -380,6 +391,17 @@ end
             #   i=10: (ψ[8]+ψ[9]+ψ[10]+ψ[10]+ψ[10])/5 = 42/5 = 8.4
             edge_expected = [0.6, 1.2, 2, 3, 4, 5, 6, 7, 7.8, 8.4]
             @test interior(compute_box_filter(c, (1,), 2; boundary=:edge))[:] ≈ edge_expected
+
+            # :edge, width=3. 7-point mean with clamped near-wall offsets.
+            #   i=1: (ψ[1]+ψ[1]+ψ[1]+ψ[1]+ψ[2]+ψ[3]+ψ[4])/7 = 6/7
+            #   i=2: (ψ[1]+ψ[1]+ψ[1]+ψ[2]+ψ[3]+ψ[4]+ψ[5])/7 = 10/7
+            #   i=3: (ψ[1]+ψ[1]+ψ[2]+ψ[3]+ψ[4]+ψ[5]+ψ[6])/7 = 15/7
+            #   i=4..7: full-stencil mean = i-1
+            #   i=8:  (ψ[5]+ψ[6]+ψ[7]+ψ[8]+ψ[9]+ψ[10]+ψ[10])/7 = 48/7
+            #   i=9:  (ψ[6]+ψ[7]+ψ[8]+ψ[9]+ψ[10]+ψ[10]+ψ[10])/7 = 53/7
+            #   i=10: (ψ[7]+ψ[8]+ψ[9]+ψ[10]+ψ[10]+ψ[10]+ψ[10])/7 = 57/7
+            edge_expected_w3 = [6/7, 10/7, 15/7, 3, 4, 5, 6, 48/7, 53/7, 57/7]
+            @test interior(compute_box_filter(c, (1,), 3; boundary=:edge))[:] ≈ edge_expected_w3
 
             # Constant-pad (left=-1, right=-2), width=2. Near-wall cells include
             # the pads; interior cells use only real values.
@@ -391,6 +413,18 @@ end
             const_expected = [0.2, 1, 2, 3, 4, 5, 6, 7, 5.6, 4]
             @test interior(compute_box_filter(c, (1,), 2;
                                               boundary=(left=-1.0, right=-2.0)))[:] ≈ const_expected
+
+            # Constant-pad (left=-1, right=-2), width=3. 7-point mean.
+            #   i=1:  (-1 + -1 + -1 + ψ[1]+ψ[2]+ψ[3]+ψ[4])/7 = (-3 + 6)/7 = 3/7
+            #   i=2:  (-1 + -1 + ψ[1]+ψ[2]+ψ[3]+ψ[4]+ψ[5])/7 = (-2 + 10)/7 = 8/7
+            #   i=3:  (-1 + ψ[1]+ψ[2]+ψ[3]+ψ[4]+ψ[5]+ψ[6])/7 = (-1 + 15)/7 = 2
+            #   i=4..7: i-1
+            #   i=8:  (ψ[5]+ψ[6]+ψ[7]+ψ[8]+ψ[9]+ψ[10] + -2)/7 = (39 - 2)/7 = 37/7
+            #   i=9:  (ψ[6]+ψ[7]+ψ[8]+ψ[9]+ψ[10] + -2 + -2)/7 = (35 - 4)/7 = 31/7
+            #   i=10: (ψ[7]+ψ[8]+ψ[9]+ψ[10] + -2 + -2 + -2)/7 = (30 - 6)/7 = 24/7
+            const_expected_w3 = [3/7, 8/7, 2, 3, 4, 5, 6, 37/7, 31/7, 24/7]
+            @test interior(compute_box_filter(c, (1,), 3;
+                                              boundary=(left=-1.0, right=-2.0)))[:] ≈ const_expected_w3
         end
 
         @testset "Per-dim boundary tuple mixes policies across dims" begin
