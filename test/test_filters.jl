@@ -28,7 +28,6 @@ end
 
 function compute_box_filter(ψ, dims, width; kwargs...)
     cf = Field(BoxFilter(ψ; dims=dims, width=width, kwargs...))
-    compute!(cf)
     return cf
 end
 

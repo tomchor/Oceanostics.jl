@@ -74,10 +74,7 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, stop_time=0.1, clo
     ∫c²dV_t⁰ = parent(∫c²dV)[1,1,1]
 
     function accumulate_χ(sim)
-        compute!(∫εdV)
         ∫∫εdVdt[] += sim.Δt * only(interior(∫εdV, 1, 1, 1))
-
-        compute!(∫χdV)
         ∫∫χdVdt[] += sim.Δt * only(interior(∫χdV, 1, 1, 1))
         return nothing
     end
@@ -85,14 +82,12 @@ function test_tracer_variance_budget(; arch, N=16, rtol=0.01, stop_time=0.1, clo
 
     run!(simulation)
 
-    compute!(∫KEdV)
     ∫KEdV_tᶠ = parent(∫KEdV)[1,1,1]
     ∫∫εdVdt_tᶠ = ∫KEdV_t⁰- ∫∫εdVdt[]
     abs_error = (abs(∫∫εdVdt_tᶠ - ∫KEdV_tᶠ)/∫KEdV_t⁰)
     @info "Error in KE decrease is $abs_error"
     @test abs_error < rtol
 
-    compute!(∫c²dV)
     ∫c²dV_tᶠ = parent(∫c²dV)[1,1,1]
     ∫∫χdVdt_tᶠ = ∫c²dV_t⁰- ∫∫χdVdt[]
     abs_error = (abs(∫∫χdVdt_tᶠ - ∫c²dV_tᶠ)/∫c²dV_t⁰)

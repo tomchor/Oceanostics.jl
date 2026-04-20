@@ -41,33 +41,33 @@ function test_velocity_only_flow_diagnostics(model)
     op = RossbyNumber(model;)
     @test op isa RossbyNumber
     Ro = Field(op)
-    @test all(interior(compute!(Ro)) .≈ 0)
+    @test all(interior(Ro) .≈ 0)
 
     op = RossbyNumber(model, model.velocities..., model.coriolis)
     @test op isa RossbyNumber
     Ro = Field(op)
-    @test all(interior(compute!(Ro)) .≈ 0)
+    @test all(interior(Ro) .≈ 0)
 
     op = RossbyNumber(model; dUdy_bg=1, dVdx_bg=1)
     @test op isa RossbyNumber
     Ro = Field(op)
-    @test all(interior(compute!(Ro)) .≈ 0)
+    @test all(interior(Ro) .≈ 0)
 
     op = StrainRateTensorModulus(model)
     @test op isa StrainRateTensorModulus
     S = Field(op)
-    @test all(interior(compute!(S)) .≈ 0)
+    @test all(interior(S) .≈ 0)
 
     op = VorticityTensorModulus(model)
     @test op isa VorticityTensorModulus
     Ω = Field(op)
-    @test all(interior(compute!(Ω)) .≈ 0)
+    @test all(interior(Ω) .≈ 0)
 
     op = QVelocityGradientTensorInvariant(model)
     @allowscalar @test op == Oceanostics.Q(model)
     @test op isa QVelocityGradientTensorInvariant
     q = Field(op)
-    @test all(interior(compute!(q)) .≈ 0)
+    @test all(interior(q) .≈ 0)
 
     return nothing
 end
@@ -75,7 +75,6 @@ end
 function test_auxiliary_functions(model)
     set!(model, u=1, v=2)
     fields_without_means = perturbation_fields(model; u=1, v=2)
-    compute!(fields_without_means)
     @test all(Array(interior(fields_without_means.u)) .== 0)
     @test all(Array(interior(fields_without_means.v)) .== 0)
     return
