@@ -9,8 +9,7 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 
 using Oceanostics: CustomKFO
 
-# -------- Boundary policies --------
-
+#+++ Boundary policies
 """
     AbstractBoundaryPolicy
 
@@ -48,85 +47,86 @@ struct ConstantBoundary{T} <: AbstractBoundaryPolicy
     ConstantBoundary{T}(l, r) where {T} = new{T}(l, r)
 end
 ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), typeof(right))}(promote(left, right)...)
+#---
 
-# -------- Fetch / call dispatchers --------
+#+++ Fetch / call dispatchers
 #
-# `_fetchD(policy, ψ, ii, jj, kk, N)` returns `(value, count)` when `ψ` is an
-# indexable field; `_callD(policy, f, ii, jj, kk, N, grid, fargs...)` is the
+# `_fetchD(policy, ψ, i, j, k, N)` returns `(value, count)` when `ψ` is an
+# indexable field; `_callD(policy, f, i, j, k, N, grid, fargs...)` is the
 # same thing when the inner value comes from another kernel function. `count`
 # is 1 in every case except `ShrinkBoundary` out-of-bounds, where it is 0 so
 # the offset is excluded from the running mean.
 
-@inline _fetch1(::PeriodicBoundary, ψ, ii, jj, kk, N) = (ψ[mod1(ii, N), jj, kk], 1)
-@inline _fetch2(::PeriodicBoundary, ψ, ii, jj, kk, N) = (ψ[ii, mod1(jj, N), kk], 1)
-@inline _fetch3(::PeriodicBoundary, ψ, ii, jj, kk, N) = (ψ[ii, jj, mod1(kk, N)], 1)
+@inline _fetch1(::PeriodicBoundary, ψ, i, j, k, N) = (ψ[mod1(i, N), j, k], 1)
+@inline _fetch2(::PeriodicBoundary, ψ, i, j, k, N) = (ψ[i, mod1(j, N), k], 1)
+@inline _fetch3(::PeriodicBoundary, ψ, i, j, k, N) = (ψ[i, j, mod1(k, N)], 1)
 
-@inline _fetch1(::EdgeBoundary, ψ, ii, jj, kk, N) = (ψ[clamp(ii, 1, N), jj, kk], 1)
-@inline _fetch2(::EdgeBoundary, ψ, ii, jj, kk, N) = (ψ[ii, clamp(jj, 1, N), kk], 1)
-@inline _fetch3(::EdgeBoundary, ψ, ii, jj, kk, N) = (ψ[ii, jj, clamp(kk, 1, N)], 1)
+@inline _fetch1(::EdgeBoundary, ψ, i, j, k, N) = (ψ[clamp(i, 1, N), j, k], 1)
+@inline _fetch2(::EdgeBoundary, ψ, i, j, k, N) = (ψ[i, clamp(j, 1, N), k], 1)
+@inline _fetch3(::EdgeBoundary, ψ, i, j, k, N) = (ψ[i, j, clamp(k, 1, N)], 1)
 
-@inline function _fetch1(c::ConstantBoundary, ψ, ii, jj, kk, N)
-    ii < 1 && return (c.left,  1)
-    ii > N && return (c.right, 1)
-    return (ψ[ii, jj, kk], 1)
+@inline function _fetch1(c::ConstantBoundary, ψ, i, j, k, N)
+    i < 1 && return (c.left,  1)
+    i > N && return (c.right, 1)
+    return (ψ[i, j, k], 1)
 end
-@inline function _fetch2(c::ConstantBoundary, ψ, ii, jj, kk, N)
-    jj < 1 && return (c.left,  1)
-    jj > N && return (c.right, 1)
-    return (ψ[ii, jj, kk], 1)
+@inline function _fetch2(c::ConstantBoundary, ψ, i, j, k, N)
+    j < 1 && return (c.left,  1)
+    j > N && return (c.right, 1)
+    return (ψ[i, j, k], 1)
 end
-@inline function _fetch3(c::ConstantBoundary, ψ, ii, jj, kk, N)
-    kk < 1 && return (c.left,  1)
-    kk > N && return (c.right, 1)
-    return (ψ[ii, jj, kk], 1)
-end
-
-@inline _fetch1(::ShrinkBoundary, ψ, ii, jj, kk, N) =
-    (1 <= ii <= N) ? (ψ[ii, jj, kk], 1) : (zero(eltype(ψ)), 0)
-@inline _fetch2(::ShrinkBoundary, ψ, ii, jj, kk, N) =
-    (1 <= jj <= N) ? (ψ[ii, jj, kk], 1) : (zero(eltype(ψ)), 0)
-@inline _fetch3(::ShrinkBoundary, ψ, ii, jj, kk, N) =
-    (1 <= kk <= N) ? (ψ[ii, jj, kk], 1) : (zero(eltype(ψ)), 0)
-
-@inline _call1(::PeriodicBoundary, f, ii, jj, kk, N, grid, fargs...) =
-    (f(mod1(ii, N), jj, kk, grid, fargs...), 1)
-@inline _call2(::PeriodicBoundary, f, ii, jj, kk, N, grid, fargs...) =
-    (f(ii, mod1(jj, N), kk, grid, fargs...), 1)
-@inline _call3(::PeriodicBoundary, f, ii, jj, kk, N, grid, fargs...) =
-    (f(ii, jj, mod1(kk, N), grid, fargs...), 1)
-
-@inline _call1(::EdgeBoundary, f, ii, jj, kk, N, grid, fargs...) =
-    (f(clamp(ii, 1, N), jj, kk, grid, fargs...), 1)
-@inline _call2(::EdgeBoundary, f, ii, jj, kk, N, grid, fargs...) =
-    (f(ii, clamp(jj, 1, N), kk, grid, fargs...), 1)
-@inline _call3(::EdgeBoundary, f, ii, jj, kk, N, grid, fargs...) =
-    (f(ii, jj, clamp(kk, 1, N), grid, fargs...), 1)
-
-@inline function _call1(c::ConstantBoundary, f, ii, jj, kk, N, grid, fargs...)
-    ii < 1 && return (c.left,  1)
-    ii > N && return (c.right, 1)
-    return (f(ii, jj, kk, grid, fargs...), 1)
-end
-@inline function _call2(c::ConstantBoundary, f, ii, jj, kk, N, grid, fargs...)
-    jj < 1 && return (c.left,  1)
-    jj > N && return (c.right, 1)
-    return (f(ii, jj, kk, grid, fargs...), 1)
-end
-@inline function _call3(c::ConstantBoundary, f, ii, jj, kk, N, grid, fargs...)
-    kk < 1 && return (c.left,  1)
-    kk > N && return (c.right, 1)
-    return (f(ii, jj, kk, grid, fargs...), 1)
+@inline function _fetch3(c::ConstantBoundary, ψ, i, j, k, N)
+    k < 1 && return (c.left,  1)
+    k > N && return (c.right, 1)
+    return (ψ[i, j, k], 1)
 end
 
-@inline _call1(::ShrinkBoundary, f, ii, jj, kk, N, grid, fargs...) =
-    (1 <= ii <= N) ? (f(ii, jj, kk, grid, fargs...), 1) : (zero(grid), 0)
-@inline _call2(::ShrinkBoundary, f, ii, jj, kk, N, grid, fargs...) =
-    (1 <= jj <= N) ? (f(ii, jj, kk, grid, fargs...), 1) : (zero(grid), 0)
-@inline _call3(::ShrinkBoundary, f, ii, jj, kk, N, grid, fargs...) =
-    (1 <= kk <= N) ? (f(ii, jj, kk, grid, fargs...), 1) : (zero(grid), 0)
+@inline _fetch1(::ShrinkBoundary, ψ, i, j, k, N) =
+    (1 <= i <= N) ? (ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
+@inline _fetch2(::ShrinkBoundary, ψ, i, j, k, N) =
+    (1 <= j <= N) ? (ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
+@inline _fetch3(::ShrinkBoundary, ψ, i, j, k, N) =
+    (1 <= k <= N) ? (ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
 
-# -------- Kernel struct + methods --------
+@inline _call1(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) =
+    (f(mod1(i, N), j, k, grid, fargs...), 1)
+@inline _call2(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) =
+    (f(i, mod1(j, N), k, grid, fargs...), 1)
+@inline _call3(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) =
+    (f(i, j, mod1(k, N), grid, fargs...), 1)
 
+@inline _call1(::EdgeBoundary, f, i, j, k, N, grid, fargs...) =
+    (f(clamp(i, 1, N), j, k, grid, fargs...), 1)
+@inline _call2(::EdgeBoundary, f, i, j, k, N, grid, fargs...) =
+    (f(i, clamp(j, 1, N), k, grid, fargs...), 1)
+@inline _call3(::EdgeBoundary, f, i, j, k, N, grid, fargs...) =
+    (f(i, j, clamp(k, 1, N), grid, fargs...), 1)
+
+@inline function _call1(c::ConstantBoundary, f, i, j, k, N, grid, fargs...)
+    i < 1 && return (c.left,  1)
+    i > N && return (c.right, 1)
+    return (f(i, j, k, grid, fargs...), 1)
+end
+@inline function _call2(c::ConstantBoundary, f, i, j, k, N, grid, fargs...)
+    j < 1 && return (c.left,  1)
+    j > N && return (c.right, 1)
+    return (f(i, j, k, grid, fargs...), 1)
+end
+@inline function _call3(c::ConstantBoundary, f, i, j, k, N, grid, fargs...)
+    k < 1 && return (c.left,  1)
+    k > N && return (c.right, 1)
+    return (f(i, j, k, grid, fargs...), 1)
+end
+
+@inline _call1(::ShrinkBoundary, f, i, j, k, N, grid, fargs...) =
+    (1 <= i <= N) ? (f(i, j, k, grid, fargs...), 1) : (zero(grid), 0)
+@inline _call2(::ShrinkBoundary, f, i, j, k, N, grid, fargs...) =
+    (1 <= j <= N) ? (f(i, j, k, grid, fargs...), 1) : (zero(grid), 0)
+@inline _call3(::ShrinkBoundary, f, i, j, k, N, grid, fargs...) =
+    (1 <= k <= N) ? (f(i, j, k, grid, fargs...), 1) : (zero(grid), 0)
+#---
+
+#+++ BoxFilter kernel
 """
     BoxFilterKernel{D} <: Function
 
@@ -308,9 +308,9 @@ function build_box_filter_kfo(grid, loc, dims::NTuple{3, Int}, width, policies, 
                                            BoxFilterKernel{d3}(), width, policies[3],
                                            ψ)
 end
+#---
 
-# -------- Validation --------
-
+#+++ Validation
 validate_dims(dims::Tuple{Vararg{Int}}) =
     (!isempty(dims) && all(d -> d in (1, 2, 3), dims) && allunique(dims)) ||
         throw(ArgumentError("BoxFilter `dims` must be a non-empty tuple of distinct integers drawn from (1, 2, 3); got $dims"))
@@ -339,5 +339,6 @@ parse_boundary_spec(p::AbstractBoundaryPolicy) = p
 
 parse_boundary_spec(x) =
     throw(ArgumentError("BoxFilter `boundary` must be :shrink, :edge, or (left=a, right=b); got $(repr(x))"))
+#---
 
 end # module
