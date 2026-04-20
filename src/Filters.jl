@@ -223,11 +223,12 @@ whose kernel function is a 1D `BoxFilterKernel{d₁}`, with the next dimension's
 Stencil offsets that leave the interior `1:N` of a direction are handled
 per-direction. For `Periodic` directions offsets are always wrapped via
 `mod1`, independent of the `boundary` keyword. For `Bounded` directions the
-`boundary` keyword picks the policy:
+`boundary` keyword picks the policy (default: `:shrink`):
 
-  - `:shrink` (default) — drop out-of-bounds offsets from *both* the sum and
-    the count, so the filter is an honest local average whose effective
-    stencil shrinks within `width` cells of a wall.
+  - `:shrink` — drop out-of-bounds offsets from *both* the sum and the
+    count, so the filter is an honest local average whose effective stencil
+    shrinks within `width` cells of a wall. **This is the default for
+    `Bounded` directions.**
   - `:edge` — replicate the boundary-cell value (reads `ψ[1]` or `ψ[N]` for
     offsets past either end).
   - `(left=a, right=b)` — pad with constant `a` on the low-index side and
@@ -245,6 +246,25 @@ does not constrain `width`: a small halo on a bounded direction is fine. The
 output location matches the location of `ψ`, and `ψ` can be any input that
 supports the standard Oceananigans `ψ[i, j, k]` indexing contract (e.g. a
 `Field` or any `AbstractOperation`).
+
+## Examples
+
+Filter a tracer on a 2D (xz) grid that is periodic in `x` and bounded in `z`.
+The `boundary=:edge` keyword explicitly overrides the default `:shrink` policy
+for the bounded `z`-direction; `x` is `Periodic` so the `boundary` spec is
+silently ignored for that direction regardless.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(8, 8), x=(0, 1), z=(0, 1),
+                              topology=(Periodic, Flat, Bounded));
+
+julia> c = CenterField(grid);
+
+julia> BoxFilter(c; dims=(1, 3), width=2, boundary=:edge) isa KernelFunctionOperation
+true
+```
 """
 function BoxFilter(ψ; dims, width, boundary=:shrink)
     validate_dims(dims)
