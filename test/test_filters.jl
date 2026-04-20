@@ -16,6 +16,10 @@ using Oceanostics: BoxFilter
                                topology = (Periodic, Periodic, Periodic))
 
         @testset "Constructor returns KernelFunctionOperation" begin
+            # Sanity check that BoxFilter returns a KernelFunctionOperation and that
+            # the `BoxFilter` type alias matches the constructor's output. Downstream
+            # Oceananigans machinery (Field, compute!, Output writers) dispatches on
+            # KFO, so a regression here would break every user of BoxFilter.
             c = CenterField(grid)
             bf = BoxFilter(c; dims=(1,), width=1)
             @test bf isa KernelFunctionOperation
@@ -47,6 +51,9 @@ using Oceanostics: BoxFilter
         end
 
         @testset "Constant field is unchanged" begin
+            # A constant field is the trivial fixed point of any averaging operator.
+            # This immediately catches normalization mistakes (e.g. dividing by n+1
+            # instead of n, or by (2w+1) instead of (2w+1)^d for multi-dim filters).
             c = CenterField(grid)
             set!(c, (x, y, z) -> 3.14)
             fill_halo_regions!(c)
@@ -56,6 +63,12 @@ using Oceanostics: BoxFilter
         end
 
         @testset "Averaging matches an explicit stencil sum" begin
+            # Strongest correctness check: compare BoxFilter output cell-by-cell
+            # against a hand-written reference using explicit mod1 wrapping, on a
+            # non-trivial (trig + quadratic) field. Covers 1D (width=1), 3D
+            # (width=1, 27-point box), and 2D / 3D with width=2 (25- and 125-point
+            # boxes). The wider-stencil cases matter because they stress the
+            # inner-loop indexing over strides > 1 and the (2w+1)^d normalization.
             c = CenterField(grid)
             set!(c, (x, y, z) -> sin(2π * x) * cos(2π * y) + z^2)
             fill_halo_regions!(c)
@@ -85,9 +98,85 @@ using Oceanostics: BoxFilter
                 ref3[i, j, k] = s / 27
             end
             @test interior(cf3) ≈ ref3
+
+            # Reference: explicit 2D xy-average with width = 2 (5×5 = 25-point stencil).
+            # Guards against bugs where multi-dim normalization only works at width=1
+            # (e.g. dividing by (2w+1) instead of (2w+1)^d).
+            width2 = 2
+            cf2d = Field(BoxFilter(c; dims=(1, 2), width=width2))
+            compute!(cf2d)
+
+            ref2d = similar(ic)
+            for i in 1:Nx, j in 1:Ny, k in 1:Nz
+                s = 0.0
+                for di in -width2:width2, dj in -width2:width2
+                    s += ic[mod1(i+di, Nx), mod1(j+dj, Ny), k]
+                end
+                ref2d[i, j, k] = s / (2*width2 + 1)^2
+            end
+            @test interior(cf2d) ≈ ref2d
+
+            # Reference: explicit 3D average with width = 2 (5³ = 125-point box).
+            # The width-1 case (27 points) doesn't exercise strides > 1 in any
+            # direction; this one does, for all three nested 1D kernels at once.
+            cf3d2 = Field(BoxFilter(c; dims=(1, 2, 3), width=width2))
+            compute!(cf3d2)
+
+            ref3d2 = similar(ic)
+            for i in 1:Nx, j in 1:Ny, k in 1:Nz
+                s = 0.0
+                for di in -width2:width2, dj in -width2:width2, dk in -width2:width2
+                    s += ic[mod1(i+di, Nx), mod1(j+dj, Ny), mod1(k+dk, Nz)]
+                end
+                ref3d2[i, j, k] = s / (2*width2 + 1)^3
+            end
+            @test interior(cf3d2) ≈ ref3d2
+        end
+
+        @testset "Exact hand-computed values on a 1D periodic grid" begin
+            # Pins down actual numerical output on a tiny, trivially-verifiable case:
+            # ψ = [0, 1, 2, ..., 9] on a 10-cell Periodic 1D grid, filtered at
+            # width=1 and width=2. Every expected value was computed by hand (see
+            # comments below). This complements the algebraic-identity tests
+            # (linear/constant fields, explicit stencil sums with trig inputs) by
+            # anchoring the filter's output to concrete numbers — any regression
+            # in normalization, indexing offsets, or periodic wrap-around would
+            # immediately surface as a value mismatch rather than hiding inside a
+            # self-consistent numerical reference.
+            grid_1d = RectilinearGrid(size = (10,),
+                                      x = (0, 1),
+                                      halo = (2,),
+                                      topology = (Periodic, Flat, Flat))
+            c = CenterField(grid_1d)
+            interior(c)[:] .= Float64.(0:9)
+            fill_halo_regions!(c)
+
+            # width = 1, (ψ[i-1] + ψ[i] + ψ[i+1]) / 3 with periodic wrap:
+            #   i=1:  (9 + 0 + 1)/3 = 10/3
+            #   i=2..9: just i-1 (the arithmetic-sequence mean)
+            #   i=10: (8 + 9 + 0)/3 = 17/3
+            cf1 = Field(BoxFilter(c; dims=(1,), width=1))
+            compute!(cf1)
+            expected1 = [10/3, 1, 2, 3, 4, 5, 6, 7, 8, 17/3]
+            @test interior(cf1)[:] ≈ expected1
+
+            # width = 2, 5-point mean with periodic wrap:
+            #   i=1:  (8+9+0+1+2)/5 = 4
+            #   i=2:  (9+0+1+2+3)/5 = 3
+            #   i=3..8: just i-1 (the arithmetic-sequence mean)
+            #   i=9:  (6+7+8+9+0)/5 = 6
+            #   i=10: (7+8+9+0+1)/5 = 5
+            cf2 = Field(BoxFilter(c; dims=(1,), width=2))
+            compute!(cf2)
+            expected2 = [4, 3, 2, 3, 4, 5, 6, 7, 6, 5]
+            @test interior(cf2)[:] ≈ expected2
         end
 
         @testset "Output location matches input location" begin
+            # A symmetric (2w+1)-point average preserves the grid location of its
+            # input, so filtering a Face-located field must yield output on the same
+            # Face. A regression (e.g. hard-coding ccc) would silently move the
+            # output to the wrong grid and break any downstream gradient/operator.
             c = CenterField(grid)
             u = XFaceField(grid)
             v = YFaceField(grid)
@@ -100,6 +189,11 @@ using Oceanostics: BoxFilter
         end
 
         @testset "Accepts AbstractOperation as input" begin
+            # BoxFilter should accept any Oceananigans AbstractOperation, not just
+            # Fields, so users can chain it with algebraic expressions like `2*c`
+            # without having to materialize the intermediate. The numerical check
+            # confirms the filter sees the operation's values (not zeros or the
+            # underlying Field unscaled).
             c = CenterField(grid)
             set!(c, (x, y, z) -> x + y)
             fill_halo_regions!(c)
@@ -114,6 +208,9 @@ using Oceanostics: BoxFilter
         end
 
         @testset "Accepts another KernelFunctionOperation as input" begin
+            # Filters must compose: wrapping a BoxFilter inside another BoxFilter
+            # (e.g. a 1D-y filter of a 1D-x filter) is a legitimate user pattern
+            # and also exercises the recursive `f::Function` method of the kernel.
             c = CenterField(grid)
             set!(c, (x, y, z) -> sin(2π * x))
             fill_halo_regions!(c)
@@ -125,6 +222,10 @@ using Oceanostics: BoxFilter
         end
 
         @testset "Validation of dims" begin
+            # `dims` must be a non-empty tuple of distinct integers from (1,2,3).
+            # We reject each misuse up front with a clear ArgumentError rather than
+            # letting it fall through to a cryptic indexing or dispatch failure
+            # deep inside the kernel.
             c = CenterField(grid)
             @test_throws ArgumentError BoxFilter(c; dims=(),     width=1)
             @test_throws ArgumentError BoxFilter(c; dims=(0,),   width=1)
@@ -135,6 +236,10 @@ using Oceanostics: BoxFilter
         end
 
         @testset "Validation of width" begin
+            # `width` must be a positive integer (it is the half-width in cells of
+            # a (2w+1)-point stencil). Zero, negative, and non-integer values must
+            # be rejected at construction time so users get an immediate, clear
+            # error rather than a silent miscount or a later dispatch error.
             c = CenterField(grid)
             @test_throws ArgumentError BoxFilter(c; dims=(1,), width=0)
             @test_throws ArgumentError BoxFilter(c; dims=(1,), width=-1)
