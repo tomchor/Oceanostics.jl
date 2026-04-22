@@ -65,65 +65,29 @@ ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), type
 @inline _fetch2(::EdgeBoundary, ψ, i, j, k, N) = (ψ[i, clamp(j, 1, N), k], 1)
 @inline _fetch3(::EdgeBoundary, ψ, i, j, k, N) = (ψ[i, j, clamp(k, 1, N)], 1)
 
-@inline function _fetch1(c::ConstantBoundary, ψ, i, j, k, N)
-    i < 1 && return (c.left,  1)
-    i > N && return (c.right, 1)
-    return (ψ[i, j, k], 1)
-end
-@inline function _fetch2(c::ConstantBoundary, ψ, i, j, k, N)
-    j < 1 && return (c.left,  1)
-    j > N && return (c.right, 1)
-    return (ψ[i, j, k], 1)
-end
-@inline function _fetch3(c::ConstantBoundary, ψ, i, j, k, N)
-    k < 1 && return (c.left,  1)
-    k > N && return (c.right, 1)
-    return (ψ[i, j, k], 1)
-end
+@inline _fetch1(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(i < 1, c.left, ifelse(i > N, c.right, ψ[clamp(i, 1, N), j, k])), 1)
+@inline _fetch2(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(j < 1, c.left, ifelse(j > N, c.right, ψ[i, clamp(j, 1, N), k])), 1)
+@inline _fetch3(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(k < 1, c.left, ifelse(k > N, c.right, ψ[i, j, clamp(k, 1, N)])), 1)
 
-@inline _fetch1(::ShrinkBoundary, ψ, i, j, k, N) =
-    (1 <= i <= N) ? (ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
-@inline _fetch2(::ShrinkBoundary, ψ, i, j, k, N) =
-    (1 <= j <= N) ? (ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
-@inline _fetch3(::ShrinkBoundary, ψ, i, j, k, N) =
-    (1 <= k <= N) ? (ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
+@inline _fetch1(::ShrinkBoundary, ψ, i, j, k, N) = (1 <= i <= N) ? (ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
+@inline _fetch2(::ShrinkBoundary, ψ, i, j, k, N) = (1 <= j <= N) ? (ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
+@inline _fetch3(::ShrinkBoundary, ψ, i, j, k, N) = (1 <= k <= N) ? (ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
 
-@inline _call1(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) =
-    (f(mod1(i, N), j, k, grid, fargs...), 1)
-@inline _call2(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) =
-    (f(i, mod1(j, N), k, grid, fargs...), 1)
-@inline _call3(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) =
-    (f(i, j, mod1(k, N), grid, fargs...), 1)
+@inline _call1(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(mod1(i, N), j, k, grid, fargs...), 1)
+@inline _call2(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, mod1(j, N), k, grid, fargs...), 1)
+@inline _call3(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, j, mod1(k, N), grid, fargs...), 1)
 
-@inline _call1(::EdgeBoundary, f, i, j, k, N, grid, fargs...) =
-    (f(clamp(i, 1, N), j, k, grid, fargs...), 1)
-@inline _call2(::EdgeBoundary, f, i, j, k, N, grid, fargs...) =
-    (f(i, clamp(j, 1, N), k, grid, fargs...), 1)
-@inline _call3(::EdgeBoundary, f, i, j, k, N, grid, fargs...) =
-    (f(i, j, clamp(k, 1, N), grid, fargs...), 1)
+@inline _call1(::EdgeBoundary, f, i, j, k, N, grid, fargs...) = (f(clamp(i, 1, N), j, k, grid, fargs...), 1)
+@inline _call2(::EdgeBoundary, f, i, j, k, N, grid, fargs...) = (f(i, clamp(j, 1, N), k, grid, fargs...), 1)
+@inline _call3(::EdgeBoundary, f, i, j, k, N, grid, fargs...) = (f(i, j, clamp(k, 1, N), grid, fargs...), 1)
 
-@inline function _call1(c::ConstantBoundary, f, i, j, k, N, grid, fargs...)
-    i < 1 && return (c.left,  1)
-    i > N && return (c.right, 1)
-    return (f(i, j, k, grid, fargs...), 1)
-end
-@inline function _call2(c::ConstantBoundary, f, i, j, k, N, grid, fargs...)
-    j < 1 && return (c.left,  1)
-    j > N && return (c.right, 1)
-    return (f(i, j, k, grid, fargs...), 1)
-end
-@inline function _call3(c::ConstantBoundary, f, i, j, k, N, grid, fargs...)
-    k < 1 && return (c.left,  1)
-    k > N && return (c.right, 1)
-    return (f(i, j, k, grid, fargs...), 1)
-end
+@inline _call1(c::ConstantBoundary, f, i, j, k, N, grid, fargs...) = (ifelse(i < 1, c.left, ifelse(i > N, c.right, f(clamp(i, 1, N), j, k, grid, fargs...))), 1)
+@inline _call2(c::ConstantBoundary, f, i, j, k, N, grid, fargs...) = (ifelse(j < 1, c.left, ifelse(j > N, c.right, f(i, clamp(j, 1, N), k, grid, fargs...))), 1)
+@inline _call3(c::ConstantBoundary, f, i, j, k, N, grid, fargs...) = (ifelse(k < 1, c.left, ifelse(k > N, c.right, f(i, j, clamp(k, 1, N), grid, fargs...))), 1)
 
-@inline _call1(::ShrinkBoundary, f, i, j, k, N, grid, fargs...) =
-    (1 <= i <= N) ? (f(i, j, k, grid, fargs...), 1) : (zero(grid), 0)
-@inline _call2(::ShrinkBoundary, f, i, j, k, N, grid, fargs...) =
-    (1 <= j <= N) ? (f(i, j, k, grid, fargs...), 1) : (zero(grid), 0)
-@inline _call3(::ShrinkBoundary, f, i, j, k, N, grid, fargs...) =
-    (1 <= k <= N) ? (f(i, j, k, grid, fargs...), 1) : (zero(grid), 0)
+@inline _call1(::ShrinkBoundary, f, i, j, k, N, grid, fargs...) = (1 <= i <= N) ? (f(i, j, k, grid, fargs...), 1) : (zero(grid), 0)
+@inline _call2(::ShrinkBoundary, f, i, j, k, N, grid, fargs...) = (1 <= j <= N) ? (f(i, j, k, grid, fargs...), 1) : (zero(grid), 0)
+@inline _call3(::ShrinkBoundary, f, i, j, k, N, grid, fargs...) = (1 <= k <= N) ? (f(i, j, k, grid, fargs...), 1) : (zero(grid), 0)
 #---
 
 #+++ BoxFilter kernel
@@ -332,7 +296,7 @@ end
 
 #+++ Validation
 validate_dims(dims::Tuple{Vararg{Int}}) =
-    (!isempty(dims) && all(d -> d in (1, 2, 3), dims) && allunique(dims)) ||
+    (!isempty(dims) & all(d -> d in (1, 2, 3), dims) & allunique(dims)) ||
         throw(ArgumentError("BoxFilter `dims` must be a non-empty tuple of distinct integers drawn from (1, 2, 3); got $dims"))
 
 validate_dims(dims) =
@@ -350,7 +314,7 @@ parse_boundary_spec(s::Symbol) =
     throw(ArgumentError("BoxFilter `boundary` symbol must be :shrink or :edge; got :$s"))
 
 function parse_boundary_spec(nt::NamedTuple)
-    (length(nt) == 2 && haskey(nt, :left) && haskey(nt, :right)) ||
+    ((length(nt) == 2) & haskey(nt, :left) & haskey(nt, :right)) ||
         throw(ArgumentError("BoxFilter `boundary` NamedTuple must have exactly keys `:left` and `:right`; got keys $(keys(nt))"))
     return ConstantBoundary(nt.left, nt.right)
 end
