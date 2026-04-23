@@ -69,9 +69,18 @@ ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), type
 @inline _fetch2(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(j < 1, c.left, ifelse(j > N, c.right, @inbounds ψ[i, clamp(j, 1, N), k])), 1)
 @inline _fetch3(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(k < 1, c.left, ifelse(k > N, c.right, @inbounds ψ[i, j, clamp(k, 1, N)])), 1)
 
-@inline _fetch1(::ShrinkBoundary, ψ, i, j, k, N) = (1 <= i <= N) ? (@inbounds ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
-@inline _fetch2(::ShrinkBoundary, ψ, i, j, k, N) = (1 <= j <= N) ? (@inbounds ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
-@inline _fetch3(::ShrinkBoundary, ψ, i, j, k, N) = (1 <= k <= N) ? (@inbounds ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
+@inline function _fetch1(::ShrinkBoundary, ψ, i, j, k, N)
+    in_bounds = (1 <= i) & (i <= N)
+    (ifelse(in_bounds, @inbounds(ψ[clamp(i, 1, N), j, k]), zero(eltype(ψ))), Int(in_bounds))
+end
+@inline function _fetch2(::ShrinkBoundary, ψ, i, j, k, N)
+    in_bounds = (1 <= j) & (j <= N)
+    (ifelse(in_bounds, @inbounds(ψ[i, clamp(j, 1, N), k]), zero(eltype(ψ))), Int(in_bounds))
+end
+@inline function _fetch3(::ShrinkBoundary, ψ, i, j, k, N)
+    in_bounds = (1 <= k) & (k <= N)
+    (ifelse(in_bounds, @inbounds(ψ[i, j, clamp(k, 1, N)]), zero(eltype(ψ))), Int(in_bounds))
+end
 
 @inline _call1(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(mod1(i, N), j, k, grid, fargs...), 1)
 @inline _call2(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, mod1(j, N), k, grid, fargs...), 1)
@@ -85,9 +94,18 @@ ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), type
 @inline _call2(c::ConstantBoundary, f, i, j, k, N, grid, fargs...) = (ifelse(j < 1, c.left, ifelse(j > N, c.right, f(i, clamp(j, 1, N), k, grid, fargs...))), 1)
 @inline _call3(c::ConstantBoundary, f, i, j, k, N, grid, fargs...) = (ifelse(k < 1, c.left, ifelse(k > N, c.right, f(i, j, clamp(k, 1, N), grid, fargs...))), 1)
 
-@inline _call1(::ShrinkBoundary, f, i, j, k, N, grid, fargs...) = (1 <= i <= N) ? (f(i, j, k, grid, fargs...), 1) : (zero(grid), 0)
-@inline _call2(::ShrinkBoundary, f, i, j, k, N, grid, fargs...) = (1 <= j <= N) ? (f(i, j, k, grid, fargs...), 1) : (zero(grid), 0)
-@inline _call3(::ShrinkBoundary, f, i, j, k, N, grid, fargs...) = (1 <= k <= N) ? (f(i, j, k, grid, fargs...), 1) : (zero(grid), 0)
+@inline function _call1(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
+    in_bounds = (1 <= i) & (i <= N)
+    (ifelse(in_bounds, f(clamp(i, 1, N), j, k, grid, fargs...), zero(grid)), Int(in_bounds))
+end
+@inline function _call2(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
+    in_bounds = (1 <= j) & (j <= N)
+    (ifelse(in_bounds, f(i, clamp(j, 1, N), k, grid, fargs...), zero(grid)), Int(in_bounds))
+end
+@inline function _call3(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
+    in_bounds = (1 <= k) & (k <= N)
+    (ifelse(in_bounds, f(i, j, clamp(k, 1, N), grid, fargs...), zero(grid)), Int(in_bounds))
+end
 #---
 
 #+++ BoxFilter kernel
