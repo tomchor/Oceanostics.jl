@@ -57,9 +57,11 @@ ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), type
 # is 1 in every case except `ShrinkBoundary` out-of-bounds, where it is 0 so
 # the offset is excluded from the running mean.
 
-@inline _fetch1(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[mod1(i, N), j, k], 1)
-@inline _fetch2(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, mod1(j, N), k], 1)
-@inline _fetch3(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, j, mod1(k, N)], 1)
+@inline _wrap(i, N) = i + ifelse(i < 1, N, 0) - ifelse(i > N, N, 0)
+
+@inline _fetch1(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[_wrap(i, N), j, k], 1)
+@inline _fetch2(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, _wrap(j, N), k], 1)
+@inline _fetch3(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, j, _wrap(k, N)], 1)
 
 @inline _fetch1(::EdgeBoundary, ψ, i, j, k, N) = (@inbounds ψ[clamp(i, 1, N), j, k], 1)
 @inline _fetch2(::EdgeBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, clamp(j, 1, N), k], 1)
@@ -82,9 +84,9 @@ end
     (ifelse(in_bounds, @inbounds(ψ[i, j, clamp(k, 1, N)]), zero(eltype(ψ))), Int(in_bounds))
 end
 
-@inline _call1(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(mod1(i, N), j, k, grid, fargs...), 1)
-@inline _call2(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, mod1(j, N), k, grid, fargs...), 1)
-@inline _call3(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, j, mod1(k, N), grid, fargs...), 1)
+@inline _call1(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(_wrap(i, N), j, k, grid, fargs...), 1)
+@inline _call2(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, _wrap(j, N), k, grid, fargs...), 1)
+@inline _call3(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, j, _wrap(k, N), grid, fargs...), 1)
 
 @inline _call1(::EdgeBoundary, f, i, j, k, N, grid, fargs...) = (f(clamp(i, 1, N), j, k, grid, fargs...), 1)
 @inline _call2(::EdgeBoundary, f, i, j, k, N, grid, fargs...) = (f(i, clamp(j, 1, N), k, grid, fargs...), 1)
