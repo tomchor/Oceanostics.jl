@@ -102,7 +102,7 @@ struct BoxFilterKernel{D} <: Function end
 
 # Terminal methods (indexable input).
 
-@inline function (::BoxFilterKernel{1})(i, j, k, grid, width, policy, ψ)
+@inline function (::BoxFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Nx = size(grid, 1)
     s = zero(grid); n = 0
     @inbounds for di in -width:width
@@ -112,7 +112,7 @@ struct BoxFilterKernel{D} <: Function end
     return s / n
 end
 
-@inline function (::BoxFilterKernel{2})(i, j, k, grid, width, policy, ψ)
+@inline function (::BoxFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Ny = size(grid, 2)
     s = zero(grid); n = 0
     @inbounds for dj in -width:width
@@ -122,7 +122,7 @@ end
     return s / n
 end
 
-@inline function (::BoxFilterKernel{3})(i, j, k, grid, width, policy, ψ)
+@inline function (::BoxFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Nz = size(grid, 3)
     s = zero(grid); n = 0
     @inbounds for dk in -width:width
@@ -134,7 +134,7 @@ end
 
 # Recursive methods (function input — typically another BoxFilterKernel).
 
-@inline function (::BoxFilterKernel{1})(i, j, k, grid, width, policy, f::Function, fargs...)
+@inline function (::BoxFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Nx = size(grid, 1)
     s = zero(grid); n = 0
     @inbounds for di in -width:width
@@ -144,7 +144,7 @@ end
     return s / n
 end
 
-@inline function (::BoxFilterKernel{2})(i, j, k, grid, width, policy, f::Function, fargs...)
+@inline function (::BoxFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Ny = size(grid, 2)
     s = zero(grid); n = 0
     @inbounds for dj in -width:width
@@ -154,7 +154,7 @@ end
     return s / n
 end
 
-@inline function (::BoxFilterKernel{3})(i, j, k, grid, width, policy, f::Function, fargs...)
+@inline function (::BoxFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Nz = size(grid, 3)
     s = zero(grid); n = 0
     @inbounds for dk in -width:width
@@ -273,23 +273,23 @@ end
 function build_box_filter_kfo(grid, loc, dims::Tuple{Int}, width, policies, ψ)
     d = dims[1]
     return KernelFunctionOperation{loc...}(BoxFilterKernel{d}(), grid,
-                                           width, policies[1], ψ)
+                                           Val(width), policies[1], ψ)
 end
 
 function build_box_filter_kfo(grid, loc, dims::NTuple{2, Int}, width, policies, ψ)
     d1, d2 = dims
     return KernelFunctionOperation{loc...}(BoxFilterKernel{d1}(), grid,
-                                           width, policies[1],
-                                           BoxFilterKernel{d2}(), width, policies[2],
+                                           Val(width), policies[1],
+                                           BoxFilterKernel{d2}(), Val(width), policies[2],
                                            ψ)
 end
 
 function build_box_filter_kfo(grid, loc, dims::NTuple{3, Int}, width, policies, ψ)
     d1, d2, d3 = dims
     return KernelFunctionOperation{loc...}(BoxFilterKernel{d1}(), grid,
-                                           width, policies[1],
-                                           BoxFilterKernel{d2}(), width, policies[2],
-                                           BoxFilterKernel{d3}(), width, policies[3],
+                                           Val(width), policies[1],
+                                           BoxFilterKernel{d2}(), Val(width), policies[2],
+                                           BoxFilterKernel{d3}(), Val(width), policies[3],
                                            ψ)
 end
 #---
