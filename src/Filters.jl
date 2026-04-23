@@ -57,21 +57,21 @@ ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), type
 # is 1 in every case except `ShrinkBoundary` out-of-bounds, where it is 0 so
 # the offset is excluded from the running mean.
 
-@inline _fetch1(::PeriodicBoundary, ψ, i, j, k, N) = (ψ[mod1(i, N), j, k], 1)
-@inline _fetch2(::PeriodicBoundary, ψ, i, j, k, N) = (ψ[i, mod1(j, N), k], 1)
-@inline _fetch3(::PeriodicBoundary, ψ, i, j, k, N) = (ψ[i, j, mod1(k, N)], 1)
+@inline _fetch1(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[mod1(i, N), j, k], 1)
+@inline _fetch2(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, mod1(j, N), k], 1)
+@inline _fetch3(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, j, mod1(k, N)], 1)
 
-@inline _fetch1(::EdgeBoundary, ψ, i, j, k, N) = (ψ[clamp(i, 1, N), j, k], 1)
-@inline _fetch2(::EdgeBoundary, ψ, i, j, k, N) = (ψ[i, clamp(j, 1, N), k], 1)
-@inline _fetch3(::EdgeBoundary, ψ, i, j, k, N) = (ψ[i, j, clamp(k, 1, N)], 1)
+@inline _fetch1(::EdgeBoundary, ψ, i, j, k, N) = (@inbounds ψ[clamp(i, 1, N), j, k], 1)
+@inline _fetch2(::EdgeBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, clamp(j, 1, N), k], 1)
+@inline _fetch3(::EdgeBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, j, clamp(k, 1, N)], 1)
 
-@inline _fetch1(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(i < 1, c.left, ifelse(i > N, c.right, ψ[clamp(i, 1, N), j, k])), 1)
-@inline _fetch2(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(j < 1, c.left, ifelse(j > N, c.right, ψ[i, clamp(j, 1, N), k])), 1)
-@inline _fetch3(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(k < 1, c.left, ifelse(k > N, c.right, ψ[i, j, clamp(k, 1, N)])), 1)
+@inline _fetch1(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(i < 1, c.left, ifelse(i > N, c.right, @inbounds ψ[clamp(i, 1, N), j, k])), 1)
+@inline _fetch2(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(j < 1, c.left, ifelse(j > N, c.right, @inbounds ψ[i, clamp(j, 1, N), k])), 1)
+@inline _fetch3(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(k < 1, c.left, ifelse(k > N, c.right, @inbounds ψ[i, j, clamp(k, 1, N)])), 1)
 
-@inline _fetch1(::ShrinkBoundary, ψ, i, j, k, N) = (1 <= i <= N) ? (ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
-@inline _fetch2(::ShrinkBoundary, ψ, i, j, k, N) = (1 <= j <= N) ? (ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
-@inline _fetch3(::ShrinkBoundary, ψ, i, j, k, N) = (1 <= k <= N) ? (ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
+@inline _fetch1(::ShrinkBoundary, ψ, i, j, k, N) = (1 <= i <= N) ? (@inbounds ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
+@inline _fetch2(::ShrinkBoundary, ψ, i, j, k, N) = (1 <= j <= N) ? (@inbounds ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
+@inline _fetch3(::ShrinkBoundary, ψ, i, j, k, N) = (1 <= k <= N) ? (@inbounds ψ[i, j, k], 1) : (zero(eltype(ψ)), 0)
 
 @inline _call1(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(mod1(i, N), j, k, grid, fargs...), 1)
 @inline _call2(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, mod1(j, N), k, grid, fargs...), 1)
