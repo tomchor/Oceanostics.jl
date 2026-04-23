@@ -1,7 +1,63 @@
 # Flow diagnostics
 
-The `FlowDiagnostics` module provides common diagnostics for characterizing
-ocean and turbulent flows.
+The `FlowDiagnostics` module provides a collection of commonly-used diagnostics for
+characterizing the state of ocean and turbulent flows. These are not budget terms
+from a specific governing equation but rather derived quantities that summarize
+important flow properties at a glance.
+
+The module includes:
+
+- **Stability parameters**: the gradient Richardson number (``Ri``) comparing
+  stratification to shear, useful for predicting shear instabilities (``Ri < 0.25``).
+- **Rotation diagnostics**: the Rossby number (``Ro``), which measures relative
+  vorticity against planetary vorticity and indicates whether flow dynamics are
+  geostrophically balanced or ageostrophic.
+- **Potential vorticity**: the Ertel PV (``\boldsymbol{\omega}_{\text{tot}} \cdot \nabla b``),
+  a materially conserved quantity under adiabatic, inviscid conditions that is
+  fundamental for understanding large-scale ocean dynamics. A thermal-wind-balance
+  approximation and a directional decomposition are also provided.
+- **Velocity gradient tensor invariants**: the strain rate tensor modulus
+  (``\|S_{ij}\|``), vorticity tensor modulus (``\|\Omega_{ij}\|``), and the
+  ``Q``-criterion for vortex identification.
+- **Mixed layer depth**: computed by scanning downward from the surface to find
+  where buoyancy or density departs from the surface value by more than a
+  user-specified threshold.
+- **Bottom cell value**: extracts the value of any diagnostic at the bottommost
+  active cell (respecting immersed boundaries).
+
+## Example
+
+```jldoctest flow_diag
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, coriolis=FPlane(f=1e-4));
+
+julia> Ri = FlowDiagnostics.RichardsonNumber(model)
+KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: richardson_number_ccf (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "Field", "Tuple")
+
+julia> Ro = FlowDiagnostics.RossbyNumber(model)
+KernelFunctionOperation at (Face, Face, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: rossby_number_fff (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "NamedTuple")
+
+julia> EPV = FlowDiagnostics.ErtelPotentialVorticity(model)
+KernelFunctionOperation at (Face, Face, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ertel_potential_vorticity_fff (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "Field", "Int64", "Int64", "Float64")
+
+julia> S = FlowDiagnostics.StrainRateTensorModulus(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: strain_rate_tensor_modulus_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field")
+```
 
 ## Richardson number
 
