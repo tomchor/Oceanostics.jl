@@ -28,6 +28,14 @@ end
 
 #+++ Organize pages and HTML format
 pages = ["Home" => "index.md",
+         "Modules" => ["Tracer equation"                  => "tracer_equation.md",
+                        "Kinetic energy equation"          => "kinetic_energy_equation.md",
+                        "Turbulent kinetic energy equation" => "turbulent_kinetic_energy_equation.md",
+                        "Tracer variance equation"         => "tracer_variance_equation.md",
+                        "Potential energy equation"        => "potential_energy_equation.md",
+                        "Flow diagnostics"                 => "flow_diagnostics.md",
+                        "Progress messengers"              => "progress_messengers.md",
+                       ],
          "Examples" => example_pages,
          "Function library" => "library.md",
         ]
