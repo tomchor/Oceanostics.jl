@@ -73,15 +73,15 @@ ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), type
 
 @inline function _fetch1(::ShrinkBoundary, ψ, i, j, k, N)
     in_bounds = (1 <= i) & (i <= N)
-    (ifelse(in_bounds, @inbounds(ψ[clamp(i, 1, N), j, k]), zero(eltype(ψ))), Int(in_bounds))
+    return ifelse(in_bounds, @inbounds(ψ[clamp(i, 1, N), j, k]), zero(eltype(ψ))), Int(in_bounds)
 end
 @inline function _fetch2(::ShrinkBoundary, ψ, i, j, k, N)
     in_bounds = (1 <= j) & (j <= N)
-    (ifelse(in_bounds, @inbounds(ψ[i, clamp(j, 1, N), k]), zero(eltype(ψ))), Int(in_bounds))
+    return ifelse(in_bounds, @inbounds(ψ[i, clamp(j, 1, N), k]), zero(eltype(ψ))), Int(in_bounds)
 end
 @inline function _fetch3(::ShrinkBoundary, ψ, i, j, k, N)
     in_bounds = (1 <= k) & (k <= N)
-    (ifelse(in_bounds, @inbounds(ψ[i, j, clamp(k, 1, N)]), zero(eltype(ψ))), Int(in_bounds))
+    return ifelse(in_bounds, @inbounds(ψ[i, j, clamp(k, 1, N)]), zero(eltype(ψ))), Int(in_bounds)
 end
 
 @inline _call1(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(_wrap(i, N), j, k, grid, fargs...), 1)
@@ -98,15 +98,15 @@ end
 
 @inline function _call1(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
     in_bounds = (1 <= i) & (i <= N)
-    (ifelse(in_bounds, f(clamp(i, 1, N), j, k, grid, fargs...), zero(grid)), Int(in_bounds))
+    return ifelse(in_bounds, f(clamp(i, 1, N), j, k, grid, fargs...), zero(grid)), Int(in_bounds)
 end
 @inline function _call2(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
     in_bounds = (1 <= j) & (j <= N)
-    (ifelse(in_bounds, f(i, clamp(j, 1, N), k, grid, fargs...), zero(grid)), Int(in_bounds))
+    return ifelse(in_bounds, f(i, clamp(j, 1, N), k, grid, fargs...), zero(grid)), Int(in_bounds)
 end
 @inline function _call3(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
     in_bounds = (1 <= k) & (k <= N)
-    (ifelse(in_bounds, f(i, j, clamp(k, 1, N), grid, fargs...), zero(grid)), Int(in_bounds))
+    return ifelse(in_bounds, f(i, j, clamp(k, 1, N), grid, fargs...), zero(grid)), Int(in_bounds)
 end
 #---
 
