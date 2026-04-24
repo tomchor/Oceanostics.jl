@@ -127,8 +127,8 @@ struct BoxFilterKernel{D} <: Function end
 @inline function (::BoxFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Nx = size(grid, 1)
     s = zero(grid); n = 0
-    @inbounds for di in -width:width
-        val, cnt = x_stencil_fetch(policy, ψ, i + di, j, k, Nx)
+    @inbounds for Δi in -width:width
+        val, cnt = x_stencil_fetch(policy, ψ, i + Δi, j, k, Nx)
         s += val; n += cnt
     end
     return s / n
@@ -137,8 +137,8 @@ end
 @inline function (::BoxFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Ny = size(grid, 2)
     s = zero(grid); n = 0
-    @inbounds for dj in -width:width
-        val, cnt = y_stencil_fetch(policy, ψ, i, j + dj, k, Ny)
+    @inbounds for Δj in -width:width
+        val, cnt = y_stencil_fetch(policy, ψ, i, j + Δj, k, Ny)
         s += val; n += cnt
     end
     return s / n
@@ -147,8 +147,8 @@ end
 @inline function (::BoxFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Nz = size(grid, 3)
     s = zero(grid); n = 0
-    @inbounds for dk in -width:width
-        val, cnt = z_stencil_fetch(policy, ψ, i, j, k + dk, Nz)
+    @inbounds for Δk in -width:width
+        val, cnt = z_stencil_fetch(policy, ψ, i, j, k + Δk, Nz)
         s += val; n += cnt
     end
     return s / n
@@ -159,8 +159,8 @@ end
 @inline function (::BoxFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Nx = size(grid, 1)
     s = zero(grid); n = 0
-    @inbounds for di in -width:width
-        val, cnt = x_stencil_call(policy, f, i + di, j, k, Nx, grid, fargs...)
+    @inbounds for Δi in -width:width
+        val, cnt = x_stencil_call(policy, f, i + Δi, j, k, Nx, grid, fargs...)
         s += val; n += cnt
     end
     return s / n
@@ -169,8 +169,8 @@ end
 @inline function (::BoxFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Ny = size(grid, 2)
     s = zero(grid); n = 0
-    @inbounds for dj in -width:width
-        val, cnt = y_stencil_call(policy, f, i, j + dj, k, Ny, grid, fargs...)
+    @inbounds for Δj in -width:width
+        val, cnt = y_stencil_call(policy, f, i, j + Δj, k, Ny, grid, fargs...)
         s += val; n += cnt
     end
     return s / n
@@ -179,8 +179,8 @@ end
 @inline function (::BoxFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Nz = size(grid, 3)
     s = zero(grid); n = 0
-    @inbounds for dk in -width:width
-        val, cnt = z_stencil_call(policy, f, i, j, k + dk, Nz, grid, fargs...)
+    @inbounds for Δk in -width:width
+        val, cnt = z_stencil_call(policy, f, i, j, k + Δk, Nz, grid, fargs...)
         s += val; n += cnt
     end
     return s / n
