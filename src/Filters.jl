@@ -49,62 +49,64 @@ end
 ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), typeof(right))}(promote(left, right)...)
 #---
 
-#+++ Fetch / call dispatchers
+#+++ Stencil value readers
 #
-# `_fetchD(policy, ψ, i, j, k, N)` returns `(value, count)` when `ψ` is an
-# indexable field; `_callD(policy, f, i, j, k, N, grid, fargs...)` is the
-# same thing when the inner value comes from another kernel function. `count`
-# is 1 in every case except `ShrinkBoundary` out-of-bounds, where it is 0 so
-# the offset is excluded from the running mean.
+# Read a single stencil-offset value while applying the boundary policy along
+# one direction. Each function returns `(value, count)`: `count` is 1 for every
+# policy except `ShrinkBoundary` out-of-bounds, where it is 0 so the offset is
+# excluded from the running mean.
+#
+# `x/y/z_stencil_fetch` read from an indexable field `ψ`.
+# `x/y/z_stencil_call`  evaluate a kernel function `f` at the adjusted index.
 
 @inline wrap_periodic_index(i, N) = i + ifelse(i < 1, N, 0) - ifelse(i > N, N, 0)
 
-@inline _fetch1(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[wrap_periodic_index(i, N), j, k], 1)
-@inline _fetch2(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, wrap_periodic_index(j, N), k], 1)
-@inline _fetch3(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, j, wrap_periodic_index(k, N)], 1)
+@inline x_stencil_fetch(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[wrap_periodic_index(i, N), j, k], 1)
+@inline y_stencil_fetch(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, wrap_periodic_index(j, N), k], 1)
+@inline z_stencil_fetch(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, j, wrap_periodic_index(k, N)], 1)
 
-@inline _fetch1(::EdgeBoundary, ψ, i, j, k, N) = (@inbounds ψ[clamp(i, 1, N), j, k], 1)
-@inline _fetch2(::EdgeBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, clamp(j, 1, N), k], 1)
-@inline _fetch3(::EdgeBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, j, clamp(k, 1, N)], 1)
+@inline x_stencil_fetch(::EdgeBoundary, ψ, i, j, k, N) = (@inbounds ψ[clamp(i, 1, N), j, k], 1)
+@inline y_stencil_fetch(::EdgeBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, clamp(j, 1, N), k], 1)
+@inline z_stencil_fetch(::EdgeBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, j, clamp(k, 1, N)], 1)
 
-@inline _fetch1(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(i < 1, c.left, ifelse(i > N, c.right, @inbounds ψ[clamp(i, 1, N), j, k])), 1)
-@inline _fetch2(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(j < 1, c.left, ifelse(j > N, c.right, @inbounds ψ[i, clamp(j, 1, N), k])), 1)
-@inline _fetch3(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(k < 1, c.left, ifelse(k > N, c.right, @inbounds ψ[i, j, clamp(k, 1, N)])), 1)
+@inline x_stencil_fetch(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(i < 1, c.left, ifelse(i > N, c.right, @inbounds ψ[clamp(i, 1, N), j, k])), 1)
+@inline y_stencil_fetch(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(j < 1, c.left, ifelse(j > N, c.right, @inbounds ψ[i, clamp(j, 1, N), k])), 1)
+@inline z_stencil_fetch(c::ConstantBoundary, ψ, i, j, k, N) = (ifelse(k < 1, c.left, ifelse(k > N, c.right, @inbounds ψ[i, j, clamp(k, 1, N)])), 1)
 
-@inline function _fetch1(::ShrinkBoundary, ψ, i, j, k, N)
+@inline function x_stencil_fetch(::ShrinkBoundary, ψ, i, j, k, N)
     in_bounds = (1 <= i) & (i <= N)
     return ifelse(in_bounds, @inbounds(ψ[clamp(i, 1, N), j, k]), zero(eltype(ψ))), Int(in_bounds)
 end
-@inline function _fetch2(::ShrinkBoundary, ψ, i, j, k, N)
+@inline function y_stencil_fetch(::ShrinkBoundary, ψ, i, j, k, N)
     in_bounds = (1 <= j) & (j <= N)
     return ifelse(in_bounds, @inbounds(ψ[i, clamp(j, 1, N), k]), zero(eltype(ψ))), Int(in_bounds)
 end
-@inline function _fetch3(::ShrinkBoundary, ψ, i, j, k, N)
+@inline function z_stencil_fetch(::ShrinkBoundary, ψ, i, j, k, N)
     in_bounds = (1 <= k) & (k <= N)
     return ifelse(in_bounds, @inbounds(ψ[i, j, clamp(k, 1, N)]), zero(eltype(ψ))), Int(in_bounds)
 end
 
-@inline _call1(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(wrap_periodic_index(i, N), j, k, grid, fargs...), 1)
-@inline _call2(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, wrap_periodic_index(j, N), k, grid, fargs...), 1)
-@inline _call3(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, j, wrap_periodic_index(k, N), grid, fargs...), 1)
+@inline x_stencil_call(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(wrap_periodic_index(i, N), j, k, grid, fargs...), 1)
+@inline y_stencil_call(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, wrap_periodic_index(j, N), k, grid, fargs...), 1)
+@inline z_stencil_call(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, j, wrap_periodic_index(k, N), grid, fargs...), 1)
 
-@inline _call1(::EdgeBoundary, f, i, j, k, N, grid, fargs...) = (f(clamp(i, 1, N), j, k, grid, fargs...), 1)
-@inline _call2(::EdgeBoundary, f, i, j, k, N, grid, fargs...) = (f(i, clamp(j, 1, N), k, grid, fargs...), 1)
-@inline _call3(::EdgeBoundary, f, i, j, k, N, grid, fargs...) = (f(i, j, clamp(k, 1, N), grid, fargs...), 1)
+@inline x_stencil_call(::EdgeBoundary, f, i, j, k, N, grid, fargs...) = (f(clamp(i, 1, N), j, k, grid, fargs...), 1)
+@inline y_stencil_call(::EdgeBoundary, f, i, j, k, N, grid, fargs...) = (f(i, clamp(j, 1, N), k, grid, fargs...), 1)
+@inline z_stencil_call(::EdgeBoundary, f, i, j, k, N, grid, fargs...) = (f(i, j, clamp(k, 1, N), grid, fargs...), 1)
 
-@inline _call1(c::ConstantBoundary, f, i, j, k, N, grid, fargs...) = (ifelse(i < 1, c.left, ifelse(i > N, c.right, f(clamp(i, 1, N), j, k, grid, fargs...))), 1)
-@inline _call2(c::ConstantBoundary, f, i, j, k, N, grid, fargs...) = (ifelse(j < 1, c.left, ifelse(j > N, c.right, f(i, clamp(j, 1, N), k, grid, fargs...))), 1)
-@inline _call3(c::ConstantBoundary, f, i, j, k, N, grid, fargs...) = (ifelse(k < 1, c.left, ifelse(k > N, c.right, f(i, j, clamp(k, 1, N), grid, fargs...))), 1)
+@inline x_stencil_call(c::ConstantBoundary, f, i, j, k, N, grid, fargs...) = (ifelse(i < 1, c.left, ifelse(i > N, c.right, f(clamp(i, 1, N), j, k, grid, fargs...))), 1)
+@inline y_stencil_call(c::ConstantBoundary, f, i, j, k, N, grid, fargs...) = (ifelse(j < 1, c.left, ifelse(j > N, c.right, f(i, clamp(j, 1, N), k, grid, fargs...))), 1)
+@inline z_stencil_call(c::ConstantBoundary, f, i, j, k, N, grid, fargs...) = (ifelse(k < 1, c.left, ifelse(k > N, c.right, f(i, j, clamp(k, 1, N), grid, fargs...))), 1)
 
-@inline function _call1(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
+@inline function x_stencil_call(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
     in_bounds = (1 <= i) & (i <= N)
     return ifelse(in_bounds, f(clamp(i, 1, N), j, k, grid, fargs...), zero(grid)), Int(in_bounds)
 end
-@inline function _call2(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
+@inline function y_stencil_call(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
     in_bounds = (1 <= j) & (j <= N)
     return ifelse(in_bounds, f(i, clamp(j, 1, N), k, grid, fargs...), zero(grid)), Int(in_bounds)
 end
-@inline function _call3(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
+@inline function z_stencil_call(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
     in_bounds = (1 <= k) & (k <= N)
     return ifelse(in_bounds, f(i, j, clamp(k, 1, N), grid, fargs...), zero(grid)), Int(in_bounds)
 end
@@ -126,7 +128,7 @@ struct BoxFilterKernel{D} <: Function end
     Nx = size(grid, 1)
     s = zero(grid); n = 0
     @inbounds for di in -width:width
-        val, cnt = _fetch1(policy, ψ, i + di, j, k, Nx)
+        val, cnt = x_stencil_fetch(policy, ψ, i + di, j, k, Nx)
         s += val; n += cnt
     end
     return s / n
@@ -136,7 +138,7 @@ end
     Ny = size(grid, 2)
     s = zero(grid); n = 0
     @inbounds for dj in -width:width
-        val, cnt = _fetch2(policy, ψ, i, j + dj, k, Ny)
+        val, cnt = y_stencil_fetch(policy, ψ, i, j + dj, k, Ny)
         s += val; n += cnt
     end
     return s / n
@@ -146,7 +148,7 @@ end
     Nz = size(grid, 3)
     s = zero(grid); n = 0
     @inbounds for dk in -width:width
-        val, cnt = _fetch3(policy, ψ, i, j, k + dk, Nz)
+        val, cnt = z_stencil_fetch(policy, ψ, i, j, k + dk, Nz)
         s += val; n += cnt
     end
     return s / n
@@ -158,7 +160,7 @@ end
     Nx = size(grid, 1)
     s = zero(grid); n = 0
     @inbounds for di in -width:width
-        val, cnt = _call1(policy, f, i + di, j, k, Nx, grid, fargs...)
+        val, cnt = x_stencil_call(policy, f, i + di, j, k, Nx, grid, fargs...)
         s += val; n += cnt
     end
     return s / n
@@ -168,7 +170,7 @@ end
     Ny = size(grid, 2)
     s = zero(grid); n = 0
     @inbounds for dj in -width:width
-        val, cnt = _call2(policy, f, i, j + dj, k, Ny, grid, fargs...)
+        val, cnt = y_stencil_call(policy, f, i, j + dj, k, Ny, grid, fargs...)
         s += val; n += cnt
     end
     return s / n
@@ -178,7 +180,7 @@ end
     Nz = size(grid, 3)
     s = zero(grid); n = 0
     @inbounds for dk in -width:width
-        val, cnt = _call3(policy, f, i, j, k + dk, Nz, grid, fargs...)
+        val, cnt = z_stencil_call(policy, f, i, j, k + dk, Nz, grid, fargs...)
         s += val; n += cnt
     end
     return s / n
