@@ -39,6 +39,10 @@ export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 #---
 
+#+++ Filters exports
+export BoxFilter
+#---
+
 #+++ PotentialEnergyEquationTerms exports
 export PotentialEnergy
 #---
@@ -155,10 +159,12 @@ include("KineticEnergyEquation.jl")
 include("TurbulentKineticEnergyEquation.jl")
 include("PotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
+include("Filters.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
 using .FlowDiagnostics
+using .Filters
 using .ProgressMessengers
 
 end # module
