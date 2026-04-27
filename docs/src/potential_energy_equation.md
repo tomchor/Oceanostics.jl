@@ -1,15 +1,16 @@
 # Potential energy equation
 
 The `PotentialEnergyEquation` module provides a diagnostic for computing the
-gravitational potential energy per unit volume. In a Boussinesq fluid, the
-potential energy density is defined as
+specific gravitational potential energy (per unit mass). In a Boussinesq fluid,
+the specific potential energy is defined as
 
 ```math
 E_p = -bz = \frac{g\rho}{\rho_0} z
 ```
 
-where ``b`` is buoyancy, ``z`` is the vertical coordinate, ``g`` is gravitational
-acceleration, ``\rho`` is density, and ``\rho_0`` is a reference density.
+where ``b = -g\rho/\rho_0`` is buoyancy, ``z`` is the vertical coordinate, ``g`` is gravitational
+acceleration, ``\rho`` is density, and ``\rho_0`` is a reference density. The quantity
+``E_p`` has units of m² s⁻² (energy per unit mass).
 Potential energy is a key quantity in ocean energetics: its conversion to/from
 kinetic energy (via the buoyancy production term ``wb``) drives ocean circulation
 and mixing.
