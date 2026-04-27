@@ -321,14 +321,11 @@ validate_dims(dims::Tuple{Vararg{Int}}) =
     (!isempty(dims) & all(d -> d in (1, 2, 3), dims) & allunique(dims)) ||
         throw(ArgumentError("BoxFilter `dims` must be a non-empty tuple of distinct integers drawn from (1, 2, 3); got $dims"))
 
-validate_dims(dims) =
-    throw(ArgumentError("BoxFilter `dims` must be a tuple of integers; got $(typeof(dims))"))
+validate_dims(dims) = throw(ArgumentError("BoxFilter `dims` must be a tuple of integers; got $(typeof(dims))"))
 
-validate_width(width::Integer) =
-    width >= 1 || throw(ArgumentError("BoxFilter `width` must be a positive integer; got $width"))
+validate_width(width::Integer) = width >= 1 || throw(ArgumentError("BoxFilter `width` must be a positive integer; got $width"))
 
-validate_width(width) =
-    throw(ArgumentError("BoxFilter `width` must be a positive integer; got $(typeof(width))"))
+validate_width(width) = throw(ArgumentError("BoxFilter `width` must be a positive integer; got $(typeof(width))"))
 
 parse_boundary_spec(s::Symbol) =
     s === :shrink ? ShrinkBoundary() :
@@ -342,9 +339,7 @@ function parse_boundary_spec(nt::NamedTuple)
 end
 
 parse_boundary_spec(p::AbstractBoundaryPolicy) = p
-
-parse_boundary_spec(x) =
-    throw(ArgumentError("BoxFilter `boundary` must be :shrink, :edge, or (left=a, right=b); got $(repr(x))"))
+parse_boundary_spec(x) = throw(ArgumentError("BoxFilter `boundary` must be :shrink, :edge, or (left=a, right=b); got $(repr(x))"))
 #---
 
 end # module
