@@ -1,16 +1,19 @@
 using Test
+using CUDA: has_cuda_gpu, @allowscalar
 using Oceananigans
 using Oceananigans.AbstractOperations: volume
 using Oceanostics
 
-@testset "General flow diagnostics" begin
+arch = has_cuda_gpu() ? GPU() : CPU()
+
+@testset "General flow diagnostics on $(typeof(arch).name.wrapper)" begin
     @testset "BottomCellValue" begin
         # Test case 1: Flat bottom at z=0
         @testset "Flat bottom" begin
             Lx, Lz = 1, 1
             Nx = Nz = 5
 
-            grid_base = RectilinearGrid(topology = (Bounded, Flat, Bounded),
+            grid_base = RectilinearGrid(arch, topology = (Bounded, Flat, Bounded),
                                         size = (Nx, Nz),
                                         x = (0, Lx),
                                         z = (0, Lz))
@@ -27,7 +30,7 @@ using Oceanostics
             cᵇ = BottomCellValue(c)
 
             bottom_mass = Field(Integral(cᵇ))
-            @test bottom_mass[] ≈ bottom_mass_truth
+            @allowscalar @test bottom_mass[] ≈ bottom_mass_truth
         end
 
         # Test case 2: Sloped immersed bottom
@@ -35,7 +38,7 @@ using Oceanostics
             Lx, Lz = 1, 1
             Nx = Nz = 5
 
-            grid_base = RectilinearGrid(topology = (Bounded, Flat, Bounded),
+            grid_base = RectilinearGrid(arch, topology = (Bounded, Flat, Bounded),
                                         size = (Nx, Nz),
                                         x = (0, Lx),
                                         z = (0, Lz))
@@ -56,7 +59,7 @@ using Oceanostics
             cᵇ = BottomCellValue(c)
 
             bottom_mass = Field(Integral(cᵇ))
-            @test bottom_mass[] ≈ bottom_mass_truth
+            @allowscalar @test bottom_mass[] ≈ bottom_mass_truth
         end
     end
-end 
+end

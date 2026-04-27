@@ -28,6 +28,7 @@ end
 
 #+++ Organize pages and HTML format
 pages = ["Home" => "index.md",
+         "Filters" => "filters.md",
          "Examples" => example_pages,
          "Function library" => "library.md",
         ]

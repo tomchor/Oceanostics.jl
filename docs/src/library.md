@@ -14,6 +14,7 @@ Modules = [Oceanostics,
            Oceanostics.KineticEnergyEquation,
            Oceanostics.FlowDiagnostics,
            Oceanostics.PotentialEnergyEquation,
+           Oceanostics.Filters,
            Oceanostics.ProgressMessengers]
 Order = [:function, :type, :macro]
 Filter = t -> true
