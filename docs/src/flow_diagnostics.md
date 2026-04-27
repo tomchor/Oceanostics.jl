@@ -30,6 +30,8 @@ The module includes:
 ```jldoctest flow_diag
 julia> using Oceananigans, Oceanostics
 
+julia> using Oceanostics: FlowDiagnostics
+
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, coriolis=FPlane(f=1e-4));
