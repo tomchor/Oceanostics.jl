@@ -1,4 +1,5 @@
 using Test
+using CUDA: has_cuda_gpu
 using Oceananigans
 using Oceananigans: fill_halo_regions!, location
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -6,9 +7,11 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceanostics
 using Oceanostics: BoxFilter
 
+arch = has_cuda_gpu() ? GPU() : CPU()
+
 #+++ Test helpers
 make_grid(; Nx=8, Ny=8, Nz=8, halo=(2, 2, 2), topology=(Periodic, Periodic, Periodic)) =
-    RectilinearGrid(size = (Nx, Ny, Nz),
+    RectilinearGrid(arch, size = (Nx, Ny, Nz),
                     x = (0, 1), y = (0, 1), z = (0, 1),
                     halo = halo,
                     topology = topology)
@@ -136,19 +139,19 @@ end
 
 function test_periodic_stencil_sum(grid, Ns)
     c  = center_field_from(grid, (x, y, z) -> sin(2π * x) * cos(2π * y) + z^2)
-    ic = interior(c)
+    ic = Array(interior(c))
     for (dims, width) in [((1,),      1),
                           ((1, 2, 3), 1),
                           ((1, 2),    2),
                           ((1, 2, 3), 2)]
         cf  = compute_box_filter(c, dims, width)
         ref = reference_box_average_periodic(ic, dims, width, Ns)
-        @test interior(cf) ≈ ref
+        @test Array(interior(cf)) ≈ ref
     end
 end
 
 function test_1d_periodic_hand_computed()
-    grid_1d = RectilinearGrid(size = (10,),
+    grid_1d = RectilinearGrid(arch, size = (10,),
                               x = (0, 1),
                               halo = (2,),
                               topology = (Periodic, Flat, Flat))
@@ -157,10 +160,10 @@ function test_1d_periodic_hand_computed()
     fill_halo_regions!(c)
 
     expected1 = [10/3, 1, 2, 3, 4, 5, 6, 7, 8, 17/3]
-    @test interior(compute_box_filter(c, (1,), 1))[:] ≈ expected1
+    @test Array(interior(compute_box_filter(c, (1,), 1)))[:] ≈ expected1
 
     expected2 = [4, 3, 2, 3, 4, 5, 6, 7, 6, 5]
-    @test interior(compute_box_filter(c, (1,), 2))[:] ≈ expected2
+    @test Array(interior(compute_box_filter(c, (1,), 2)))[:] ≈ expected2
 end
 
 function test_output_location(grid)
@@ -220,40 +223,40 @@ end
 function test_shrink_boundary(Ns)
     bounded_grid = make_grid(; halo=(1, 1, 1), topology=(Bounded, Bounded, Bounded))
     c  = center_field_from(bounded_grid, (x, y, z) -> sin(2π * x) * cos(2π * y) + z^2)
-    ic = interior(c)
+    ic = Array(interior(c))
     for dims in [(1,), (2,), (3,), (1, 2), (1, 2, 3)]
         cf  = compute_box_filter(c, dims, 2)
         ref = reference_box_average_shrink(ic, dims, 2, Ns)
-        @test interior(cf) ≈ ref
+        @test Array(interior(cf)) ≈ ref
     end
 end
 
 function test_edge_boundary(Ns)
     bounded_grid = make_grid(; halo=(1, 1, 1), topology=(Bounded, Bounded, Bounded))
     c  = center_field_from(bounded_grid, (x, y, z) -> sin(2π * x) * cos(2π * y) + z^2)
-    ic = interior(c)
+    ic = Array(interior(c))
     for dims in [(1,), (2,), (3,), (1, 2, 3)]
         cf  = compute_box_filter(c, dims, 2; boundary=:edge)
         ref = reference_box_average_edge(ic, dims, 2, Ns)
-        @test interior(cf) ≈ ref
+        @test Array(interior(cf)) ≈ ref
     end
 end
 
 function test_constant_pad_boundary(Ns)
     bounded_grid = make_grid(; halo=(1, 1, 1), topology=(Bounded, Bounded, Bounded))
     c  = center_field_from(bounded_grid, (x, y, z) -> sin(2π * x) * cos(2π * y))
-    ic = interior(c)
+    ic = Array(interior(c))
     left, right = -1.25, 2.5
     for (d, width) in [(1, 2), (2, 3), (3, 2)]
         dims = (d,)
         cf  = compute_box_filter(c, dims, width; boundary=(left=left, right=right))
         ref = reference_box_average_constant_1d(ic, d, width, Ns, left, right)
-        @test interior(cf) ≈ ref
+        @test Array(interior(cf)) ≈ ref
     end
 end
 
 function test_1d_bounded_hand_computed()
-    grid_1d = RectilinearGrid(size = (10,),
+    grid_1d = RectilinearGrid(arch, size = (10,),
                               x = (0, 1),
                               halo = (1,),
                               topology = (Bounded, Flat, Flat))
@@ -263,39 +266,39 @@ function test_1d_bounded_hand_computed()
 
     # :shrink, width=2
     shrink_expected = [1, 1.5, 2, 3, 4, 5, 6, 7, 7.5, 8]
-    @test interior(compute_box_filter(c, (1,), 2))[:] ≈ shrink_expected
+    @test Array(interior(compute_box_filter(c, (1,), 2)))[:] ≈ shrink_expected
 
     # :shrink, width=3
     shrink_expected_w3 = [1.5, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 7.5]
-    @test interior(compute_box_filter(c, (1,), 3))[:] ≈ shrink_expected_w3
+    @test Array(interior(compute_box_filter(c, (1,), 3)))[:] ≈ shrink_expected_w3
 
     # :edge, width=2
     edge_expected = [0.6, 1.2, 2, 3, 4, 5, 6, 7, 7.8, 8.4]
-    @test interior(compute_box_filter(c, (1,), 2; boundary=:edge))[:] ≈ edge_expected
+    @test Array(interior(compute_box_filter(c, (1,), 2; boundary=:edge)))[:] ≈ edge_expected
 
     # :edge, width=3
     edge_expected_w3 = [6/7, 10/7, 15/7, 3, 4, 5, 6, 48/7, 53/7, 57/7]
-    @test interior(compute_box_filter(c, (1,), 3; boundary=:edge))[:] ≈ edge_expected_w3
+    @test Array(interior(compute_box_filter(c, (1,), 3; boundary=:edge)))[:] ≈ edge_expected_w3
 
     # Constant-pad (left=-1, right=-2), width=2
     const_expected = [0.2, 1, 2, 3, 4, 5, 6, 7, 5.6, 4]
-    @test interior(compute_box_filter(c, (1,), 2;
-                                      boundary=(left=-1.0, right=-2.0)))[:] ≈ const_expected
+    @test Array(interior(compute_box_filter(c, (1,), 2;
+                                            boundary=(left=-1.0, right=-2.0))))[:] ≈ const_expected
 
     # Constant-pad (left=-1, right=-2), width=3
     const_expected_w3 = [3/7, 8/7, 2, 3, 4, 5, 6, 37/7, 31/7, 24/7]
-    @test interior(compute_box_filter(c, (1,), 3;
-                                      boundary=(left=-1.0, right=-2.0)))[:] ≈ const_expected_w3
+    @test Array(interior(compute_box_filter(c, (1,), 3;
+                                            boundary=(left=-1.0, right=-2.0))))[:] ≈ const_expected_w3
 end
 
 function test_per_dim_boundary(Ns)
     bounded_grid = make_grid(; halo=(1, 1, 1), topology=(Bounded, Bounded, Bounded))
     c  = center_field_from(bounded_grid, (x, y, z) -> sin(2π * x) * cos(2π * y))
-    ic = interior(c)
+    ic = Array(interior(c))
     cf = compute_box_filter(c, (1, 2), 2; boundary=(:shrink, :edge))
     shrink_in_x       = reference_box_average_shrink(ic,         (1,), 2, Ns)
     edge_of_shrink_xy = reference_box_average_edge(shrink_in_x,  (2,), 2, Ns)
-    @test interior(cf) ≈ edge_of_shrink_xy
+    @test Array(interior(cf)) ≈ edge_of_shrink_xy
 end
 
 function test_periodic_ignores_boundary()
@@ -303,7 +306,7 @@ function test_periodic_ignores_boundary()
     c = center_field_from(mixed_grid, (x, y, z) -> sin(2π * x) + y)
     cf_default = compute_box_filter(c, (1,), 3)
     cf_absurd  = compute_box_filter(c, (1,), 3; boundary=(left=1e6, right=-1e6))
-    @test interior(cf_default) ≈ interior(cf_absurd)
+    @test Array(interior(cf_default)) ≈ Array(interior(cf_absurd))
 end
 
 function test_boundary_validation(grid)
@@ -318,7 +321,7 @@ end
 #---
 
 #+++ Run tests
-@testset "Filters" begin
+@testset "Filters on $(typeof(arch).name.wrapper)" begin
     @testset "BoxFilter" begin
         Nx = Ny = Nz = 8
         Ns = (Nx, Ny, Nz)
