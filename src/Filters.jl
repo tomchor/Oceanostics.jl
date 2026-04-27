@@ -1,7 +1,7 @@
 module Filters
 using DocStringExtensions
 
-export BoxFilter
+export BoxFilter, GaussianFilter
 
 using Oceananigans: location
 using Oceananigans.Grids: topology, Periodic
@@ -13,11 +13,10 @@ using Oceanostics: CustomKFO
 """
     AbstractBoundaryPolicy
 
-Supertype for `BoxFilter`'s per-direction boundary handling. A policy tells the
-kernel how to treat stencil offsets that fall outside the interior range `1:N`
-along a direction. `Periodic` directions always use `PeriodicBoundary`
-(silently overriding any user choice); `Bounded` directions use the user's
-pick.
+Supertype for per-direction boundary handling. A policy tells the kernel how to
+treat stencil offsets that fall outside the interior range `1:N` along a
+direction. `Periodic` directions always use `PeriodicBoundary` (silently
+overriding any user choice); `Bounded` directions use the user's pick.
 """
 abstract type AbstractBoundaryPolicy end
 
@@ -109,6 +108,66 @@ end
 @inline function z_stencil_call(::ShrinkBoundary, f, i, j, k, N, grid, fargs...)
     in_bounds = (1 <= k) & (k <= N)
     return ifelse(in_bounds, f(i, j, clamp(k, 1, N), grid, fargs...), zero(grid)), Int(in_bounds)
+end
+#---
+
+#+++ Shared filter infrastructure
+function resolve_filter_policies(ψ, dims, width, boundary)
+    validate_dims(dims)
+    validate_width(width)
+
+    grid = ψ.grid
+    loc = location(ψ)
+
+    per_user_dim_specs = if boundary isa Tuple
+        length(boundary) == length(dims) ||
+            throw(ArgumentError("`boundary` must be a single spec or a tuple with one entry per dim in `dims`; got length $(length(boundary)) for dims=$dims"))
+        boundary
+    else
+        ntuple(_ -> boundary, length(dims))
+    end
+
+    foreach(parse_boundary_spec, per_user_dim_specs)
+
+    sorted_dims = Tuple(d for d in (1, 2, 3) if d in dims)
+    sorted_specs = ntuple(i -> begin
+        user_idx = findfirst(==(sorted_dims[i]), dims)
+        per_user_dim_specs[user_idx]
+    end, length(sorted_dims))
+
+    policies = ntuple(i -> begin
+        d = sorted_dims[i]
+        if topology(grid, d) === Periodic
+            PeriodicBoundary()
+        else
+            parse_boundary_spec(sorted_specs[i])
+        end
+    end, length(sorted_dims))
+
+    return grid, loc, sorted_dims, policies
+end
+
+function build_filter_kfo(make_kernel, grid, loc, dims::Tuple{Int}, width, policies, ψ)
+    d = dims[1]
+    return KernelFunctionOperation{loc...}(make_kernel(d), grid,
+                                           Val(width), policies[1], ψ)
+end
+
+function build_filter_kfo(make_kernel, grid, loc, dims::NTuple{2, Int}, width, policies, ψ)
+    d1, d2 = dims
+    return KernelFunctionOperation{loc...}(make_kernel(d1), grid,
+                                           Val(width), policies[1],
+                                           make_kernel(d2), Val(width), policies[2],
+                                           ψ)
+end
+
+function build_filter_kfo(make_kernel, grid, loc, dims::NTuple{3, Int}, width, policies, ψ)
+    d1, d2, d3 = dims
+    return KernelFunctionOperation{loc...}(make_kernel(d1), grid,
+                                           Val(width), policies[1],
+                                           make_kernel(d2), Val(width), policies[2],
+                                           make_kernel(d3), Val(width), policies[3],
+                                           ψ)
 end
 #---
 
@@ -253,93 +312,184 @@ true
 ```
 """
 function BoxFilter(ψ; dims, width, boundary=:shrink)
-    validate_dims(dims)
-    validate_width(width)
+    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, width, boundary)
+    return build_filter_kfo(d -> BoxFilterKernel{d}(), grid, loc, sorted_dims, width, policies, ψ)
+end
+#---
 
-    grid = ψ.grid
-    LX, LY, LZ = location(ψ)
+#+++ GaussianFilter kernel
+"""
+    GaussianFilterKernel{D, W} <: Function
 
-    per_user_dim_specs = if boundary isa Tuple
-        length(boundary) == length(dims) ||
-            throw(ArgumentError("BoxFilter `boundary` must be a single spec or a tuple with one entry per dim in `dims`; got length $(length(boundary)) for dims=$dims"))
-        boundary
-    else
-        ntuple(_ -> boundary, length(dims))
+Callable struct that computes a 1D Gaussian-weighted average along direction
+`D` (1, 2, or 3). Stores precomputed unnormalized weights in `weights::W`.
+Like `BoxFilterKernel`, has terminal (indexable input) and recursive (function
+input) methods.
+"""
+struct GaussianFilterKernel{D, W} <: Function
+    weights::W
+end
+
+GaussianFilterKernel{D}(weights::W) where {D, W} = GaussianFilterKernel{D, W}(weights)
+
+# Terminal methods (indexable input).
+
+@inline function (kern::GaussianFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
+    Nx = size(grid, 1)
+    s = zero(grid); w_sum = zero(grid)
+    @inbounds for idx in 1:(2*width+1)
+        Δi = idx - width - 1
+        w = kern.weights[idx]
+        val, cnt = x_stencil_fetch(policy, ψ, i + Δi, j, k, Nx)
+        s += w * val
+        w_sum += w * cnt
     end
-
-    # Validate every user-provided spec up front so a malformed spec errors
-    # immediately, even on a grid where the corresponding dim is `Periodic`
-    # (and the spec would otherwise be silently overridden).
-    foreach(parse_boundary_spec, per_user_dim_specs)
-
-    # Canonical kernel nesting order (1 → 2 → 3), with boundary specs
-    # reordered to match so each dim still gets its intended policy.
-    sorted_dims = Tuple(d for d in (1, 2, 3) if d in dims)
-    sorted_specs = ntuple(i -> begin
-        user_idx = findfirst(==(sorted_dims[i]), dims)
-        per_user_dim_specs[user_idx]
-    end, length(sorted_dims))
-
-    policies = ntuple(i -> begin
-        d = sorted_dims[i]
-        if topology(grid, d) === Periodic
-            PeriodicBoundary()
-        else
-            parse_boundary_spec(sorted_specs[i])
-        end
-    end, length(sorted_dims))
-
-    return build_box_filter_kfo(grid, (LX, LY, LZ), sorted_dims, width, policies, ψ)
+    return s / w_sum
 end
 
-function build_box_filter_kfo(grid, loc, dims::Tuple{Int}, width, policies, ψ)
-    d = dims[1]
-    return KernelFunctionOperation{loc...}(BoxFilterKernel{d}(), grid,
-                                           Val(width), policies[1], ψ)
+@inline function (kern::GaussianFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
+    Ny = size(grid, 2)
+    s = zero(grid); w_sum = zero(grid)
+    @inbounds for idx in 1:(2*width+1)
+        Δj = idx - width - 1
+        w = kern.weights[idx]
+        val, cnt = y_stencil_fetch(policy, ψ, i, j + Δj, k, Ny)
+        s += w * val
+        w_sum += w * cnt
+    end
+    return s / w_sum
 end
 
-function build_box_filter_kfo(grid, loc, dims::NTuple{2, Int}, width, policies, ψ)
-    d1, d2 = dims
-    return KernelFunctionOperation{loc...}(BoxFilterKernel{d1}(), grid,
-                                           Val(width), policies[1],
-                                           BoxFilterKernel{d2}(), Val(width), policies[2],
-                                           ψ)
+@inline function (kern::GaussianFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
+    Nz = size(grid, 3)
+    s = zero(grid); w_sum = zero(grid)
+    @inbounds for idx in 1:(2*width+1)
+        Δk = idx - width - 1
+        w = kern.weights[idx]
+        val, cnt = z_stencil_fetch(policy, ψ, i, j, k + Δk, Nz)
+        s += w * val
+        w_sum += w * cnt
+    end
+    return s / w_sum
 end
 
-function build_box_filter_kfo(grid, loc, dims::NTuple{3, Int}, width, policies, ψ)
-    d1, d2, d3 = dims
-    return KernelFunctionOperation{loc...}(BoxFilterKernel{d1}(), grid,
-                                           Val(width), policies[1],
-                                           BoxFilterKernel{d2}(), Val(width), policies[2],
-                                           BoxFilterKernel{d3}(), Val(width), policies[3],
-                                           ψ)
+# Recursive methods (function input — typically another GaussianFilterKernel).
+
+@inline function (kern::GaussianFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
+    Nx = size(grid, 1)
+    s = zero(grid); w_sum = zero(grid)
+    @inbounds for idx in 1:(2*width+1)
+        Δi = idx - width - 1
+        w = kern.weights[idx]
+        val, cnt = x_stencil_call(policy, f, i + Δi, j, k, Nx, grid, fargs...)
+        s += w * val
+        w_sum += w * cnt
+    end
+    return s / w_sum
+end
+
+@inline function (kern::GaussianFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
+    Ny = size(grid, 2)
+    s = zero(grid); w_sum = zero(grid)
+    @inbounds for idx in 1:(2*width+1)
+        Δj = idx - width - 1
+        w = kern.weights[idx]
+        val, cnt = y_stencil_call(policy, f, i, j + Δj, k, Ny, grid, fargs...)
+        s += w * val
+        w_sum += w * cnt
+    end
+    return s / w_sum
+end
+
+@inline function (kern::GaussianFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
+    Nz = size(grid, 3)
+    s = zero(grid); w_sum = zero(grid)
+    @inbounds for idx in 1:(2*width+1)
+        Δk = idx - width - 1
+        w = kern.weights[idx]
+        val, cnt = z_stencil_call(policy, f, i, j, k + Δk, Nz, grid, fargs...)
+        s += w * val
+        w_sum += w * cnt
+    end
+    return s / w_sum
+end
+
+const GaussianFilter = CustomKFO{<:GaussianFilterKernel}
+
+gaussian_weights(width, σ) = ntuple(idx -> exp(-(idx - width - 1)^2 / (2σ^2)), 2*width + 1)
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` that computes a Gaussian-weighted local
+average of `ψ` over the directions listed in `dims`.
+
+Like `BoxFilter`, the stencil half-width is `width` cells, so each filtered
+direction uses a `(2*width + 1)`-point stencil centered on the current cell.
+Instead of uniform weights, each point receives a Gaussian weight
+`exp(-Δ²/(2σ²))`, where `Δ` is the cell offset and `σ` (in cells) defaults to
+`width / 2`. The filter is normalized: the weighted sum is divided by the sum
+of the surviving weights, so all boundary policies behave consistently.
+
+See `BoxFilter` for the `dims`, `width`, and `boundary` keyword documentation.
+
+## Examples
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(8, 8), x=(0, 1), z=(0, 1),
+                              topology=(Periodic, Flat, Bounded));
+
+julia> c = CenterField(grid);
+
+julia> GaussianFilter(c; dims=(1, 3), width=2, σ=1.0) isa KernelFunctionOperation
+true
+```
+"""
+function GaussianFilter(ψ; dims, width, σ=width/2, boundary=:shrink)
+    validate_σ(σ)
+    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, width, boundary)
+    weights = gaussian_weights(width, σ)
+    return build_filter_kfo(d -> GaussianFilterKernel{d}(weights), grid, loc, sorted_dims, width, policies, ψ)
 end
 #---
 
 #+++ Validation
 validate_dims(dims::Tuple{Vararg{Int}}) =
     (!isempty(dims) & all(d -> d in (1, 2, 3), dims) & allunique(dims)) ||
-        throw(ArgumentError("BoxFilter `dims` must be a non-empty tuple of distinct integers drawn from (1, 2, 3); got $dims"))
+        throw(ArgumentError("`dims` must be a non-empty tuple of distinct integers drawn from (1, 2, 3); got $dims"))
 
-validate_dims(dims) = throw(ArgumentError("BoxFilter `dims` must be a tuple of integers; got $(typeof(dims))"))
+validate_dims(dims) =
+    throw(ArgumentError("`dims` must be a tuple of integers; got $(typeof(dims))"))
 
-validate_width(width::Integer) = width >= 1 || throw(ArgumentError("BoxFilter `width` must be a positive integer; got $width"))
+validate_width(width::Integer) =
+    width >= 1 || throw(ArgumentError("`width` must be a positive integer; got $width"))
 
-validate_width(width) = throw(ArgumentError("BoxFilter `width` must be a positive integer; got $(typeof(width))"))
+validate_width(width) =
+    throw(ArgumentError("`width` must be a positive integer; got $(typeof(width))"))
+
+validate_σ(σ::Real) =
+    σ > 0 || throw(ArgumentError("`σ` must be a positive number; got $σ"))
+
+validate_σ(σ) =
+    throw(ArgumentError("`σ` must be a positive number; got $(typeof(σ))"))
 
 parse_boundary_spec(s::Symbol) =
     s === :shrink ? ShrinkBoundary() :
     s === :edge   ? EdgeBoundary()   :
-    throw(ArgumentError("BoxFilter `boundary` symbol must be :shrink or :edge; got :$s"))
+    throw(ArgumentError("`boundary` symbol must be :shrink or :edge; got :$s"))
 
 function parse_boundary_spec(nt::NamedTuple)
     ((length(nt) == 2) & haskey(nt, :left) & haskey(nt, :right)) ||
-        throw(ArgumentError("BoxFilter `boundary` NamedTuple must have exactly keys `:left` and `:right`; got keys $(keys(nt))"))
+        throw(ArgumentError("`boundary` NamedTuple must have exactly keys `:left` and `:right`; got keys $(keys(nt))"))
     return ConstantBoundary(nt.left, nt.right)
 end
 
 parse_boundary_spec(p::AbstractBoundaryPolicy) = p
-parse_boundary_spec(x) = throw(ArgumentError("BoxFilter `boundary` must be :shrink, :edge, or (left=a, right=b); got $(repr(x))"))
+
+parse_boundary_spec(x) =
+    throw(ArgumentError("`boundary` must be :shrink, :edge, or (left=a, right=b); got $(repr(x))"))
 #---
 
 end # module
