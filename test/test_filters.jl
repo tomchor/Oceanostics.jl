@@ -10,11 +10,12 @@ using Oceanostics: BoxFilter
 arch = has_cuda_gpu() ? GPU() : CPU()
 
 #+++ Test helpers
-make_grid(; Nx=8, Ny=8, Nz=8, halo=(2, 2, 2), topology=(Periodic, Periodic, Periodic)) =
-    RectilinearGrid(arch, size = (Nx, Ny, Nz),
-                    x = (0, 1), y = (0, 1), z = (0, 1),
-                    halo = halo,
-                    topology = topology)
+function make_grid(; Nx=8, Ny=8, Nz=8, halo=(2, 2, 2), topology=(Periodic, Periodic, Periodic))
+    return RectilinearGrid(arch, size = (Nx, Ny, Nz),
+                           x = (0, 1), y = (0, 1), z = (0, 1),
+                           halo = halo,
+                           topology = topology)
+end
 
 function center_field_from(grid, f)
     c = CenterField(grid)
