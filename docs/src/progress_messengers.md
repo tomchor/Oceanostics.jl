@@ -47,41 +47,41 @@ true
 
 ## Pre-built messengers
 
-```@docs
-Oceanostics.ProgressMessengers.BasicMessenger
-Oceanostics.ProgressMessengers.SingleLineMessenger
-Oceanostics.ProgressMessengers.TimedMessenger
-```
+| Type                  | Description |
+|:----------------------|:------------|
+| `BasicMessenger`      | Percentage progress, simulation time, time step, wall time, advective CFL, diffusive CFL |
+| `SingleLineMessenger` | Iteration count, plus everything in `BasicMessenger` |
+| `TimedMessenger`      | Per-step wall time, max velocities, plus everything in `SingleLineMessenger` |
 
 ## Timing components
 
-```@docs
-Oceanostics.ProgressMessengers.Iteration
-Oceanostics.ProgressMessengers.SimulationTime
-Oceanostics.ProgressMessengers.TimeStep
-Oceanostics.ProgressMessengers.PercentageProgress
-Oceanostics.ProgressMessengers.Walltime
-Oceanostics.ProgressMessengers.StepDuration
-Oceanostics.ProgressMessengers.BasicTimeMessenger
-Oceanostics.ProgressMessengers.TimeMessenger
-Oceanostics.ProgressMessengers.StopwatchMessenger
-```
+| Type                  | Description |
+|:----------------------|:------------|
+| `Iteration`           | Current iteration number |
+| `SimulationTime`      | Current simulation time |
+| `TimeStep`            | Current time step `Δt` |
+| `PercentageProgress`  | Progress as a percentage (by time or iteration) |
+| `Walltime`            | Elapsed wall-clock time since the start |
+| `StepDuration`        | Wall-clock time per time step |
+| `BasicTimeMessenger`  | Combines `PercentageProgress`, `SimulationTime`, `TimeStep`, and `Walltime` |
+| `TimeMessenger`       | Adds `Iteration` to `BasicTimeMessenger` |
+| `StopwatchMessenger`  | Adds `StepDuration` to `TimeMessenger` |
 
 ## Velocity components
 
-```@docs
-Oceanostics.ProgressMessengers.MaxUVelocity
-Oceanostics.ProgressMessengers.MaxVVelocity
-Oceanostics.ProgressMessengers.MaxWVelocity
-Oceanostics.ProgressMessengers.MaxVelocities
-```
+| Type             | Description |
+|:-----------------|:------------|
+| `MaxUVelocity`   | Maximum absolute `u` velocity |
+| `MaxVVelocity`   | Maximum absolute `v` velocity |
+| `MaxWVelocity`   | Maximum absolute `w` velocity |
+| `MaxVelocities`  | All three components formatted as a vector |
 
 ## Stability components
 
-```@docs
-Oceanostics.ProgressMessengers.AdvectiveCFLNumber
-Oceanostics.ProgressMessengers.DiffusiveCFLNumber
-Oceanostics.ProgressMessengers.MaxViscosity
-Oceanostics.ProgressMessengers.BasicStabilityMessenger
-Oceanostics.ProgressMessengers.StabilityMessenger
-```
+| Type                     | Description |
+|:-------------------------|:------------|
+| `AdvectiveCFLNumber`     | Advective CFL number (aliased as `CourantNumber`) |
+| `DiffusiveCFLNumber`     | Diffusive CFL number (aliased as `NormalizedMaxViscosity`) |
+| `MaxViscosity`           | Maximum viscosity |
+| `BasicStabilityMessenger`| Combines advective and diffusive CFL |
+| `StabilityMessenger`     | Adds `MaxViscosity` to `BasicStabilityMessenger` |
