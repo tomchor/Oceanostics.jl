@@ -58,3 +58,36 @@ c̄_mixed = Field(BoxFilter(c; dims=(1, 3), width=1, boundary=(:shrink, (left=0.
 ```@docs
 BoxFilter
 ```
+
+## Gaussian filter
+
+The [`GaussianFilter`](@ref) computes a Gaussian-weighted local average of a
+field over one or more grid directions. Each stencil point at offset `Δ` from
+the current cell receives weight `exp(-Δ²/(2σ²))`, where `σ` (in cells) is
+controlled by the `σ` keyword (default: `width/2`). The filter is always
+normalized: the weighted sum is divided by the sum of the surviving weights, so
+all boundary policies behave consistently.
+
+The `dims`, `width`, and `boundary` keywords work identically to `BoxFilter`.
+
+### Basic usage
+
+```@example filters
+c̄_gauss = Field(GaussianFilter(c; dims=(1, 3), width=2))
+```
+
+A custom `σ` makes the weighting more or less peaked:
+
+```@example filters
+# Wider Gaussian (σ = width = 3): gentle roll-off
+c̄_wide = Field(GaussianFilter(c; dims=(1,), width=3, σ=3.0))
+
+# Narrower Gaussian (σ = 1): most weight on the central cell
+c̄_narrow = Field(GaussianFilter(c; dims=(1,), width=3, σ=1.0))
+```
+
+### API reference
+
+```@docs
+GaussianFilter
+```
