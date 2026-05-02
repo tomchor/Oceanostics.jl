@@ -18,17 +18,20 @@ a 3D box filter performs one pass over the data, not three.
 
 ### Basic usage
 
-```@example filters
-using Oceananigans
-using Oceanostics
+```jldoctest filters
+julia> using Oceananigans, Oceanostics
 
-grid = RectilinearGrid(size=(32, 32), x=(0, 1), z=(0, 1),
-                       topology=(Periodic, Flat, Bounded))
+julia> grid = RectilinearGrid(size=(32, 32), x=(0, 1), z=(0, 1),
+                              topology=(Periodic, Flat, Bounded));
 
-c = CenterField(grid)
-set!(c, (x, z) -> sin(2π * x) * z)
+julia> c = CenterField(grid);
 
-c̄ = Field(BoxFilter(c; dims=(1, 3), n_points=5))
+julia> set!(c, (x, z) -> sin(2π * x) * z);
+
+julia> c̄ = Field(BoxFilter(c; dims=(1, 3), n_points=5));
+
+julia> size(c̄)
+(32, 1, 32)
 ```
 
 ### Boundary handling
@@ -45,12 +48,13 @@ selects how out-of-bounds offsets are treated:
 
 A single spec applies to every filtered dimension, or a tuple gives per-dimension control:
 
-```@example filters
-# Same policy for both dims
-c̄_edge = Field(BoxFilter(c; dims=(1, 3), n_points=3, boundary=:edge))
+```jldoctest filters
+julia> c̄_edge = Field(BoxFilter(c; dims=(1, 3), n_points=3, boundary=:edge));
 
-# Per-dim: :shrink in x, constant-pad in z
-c̄_mixed = Field(BoxFilter(c; dims=(1, 3), n_points=3, boundary=(:shrink, (left=0.0, right=0.0))))
+julia> c̄_mixed = Field(BoxFilter(c; dims=(1, 3), n_points=3, boundary=(:shrink, (left=0.0, right=0.0))));
+
+julia> size(c̄_edge) == size(c̄_mixed) == (32, 1, 32)
+true
 ```
 
 ### API reference
@@ -78,19 +82,22 @@ filtered dim, or a tuple of odd integers sets one count per dim.
 
 ### Basic usage
 
-```@example filters
-# σ in physical units (here, fraction of the unit-extent grid).
-c̄_gauss = Field(GaussianFilter(c; dims=(1, 3), σ=0.05))
+```jldoctest filters
+julia> c̄_gauss = Field(GaussianFilter(c; dims=(1, 3), σ=0.05));
+
+julia> c̄_gauss isa Field
+true
 ```
 
 Pass `n_points` to override the default stencil:
 
-```@example filters
-# Wider stencil — captures more of the Gaussian's tails.
-c̄_wide = Field(GaussianFilter(c; dims=(1,), σ=0.05, n_points=11))
+```jldoctest filters
+julia> c̄_wide = Field(GaussianFilter(c; dims=(1,), σ=0.05, n_points=11));
 
-# Per-dim stencil sizes (matching the order of `dims`).
-c̄_perdim = Field(GaussianFilter(c; dims=(1, 3), σ=0.05, n_points=(7, 11)))
+julia> c̄_perdim = Field(GaussianFilter(c; dims=(1, 3), σ=0.05, n_points=(7, 11)));
+
+julia> (c̄_wide isa Field, c̄_perdim isa Field)
+(true, true)
 ```
 
 ### API reference
