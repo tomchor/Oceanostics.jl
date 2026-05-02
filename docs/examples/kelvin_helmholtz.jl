@@ -100,8 +100,7 @@ simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
 
 run!(simulation)
 
-# Now we'll read the results using `FieldTimeSeries`, which loads each output variable directly
-# as a time series of `Field`s with all coordinate information attached.
+# Now we'll read the results using `FieldTimeSeries`
 
 filepath = simulation.output_writers[:nc].filepath
 Ri_t = FieldTimeSeries(filepath, "Ri")
