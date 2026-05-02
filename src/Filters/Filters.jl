@@ -187,11 +187,12 @@ validate_dims(dims::Tuple{Vararg{Int}}) =
 validate_dims(dims) =
     throw(ArgumentError("`dims` must be a tuple of integers; got $(typeof(dims))"))
 
-validate_width(width::Integer) =
-    width >= 1 || throw(ArgumentError("`width` must be a positive integer; got $width"))
+validate_n_points(n_points::Integer) =
+    ((n_points >= 3) & isodd(n_points)) ||
+        throw(ArgumentError("`n_points` must be an odd integer ≥ 3; got $n_points"))
 
-validate_width(width) =
-    throw(ArgumentError("`width` must be a positive integer; got $(typeof(width))"))
+validate_n_points(n_points) =
+    throw(ArgumentError("`n_points` must be an odd integer ≥ 3; got $(typeof(n_points))"))
 
 parse_boundary_spec(s::Symbol) =
     s === :shrink ? ShrinkBoundary() :

@@ -25,7 +25,7 @@ function center_field_from(grid, f)
 end
 
 function compute_filter(ψ, Filter, dims, width; kwargs...)
-    cf = Field(Filter(ψ; dims=dims, width=width, kwargs...))
+    cf = Field(Filter(ψ; dims=dims, n_points=2*width + 1, kwargs...))
     return cf
 end
 
@@ -134,7 +134,7 @@ end
 
 #+++ Test functions (shared across filters)
 function test_constructor(grid, Filter, fkw)
-    bf = Filter(CenterField(grid); dims=(1,), width=1, fkw...)
+    bf = Filter(CenterField(grid); dims=(1,), n_points=3, fkw...)
     @test bf isa KernelFunctionOperation
     @test bf isa Filter
 end
@@ -171,16 +171,16 @@ function test_periodic_stencil_sum(grid, Ns, Filter, make_weights, fkw)
 end
 
 function test_output_location(grid, Filter, fkw)
-    @test location(Filter(CenterField(grid); dims=(1,),      width=1, fkw...)) == (Center, Center, Center)
-    @test location(Filter(XFaceField(grid);  dims=(1,),      width=1, fkw...)) == (Face,   Center, Center)
-    @test location(Filter(YFaceField(grid);  dims=(1, 2),    width=1, fkw...)) == (Center, Face,   Center)
-    @test location(Filter(ZFaceField(grid);  dims=(1, 2, 3), width=1, fkw...)) == (Center, Center, Face)
+    @test location(Filter(CenterField(grid); dims=(1,),      n_points=3, fkw...)) == (Center, Center, Center)
+    @test location(Filter(XFaceField(grid);  dims=(1,),      n_points=3, fkw...)) == (Face,   Center, Center)
+    @test location(Filter(YFaceField(grid);  dims=(1, 2),    n_points=3, fkw...)) == (Center, Face,   Center)
+    @test location(Filter(ZFaceField(grid);  dims=(1, 2, 3), n_points=3, fkw...)) == (Center, Center, Face)
 end
 
 function test_abstract_operation_input(grid, Nx, Ny, Filter, fkw)
     c  = center_field_from(grid, (x, y, z) -> x + y)
     op = 2 * c
-    @test Filter(op; dims=(1, 2), width=1, fkw...) isa KernelFunctionOperation
+    @test Filter(op; dims=(1, 2), n_points=3, fkw...) isa KernelFunctionOperation
 
     f = compute_filter(op, Filter, (1, 2), 1; fkw...)
     @test interior(f)[2:Nx-1, 2:Ny-1, :] ≈ 2 .* interior(c)[2:Nx-1, 2:Ny-1, :]
@@ -188,27 +188,30 @@ end
 
 function test_kfo_input(grid, Filter, fkw)
     c     = center_field_from(grid, (x, y, z) -> sin(2π * x))
-    inner = Filter(c;     dims=(1,), width=1, fkw...)
-    outer = Filter(inner; dims=(2,), width=1, fkw...)
+    inner = Filter(c;     dims=(1,), n_points=3, fkw...)
+    outer = Filter(inner; dims=(2,), n_points=3, fkw...)
     @test outer isa KernelFunctionOperation
     @test location(outer) == (Center, Center, Center)
 end
 
 function test_dims_validation(grid, Filter, fkw)
     c = CenterField(grid)
-    @test_throws ArgumentError Filter(c; dims=(),     width=1, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(0,),   width=1, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(4,),   width=1, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1, 1), width=1, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(:x,),  width=1, fkw...)
-    @test_throws ArgumentError Filter(c; dims=[1, 2], width=1, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(),     n_points=3, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(0,),   n_points=3, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(4,),   n_points=3, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1, 1), n_points=3, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(:x,),  n_points=3, fkw...)
+    @test_throws ArgumentError Filter(c; dims=[1, 2], n_points=3, fkw...)
 end
 
-function test_width_validation(grid, Filter, fkw)
+function test_n_points_validation(grid, Filter, fkw)
     c = CenterField(grid)
-    @test_throws ArgumentError Filter(c; dims=(1,), width=0, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,), width=-1, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,), width=1.5, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,), n_points=0,   fkw...)  # zero
+    @test_throws ArgumentError Filter(c; dims=(1,), n_points=-1,  fkw...)  # negative
+    @test_throws ArgumentError Filter(c; dims=(1,), n_points=1,   fkw...)  # below minimum (3)
+    @test_throws ArgumentError Filter(c; dims=(1,), n_points=2,   fkw...)  # even
+    @test_throws ArgumentError Filter(c; dims=(1,), n_points=4,   fkw...)  # even
+    @test_throws ArgumentError Filter(c; dims=(1,), n_points=3.5, fkw...)  # non-integer
 end
 
 function test_small_halo(Filter, fkw)
@@ -218,9 +221,9 @@ function test_small_halo(Filter, fkw)
 
     for g in (tiny_periodic, tiny_bounded, tiny_mixed)
         c = CenterField(g)
-        @test Filter(c; dims=(1,),      width=5, fkw...)                                 isa KernelFunctionOperation
-        @test Filter(c; dims=(1, 2, 3), width=5, boundary=:edge, fkw...)                 isa KernelFunctionOperation
-        @test Filter(c; dims=(1, 2, 3), width=5, boundary=(left=0.0, right=0.0), fkw...) isa KernelFunctionOperation
+        @test Filter(c; dims=(1,),      n_points=11, fkw...)                                 isa KernelFunctionOperation
+        @test Filter(c; dims=(1, 2, 3), n_points=11, boundary=:edge, fkw...)                 isa KernelFunctionOperation
+        @test Filter(c; dims=(1, 2, 3), n_points=11, boundary=(left=0.0, right=0.0), fkw...) isa KernelFunctionOperation
     end
 end
 
@@ -286,12 +289,12 @@ end
 
 function test_boundary_validation(grid, Filter, fkw)
     c = CenterField(grid)
-    @test_throws ArgumentError Filter(c; dims=(1,),   width=1, boundary=:foo, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,),   width=1, boundary=(foo=1,), fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,),   width=1, boundary=(left=1, right=2, mid=3), fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,),   width=1, boundary=42, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1, 2), width=1, boundary=(:shrink,), fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,),   width=1, boundary=(:shrink, :edge), fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,),   n_points=3, boundary=:foo, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,),   n_points=3, boundary=(foo=1,), fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,),   n_points=3, boundary=(left=1, right=2, mid=3), fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,),   n_points=3, boundary=42, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1, 2), n_points=3, boundary=(:shrink,), fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,),   n_points=3, boundary=(:shrink, :edge), fkw...)
 end
 #---
 
@@ -352,9 +355,9 @@ end
 #+++ GaussianFilter-specific tests
 function test_σ_validation(grid)
     c = CenterField(grid)
-    @test_throws ArgumentError GaussianFilter(c; dims=(1,), width=1, σ=0)
-    @test_throws ArgumentError GaussianFilter(c; dims=(1,), width=1, σ=-1.0)
-    @test_throws ArgumentError GaussianFilter(c; dims=(1,), width=1, σ="foo")
+    @test_throws ArgumentError GaussianFilter(c; dims=(1,), n_points=3, σ=0)
+    @test_throws ArgumentError GaussianFilter(c; dims=(1,), n_points=3, σ=-1.0)
+    @test_throws ArgumentError GaussianFilter(c; dims=(1,), n_points=3, σ="foo")
 end
 
 # Apply the GaussianFilter to a discrete Dirac delta (a 1D field that is zero
@@ -442,7 +445,7 @@ filter_configs = [
 
             @testset "Argument validation" begin
                 test_dims_validation(grid, Filter, fkw)
-                test_width_validation(grid, Filter, fkw)
+                test_n_points_validation(grid, Filter, fkw)
                 test_boundary_validation(grid, Filter, fkw)
             end
         end

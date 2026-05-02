@@ -117,12 +117,14 @@ same units as the grid spacing). Each point in the stencil receives weight
 cell. The filter is normalized: the weighted sum is divided by the sum of the
 surviving weights, so all boundary policies behave consistently.
 
-`width` is the half-width of the stencil in cells. If unspecified, `width` is
-inferred per-direction from `σ` and the minimum cell spacing in that direction
-so that `width * Δ ≈ 2σ` (i.e. the stencil extends roughly 2σ on each side of
-the current cell). To override, pass either an integer (applied to every
-filtered dim) or a tuple with one width per dim in `dims` (in the order the
-user passed them).
+`n_points` is the total number of grid points in the stencil along each
+filtered direction; it must be an **odd integer ≥ 3** so the stencil is
+symmetric around the current cell. If unspecified, `n_points` is inferred
+per-direction from `σ` and the minimum cell spacing in that direction so the
+stencil extends roughly `2σ` on each side of the current cell. To override,
+pass either a single odd integer (applied to every filtered dim) or a tuple
+with one odd-integer count per dim in `dims` (in the order the user passed
+them).
 
 See `BoxFilter` for the `dims` and `boundary` keyword documentation.
 
@@ -140,11 +142,11 @@ julia> GaussianFilter(c; dims=(1, 3), σ=0.1) isa KernelFunctionOperation
 true
 ```
 """
-function GaussianFilter(ψ; dims, σ, width=nothing, boundary=:shrink)
+function GaussianFilter(ψ; dims, σ, n_points=nothing, boundary=:shrink)
     validate_σ(σ)
     grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
 
-    sorted_widths = resolve_gaussian_widths(width, σ, grid, dims, sorted_dims)
+    sorted_widths = resolve_gaussian_widths(n_points, σ, grid, dims, sorted_dims)
     sorted_weights = ntuple(i -> gaussian_weights(sorted_widths[i],
                                                   σ / direction_min_spacing(grid, sorted_dims[i])),
                             length(sorted_dims))
@@ -155,20 +157,20 @@ end
 
 infer_width(σ, grid, d) = ceil(Int, 2σ / direction_min_spacing(grid, d))
 
-function resolve_gaussian_widths(width, σ, grid, dims, sorted_dims)
-    if width === nothing
+function resolve_gaussian_widths(n_points, σ, grid, dims, sorted_dims)
+    if n_points === nothing
         return ntuple(i -> infer_width(σ, grid, sorted_dims[i]), length(sorted_dims))
-    elseif width isa Tuple
-        length(width) == length(dims) ||
-            throw(ArgumentError("`width` tuple must have one entry per dim in `dims`; got length $(length(width)) for dims=$dims"))
-        foreach(validate_width, width)
+    elseif n_points isa Tuple
+        length(n_points) == length(dims) ||
+            throw(ArgumentError("`n_points` tuple must have one entry per dim in `dims`; got length $(length(n_points)) for dims=$dims"))
+        foreach(validate_n_points, n_points)
         return ntuple(i -> begin
             user_idx = findfirst(==(sorted_dims[i]), dims)
-            width[user_idx]
+            (n_points[user_idx] - 1) ÷ 2
         end, length(sorted_dims))
     else
-        validate_width(width)
-        return ntuple(_ -> width, length(sorted_dims))
+        validate_n_points(n_points)
+        return ntuple(_ -> (n_points - 1) ÷ 2, length(sorted_dims))
     end
 end
 #---
