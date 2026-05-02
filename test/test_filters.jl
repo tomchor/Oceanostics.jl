@@ -373,8 +373,10 @@ filter_configs = [
             Ns = (Nx, Ny, Nz)
             grid = make_grid(; Nx, Ny, Nz)
 
-            @testset "Constructor returns KernelFunctionOperation" begin
+            @testset "Unit filter tests" begin
                 test_constructor(grid, Filter, fkw)
+                test_output_location(grid, Filter, fkw)
+                test_small_halo(Filter, fkw)
             end
 
             @testset "Linear field is unchanged on interior (1D, 2D, 3D)" begin
@@ -387,10 +389,6 @@ filter_configs = [
 
             @testset "Averaging matches an explicit stencil sum (periodic)" begin
                 test_periodic_stencil_sum(grid, Ns, Filter, make_weights, fkw)
-            end
-
-            @testset "Output location matches input location" begin
-                test_output_location(grid, Filter, fkw)
             end
 
             @testset "Accepts AbstractOperation as input" begin
@@ -407,10 +405,6 @@ filter_configs = [
 
             @testset "Validation of width" begin
                 test_width_validation(grid, Filter, fkw)
-            end
-
-            @testset "Small halo is allowed for any width or topology" begin
-                test_small_halo(Filter, fkw)
             end
 
             @testset ":shrink (default) on a bounded grid matches explicit reference" begin
