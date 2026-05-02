@@ -9,7 +9,7 @@
 #
 # ```julia
 # using Pkg
-# pkg"add Oceananigans, Oceanostics, CairoMakie, Rasters"
+# pkg"add Oceananigans, Oceanostics, CairoMakie"
 # ```
 
 # ## Model and simulation setup
@@ -101,14 +101,17 @@ simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
 
 run!(simulation)
 
-# Now we'll read the results using Rasters.jl, which works somewhat similarly to Python's Xarray and
-# can speed-up the workflow
+# Now we'll read the results using `FieldTimeSeries`, which loads each output variable directly
+# as a time series of `Field`s with all coordinate information attached.
 
-using Rasters
+filepath = simulation.output_writers[:nc].filepath
+KE_t  = FieldTimeSeries(filepath, "KE")
+ε_t   = FieldTimeSeries(filepath, "ε")
+∫KE_t = FieldTimeSeries(filepath, "∫KE")
+∫ε_t  = FieldTimeSeries(filepath, "∫ε")
+∫εᴰ_t = FieldTimeSeries(filepath, "∫εᴰ")
 
-ds = RasterStack(simulation.output_writers[:nc].filepath)
-
-# In order to plot results, we use Makie.jl, for which Rasters.jl already has some recipes
+# In order to plot results, we use Makie.jl, which has recipes for Oceananigans `Field`s.
 
 using CairoMakie
 
@@ -129,11 +132,9 @@ n = Observable(1)
 # `n` above is a [`Makie.Observable`](https://docs.makie.org/stable/documentation/nodes/index.html),
 # which allows us to animate things easily. Creating observable `KE` and `ε` can be done simply with
 
-KEₙ = @lift set(ds.KE[z_aac=1, Ti=$n], :x_caa => X, :y_aca => Y);
-εₙ  = @lift set(ds.ε[z_aac=1, Ti=$n],  :x_caa => X, :y_aca => Y);
+KEₙ = @lift KE_t[$n]
+εₙ  = @lift ε_t[$n]
 
-# Note that, in Rasters, the `time` coordinate gets shortened to `Ti`.
-#
 # Now we plot the heatmaps, each with its own colorbar below
 
 hm_KE = heatmap!(ax1, KEₙ, colormap = :plasma, colorrange=(0, 5e-2))
@@ -148,12 +149,12 @@ axis_kwargs = (xlabel = "Time",
                height=150, width=300)
 
 ax3 = Axis(fig[4, 1]; axis_kwargs...)
-times = dims(ds, :Ti)
-lines!(ax3, Array(times), Array(ds.∫KE))
+times = KE_t.times
+lines!(ax3, times, interior(∫KE_t)[1, 1, 1, :])
 
 ax4 = Axis(fig[4, 2]; axis_kwargs...)
-lines!(ax4, Array(times), Array(ds.∫ε), label="∫εdV")
-lines!(ax4, Array(times), Array(ds.∫εᴰ), label="∫εᴰdV", linestyle=:dash)
+lines!(ax4, times, interior(∫ε_t)[1, 1, 1, :], label="∫εdV")
+lines!(ax4, times, interior(∫εᴰ_t)[1, 1, 1, :], label="∫εᴰdV", linestyle=:dash)
 axislegend(ax4, labelsize=14)
 
 # Now we mark the time by placing a vertical line in the bottom plots:
