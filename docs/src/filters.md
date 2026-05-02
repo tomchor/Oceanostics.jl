@@ -63,27 +63,34 @@ BoxFilter
 
 The [`GaussianFilter`](@ref) computes a Gaussian-weighted local average of a
 field over one or more grid directions. Each stencil point at offset `Δ` from
-the current cell receives weight `exp(-Δ²/(2σ²))`, where `σ` (in cells) is
-controlled by the `σ` keyword (default: `width/2`). The filter is always
-normalized: the weighted sum is divided by the sum of the surviving weights, so
-all boundary policies behave consistently.
+the current cell receives weight `exp(-Δ²/(2σ²))`, where `σ` is the standard
+deviation of the kernel in **physical units** (the same units as the grid
+spacing). The filter is always normalized: the weighted sum is divided by the
+sum of the surviving weights, so all boundary policies behave consistently.
 
-The `dims`, `width`, and `boundary` keywords work identically to `BoxFilter`.
+`σ` is the only required parameter beyond `dims` — the stencil half-width is
+inferred per-direction from `σ` and the minimum cell spacing in that
+direction so that `width * Δ ≈ 2σ` (the stencil extends roughly `2σ` on each
+side of the current cell). To override, pass `width` explicitly: an integer
+applies to every filtered dim, or a tuple sets one width per dim.
+
+`dims` and `boundary` work identically to `BoxFilter`.
 
 ### Basic usage
 
 ```@example filters
-c̄_gauss = Field(GaussianFilter(c; dims=(1, 3), width=2))
+# σ in physical units (here, fraction of the unit-extent grid).
+c̄_gauss = Field(GaussianFilter(c; dims=(1, 3), σ=0.05))
 ```
 
-A custom `σ` makes the weighting more or less peaked:
+Pass `width` to override the default stencil:
 
 ```@example filters
-# Wider Gaussian (σ = width = 3): gentle roll-off
-c̄_wide = Field(GaussianFilter(c; dims=(1,), width=3, σ=3.0))
+# Wider stencil — captures more of the Gaussian's tails.
+c̄_wide = Field(GaussianFilter(c; dims=(1,), σ=0.05, width=5))
 
-# Narrower Gaussian (σ = 1): most weight on the central cell
-c̄_narrow = Field(GaussianFilter(c; dims=(1,), width=3, σ=1.0))
+# Per-dim widths (matching the order of `dims`).
+c̄_perdim = Field(GaussianFilter(c; dims=(1, 3), σ=0.05, width=(3, 5)))
 ```
 
 ### API reference

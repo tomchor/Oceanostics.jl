@@ -4,7 +4,7 @@ using DocStringExtensions
 export BoxFilter, GaussianFilter
 
 using Oceananigans: location
-using Oceananigans.Grids: topology, Periodic
+using Oceananigans.Grids: topology, Periodic, minimum_xspacing, minimum_yspacing, minimum_zspacing
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 
 using Oceanostics: CustomKFO
@@ -112,9 +112,8 @@ end
 #---
 
 #+++ Shared filter infrastructure
-function resolve_filter_policies(ψ, dims, width, boundary)
+function resolve_filter_policies(ψ, dims, boundary)
     validate_dims(dims)
-    validate_width(width)
 
     grid = ψ.grid
     loc = location(ψ)
@@ -147,28 +146,37 @@ function resolve_filter_policies(ψ, dims, width, boundary)
     return grid, loc, sorted_dims, policies
 end
 
-function build_filter_kfo(make_kernel, grid, loc, dims::Tuple{Int}, width, policies, ψ)
+# `make_kernel(d, i)` takes both the grid direction `d` and the index `i` of
+# that direction within `sorted_dims`, so kernels can pick up per-direction
+# state (e.g. precomputed weights) by index. `widths` is a tuple with one
+# entry per filtered dim (also in `sorted_dims` order).
+function build_filter_kfo(make_kernel, grid, loc, dims::Tuple{Int}, widths, policies, ψ)
     d = dims[1]
-    return KernelFunctionOperation{loc...}(make_kernel(d), grid,
-                                           Val(width), policies[1], ψ)
+    return KernelFunctionOperation{loc...}(make_kernel(d, 1), grid,
+                                           Val(widths[1]), policies[1], ψ)
 end
 
-function build_filter_kfo(make_kernel, grid, loc, dims::NTuple{2, Int}, width, policies, ψ)
+function build_filter_kfo(make_kernel, grid, loc, dims::NTuple{2, Int}, widths, policies, ψ)
     d1, d2 = dims
-    return KernelFunctionOperation{loc...}(make_kernel(d1), grid,
-                                           Val(width), policies[1],
-                                           make_kernel(d2), Val(width), policies[2],
+    return KernelFunctionOperation{loc...}(make_kernel(d1, 1), grid,
+                                           Val(widths[1]), policies[1],
+                                           make_kernel(d2, 2), Val(widths[2]), policies[2],
                                            ψ)
 end
 
-function build_filter_kfo(make_kernel, grid, loc, dims::NTuple{3, Int}, width, policies, ψ)
+function build_filter_kfo(make_kernel, grid, loc, dims::NTuple{3, Int}, widths, policies, ψ)
     d1, d2, d3 = dims
-    return KernelFunctionOperation{loc...}(make_kernel(d1), grid,
-                                           Val(width), policies[1],
-                                           make_kernel(d2), Val(width), policies[2],
-                                           make_kernel(d3), Val(width), policies[3],
+    return KernelFunctionOperation{loc...}(make_kernel(d1, 1), grid,
+                                           Val(widths[1]), policies[1],
+                                           make_kernel(d2, 2), Val(widths[2]), policies[2],
+                                           make_kernel(d3, 3), Val(widths[3]), policies[3],
                                            ψ)
 end
+
+direction_min_spacing(grid, d) =
+    d == 1 ? minimum_xspacing(grid) :
+    d == 2 ? minimum_yspacing(grid) :
+             minimum_zspacing(grid)
 #---
 
 #+++ Validation

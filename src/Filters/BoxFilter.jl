@@ -139,7 +139,9 @@ true
 ```
 """
 function BoxFilter(ψ; dims, width, boundary=:shrink)
-    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, width, boundary)
-    return build_filter_kfo(d -> BoxFilterKernel{d}(), grid, loc, sorted_dims, width, policies, ψ)
+    validate_width(width)
+    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
+    widths = ntuple(_ -> width, length(sorted_dims))
+    return build_filter_kfo((d, i) -> BoxFilterKernel{d}(), grid, loc, sorted_dims, widths, policies, ψ)
 end
 #---

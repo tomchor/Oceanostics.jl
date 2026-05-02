@@ -367,23 +367,26 @@ function test_gaussian_dirac_delta()
                               x = (0, 1),
                               halo = (3,),
                               topology = (Periodic, Flat, Flat))
+    Δ = 1/N  # uniform spacing of the test grid
     i₀ = N ÷ 2 + 1  # interior point — chosen so the stencil never wraps
 
-    for (width, σ) in [(3, 1.0), (3, 2.0), (5, 1.5)]
+    # σ_cells is the standard deviation in cells (drives the reference
+    # weights); σ_physical = σ_cells * Δ is what the API takes.
+    for (width, σ_cells) in [(3, 1.0), (3, 2.0), (5, 1.5)]
         c = CenterField(grid_1d)
         parent(c) .= 0
         @allowscalar interior(c)[i₀] = 1
         fill_halo_regions!(c)
 
-        cf = compute_filter(c, GaussianFilter, (1,), width; σ=σ)
+        cf = compute_filter(c, GaussianFilter, (1,), width; σ=σ_cells * Δ)
 
-        weights = gauss_weights(width, σ)
+        weights = gauss_weights(width, σ_cells)
         W_sum = sum(weights)
         expected = zeros(N)
         for j in 1:N
-            Δ = i₀ - j
-            if abs(Δ) <= width
-                expected[j] = weights[Δ + width + 1] / W_sum
+            Δij = i₀ - j
+            if abs(Δij) <= width
+                expected[j] = weights[Δij + width + 1] / W_sum
             end
         end
 
@@ -393,11 +396,16 @@ end
 #---
 
 #+++ Run tests
-σ_test = 1.0
+# Reference weights are computed in cells; the GaussianFilter API takes σ in
+# physical units. The shared test grid is uniform with Δ = 1/8, so a physical
+# σ of 1/8 corresponds to σ-in-cells = 1.0 (which is what the reference
+# weights use).
+σ_test_cells = 1.0
+σ_test_physical = σ_test_cells * (1/8)
 
 filter_configs = [
-    ("BoxFilter",      BoxFilter,      box_weights,                     NamedTuple()),
-    ("GaussianFilter", GaussianFilter, w -> gauss_weights(w, σ_test),  (; σ=σ_test)),
+    ("BoxFilter",      BoxFilter,      box_weights,                          NamedTuple()),
+    ("GaussianFilter", GaussianFilter, w -> gauss_weights(w, σ_test_cells),  (; σ=σ_test_physical)),
 ]
 
 @testset "Filters on $(typeof(arch).name.wrapper)" begin

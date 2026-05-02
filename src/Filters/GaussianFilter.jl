@@ -111,14 +111,20 @@ validate_σ(σ) =
 Return a `KernelFunctionOperation` that computes a Gaussian-weighted local
 average of `ψ` over the directions listed in `dims`.
 
-Like `BoxFilter`, the stencil half-width is `width` cells, so each filtered
-direction uses a `(2*width + 1)`-point stencil centered on the current cell.
-Instead of uniform weights, each point receives a Gaussian weight
-`exp(-Δ²/(2σ²))`, where `Δ` is the cell offset and `σ` (in cells) defaults to
-`width / 2`. The filter is normalized: the weighted sum is divided by the sum
-of the surviving weights, so all boundary policies behave consistently.
+`σ` is the standard deviation of the Gaussian kernel in physical units (the
+same units as the grid spacing). Each point in the stencil receives weight
+`exp(-Δ²/(2σ²))`, where `Δ` is the offset (in physical units) from the current
+cell. The filter is normalized: the weighted sum is divided by the sum of the
+surviving weights, so all boundary policies behave consistently.
 
-See `BoxFilter` for the `dims`, `width`, and `boundary` keyword documentation.
+`width` is the half-width of the stencil in cells. If unspecified, `width` is
+inferred per-direction from `σ` and the minimum cell spacing in that direction
+so that `width * Δ ≈ 2σ` (i.e. the stencil extends roughly 2σ on each side of
+the current cell). To override, pass either an integer (applied to every
+filtered dim) or a tuple with one width per dim in `dims` (in the order the
+user passed them).
+
+See `BoxFilter` for the `dims` and `boundary` keyword documentation.
 
 ## Examples
 
@@ -130,14 +136,39 @@ julia> grid = RectilinearGrid(size=(8, 8), x=(0, 1), z=(0, 1),
 
 julia> c = CenterField(grid);
 
-julia> GaussianFilter(c; dims=(1, 3), width=2, σ=1.0) isa KernelFunctionOperation
+julia> GaussianFilter(c; dims=(1, 3), σ=0.1) isa KernelFunctionOperation
 true
 ```
 """
-function GaussianFilter(ψ; dims, width, σ=width/2, boundary=:shrink)
+function GaussianFilter(ψ; dims, σ, width=nothing, boundary=:shrink)
     validate_σ(σ)
-    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, width, boundary)
-    weights = gaussian_weights(width, σ)
-    return build_filter_kfo(d -> GaussianFilterKernel{d}(weights), grid, loc, sorted_dims, width, policies, ψ)
+    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
+
+    sorted_widths = resolve_gaussian_widths(width, σ, grid, dims, sorted_dims)
+    sorted_weights = ntuple(i -> gaussian_weights(sorted_widths[i],
+                                                  σ / direction_min_spacing(grid, sorted_dims[i])),
+                            length(sorted_dims))
+
+    return build_filter_kfo((d, i) -> GaussianFilterKernel{d}(sorted_weights[i]),
+                            grid, loc, sorted_dims, sorted_widths, policies, ψ)
+end
+
+infer_width(σ, grid, d) = ceil(Int, 2σ / direction_min_spacing(grid, d))
+
+function resolve_gaussian_widths(width, σ, grid, dims, sorted_dims)
+    if width === nothing
+        return ntuple(i -> infer_width(σ, grid, sorted_dims[i]), length(sorted_dims))
+    elseif width isa Tuple
+        length(width) == length(dims) ||
+            throw(ArgumentError("`width` tuple must have one entry per dim in `dims`; got length $(length(width)) for dims=$dims"))
+        foreach(validate_width, width)
+        return ntuple(i -> begin
+            user_idx = findfirst(==(sorted_dims[i]), dims)
+            width[user_idx]
+        end, length(sorted_dims))
+    else
+        validate_width(width)
+        return ntuple(_ -> width, length(sorted_dims))
+    end
 end
 #---
