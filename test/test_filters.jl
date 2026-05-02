@@ -1,5 +1,5 @@
 using Test
-using CUDA: has_cuda_gpu
+using CUDA: has_cuda_gpu, @allowscalar
 using Oceananigans
 using Oceananigans: fill_halo_regions!, location
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -356,6 +356,40 @@ function test_σ_validation(grid)
     @test_throws ArgumentError GaussianFilter(c; dims=(1,), width=1, σ=-1.0)
     @test_throws ArgumentError GaussianFilter(c; dims=(1,), width=1, σ="foo")
 end
+
+# Apply the GaussianFilter to a discrete Dirac delta (a 1D field that is zero
+# everywhere except at one interior point). The output must equal the
+# normalized Gaussian kernel — this is the filter's impulse response, and
+# verifies that GaussianFilter actually applies the kernel it advertises.
+function test_gaussian_dirac_delta()
+    N = 21
+    grid_1d = RectilinearGrid(arch, size = (N,),
+                              x = (0, 1),
+                              halo = (3,),
+                              topology = (Periodic, Flat, Flat))
+    i₀ = N ÷ 2 + 1  # interior point — chosen so the stencil never wraps
+
+    for (width, σ) in [(3, 1.0), (3, 2.0), (5, 1.5)]
+        c = CenterField(grid_1d)
+        parent(c) .= 0
+        @allowscalar interior(c)[i₀] = 1
+        fill_halo_regions!(c)
+
+        cf = compute_filter(c, GaussianFilter, (1,), width; σ=σ)
+
+        weights = gauss_weights(width, σ)
+        W_sum = sum(weights)
+        expected = zeros(N)
+        for j in 1:N
+            Δ = i₀ - j
+            if abs(Δ) <= width
+                expected[j] = weights[Δ + width + 1] / W_sum
+            end
+        end
+
+        @test Array(interior(cf))[:] ≈ expected
+    end
+end
 #---
 
 #+++ Run tests
@@ -445,6 +479,10 @@ filter_configs = [
 
     @testset "GaussianFilter σ validation" begin
         test_σ_validation(make_grid())
+    end
+
+    @testset "GaussianFilter Dirac delta impulse response" begin
+        test_gaussian_dirac_delta()
     end
 end
 #---
