@@ -1,4 +1,3 @@
-#+++ GaussianFilter kernel
 """
     GaussianFilterKernel{D, W} <: Function
 
@@ -11,10 +10,11 @@ struct GaussianFilterKernel{D, W} <: Function
     weights::W
 end
 
+const GaussianFilter = CustomKFO{<:GaussianFilterKernel}
+
 GaussianFilterKernel{D}(weights::W) where {D, W} = GaussianFilterKernel{D, W}(weights)
 
-# Terminal methods (indexable input).
-
+#+++ Terminal methods (indexable input).
 @inline function (kern::GaussianFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Nx = size(grid, 1)
     s = zero(grid); w_sum = zero(grid)
@@ -53,9 +53,9 @@ end
     end
     return s / w_sum
 end
+#---
 
-# Recursive methods (function input — typically another GaussianFilterKernel).
-
+#+++ Recursive methods (function input — typically another GaussianFilterKernel).
 @inline function (kern::GaussianFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Nx = size(grid, 1)
     s = zero(grid); w_sum = zero(grid)
@@ -94,16 +94,12 @@ end
     end
     return s / w_sum
 end
-
-const GaussianFilter = CustomKFO{<:GaussianFilterKernel}
+#---
 
 gaussian_weights(width, σ) = ntuple(idx -> exp(-(idx - width - 1)^2 / (2σ^2)), 2*width + 1)
 
-validate_σ(σ::Real) =
-    σ > 0 || throw(ArgumentError("`σ` must be a positive number; got $σ"))
-
-validate_σ(σ) =
-    throw(ArgumentError("`σ` must be a positive number; got $(typeof(σ))"))
+validate_σ(σ::Real) = σ > 0 || throw(ArgumentError("`σ` must be a positive number; got $σ"))
+validate_σ(σ) = throw(ArgumentError("`σ` must be a positive number; got $(typeof(σ))"))
 
 """
     $(SIGNATURES)

@@ -1,4 +1,3 @@
-#+++ BoxFilter kernel
 """
     BoxFilterKernel{D} <: Function
 
@@ -7,9 +6,9 @@ Has two methods: a terminal one that indexes into an indexable input, and a
 recursive one that invokes another kernel function at each stencil point.
 """
 struct BoxFilterKernel{D} <: Function end
+const BoxFilter = CustomKFO{<:BoxFilterKernel}
 
-# Terminal methods (indexable input).
-
+#+++ Terminal methods (indexable input).
 @inline function (::BoxFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Nx = size(grid, 1)
     s = zero(grid); n = 0
@@ -39,9 +38,9 @@ end
     end
     return s / n
 end
+#---
 
-# Recursive methods (function input — typically another BoxFilterKernel).
-
+#+++ Recursive methods (function input — typically another BoxFilterKernel).
 @inline function (::BoxFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Nx = size(grid, 1)
     s = zero(grid); n = 0
@@ -71,8 +70,7 @@ end
     end
     return s / n
 end
-
-const BoxFilter = CustomKFO{<:BoxFilterKernel}
+#---
 
 """
     $(SIGNATURES)
