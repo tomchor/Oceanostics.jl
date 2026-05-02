@@ -1,6 +1,7 @@
 using CUDA: has_cuda_gpu
 using Oceananigans
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
+using Oceananigans.TurbulenceClosures: DynamicCoefficient, LagrangianAveraging
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
 
 #+++ Common grid setup
@@ -34,14 +35,14 @@ grid_noise(x, y, z) = randn()
 #+++ Common model configurations
 # Common model kwargs
 model_kwargs = (buoyancy = BuoyancyForce(BuoyancyTracer()),
-                coriolis = FPlane(1e-4),
+                coriolis = FPlane(f=1e-4),
                 tracers = :b)
 
 # Common closures
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
-            Smagorinsky(coefficient=DynamicCoefficient(averaging=(1, 2))),
-            Smagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
+            DynamicSmagorinsky(averaging=(1, 2)),
+            DynamicSmagorinsky(averaging=LagrangianAveraging()),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
 
 # Common buoyancy formulations
@@ -51,7 +52,7 @@ buoyancy_formulations = (nothing,
 
 # Common coriolis formulations
 coriolis_formulations = (nothing,
-                         FPlane(1e-4),
+                         FPlane(f=1e-4),
                          ConstantCartesianCoriolis(fx=1e-4, fy=1e-4, fz=1e-4))
 
 # Extended buoyancy formulations (for some tests)

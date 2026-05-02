@@ -55,7 +55,7 @@ end
             @info "      with $model_type"
             for closure in closures
                 @info "        with closure $(summary(closure))"
-                model = model_type(; grid, closure, model_kwargs...)
+                model = model_type(grid; closure, model_kwargs...)
 
                 @info "          Testing tracer variance terms"
                 test_tracer_variance_terms(model)

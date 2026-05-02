@@ -3,7 +3,7 @@ using CUDA: @allowscalar
 using Oceananigans: fill_halo_regions!
 using Oceananigans.AbstractOperations: AbstractOperation
 using Oceananigans.Grids: znode
-using Oceananigans.BuoyancyFormulations: buoyancy
+using Oceananigans.Models: buoyancy_operation
 using SeawaterPolynomials: BoussinesqEquationOfState
 using SeawaterPolynomials.SecondOrderSeawaterPolynomials: LinearRoquetSeawaterPolynomial
 
@@ -47,7 +47,7 @@ function test_buoyancy_diagnostics(model)
         @test Ri_field isa Field
         @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
 
-        b = buoyancy(model)
+        b = buoyancy_operation(model)
         Ri = RichardsonNumber(model, u, v, w, b)
         @test Ri isa RichardsonNumber
         Ri_field = Field(Ri)
@@ -83,7 +83,7 @@ function test_buoyancy_diagnostics(model)
     @test PVtw isa ThermalWindPotentialVorticity
     @test Field(PVtw) isa Field
 
-    PVtw = ThermalWindPotentialVorticity(model, u, v, b, FPlane(1e-4))
+    PVtw = ThermalWindPotentialVorticity(model, u, v, b, FPlane(f=1e-4))
     @test PVtw isa ThermalWindPotentialVorticity
     @test Field(PVtw) isa Field
 
@@ -192,7 +192,7 @@ end
                 for coriolis in coriolis_formulations
                     @info "          with $(summary(coriolis))"
                     tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T, :b)
-                    model = model_type(; grid, buoyancy, tracers, coriolis)
+                    model = model_type(grid; buoyancy, tracers, coriolis)
                     buoyancy isa BuoyancyTracer ? set!(model, b = 9.87) : set!(model, S = 34.7, T = 0.5)
 
                     @info "            Testing buoyancy diagnostics"

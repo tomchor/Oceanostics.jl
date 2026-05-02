@@ -3,6 +3,7 @@ using CUDA: has_cuda_gpu
 
 using Oceananigans
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
+using Oceananigans.TurbulenceClosures: DynamicCoefficient, LagrangianAveraging
 using Oceanostics
 using Oceanostics.ProgressMessengers
 
@@ -16,8 +17,8 @@ regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
 #+++ Testing options
 closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
             SmagorinskyLilly(),
-            Smagorinsky(coefficient=DynamicCoefficient(averaging=(1, 2))),
-            Smagorinsky(coefficient=DynamicCoefficient(averaging=LagrangianAveraging())),
+            DynamicSmagorinsky(averaging=(1, 2)),
+            DynamicSmagorinsky(averaging=LagrangianAveraging()),
             (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
 #---
 
@@ -33,9 +34,9 @@ end
 @testset "ProgressMessenger tests" begin
     @info "    Testing ProgressMessengers"
     for closure in closures
-        model = NonhydrostaticModel(grid = regular_grid;
+        model = NonhydrostaticModel(regular_grid;
                                     buoyancy = BuoyancyForce(BuoyancyTracer()),
-                                    coriolis = FPlane(1e-4),
+                                    coriolis = FPlane(f=1e-4),
                                     tracers = :b,
                                     closure = closure)
 

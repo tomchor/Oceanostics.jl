@@ -85,7 +85,7 @@ function test_shear_production_terms(model)
 end
 
 function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1))
-    model = model_type(; grid, closure, buoyancy=BuoyancyTracer(), tracers=:b)
+    model = model_type(grid; closure, buoyancy=BuoyancyTracer(), tracers=:b)
 
     if model.closure isa AbstractScalarDiffusivity{<:Any, <:ThreeDimensionalFormulation}
         ε_iso = TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate(model; U=0, V=0, W=0)
@@ -109,9 +109,9 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2)
 
     if closure isa Tuple
-        ν_field = Field(sum(viscosity(closure, model.diffusivity_fields)))
+        ν_field = Field(sum(viscosity(closure, model.closure_fields)))
     else
-        ν_field = viscosity(closure, model.diffusivity_fields)
+        ν_field = viscosity(closure, model.closure_fields)
     end
 
     rtol = zspacings(grid, Center()) isa Number ? 1e-12 : 0.06 # less accurate for stretched grid
@@ -137,7 +137,7 @@ end
             @info "      with $model_type"
             for closure in closures
                 @info "        with closure $(summary(closure))"
-                model = model_type(; grid, closure, model_kwargs...)
+                model = model_type(grid; closure, model_kwargs...)
 
                 @info "          Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(grid; model_type, closure)
@@ -155,7 +155,7 @@ end
                             (ScalarDiffusivity(ν=1e-6, κ=1e-7), HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7))]
 
         for closure in invalid_closures
-            model = NonhydrostaticModel(grid = regular_grid; model_kwargs..., closure)
+            model = NonhydrostaticModel(regular_grid; model_kwargs..., closure)
             @test_throws ErrorException TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate(model; U=0, V=0, W=0)
         end
 

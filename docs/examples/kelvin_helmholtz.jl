@@ -9,7 +9,7 @@
 #
 # ```julia
 # using Pkg
-# pkg"add Oceananigans, Oceanostics, CairoMakie, Rasters"
+# pkg"add Oceananigans, Oceanostics, CairoMakie"
 # ```
 
 # ## Model and simulation setup
@@ -24,7 +24,7 @@ N = 128
 L = 10
 grid = RectilinearGrid(size=(N, N), x=(-L/2, +L/2), z=(-L/2, +L/2), topology=(Periodic, Flat, Bounded))
 
-model = NonhydrostaticModel(; grid, timestepper = :RungeKutta3,
+model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = UpwindBiased(order=5),
                             closure = ScalarDiffusivity(ν=2e-5, κ=2e-5),
                             buoyancy = BuoyancyTracer(), tracers = :b)
@@ -100,12 +100,19 @@ simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
 
 run!(simulation)
 
-# Now we'll read the results using Rasters.jl, which works somewhat similarly to Python's Xarray and
-# can speed-up the work the workflow
+# Now we'll read the results using `FieldTimeSeries`
 
-using Rasters
+filepath = simulation.output_writers[:nc].filepath
+Ri_t = FieldTimeSeries(filepath, "Ri")
+Q_t  = FieldTimeSeries(filepath, "Q")
+b_t  = FieldTimeSeries(filepath, "b")
 
-ds = RasterStack(simulation.output_writers[:nc].filepath)
+# Volume-integrated quantities are scalar time series, so we read them directly with NCDatasets:
+
+ds = NCDataset(filepath)
+∫χ  = ds["∫χ"][:]
+∫χᴰ = ds["∫χᴰ"][:]
+close(ds)
 
 # We now use Makie to create the figure and its axes
 
@@ -123,24 +130,24 @@ ax3 = Axis(fig[2, 3]; title = "b", kwargs...);
 
 n = Observable(1)
 
-Riₙ = @lift set(ds.Ri[Ti=$n, y_aca=Near(0)], :x_caa => X, :z_aaf => Z)
+Riₙ = @lift Ri_t[$n]
 hm1 = heatmap!(ax1, Riₙ; colormap = :bwr, colorrange = (-1, +1))
 Colorbar(fig[3, 1], hm1, vertical=false, height=8)
 
-Qₙ = @lift set(ds.Q[Ti=$n, y_aca=Near(0)], :x_caa => X, :z_aac => Z)
+Qₙ = @lift Q_t[$n]
 hm2 = heatmap!(ax2, Qₙ; colormap = :inferno, colorrange = (0, 0.2))
 Colorbar(fig[3, 2], hm2, vertical=false, height=8)
 
-bₙ = @lift set(ds.b[Ti=$n, y_aca=Near(0)], :x_caa => X, :z_aac => Z)
+bₙ = @lift b_t[$n]
 hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-2.5e-2, +2.5e-2))
 Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
 # We now plot the time evolution of our integrated quantities
 
 axb = Axis(fig[4, 1:3]; xlabel="Time", height=100)
-times = dims(ds, :Ti)
-lines!(axb, Array(times), Array(ds.∫χ),  label = "∫χdV")
-lines!(axb, Array(times), Array(ds.∫χᴰ), label = "∫χᴰdV", linestyle=:dash)
+times = b_t.times
+lines!(axb, times, ∫χ,  label = "∫χdV")
+lines!(axb, times, ∫χᴰ, label = "∫χᴰdV", linestyle=:dash)
 axislegend(position=:lb, labelsize=14)
 
 # Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title

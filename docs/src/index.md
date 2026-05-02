@@ -3,12 +3,6 @@ using Markdown
 Markdown.parse_file(joinpath(@__DIR__, "..", "..", "README.md"))
 ```
 
-!!! note "⚠️ Under construction! 🏗️"
-    We are still actively working on these docs. If you see any errors or if you have any helpful suggestions please
-    open [an issue](https://github.com/tomchor/Oceanostics.jl/issues/new) or
-    [a pull request](https://github.com/tomchor/Oceanostics.jl/pulls) on github.
-
-
 ## Quick example
 
 The example below illustrates a few of Oceanostics' features. Check the Examples for more detailed
@@ -21,7 +15,7 @@ julia> using Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 5, 6), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(grid=grid, closure=SmagorinskyLilly());
+julia> model = NonhydrostaticModel(grid, closure=SmagorinskyLilly());
 
 julia> simulation = Simulation(model, Δt=1, stop_time=10);
 

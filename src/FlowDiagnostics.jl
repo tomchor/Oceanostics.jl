@@ -13,12 +13,12 @@ using Oceanostics: validate_location,
                    get_coriolis_frequency_components,
                    CustomKFO
 
-using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyField, BuoyancyTracer, location
+using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyTracer, location
 using Oceananigans.BuoyancyFormulations: get_temperature_and_salinity, SeawaterBuoyancy, buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceananigans.BuoyancyFormulations: buoyancy
+using Oceananigans.Models: buoyancy_operation
 using Oceananigans.Grids: AbstractGrid, Center, Face, NegativeZDirection, ZDirection, znode, bottommost_active_node
 
 using SeawaterPolynomials: ρ′, BoussinesqEquationOfState
@@ -79,7 +79,7 @@ where `z` is the true vertical direction (ie anti-parallel to gravity).
 """
 function RichardsonNumber(model; loc = (Center, Center, Face))
     validate_location(loc, "RichardsonNumber", (Center, Center, Face))
-    return RichardsonNumber(model, model.velocities..., buoyancy(model); loc)
+    return RichardsonNumber(model, model.velocities..., buoyancy_operation(model); loc)
 end
 
 function RichardsonNumber(model, u, v, w, b; loc = (Center, Center, Face))
@@ -250,7 +250,7 @@ julia> N² = 1e-6;
 
 julia> b_bcs = FieldBoundaryConditions(top=GradientBoundaryCondition(N²));
 
-julia> model = NonhydrostaticModel(; grid, coriolis=FPlane(1e-4), buoyancy=BuoyancyTracer(), tracers=:b, boundary_conditions=(; b=b_bcs));
+julia> model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4), buoyancy=BuoyancyTracer(), tracers=:b, boundary_conditions=(; b=b_bcs));
 
 julia> stratification(z) = N² * z;
 

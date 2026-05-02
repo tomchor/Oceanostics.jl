@@ -62,7 +62,7 @@ function test_tracer_terms(model)
     ADV_field = Field(ADV)
     @test ADV_field isa Field
 
-    DIFF = TracerEquation.TracerDiffusion(model, :a, model.tracers.a, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy)
+    DIFF = TracerEquation.TracerDiffusion(model, :a, model.tracers.a, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
     DIFF_field = Field(DIFF)
     @test DIFF isa TracerEquation.Diffusion
     @test DIFF isa TracerDiffusion
@@ -75,7 +75,7 @@ function test_tracer_terms(model)
     @test DIFF_field isa Field
 
     DIFF = TracerEquation.ImmersedDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
-                                   model.closure, model.diffusivity_fields, Val(:a), model.clock, fields(model))
+                                   model.closure, model.closure_fields, Val(:a), model.clock, fields(model))
     DIFF_field = Field(DIFF)
     @test DIFF isa TracerEquation.ImmersedDiffusion
     @test DIFF isa TracerImmersedDiffusion
@@ -88,7 +88,7 @@ function test_tracer_terms(model)
     @test DIFF_field isa Field
 
     DIFF = TracerEquation.TotalDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
-                                model.closure, model.diffusivity_fields, Val(:a), model.clock, fields(model), model.buoyancy)
+                                model.closure, model.closure_fields, Val(:a), model.clock, fields(model), model.buoyancy)
     DIFF_field = Field(DIFF)
     @test DIFF isa TracerEquation.TotalDiffusion
     @test DIFF isa TracerTotalDiffusion
@@ -122,7 +122,7 @@ end
         @info "    with $grid_class"
         for model_type in model_types
             @info "      with $model_type"
-            model = model_type(; grid, model_kwargs...)
+            model = model_type(grid; model_kwargs...)
 
             @info "        Testing tracer terms"
             test_tracer_terms(model)
