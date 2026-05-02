@@ -104,11 +104,16 @@ run!(simulation)
 # as a time series of `Field`s with all coordinate information attached.
 
 filepath = simulation.output_writers[:nc].filepath
-Ri_t  = FieldTimeSeries(filepath, "Ri")
-Q_t   = FieldTimeSeries(filepath, "Q")
-b_t   = FieldTimeSeries(filepath, "b")
-∫χ_t  = FieldTimeSeries(filepath, "∫χ")
-∫χᴰ_t = FieldTimeSeries(filepath, "∫χᴰ")
+Ri_t = FieldTimeSeries(filepath, "Ri")
+Q_t  = FieldTimeSeries(filepath, "Q")
+b_t  = FieldTimeSeries(filepath, "b")
+
+# Volume-integrated quantities are scalar time series, so we read them directly with NCDatasets:
+
+ds = NCDataset(filepath)
+∫χ  = ds["∫χ"][:]
+∫χᴰ = ds["∫χᴰ"][:]
+close(ds)
 
 # We now use Makie to create the figure and its axes
 
@@ -142,8 +147,8 @@ Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
 axb = Axis(fig[4, 1:3]; xlabel="Time", height=100)
 times = b_t.times
-lines!(axb, times, interior(∫χ_t)[1, 1, 1, :],  label = "∫χdV")
-lines!(axb, times, interior(∫χᴰ_t)[1, 1, 1, :], label = "∫χᴰdV", linestyle=:dash)
+lines!(axb, times, ∫χ,  label = "∫χdV")
+lines!(axb, times, ∫χᴰ, label = "∫χᴰdV", linestyle=:dash)
 axislegend(position=:lb, labelsize=14)
 
 # Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title

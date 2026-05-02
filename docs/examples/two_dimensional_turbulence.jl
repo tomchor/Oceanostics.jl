@@ -105,11 +105,16 @@ run!(simulation)
 # as a time series of `Field`s with all coordinate information attached.
 
 filepath = simulation.output_writers[:nc].filepath
-KE_t  = FieldTimeSeries(filepath, "KE")
-ε_t   = FieldTimeSeries(filepath, "ε")
-∫KE_t = FieldTimeSeries(filepath, "∫KE")
-∫ε_t  = FieldTimeSeries(filepath, "∫ε")
-∫εᴰ_t = FieldTimeSeries(filepath, "∫εᴰ")
+KE_t = FieldTimeSeries(filepath, "KE")
+ε_t  = FieldTimeSeries(filepath, "ε")
+
+# Volume-integrated quantities are scalar time series, so we read them directly with NCDatasets:
+
+ds = NCDataset(filepath)
+∫KE = ds["∫KE"][:]
+∫ε  = ds["∫ε"][:]
+∫εᴰ = ds["∫εᴰ"][:]
+close(ds)
 
 # In order to plot results, we use Makie.jl, which has recipes for Oceananigans `Field`s.
 
@@ -150,11 +155,11 @@ axis_kwargs = (xlabel = "Time",
 
 ax3 = Axis(fig[4, 1]; axis_kwargs...)
 times = KE_t.times
-lines!(ax3, times, interior(∫KE_t)[1, 1, 1, :])
+lines!(ax3, times, ∫KE)
 
 ax4 = Axis(fig[4, 2]; axis_kwargs...)
-lines!(ax4, times, interior(∫ε_t)[1, 1, 1, :], label="∫εdV")
-lines!(ax4, times, interior(∫εᴰ_t)[1, 1, 1, :], label="∫εᴰdV", linestyle=:dash)
+lines!(ax4, times, ∫ε,  label="∫εdV")
+lines!(ax4, times, ∫εᴰ, label="∫εᴰdV", linestyle=:dash)
 axislegend(ax4, labelsize=14)
 
 # Now we mark the time by placing a vertical line in the bottom plots:
