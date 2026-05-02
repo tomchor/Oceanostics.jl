@@ -407,81 +407,46 @@ filter_configs = [
             Ns = (Nx, Ny, Nz)
             grid = make_grid(; Nx, Ny, Nz)
 
-            @testset "Unit filter tests" begin
+            @testset "Smoke tests" begin
                 test_constructor(grid, Filter, fkw)
                 test_output_location(grid, Filter, fkw)
                 test_small_halo(Filter, fkw)
             end
 
-            @testset "Linear field is unchanged on interior (1D, 2D, 3D)" begin
+            @testset "Identity properties" begin
                 test_linear_field_unchanged(grid, Nx, Ny, Nz, Filter, fkw)
-            end
-
-            @testset "Constant field is unchanged" begin
                 test_constant_field_unchanged(grid, Filter, fkw)
             end
 
-            @testset "Averaging matches an explicit stencil sum (periodic)" begin
+            @testset "Numerical correctness against explicit references" begin
                 test_periodic_stencil_sum(grid, Ns, Filter, make_weights, fkw)
-            end
-
-            @testset "Accepts AbstractOperation as input" begin
-                test_abstract_operation_input(grid, Nx, Ny, Filter, fkw)
-            end
-
-            @testset "Accepts another KernelFunctionOperation as input" begin
-                test_kfo_input(grid, Filter, fkw)
-            end
-
-            @testset "Validation of dims" begin
-                test_dims_validation(grid, Filter, fkw)
-            end
-
-            @testset "Validation of width" begin
-                test_width_validation(grid, Filter, fkw)
-            end
-
-            @testset ":shrink (default) on a bounded grid matches explicit reference" begin
                 test_shrink_boundary(Ns, Filter, make_weights, fkw)
-            end
-
-            @testset ":edge on a bounded grid matches explicit reference" begin
                 test_edge_boundary(Ns, Filter, make_weights, fkw)
-            end
-
-            @testset "Constant-pad (left, right) matches explicit reference" begin
                 test_constant_pad_boundary(Ns, Filter, make_weights, fkw)
-            end
-
-            @testset "Per-dim boundary tuple mixes policies across dims" begin
                 test_per_dim_boundary(Ns, Filter, make_weights, fkw)
-            end
-
-            @testset "Periodic dims ignore the boundary spec" begin
                 test_periodic_ignores_boundary(Filter, fkw)
             end
 
-            @testset "Validation of boundary spec" begin
+            @testset "Composability" begin
+                test_abstract_operation_input(grid, Nx, Ny, Filter, fkw)
+                test_kfo_input(grid, Filter, fkw)
+            end
+
+            @testset "Argument validation" begin
+                test_dims_validation(grid, Filter, fkw)
+                test_width_validation(grid, Filter, fkw)
                 test_boundary_validation(grid, Filter, fkw)
             end
         end
     end
 
     @testset "BoxFilter hand-computed" begin
-        @testset "Exact hand-computed values on a 1D periodic grid" begin
-            test_1d_periodic_hand_computed()
-        end
-
-        @testset "Exact hand-computed values on a 1D bounded grid" begin
-            test_1d_bounded_hand_computed()
-        end
+        test_1d_periodic_hand_computed()
+        test_1d_bounded_hand_computed()
     end
 
-    @testset "GaussianFilter σ validation" begin
+    @testset "GaussianFilter-specific" begin
         test_σ_validation(make_grid())
-    end
-
-    @testset "GaussianFilter Dirac delta impulse response" begin
         test_gaussian_dirac_delta()
     end
 end
