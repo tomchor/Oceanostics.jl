@@ -168,7 +168,7 @@ function test_w_momentum_terms(model)
     @test FORC_field isa Field
 
     # Test TotalTendency (NonhydrostaticModel only)
-    TEND = WMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, nothing, model.clock, model.forcing.w)
+    TEND = WMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.w)
     TEND_field = Field(TEND)
     @test TEND isa WMomentumEquation.TotalTendency
     @test TEND isa WTotalTendency

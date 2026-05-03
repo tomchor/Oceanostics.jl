@@ -406,9 +406,7 @@ end
 
 function TotalTendency(model; kwargs...)
     w_immersed_bc = model.velocities.w.boundary_conditions.immersed
-    hydrostatic_pressure = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
-
-    return TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, hydrostatic_pressure, model.clock, model.forcing.w; kwargs...)
+    return TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.w; kwargs...)
 end
 #---
 

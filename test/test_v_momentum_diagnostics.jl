@@ -50,7 +50,8 @@ model_types = (NonhydrostaticModel,
 #+++ Test functions
 function test_v_momentum_terms(model)
     # Test Advection
-    ADV = VMomentumEquation.Advection(model, model.velocities..., model.advection)
+    advection_scheme = model isa HydrostaticFreeSurfaceModel ? model.advection.momentum : model.advection
+    ADV = VMomentumEquation.Advection(model, model.velocities..., advection_scheme)
     ADV_field = Field(ADV)
     @test ADV isa VMomentumEquation.Advection
     @test ADV isa VAdvection
@@ -88,7 +89,7 @@ function test_v_momentum_terms(model)
     @test COR_field isa Field
 
     # Test PressureGradient
-    hydrostatic_pressure = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
+    hydrostatic_pressure = model isa HydrostaticFreeSurfaceModel ? model.pressure.pHY′ : model.pressures.pHY′
     PRES = VMomentumEquation.PressureGradient(model, hydrostatic_pressure)
     PRES_field = Field(PRES)
     @test PRES isa VMomentumEquation.PressureGradient
@@ -184,7 +185,7 @@ function test_v_momentum_terms(model)
     if model isa HydrostaticFreeSurfaceModel
         TEND = VMomentumEquation.TotalTendency(model, model.advection.momentum, model.coriolis, model.closure, v_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.v)
     else
-        TEND = VMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, nothing, model.clock, model.forcing.v)
+        TEND = VMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.v)
     end
     TEND_field = Field(TEND)
     @test TEND isa VMomentumEquation.TotalTendency

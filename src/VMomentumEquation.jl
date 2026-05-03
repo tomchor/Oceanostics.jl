@@ -193,9 +193,16 @@ function PressureGradient(model, hydrostatic_pressure; location = (Center, Face,
 end
 
 function PressureGradient(model; kwargs...)
-    # For NonhydrostaticModel, hydrostatic_pressure is typically nothing
-    # For HydrostaticFreeSurfaceModel, it would be the free surface
-    hydrostatic_pressure = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
+    # Both NH and HFS keep the hydrostatic pressure anomaly (`pHY′`) under a
+    # different field name: NH has `model.pressures.pHY′` (NamedTuple of pNHS, pHY′);
+    # HFS has `model.pressure.pHY′` (NamedTuple with just pHY′). Pull whichever is present.
+    hydrostatic_pressure = if hasfield(typeof(model), :pressures)
+        model.pressures.pHY′
+    elseif hasfield(typeof(model), :pressure)
+        model.pressure.pHY′
+    else
+        nothing
+    end
     return PressureGradient(model, hydrostatic_pressure; kwargs...)
 end
 #---
@@ -447,12 +454,11 @@ end
 
 function TotalTendency(model; kwargs...)
     v_immersed_bc = model.velocities.v.boundary_conditions.immersed
-    hydrostatic_pressure = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
 
     if model isa HydrostaticFreeSurfaceModel
         return TotalTendency(model, model.advection.momentum, model.coriolis, model.closure, v_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.v; kwargs...)
     else
-        return TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, hydrostatic_pressure, model.clock, model.forcing.v; kwargs...)
+        return TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.v; kwargs...)
     end
 end
 #---

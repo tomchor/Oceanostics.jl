@@ -50,7 +50,8 @@ model_types = (NonhydrostaticModel,
 #+++ Test functions
 function test_u_momentum_terms(model)
     # Test Advection
-    ADV = UMomentumEquation.Advection(model, model.velocities..., model.advection)
+    advection_scheme = model isa HydrostaticFreeSurfaceModel ? model.advection.momentum : model.advection
+    ADV = UMomentumEquation.Advection(model, model.velocities..., advection_scheme)
     ADV_field = Field(ADV)
     @test ADV isa UMomentumEquation.Advection
     @test ADV isa UAdvection
@@ -88,7 +89,7 @@ function test_u_momentum_terms(model)
     @test COR_field isa Field
 
     # Test PressureGradient
-    hydrostatic_pressure = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
+    hydrostatic_pressure = model isa HydrostaticFreeSurfaceModel ? model.pressure.pHY′ : model.pressures.pHY′
     PRES = UMomentumEquation.PressureGradient(model, hydrostatic_pressure)
     PRES_field = Field(PRES)
     @test PRES isa UMomentumEquation.PressureGradient
@@ -184,7 +185,7 @@ function test_u_momentum_terms(model)
     if model isa HydrostaticFreeSurfaceModel
         TEND = UMomentumEquation.TotalTendency(model, model.advection.momentum, model.coriolis, model.closure, u_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.u)
     else
-        TEND = UMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, u_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, nothing, model.clock, model.forcing.u)
+        TEND = UMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, u_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.u)
     end
     TEND_field = Field(TEND)
     @test TEND isa UMomentumEquation.TotalTendency
