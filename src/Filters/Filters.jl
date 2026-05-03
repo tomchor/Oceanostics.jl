@@ -20,7 +20,7 @@ overriding any user choice); `Bounded` directions use the user's pick.
 """
 abstract type AbstractBoundaryPolicy end
 
-"""Wrap out-of-bounds offsets to the interior via `mod1`. Used automatically
+"""Wrap out-of-bounds offsets to the interior, modulo `N`. Used automatically
 for every `Periodic` direction, regardless of the user's `boundary` choice."""
 struct PeriodicBoundary <: AbstractBoundaryPolicy end
 
