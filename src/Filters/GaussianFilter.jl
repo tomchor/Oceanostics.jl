@@ -143,8 +143,10 @@ function GaussianFilter(ψ; dims, σ, n_points=nothing, boundary=:shrink)
     grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
 
     sorted_widths = resolve_gaussian_widths(n_points, σ, grid, dims, sorted_dims)
+    FT = eltype(grid)
+    σT = convert(FT, σ)
     sorted_weights = ntuple(i -> gaussian_weights(sorted_widths[i],
-                                                  σ / direction_min_spacing(grid, sorted_dims[i])),
+                                                  σT / convert(FT, direction_min_spacing(grid, sorted_dims[i]))),
                             length(sorted_dims))
 
     return build_filter_kfo((d, i) -> GaussianFilterKernel{d}(sorted_weights[i]),
