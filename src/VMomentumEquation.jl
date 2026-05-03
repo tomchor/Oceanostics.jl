@@ -1,0 +1,459 @@
+module VMomentumEquation
+using DocStringExtensions
+
+using Oceananigans: fields, Face, Center, KernelFunctionOperation, AbstractModel
+using Oceananigans.Models: HydrostaticFreeSurfaceModel
+using Oceananigans.Models.NonhydrostaticModels: v_velocity_tendency
+using Oceananigans.Models.HydrostaticFreeSurfaceModels: hydrostatic_free_surface_v_velocity_tendency
+using Oceananigans.Advection: div_𝐯v
+using Oceananigans.BuoyancyFormulations: y_dot_g_bᶜᶠᶜ
+using Oceananigans.Coriolis: y_f_cross_U
+using Oceananigans.TurbulenceClosures: ∂ⱼ_τ₂ⱼ, immersed_∂ⱼ_τ₂ⱼ
+using Oceananigans.StokesDrifts: y_curl_Uˢ_cross_U, ∂t_vˢ
+using Oceananigans.Operators: ∂yᶜᶠᶜ
+
+using Oceanostics: validate_location, CustomKFO
+
+export Advection, BuoyancyAcceleration, CoriolisAcceleration, PressureGradient,
+       ViscousDissipation, ImmersedViscousDissipation, TotalViscousDissipation,
+       StokesShear, StokesTendency, Forcing, TotalTendency,
+       VAdvection, VBuoyancyAcceleration, VCoriolisAcceleration, VPressureGradient,
+       VViscousDissipation, VImmersedViscousDissipation, VTotalViscousDissipation,
+       VStokesShear, VStokesTendency, VForcing, VTotalTendency
+
+# Inline function for total viscous dissipation
+@inline total_∂ⱼ_τ₂ⱼ(i, j, k, grid, velocities, v_immersed_bc, closure, diffusivities, clock, model_fields, buoyancy) =
+    ∂ⱼ_τ₂ⱼ(i, j, k, grid, closure, diffusivities, clock, model_fields, buoyancy) +
+    immersed_∂ⱼ_τ₂ⱼ(i, j, k, grid, velocities, v_immersed_bc, closure, diffusivities, clock, model_fields)
+
+# Inline function for hydrostatic pressure gradient
+@inline hydrostatic_pressure_gradient_y(i, j, k, grid, hydrostatic_pressure) = ∂yᶜᶠᶜ(i, j, k, grid, hydrostatic_pressure)
+@inline hydrostatic_pressure_gradient_y(i, j, k, grid, ::Nothing) = zero(grid)
+
+# Type aliases for major functions
+const Advection = CustomKFO{<:typeof(div_𝐯v)}
+const BuoyancyAcceleration = CustomKFO{<:typeof(y_dot_g_bᶜᶠᶜ)}
+const CoriolisAcceleration = CustomKFO{<:typeof(y_f_cross_U)}
+const PressureGradient = CustomKFO{<:typeof(hydrostatic_pressure_gradient_y)}
+const ViscousDissipation = CustomKFO{<:typeof(∂ⱼ_τ₂ⱼ)}
+const ImmersedViscousDissipation = CustomKFO{<:typeof(immersed_∂ⱼ_τ₂ⱼ)}
+const TotalViscousDissipation = CustomKFO{<:typeof(total_∂ⱼ_τ₂ⱼ)}
+const StokesShear = CustomKFO{<:typeof(y_curl_Uˢ_cross_U)}
+const StokesTendency = CustomKFO{<:typeof(∂t_vˢ)}
+const Forcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any}
+const TotalTendency = CustomKFO{<:typeof(v_velocity_tendency)}
+
+# Aliases for consistency with TracerEquation naming
+const VAdvection = Advection
+const VBuoyancyAcceleration = BuoyancyAcceleration
+const VCoriolisAcceleration = CoriolisAcceleration
+const VPressureGradient = PressureGradient
+const VViscousDissipation = ViscousDissipation
+const VImmersedViscousDissipation = ImmersedViscousDissipation
+const VTotalViscousDissipation = TotalViscousDissipation
+const VStokesShear = StokesShear
+const VStokesTendency = StokesTendency
+const VForcing = Forcing
+const VTotalTendency = TotalTendency
+
+#+++ Advection
+"""
+    $(SIGNATURES)
+
+Calculates the advection of v-momentum as
+
+    ADV = ∂ⱼ (uⱼ v)
+
+using Oceananigans' kernel [`div_𝐯v`.](https://clima.github.io/OceananigansDocumentation/stable/appendix/library/#Oceananigans.Advection.div_𝐯v-NTuple{7,%20Any})
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> ADV = VMomentumEquation.Advection(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: div_𝐯v (generic function with 10 methods)
+└── arguments: ("Centered", "NamedTuple", "Field")
+```
+"""
+function Advection(model, u, v, w, advection; location = (Center, Face, Center))
+    validate_location(location, "Advection", (Center, Face, Center))
+    total_velocities = (; u, v, w)
+    return KernelFunctionOperation{Center, Face, Center}(div_𝐯v, model.grid, advection, total_velocities, v)
+end
+
+function Advection(model; kwargs...)
+    return Advection(model, model.velocities..., model.advection; kwargs...)
+end
+
+function Advection(model::HydrostaticFreeSurfaceModel; kwargs...)
+    return Advection(model, model.velocities..., model.advection.momentum; kwargs...)
+end
+#---
+
+#+++ Buoyancy acceleration
+"""
+    $(SIGNATURES)
+
+Calculates the buoyancy acceleration in the y-direction as
+
+    BUOY = ĝᵧ b
+
+where ĝᵧ is the y-component of the gravitational unit vector and b is the buoyancy.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
+
+julia> BUOY = VMomentumEquation.BuoyancyAcceleration(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: y_dot_g_bᶜᶠᶜ (generic function with 10 methods)
+└── arguments: ("BuoyancyTracer", "NamedTuple")
+```
+"""
+function BuoyancyAcceleration(model, buoyancy, tracers; location = (Center, Face, Center))
+    validate_location(location, "BuoyancyAcceleration", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(y_dot_g_bᶜᶠᶜ, model.grid, buoyancy, tracers)
+end
+
+function BuoyancyAcceleration(model; kwargs...)
+    return BuoyancyAcceleration(model, model.buoyancy, model.tracers; kwargs...)
+end
+#---
+
+#+++ Coriolis acceleration
+"""
+    $(SIGNATURES)
+
+Calculates the Coriolis acceleration in the y-direction as
+
+    COR = - (f × u)ᵧ
+
+where f is the Coriolis parameter vector and u is the velocity vector.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4));
+
+julia> COR = VMomentumEquation.CoriolisAcceleration(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: y_f_cross_U (generic function with 10 methods)
+└── arguments: ("FPlane", "NamedTuple")
+```
+"""
+function CoriolisAcceleration(model, coriolis, velocities; location = (Center, Face, Center))
+    validate_location(location, "CoriolisAcceleration", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(y_f_cross_U, model.grid, coriolis, velocities)
+end
+
+function CoriolisAcceleration(model; kwargs...)
+    return CoriolisAcceleration(model, model.coriolis, model.velocities; kwargs...)
+end
+#---
+
+#+++ Pressure gradient
+"""
+    $(SIGNATURES)
+
+Calculates the pressure gradient force in the y-direction as
+
+    PRES = - ∂p/∂y
+
+where p is the pressure field.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> PRES = VMomentumEquation.PressureGradient(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: hydrostatic_pressure_gradient_y (generic function with 2 methods)
+└── arguments: ("Nothing",)
+```
+"""
+function PressureGradient(model, hydrostatic_pressure; location = (Center, Face, Center))
+    validate_location(location, "PressureGradient", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(hydrostatic_pressure_gradient_y, model.grid, hydrostatic_pressure)
+end
+
+function PressureGradient(model; kwargs...)
+    # For NonhydrostaticModel, hydrostatic_pressure is typically nothing
+    # For HydrostaticFreeSurfaceModel, it would be the free surface
+    hydrostatic_pressure = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
+    return PressureGradient(model, hydrostatic_pressure; kwargs...)
+end
+#---
+
+#+++ Viscous dissipation
+"""
+    $(SIGNATURES)
+
+Calculates the viscous dissipation term (excluding immersed boundaries) as
+
+    VISC = - ∂ⱼ τ₂ⱼ,
+
+where τ₂ⱼ is the viscous stress tensor for the y-momentum equation.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> VISC = VMomentumEquation.ViscousDissipation(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ∂ⱼ_τ₂ⱼ (generic function with 10 methods)
+└── arguments: ("Nothing", "Nothing", "Clock", "NamedTuple", "Nothing")
+```
+"""
+function ViscousDissipation(model, closure, diffusivities, clock, model_fields, buoyancy; location = (Center, Face, Center))
+    validate_location(location, "ViscousDissipation", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(∂ⱼ_τ₂ⱼ, model.grid, closure, diffusivities, clock, model_fields, buoyancy)
+end
+
+function ViscousDissipation(model; kwargs...)
+    return ViscousDissipation(model, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy; kwargs...)
+end
+
+"""
+    $(SIGNATURES)
+
+Calculates the viscous dissipation term due to immersed boundaries as
+
+    VISC = - ∂ⱼ τ₂ⱼ,
+
+where τ₂ⱼ is the immersed boundary viscous stress tensor for the y-momentum equation.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> VISC = VMomentumEquation.ImmersedViscousDissipation(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: immersed_∂ⱼ_τ₂ⱼ (generic function with 2 methods)
+└── arguments: ("NamedTuple", "Nothing", "Nothing", "Nothing", "Clock", "NamedTuple")
+```
+"""
+function ImmersedViscousDissipation(model, velocities, v_immersed_bc, closure, diffusivities, clock, model_fields; location = (Center, Face, Center))
+    validate_location(location, "ImmersedViscousDissipation", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(immersed_∂ⱼ_τ₂ⱼ, model.grid, velocities, v_immersed_bc, closure, diffusivities, clock, model_fields)
+end
+
+function ImmersedViscousDissipation(model; kwargs...)
+    v_immersed_bc = model.velocities.v.boundary_conditions.immersed
+    return ImmersedViscousDissipation(model, model.velocities, v_immersed_bc, model.closure, model.diffusivity_fields, model.clock, fields(model); kwargs...)
+end
+
+"""
+    $(SIGNATURES)
+
+Calculates the total viscous dissipation term as
+
+    VISC = - ∂ⱼ τ₂ⱼ - ∂ⱼ τ₂ⱼ_immersed,
+
+where τ₂ⱼ is the interior viscous stress tensor and τ₂ⱼ_immersed is the immersed boundary
+viscous stress tensor for the y-momentum equation.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> VISC = VMomentumEquation.TotalViscousDissipation(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: total_∂ⱼ_τ₂ⱼ (generic function with 1 method)
+└── arguments: ("NamedTuple", "Nothing", "Nothing", "Nothing", "Clock", "NamedTuple", "Nothing")
+```
+"""
+function TotalViscousDissipation(model, velocities, v_immersed_bc, closure, diffusivities, clock, model_fields, buoyancy; location = (Center, Face, Center))
+    validate_location(location, "TotalViscousDissipation", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(total_∂ⱼ_τ₂ⱼ, model.grid, velocities, v_immersed_bc, closure, diffusivities, clock, model_fields, buoyancy)
+end
+
+function TotalViscousDissipation(model; kwargs...)
+    v_immersed_bc = model.velocities.v.boundary_conditions.immersed
+    return TotalViscousDissipation(model, model.velocities, v_immersed_bc, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy; kwargs...)
+end
+#---
+
+#+++ Stokes drift terms
+"""
+    $(SIGNATURES)
+
+Calculates the Stokes shear term as
+
+    STOKES_SHEAR = ((∇ × uˢ) × u)ᵧ
+
+where uˢ is the Stokes drift velocity and u is the velocity vector.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> STOKES = VMomentumEquation.StokesShear(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: y_curl_Uˢ_cross_U (generic function with 10 methods)
+└── arguments: ("Nothing", "NamedTuple", "Float64")
+```
+"""
+function StokesShear(model, stokes_drift, velocities, time; location = (Center, Face, Center))
+    validate_location(location, "StokesShear", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(y_curl_Uˢ_cross_U, model.grid, stokes_drift, velocities, time)
+end
+
+function StokesShear(model; kwargs...)
+    return StokesShear(model, model.stokes_drift, model.velocities, model.clock.time; kwargs...)
+end
+
+"""
+    $(SIGNATURES)
+
+Calculates the Stokes tendency term as
+
+    STOKES_TEND = ∂vˢ/∂t
+
+where vˢ is the y-component of the Stokes drift velocity.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> STOKES = VMomentumEquation.StokesTendency(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ∂t_vˢ (generic function with 10 methods)
+└── arguments: ("Nothing", "Float64")
+```
+"""
+function StokesTendency(model, stokes_drift, time; location = (Center, Face, Center))
+    validate_location(location, "StokesTendency", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(∂t_vˢ, model.grid, stokes_drift, time)
+end
+
+function StokesTendency(model; kwargs...)
+    return StokesTendency(model, model.stokes_drift, model.clock.time; kwargs...)
+end
+#---
+
+#+++ Forcing
+"""
+    $(SIGNATURES)
+
+Calculate the forcing term `Fᵛ` on the y-momentum equation for `model`.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> FORC = VMomentumEquation.Forcing(model, Val(:v))
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: zeroforcing (generic function with 1 method)
+└── arguments: ("Clock", "NamedTuple")
+```
+
+The `Val(:v)` tag is required to disambiguate from `UMomentumEquation.Forcing` since
+`Forcing` is a type alias for `KernelFunctionOperation` and constructor methods are
+shared across modules.
+"""
+function Forcing(model, forcing, clock, model_fields, ::Val{:v}; location = (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(forcing, model.grid, clock, model_fields)
+end
+
+# NB: we tag with Val(:v) so the 1-arg convenience does not collide with UMomentumEquation.Forcing(model),
+# since `Forcing` aliases KernelFunctionOperation and the constructor is shared across modules.
+function Forcing(model, ::Val{:v}; kwargs...)
+    return Forcing(model, model.forcing.v, model.clock, fields(model), Val(:v); kwargs...)
+end
+#---
+
+#+++ Total tendency
+"""
+    $(SIGNATURES)
+
+Calculate the total tendency of the v-momentum equation as computed by Oceananigans.
+
+For NonhydrostaticModel, this includes:
+- Advection: -∇⋅(𝐯v)
+- Background advection terms
+- Buoyancy: ĝᵧ b
+- Coriolis: -(f × u)ᵧ
+- Pressure gradient: -∂p/∂y
+- Viscous dissipation: -∇⋅τ₂
+- Immersed viscous dissipation
+- Stokes shear: ((∇ × uˢ) × u)ᵧ
+- Stokes tendency: ∂vˢ/∂t
+- Forcing: Fᵛ
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> TEND = VMomentumEquation.TotalTendency(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: v_velocity_tendency (generic function with 1 method)
+└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "zeroforcing")
+```
+"""
+function TotalTendency(model::HydrostaticFreeSurfaceModel, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, free_surface, clock, forcing; location = (Center, Face, Center))
+    validate_location(location, "TotalTendency", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(hydrostatic_free_surface_v_velocity_tendency, model.grid, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, free_surface, clock, forcing)
+end
+
+function TotalTendency(model, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing; location = (Center, Face, Center))
+    validate_location(location, "TotalTendency", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(v_velocity_tendency, model.grid, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing)
+end
+
+function TotalTendency(model; kwargs...)
+    v_immersed_bc = model.velocities.v.boundary_conditions.immersed
+    hydrostatic_pressure = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
+
+    if model isa HydrostaticFreeSurfaceModel
+        return TotalTendency(model, model.advection.momentum, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.diffusivity_fields, hydrostatic_pressure, model.clock, model.forcing.v; kwargs...)
+    else
+        return TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.diffusivity_fields, hydrostatic_pressure, model.clock, model.forcing.v; kwargs...)
+    end
+end
+#---
+
+end # module

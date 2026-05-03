@@ -5,7 +5,8 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, F}
 
 #+++ Module export
-export TracerEquation, KineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation, UMomentumEquation
+export TracerEquation, KineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
+       UMomentumEquation, VMomentumEquation, WMomentumEquation
 #---
 
 #+++ TracerEquation exports
@@ -16,6 +17,18 @@ export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDif
 export UAdvection, UBuoyancyAcceleration, UCoriolisAcceleration, UPressureGradient,
        UViscousDissipation, UImmersedViscousDissipation, UTotalViscousDissipation,
        UStokesShear, UStokesTendency, UForcing, UTotalTendency
+#---
+
+#+++ VMomentumEquation exports
+export VAdvection, VBuoyancyAcceleration, VCoriolisAcceleration, VPressureGradient,
+       VViscousDissipation, VImmersedViscousDissipation, VTotalViscousDissipation,
+       VStokesShear, VStokesTendency, VForcing, VTotalTendency
+#---
+
+#+++ WMomentumEquation exports
+export WAdvection, WBuoyancyAcceleration, WCoriolisAcceleration,
+       WViscousDissipation, WImmersedViscousDissipation, WTotalViscousDissipation,
+       WStokesShear, WStokesTendency, WForcing, WTotalTendency
 #---
 
 #+++ TracerVarianceEquation exports
@@ -161,6 +174,8 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
 
 include("TracerEquation.jl")
 include("UMomentumEquation.jl")
+include("VMomentumEquation.jl")
+include("WMomentumEquation.jl")
 include("TracerVarianceEquation.jl")
 include("KineticEnergyEquation.jl")
 include("TurbulentKineticEnergyEquation.jl")
@@ -169,7 +184,7 @@ include("FlowDiagnostics.jl")
 include("Filters.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
-using .TracerEquation, .UMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
+using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
 using .FlowDiagnostics
 using .Filters
 using .ProgressMessengers
