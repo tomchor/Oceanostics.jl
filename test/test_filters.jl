@@ -214,6 +214,29 @@ function test_n_points_validation(grid, Filter, fkw)
     @test_throws ArgumentError Filter(c; dims=(1,), n_points=3.5, fkw...)  # non-integer
 end
 
+# For a periodic direction with N cells, wrap_periodic_index is only valid when
+# the stencil spans at most one period, i.e. n_points ≤ 2N+1.
+function test_periodic_n_points_too_large(Filter, fkw)
+    # N=4 in each direction → 2N+1 = 9; n_points=11 exceeds this limit.
+    small_periodic = make_grid(; Nx=4, Ny=4, Nz=4, topology=(Periodic, Periodic, Periodic))
+    small_bounded  = make_grid(; Nx=4, Ny=4, Nz=4, topology=(Bounded,  Bounded,  Bounded))
+    small_mixed    = make_grid(; Nx=4, Ny=4, Nz=4, topology=(Periodic, Bounded,  Bounded))
+
+    c_p = CenterField(small_periodic)
+    c_b = CenterField(small_bounded)
+    c_m = CenterField(small_mixed)
+
+    # n_points=11 > 2*4+1=9 in a periodic direction: must fail
+    @test_throws ArgumentError Filter(c_p; dims=(1,), n_points=11, fkw...)
+    # n_points=9 == 2*4+1=9 in a periodic direction: edge of valid range, must succeed
+    @test Filter(c_p; dims=(1,), n_points=9, fkw...) isa KernelFunctionOperation
+    # n_points=11 in a bounded direction only: no periodic constraint, must succeed
+    @test Filter(c_b; dims=(1,), n_points=11, fkw...) isa KernelFunctionOperation
+    # Mixed topology: n_points=11 in periodic x must fail, in bounded y must succeed
+    @test_throws ArgumentError Filter(c_m; dims=(1,), n_points=11, fkw...)
+    @test Filter(c_m; dims=(2,), n_points=11, fkw...) isa KernelFunctionOperation
+end
+
 function test_small_halo(Filter, fkw)
     tiny_periodic = make_grid(; halo=(1, 1, 1), topology=(Periodic, Periodic, Periodic))
     tiny_bounded  = make_grid(; halo=(1, 1, 1), topology=(Bounded,  Bounded,  Bounded))
@@ -446,6 +469,7 @@ filter_configs = [
             @testset "Argument validation" begin
                 test_dims_validation(grid, Filter, fkw)
                 test_n_points_validation(grid, Filter, fkw)
+                test_periodic_n_points_too_large(Filter, fkw)
                 test_boundary_validation(grid, Filter, fkw)
             end
         end

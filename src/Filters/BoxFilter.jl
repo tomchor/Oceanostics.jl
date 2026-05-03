@@ -142,6 +142,7 @@ function BoxFilter(ψ; dims, n_points, boundary=:shrink)
     grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
     width = (n_points - 1) ÷ 2
     widths = ntuple(_ -> width, length(sorted_dims))
+    validate_periodic_widths(grid, sorted_dims, policies, widths)
     return build_filter_kfo((d, i) -> BoxFilterKernel{d}(), grid, loc, sorted_dims, widths, policies, ψ)
 end
 #---

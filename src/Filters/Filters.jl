@@ -194,6 +194,17 @@ validate_n_points(n_points::Integer) =
 validate_n_points(n_points) =
     throw(ArgumentError("`n_points` must be an odd integer ≥ 3; got $(typeof(n_points))"))
 
+function validate_periodic_widths(grid, sorted_dims, policies, widths)
+    for (i, (d, policy)) in enumerate(zip(sorted_dims, policies))
+        if policy isa PeriodicBoundary
+            N = size(grid, d)
+            n_points = 2 * widths[i] + 1
+            n_points <= 2N + 1 ||
+                throw(ArgumentError("`n_points` ($n_points) exceeds 2N+1 ($(2N+1)) for the periodic direction $d (N=$N); the periodic wrapping assumes the stencil spans at most one period"))
+        end
+    end
+end
+
 parse_boundary_spec(s::Symbol) =
     s === :shrink ? ShrinkBoundary() :
     s === :edge   ? EdgeBoundary()   :

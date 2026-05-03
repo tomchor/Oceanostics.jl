@@ -143,6 +143,7 @@ function GaussianFilter(ψ; dims, σ, n_points=nothing, boundary=:shrink)
     grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
 
     sorted_widths = resolve_gaussian_widths(n_points, σ, grid, dims, sorted_dims)
+    validate_periodic_widths(grid, sorted_dims, policies, sorted_widths)
     FT = eltype(grid)
     σT = convert(FT, σ)
     sorted_weights = ntuple(i -> gaussian_weights(sorted_widths[i],
