@@ -383,6 +383,49 @@ function test_σ_validation(grid)
     @test_throws ArgumentError GaussianFilter(c; dims=(1,), n_points=3, σ="foo")
 end
 
+# Test the n_points=nothing inference path. On a uniform grid with spacing Δ,
+# infer_width(σ, grid, d) = ceil(2σ/Δ). Here σ = 1.5*Δ → width = 3, n_points = 7.
+# The inferred filter must produce the same output as the explicit n_points=7 filter.
+function test_gaussian_n_points_inferred()
+    N = 8; Δ = 1/N
+    σ = 1.5 * Δ   # infer_width = ceil(2*1.5) = 3 → n_points_inferred = 7
+    grid = make_grid(; Nx=N, Ny=N, Nz=N)
+    c = center_field_from(grid, (x, y, z) -> sin(2π * x) + cos(2π * z))
+
+    # Smoke: omitting n_points produces a valid KFO for both 1D and 2D filtering
+    @test GaussianFilter(c; dims=(1,),    σ=σ) isa KernelFunctionOperation
+    @test GaussianFilter(c; dims=(1, 3), σ=σ) isa KernelFunctionOperation
+
+    # Numerical: inferred path equals explicit n_points=7
+    f_inferred = Field(GaussianFilter(c; dims=(1,), σ=σ))
+    f_explicit  = Field(GaussianFilter(c; dims=(1,), σ=σ, n_points=7))
+    @test Array(interior(f_inferred)) ≈ Array(interior(f_explicit))
+
+    # Same check for a 2D filter
+    f_inferred_2d = Field(GaussianFilter(c; dims=(1, 3), σ=σ))
+    f_explicit_2d = Field(GaussianFilter(c; dims=(1, 3), σ=σ, n_points=7))
+    @test Array(interior(f_inferred_2d)) ≈ Array(interior(f_explicit_2d))
+end
+
+# Test per-dimension n_points::Tuple with dims listed out of sorted order.
+# dims=(3, 1), n_points=(5, 7) means: 5 points for direction 3, 7 for direction 1.
+# This should equal dims=(1, 3), n_points=(7, 5) — the same widths, dims just reordered.
+function test_gaussian_n_points_tuple_order()
+    N = 8; Δ = 1/N
+    σ = 1.5 * Δ
+    grid = make_grid(; Nx=N, Ny=N, Nz=N)
+    c = center_field_from(grid, (x, y, z) -> sin(2π * x) * cos(2π * z))
+
+    # Two ways to spell the same filter: width=3 in x (dim 1), width=2 in z (dim 3)
+    f_a = Field(GaussianFilter(c; dims=(3, 1), σ=σ, n_points=(5, 7)))  # z→5, x→7
+    f_b = Field(GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(7, 5)))  # x→7, z→5
+    @test Array(interior(f_a)) ≈ Array(interior(f_b))
+
+    # Validation: wrong tuple length must error
+    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(5,))
+    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(5, 7, 9))
+end
+
 # Apply the GaussianFilter to a discrete Dirac delta (a 1D field that is zero
 # everywhere except at one interior point). The output must equal the
 # normalized Gaussian kernel — this is the filter's impulse response, and
@@ -483,6 +526,8 @@ filter_configs = [
     @testset "GaussianFilter-specific" begin
         test_σ_validation(make_grid())
         test_gaussian_dirac_delta()
+        test_gaussian_n_points_inferred()
+        test_gaussian_n_points_tuple_order()
     end
 end
 #---
