@@ -63,7 +63,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> ADV = WMomentumEquation.Advection(model)
 KernelFunctionOperation at (Center, Center, Face)
@@ -102,7 +102,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid, buoyancy=BuoyancyTracer(), tracers=:b);
+julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
 
 julia> BUOY = WMomentumEquation.BuoyancyAcceleration(model)
 KernelFunctionOperation at (Center, Center, Face)
@@ -136,7 +136,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid, coriolis=FPlane(1e-4));
+julia> model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4));
 
 julia> COR = WMomentumEquation.CoriolisAcceleration(model)
 KernelFunctionOperation at (Center, Center, Face)
@@ -170,7 +170,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> VISC = WMomentumEquation.ViscousDissipation(model)
 KernelFunctionOperation at (Center, Center, Face)
@@ -185,7 +185,7 @@ function ViscousDissipation(model, closure, diffusivities, clock, model_fields, 
 end
 
 function ViscousDissipation(model; kwargs...)
-    return ViscousDissipation(model, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy; kwargs...)
+    return ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
 end
 
 """
@@ -202,7 +202,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> VISC = WMomentumEquation.ImmersedViscousDissipation(model)
 KernelFunctionOperation at (Center, Center, Face)
@@ -218,7 +218,7 @@ end
 
 function ImmersedViscousDissipation(model; kwargs...)
     w_immersed_bc = model.velocities.w.boundary_conditions.immersed
-    return ImmersedViscousDissipation(model, model.velocities, w_immersed_bc, model.closure, model.diffusivity_fields, model.clock, fields(model); kwargs...)
+    return ImmersedViscousDissipation(model, model.velocities, w_immersed_bc, model.closure, model.closure_fields, model.clock, fields(model); kwargs...)
 end
 
 """
@@ -236,7 +236,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> VISC = WMomentumEquation.TotalViscousDissipation(model)
 KernelFunctionOperation at (Center, Center, Face)
@@ -252,7 +252,7 @@ end
 
 function TotalViscousDissipation(model; kwargs...)
     w_immersed_bc = model.velocities.w.boundary_conditions.immersed
-    return TotalViscousDissipation(model, model.velocities, w_immersed_bc, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy; kwargs...)
+    return TotalViscousDissipation(model, model.velocities, w_immersed_bc, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
 end
 #---
 
@@ -271,7 +271,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> STOKES = WMomentumEquation.StokesShear(model)
 KernelFunctionOperation at (Center, Center, Face)
@@ -303,7 +303,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> STOKES = WMomentumEquation.StokesTendency(model)
 KernelFunctionOperation at (Center, Center, Face)
@@ -333,7 +333,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> FORC = WMomentumEquation.Forcing(model, Val(:w))
 KernelFunctionOperation at (Center, Center, Face)
@@ -347,6 +347,7 @@ The `Val(:w)` tag is required to disambiguate from `UMomentumEquation.Forcing` s
 shared across modules.
 """
 function Forcing(model, forcing, clock, model_fields, ::Val{:w}; location = (Center, Center, Face))
+    validate_location(location, "Forcing", (Center, Center, Face))
     return KernelFunctionOperation{Center, Center, Face}(forcing, model.grid, clock, model_fields)
 end
 
@@ -384,7 +385,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> model = NonhydrostaticModel(; grid);
+julia> model = NonhydrostaticModel(grid);
 
 julia> TEND = WMomentumEquation.TotalTendency(model)
 KernelFunctionOperation at (Center, Center, Face)
@@ -407,7 +408,7 @@ function TotalTendency(model; kwargs...)
     w_immersed_bc = model.velocities.w.boundary_conditions.immersed
     hydrostatic_pressure = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
 
-    return TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.diffusivity_fields, hydrostatic_pressure, model.clock, model.forcing.w; kwargs...)
+    return TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, hydrostatic_pressure, model.clock, model.forcing.w; kwargs...)
 end
 #---
 

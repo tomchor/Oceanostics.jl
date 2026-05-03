@@ -77,7 +77,7 @@ using Oceananigans.Grids: Center, Face
 
 validate_location(location, type, valid_location=(Center, Center, Center)) =
     location != valid_location &&
-        error("$type only supports location = $valid_location for now.")
+        throw(ArgumentError("$type only supports location = $valid_location for now."))
 
 validate_dissipative_closure(closure) = error("Cannot calculate dissipation rate for $closure")
 validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}) = nothing

@@ -2,6 +2,7 @@ using Test
 using CUDA: has_cuda_gpu
 
 using Oceananigans
+using Oceananigans.Fields: location
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 
 using Oceanostics
@@ -35,7 +36,7 @@ immersed_bc = FluxBoundaryCondition(bc_function)
 w_boundary_conditions = FieldBoundaryConditions(immersed=immersed_bc)
 boundary_conditions = (; w = w_boundary_conditions)
 
-model_kwargs = (; tracers, forcing, boundary_conditions, buoyancy=BuoyancyTracer(), coriolis=FPlane(1e-4))
+model_kwargs = (; tracers, forcing, boundary_conditions, buoyancy=BuoyancyTracer(), coriolis=FPlane(f=1e-4))
 #---
 
 #+++ Test options
@@ -88,7 +89,7 @@ function test_w_momentum_terms(model)
     @test COR_field isa Field
 
     # Test ViscousDissipation
-    VISC = WMomentumEquation.ViscousDissipation(model, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy)
+    VISC = WMomentumEquation.ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
     VISC_field = Field(VISC)
     @test VISC isa WMomentumEquation.ViscousDissipation
     @test VISC isa WViscousDissipation
@@ -102,7 +103,7 @@ function test_w_momentum_terms(model)
 
     # Test ImmersedViscousDissipation
     w_immersed_bc = model.velocities.w.boundary_conditions.immersed
-    IVISC = WMomentumEquation.ImmersedViscousDissipation(model, model.velocities, w_immersed_bc, model.closure, model.diffusivity_fields, model.clock, fields(model))
+    IVISC = WMomentumEquation.ImmersedViscousDissipation(model, model.velocities, w_immersed_bc, model.closure, model.closure_fields, model.clock, fields(model))
     IVISC_field = Field(IVISC)
     @test IVISC isa WMomentumEquation.ImmersedViscousDissipation
     @test IVISC isa WImmersedViscousDissipation
@@ -115,7 +116,7 @@ function test_w_momentum_terms(model)
     @test IVISC_field isa Field
 
     # Test TotalViscousDissipation
-    TVISC = WMomentumEquation.TotalViscousDissipation(model, model.velocities, w_immersed_bc, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy)
+    TVISC = WMomentumEquation.TotalViscousDissipation(model, model.velocities, w_immersed_bc, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
     TVISC_field = Field(TVISC)
     @test TVISC isa WMomentumEquation.TotalViscousDissipation
     @test TVISC isa WTotalViscousDissipation
@@ -167,7 +168,7 @@ function test_w_momentum_terms(model)
     @test FORC_field isa Field
 
     # Test TotalTendency (NonhydrostaticModel only)
-    TEND = WMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.diffusivity_fields, nothing, model.clock, model.forcing.w)
+    TEND = WMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, nothing, model.clock, model.forcing.w)
     TEND_field = Field(TEND)
     @test TEND isa WMomentumEquation.TotalTendency
     @test TEND isa WTotalTendency
@@ -234,7 +235,7 @@ end
 
 function test_w_momentum_hfs_unsupported()
     grid = first(values(grids))
-    hfs_model = HydrostaticFreeSurfaceModel(; grid, tracers, buoyancy=BuoyancyTracer())
+    hfs_model = HydrostaticFreeSurfaceModel(grid; tracers, buoyancy=BuoyancyTracer())
     @test_throws ArgumentError WMomentumEquation.TotalTendency(hfs_model)
     return nothing
 end
@@ -246,7 +247,7 @@ end
         @info "    with $grid_class"
         for model_type in model_types
             @info "      with $model_type"
-            model = model_type(; grid, model_kwargs...)
+            model = model_type(grid; model_kwargs...)
 
             @info "        Testing w-momentum terms"
             test_w_momentum_terms(model)

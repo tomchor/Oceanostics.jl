@@ -230,7 +230,7 @@ function ViscousDissipation(model, closure, diffusivities, clock, model_fields, 
 end
 
 function ViscousDissipation(model; kwargs...)
-    return ViscousDissipation(model, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy; kwargs...)
+    return ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
 end
 
 """
@@ -263,7 +263,7 @@ end
 
 function ImmersedViscousDissipation(model; kwargs...)
     v_immersed_bc = model.velocities.v.boundary_conditions.immersed
-    return ImmersedViscousDissipation(model, model.velocities, v_immersed_bc, model.closure, model.diffusivity_fields, model.clock, fields(model); kwargs...)
+    return ImmersedViscousDissipation(model, model.velocities, v_immersed_bc, model.closure, model.closure_fields, model.clock, fields(model); kwargs...)
 end
 
 """
@@ -297,7 +297,7 @@ end
 
 function TotalViscousDissipation(model; kwargs...)
     v_immersed_bc = model.velocities.v.boundary_conditions.immersed
-    return TotalViscousDissipation(model, model.velocities, v_immersed_bc, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy; kwargs...)
+    return TotalViscousDissipation(model, model.velocities, v_immersed_bc, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
 end
 #---
 
@@ -392,6 +392,7 @@ The `Val(:v)` tag is required to disambiguate from `UMomentumEquation.Forcing` s
 shared across modules.
 """
 function Forcing(model, forcing, clock, model_fields, ::Val{:v}; location = (Center, Face, Center))
+    validate_location(location, "Forcing", (Center, Face, Center))
     return KernelFunctionOperation{Center, Face, Center}(forcing, model.grid, clock, model_fields)
 end
 
@@ -434,9 +435,9 @@ KernelFunctionOperation at (Center, Face, Center)
 └── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "zeroforcing")
 ```
 """
-function TotalTendency(model::HydrostaticFreeSurfaceModel, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, free_surface, clock, forcing; location = (Center, Face, Center))
+function TotalTendency(model::HydrostaticFreeSurfaceModel, advection, coriolis, closure, v_immersed_bc, velocities, free_surface, tracers, buoyancy, closure_fields, hydrostatic_pressure_anomaly, auxiliary_fields, vertical_coordinate, clock, forcing; location = (Center, Face, Center))
     validate_location(location, "TotalTendency", (Center, Face, Center))
-    return KernelFunctionOperation{Center, Face, Center}(hydrostatic_free_surface_v_velocity_tendency, model.grid, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, free_surface, clock, forcing)
+    return KernelFunctionOperation{Center, Face, Center}(hydrostatic_free_surface_v_velocity_tendency, model.grid, advection, coriolis, closure, v_immersed_bc, velocities, free_surface, tracers, buoyancy, closure_fields, hydrostatic_pressure_anomaly, auxiliary_fields, vertical_coordinate, clock, forcing)
 end
 
 function TotalTendency(model, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing; location = (Center, Face, Center))
@@ -449,9 +450,9 @@ function TotalTendency(model; kwargs...)
     hydrostatic_pressure = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
 
     if model isa HydrostaticFreeSurfaceModel
-        return TotalTendency(model, model.advection.momentum, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.diffusivity_fields, hydrostatic_pressure, model.clock, model.forcing.v; kwargs...)
+        return TotalTendency(model, model.advection.momentum, model.coriolis, model.closure, v_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.v; kwargs...)
     else
-        return TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.diffusivity_fields, hydrostatic_pressure, model.clock, model.forcing.v; kwargs...)
+        return TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, hydrostatic_pressure, model.clock, model.forcing.v; kwargs...)
     end
 end
 #---

@@ -2,6 +2,7 @@ using Test
 using CUDA: has_cuda_gpu
 
 using Oceananigans
+using Oceananigans.Fields: location
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 
 using Oceanostics
@@ -28,14 +29,14 @@ stretched_grid = ImmersedBoundaryGrid(underlying_stretched_grid, GridFittedBotto
 tracers = :b
 
 forcing_function(x, y, z, t) = sin(t)
-forcing = (; u = Forcing(forcing_function), v = Forcing(forcing_function), w = Forcing(forcing_function))
+forcing = (; u = Forcing(forcing_function), v = Forcing(forcing_function))
 
 bc_function(x, y, z, t) = sin(t)
 immersed_bc = FluxBoundaryCondition(bc_function)
 v_boundary_conditions = FieldBoundaryConditions(immersed=immersed_bc)
 boundary_conditions = (; v = v_boundary_conditions)
 
-model_kwargs = (; tracers, forcing, boundary_conditions, buoyancy=BuoyancyTracer(), coriolis=FPlane(1e-4))
+model_kwargs = (; tracers, forcing, boundary_conditions, buoyancy=BuoyancyTracer(), coriolis=FPlane(f=1e-4))
 #---
 
 #+++ Test options
@@ -101,7 +102,7 @@ function test_v_momentum_terms(model)
     @test PRES_field isa Field
 
     # Test ViscousDissipation
-    VISC = VMomentumEquation.ViscousDissipation(model, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy)
+    VISC = VMomentumEquation.ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
     VISC_field = Field(VISC)
     @test VISC isa VMomentumEquation.ViscousDissipation
     @test VISC isa VViscousDissipation
@@ -115,7 +116,7 @@ function test_v_momentum_terms(model)
 
     # Test ImmersedViscousDissipation
     v_immersed_bc = model.velocities.v.boundary_conditions.immersed
-    IVISC = VMomentumEquation.ImmersedViscousDissipation(model, model.velocities, v_immersed_bc, model.closure, model.diffusivity_fields, model.clock, fields(model))
+    IVISC = VMomentumEquation.ImmersedViscousDissipation(model, model.velocities, v_immersed_bc, model.closure, model.closure_fields, model.clock, fields(model))
     IVISC_field = Field(IVISC)
     @test IVISC isa VMomentumEquation.ImmersedViscousDissipation
     @test IVISC isa VImmersedViscousDissipation
@@ -128,7 +129,7 @@ function test_v_momentum_terms(model)
     @test IVISC_field isa Field
 
     # Test TotalViscousDissipation
-    TVISC = VMomentumEquation.TotalViscousDissipation(model, model.velocities, v_immersed_bc, model.closure, model.diffusivity_fields, model.clock, fields(model), model.buoyancy)
+    TVISC = VMomentumEquation.TotalViscousDissipation(model, model.velocities, v_immersed_bc, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
     TVISC_field = Field(TVISC)
     @test TVISC isa VMomentumEquation.TotalViscousDissipation
     @test TVISC isa VTotalViscousDissipation
@@ -181,9 +182,9 @@ function test_v_momentum_terms(model)
 
     # Test TotalTendency
     if model isa HydrostaticFreeSurfaceModel
-        TEND = VMomentumEquation.TotalTendency(model, model.advection.momentum, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.diffusivity_fields, model.free_surface, model.clock, model.forcing.v)
+        TEND = VMomentumEquation.TotalTendency(model, model.advection.momentum, model.coriolis, model.closure, v_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.v)
     else
-        TEND = VMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.diffusivity_fields, nothing, model.clock, model.forcing.v)
+        TEND = VMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, nothing, model.clock, model.forcing.v)
     end
     TEND_field = Field(TEND)
     @test TEND isa VMomentumEquation.TotalTendency
@@ -260,7 +261,12 @@ end
         @info "    with $grid_class"
         for model_type in model_types
             @info "      with $model_type"
-            model = model_type(; grid, model_kwargs...)
+            # HFS defaults to VectorInvariant momentum advection, which uses U_dot_∇u
+            # rather than div_𝐯v. Force the flux-form scheme so the Advection diagnostic
+            # (which wraps div_𝐯v) is well-defined.
+            model = model_type === HydrostaticFreeSurfaceModel ?
+                model_type(grid; model_kwargs..., momentum_advection=Centered()) :
+                model_type(grid; model_kwargs...)
 
             @info "        Testing v-momentum terms"
             test_v_momentum_terms(model)
