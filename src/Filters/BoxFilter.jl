@@ -93,9 +93,9 @@ whose kernel function is a 1D `BoxFilterKernel{d₁}`, with the next dimension's
 ## Boundary handling
 
 Stencil offsets that leave the interior `1:N` of a direction are handled
-per-direction. For `Periodic` directions offsets are always wrapped via
-`mod1`, independent of the `boundary` keyword. For `Bounded` directions the
-`boundary` keyword picks the policy (default: `:shrink`):
+per-direction. For `Periodic` directions offsets are always wrapped
+periodically, independent of the `boundary` keyword. For `Bounded`
+directions the `boundary` keyword picks the policy (default: `:shrink`):
 
   - `:shrink` — drop out-of-bounds offsets from *both* the sum and the
     count, so the filter is an honest local average whose effective stencil
