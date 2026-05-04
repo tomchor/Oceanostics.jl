@@ -28,7 +28,7 @@ struct PeriodicBoundary <: AbstractBoundaryPolicy end
 
 """Drop out-of-bounds offsets from *both* the sum and the count, giving an
 honest local average over whatever interior cells the stencil actually covers.
-The effective stencil shrinks within `width` cells of a wall."""
+The effective stencil shrinks near a wall."""
 struct ShrinkBoundary <: AbstractBoundaryPolicy end
 
 """Replicate the boundary-cell value: an offset past either end reads the
