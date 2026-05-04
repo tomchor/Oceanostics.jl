@@ -433,7 +433,7 @@ julia> TEND = UMomentumEquation.TotalTendency(model)
 KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: u_velocity_tendency (generic function with 1 method)
-└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
+└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
 ```
 """
 function TotalTendency(model::HydrostaticFreeSurfaceModel, advection_scheme, coriolis, closure, u_immersed_bc, velocities, free_surface, tracers, buoyancy, closure_fields, hydrostatic_pressure_anomaly, auxiliary_fields, vertical_coordinate, clock, forcing_func; location = (Face, Center, Center))
