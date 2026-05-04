@@ -101,6 +101,30 @@ gaussian_weights(width, σ) = ntuple(idx -> exp(-(idx - width - 1)^2 / (2σ^2)),
 validate_σ(σ::Real) = σ > 0 || throw(ArgumentError("`σ` must be a positive number; got $σ"))
 validate_σ(σ) = throw(ArgumentError("`σ` must be a positive number; got $(typeof(σ))"))
 
+direction_min_spacing(grid, d) =
+    d == 1 ? minimum_xspacing(grid) :
+    d == 2 ? minimum_yspacing(grid) :
+             minimum_zspacing(grid)
+
+direction_spacings(grid, d) =
+    d == 1 ? xspacings(grid) :
+    d == 2 ? yspacings(grid) :
+             zspacings(grid)
+
+# GaussianFilter precomputes its weights in cell-offset units assuming a
+# single Δ per direction. This helper rejects non-uniform filtered directions
+# up front with a helpful error.
+function validate_uniform_spacing(grid, sorted_dims, filter_name)
+    for d in sorted_dims
+        sp_min, sp_max = extrema(direction_spacings(grid, d))
+        sp_min == sp_max || throw(ArgumentError(
+            "$filter_name requires uniform grid spacing along filtered directions, but direction $d " *
+            "has variable spacing (min=$sp_min, max=$sp_max). Its weights are precomputed in cell-offset " *
+            "units assuming a constant Δ along the direction; on a stretched grid the filter's " *
+            "physical-space footprint would vary per cell. Filter only directions whose spacing is uniform."))
+    end
+end
+
 """
     $(SIGNATURES)
 
@@ -130,7 +154,10 @@ symmetric around the current cell. If unspecified, `n_points` is inferred
 per-direction from `σ` and `Δ` so that the stencil extends roughly `2σ` on
 each side of the current cell. To override, pass either a single odd integer
 (applied to every filtered dim) or a tuple with one odd-integer count per
-dim in `dims` (in the order the user passed them).
+dim in `dims` (in the order the user passed them). For `Periodic`
+directions the stencil must span at most one period (`n_points ≤ 2N+1`,
+where `N` is the number of cells along that direction); this is enforced at
+construction time.
 
 See `BoxFilter` for the `dims` and `boundary` keyword documentation.
 

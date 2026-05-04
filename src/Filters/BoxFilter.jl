@@ -118,6 +118,10 @@ output location matches the location of `ψ`, and `ψ` can be any input that
 supports the standard Oceananigans `ψ[i, j, k]` indexing contract (e.g. a
 `Field` or any `AbstractOperation`).
 
+For `Periodic` directions the stencil must span at most one period:
+`n_points ≤ 2N+1`, where `N` is the number of cells along that direction. This
+is enforced at construction time.
+
 ## Examples
 
 Filter a tracer on a 2D (xz) grid that is periodic in `x` and bounded in `z`.

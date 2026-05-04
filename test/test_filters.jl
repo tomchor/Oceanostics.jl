@@ -24,6 +24,10 @@ function center_field_from(grid, f)
     return c
 end
 
+# Throughout the test functions, `width` is the half-width of the stencil
+# (cells on each side of the centre cell), which is the natural variable for
+# the reference implementations below. The filter API takes the total
+# `n_points = 2*width + 1`, so this helper does the conversion in one place.
 function compute_filter(ψ, Filter, dims, width; kwargs...)
     cf = Field(Filter(ψ; dims=dims, n_points=2*width + 1, kwargs...))
     return cf
