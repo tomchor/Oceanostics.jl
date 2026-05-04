@@ -332,7 +332,7 @@ function test_1d_periodic_hand_computed()
                               halo = (2,),
                               topology = (Periodic, Flat, Flat))
     c = CenterField(grid_1d)
-    interior(c)[:] .= Float64.(0:9)
+    copyto!(interior(c), Float64.(0:9))
     fill_halo_regions!(c)
 
     expected1 = [10/3, 1, 2, 3, 4, 5, 6, 7, 8, 17/3]
@@ -348,7 +348,7 @@ function test_1d_bounded_hand_computed()
                               halo = (1,),
                               topology = (Bounded, Flat, Flat))
     c = CenterField(grid_1d)
-    interior(c)[:] .= Float64.(0:9)
+    copyto!(interior(c), Float64.(0:9))
     fill_halo_regions!(c)
 
     # :shrink, width=2
@@ -411,6 +411,23 @@ function test_gaussian_n_points_inferred()
     @test Array(interior(f_inferred_2d)) ≈ Array(interior(f_explicit_2d))
 end
 
+# On an anisotropic uniform grid (different Δ per direction), each
+# direction's inferred n_points must use that direction's own Δ. With
+# Δx = 0.125 and Δz = 0.25, σ = 0.2 should give:
+#   x: ceil(2*0.2/0.125) = 4 → n_points = 9
+#   z: ceil(2*0.2/0.25)  = 2 → n_points = 5
+# So inferring on dims=(1, 3) must equal explicit n_points=(9, 5).
+function test_gaussian_n_points_inferred_anisotropic()
+    grid = RectilinearGrid(arch, size=(8, 8, 8), x=(0, 1), y=(0, 1), z=(0, 2),
+                           topology=(Periodic, Periodic, Periodic))
+    c = center_field_from(grid, (x, y, z) -> sin(2π * x) * cos(π * z))
+    σ = 0.2
+
+    f_inferred = Field(GaussianFilter(c; dims=(1, 3), σ=σ))
+    f_explicit = Field(GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(9, 5)))
+    @test Array(interior(f_inferred)) ≈ Array(interior(f_explicit))
+end
+
 # Test per-dimension n_points::Tuple with dims listed out of sorted order.
 # dims=(3, 1), n_points=(5, 7) means: 5 points for direction 3, 7 for direction 1.
 # This should equal dims=(1, 3), n_points=(7, 5) — the same widths, dims just reordered.
@@ -428,6 +445,12 @@ function test_gaussian_n_points_tuple_order()
     # Validation: wrong tuple length must error
     @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(5,))
     @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(5, 7, 9))
+
+    # Validation: invalid per-entry values must error too (each entry is
+    # checked individually via foreach(validate_n_points, n_points)).
+    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(3, 4))    # even
+    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(5, 1))    # below minimum (3)
+    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(5, 3.5))  # non-integer
 end
 
 # GaussianFilter precomputes its weights using one Δ per direction, so it
@@ -554,6 +577,7 @@ filter_configs = [
         test_σ_validation(make_grid())
         test_gaussian_dirac_delta()
         test_gaussian_n_points_inferred()
+        test_gaussian_n_points_inferred_anisotropic()
         test_gaussian_n_points_tuple_order()
         test_gaussian_uniform_spacing_required()
     end
