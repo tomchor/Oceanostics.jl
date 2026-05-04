@@ -58,7 +58,8 @@ makedocs(sitename = "Oceanostics.jl",
          doctest = true,
          clean = true,
          format = format,
-         checkdocs = :none
+         checkdocs = :none,
+         doctestfilters = [r"with \d+ methods?"], # method count drifts with Oceananigans versions
          )
 #---
 

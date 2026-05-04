@@ -114,7 +114,7 @@ julia> BUOY = VMomentumEquation.BuoyancyAcceleration(model)
 KernelFunctionOperation at (Center, Face, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: y_dot_g_bᶜᶠᶜ (generic function with 10 methods)
-└── arguments: ("BuoyancyTracer", "NamedTuple")
+└── arguments: ("BuoyancyForce", "NamedTuple")
 ```
 """
 function BuoyancyAcceleration(model, buoyancy, tracers; location = (Center, Face, Center))
@@ -435,7 +435,7 @@ julia> TEND = VMomentumEquation.TotalTendency(model)
 KernelFunctionOperation at (Center, Face, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: v_velocity_tendency (generic function with 1 method)
-└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
+└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
 ```
 """
 function TotalTendency(model::HydrostaticFreeSurfaceModel, advection_scheme, coriolis, closure, v_immersed_bc, velocities, free_surface, tracers, buoyancy, closure_fields, hydrostatic_pressure_anomaly, auxiliary_fields, vertical_coordinate, clock, forcing_func; location = (Center, Face, Center))
