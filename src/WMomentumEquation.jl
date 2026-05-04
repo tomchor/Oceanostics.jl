@@ -344,7 +344,7 @@ julia> model = NonhydrostaticModel(grid);
 julia> FORC = WMomentumEquation.Forcing(model, Val(:w))
 KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: zeroforcing (generic function with 1 method)
+├── kernel_function: Returns (generic function with 1 method)
 └── arguments: ("Clock", "NamedTuple")
 ```
 """
@@ -390,7 +390,7 @@ julia> TEND = WMomentumEquation.TotalTendency(model)
 KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: w_velocity_tendency (generic function with 1 method)
-└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "zeroforcing")
+└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
 ```
 """
 function TotalTendency(model, advection_scheme, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing_func; location = (Center, Center, Face))

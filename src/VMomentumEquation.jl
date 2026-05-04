@@ -393,7 +393,7 @@ julia> model = NonhydrostaticModel(grid);
 julia> FORC = VMomentumEquation.Forcing(model, Val(:v))
 KernelFunctionOperation at (Center, Face, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: zeroforcing (generic function with 1 method)
+├── kernel_function: Returns (generic function with 1 method)
 └── arguments: ("Clock", "NamedTuple")
 ```
 """
@@ -435,7 +435,7 @@ julia> TEND = VMomentumEquation.TotalTendency(model)
 KernelFunctionOperation at (Center, Face, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: v_velocity_tendency (generic function with 1 method)
-└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "zeroforcing")
+└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
 ```
 """
 function TotalTendency(model::HydrostaticFreeSurfaceModel, advection_scheme, coriolis, closure, v_immersed_bc, velocities, free_surface, tracers, buoyancy, closure_fields, hydrostatic_pressure_anomaly, auxiliary_fields, vertical_coordinate, clock, forcing_func; location = (Center, Face, Center))
