@@ -108,19 +108,29 @@ Return a `KernelFunctionOperation` that computes a Gaussian-weighted local
 average of `ψ` over the directions listed in `dims`.
 
 `σ` is the standard deviation of the Gaussian kernel in physical units (the
-same units as the grid spacing). Each point in the stencil receives weight
-`exp(-Δ²/(2σ²))`, where `Δ` is the offset (in physical units) from the current
-cell. The filter is normalized: the weighted sum is divided by the sum of the
+same units as the grid spacing). Internally the filter precomputes its
+weights once per direction in cell-offset units using `σ_cells = σ / Δ`,
+where `Δ` is the (uniform) grid spacing along that direction; each stencil
+point at cell offset `Δi` then receives weight `exp(-Δi² / (2 σ_cells²))`.
+The filter is normalized: the weighted sum is divided by the sum of the
 surviving weights, so all boundary policies behave consistently.
+
+!!! warning "Uniform spacing required"
+    Because the per-direction weights are precomputed assuming a single `Δ`,
+    `GaussianFilter` only supports **uniform spacing along each filtered
+    direction**. Non-uniform (stretched) directions raise an `ArgumentError`
+    at construction time. Other directions on the same grid may be
+    non-uniform — only the ones listed in `dims` need to be uniform. Use
+    [`BoxFilter`](@ref) on stretched directions, since its weights do not
+    depend on `Δ`.
 
 `n_points` is the total number of grid points in the stencil along each
 filtered direction; it must be an **odd integer ≥ 3** so the stencil is
 symmetric around the current cell. If unspecified, `n_points` is inferred
-per-direction from `σ` and the minimum cell spacing in that direction so the
-stencil extends roughly `2σ` on each side of the current cell. To override,
-pass either a single odd integer (applied to every filtered dim) or a tuple
-with one odd-integer count per dim in `dims` (in the order the user passed
-them).
+per-direction from `σ` and `Δ` so that the stencil extends roughly `2σ` on
+each side of the current cell. To override, pass either a single odd integer
+(applied to every filtered dim) or a tuple with one odd-integer count per
+dim in `dims` (in the order the user passed them).
 
 See `BoxFilter` for the `dims` and `boundary` keyword documentation.
 
@@ -141,6 +151,7 @@ true
 function GaussianFilter(ψ; dims, σ, n_points=nothing, boundary=:shrink)
     validate_σ(σ)
     grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
+    validate_uniform_spacing(grid, sorted_dims, "GaussianFilter")
 
     sorted_widths = resolve_gaussian_widths(n_points, σ, grid, dims, sorted_dims)
     validate_periodic_widths(grid, sorted_dims, policies, sorted_widths)

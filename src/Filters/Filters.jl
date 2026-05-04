@@ -4,7 +4,9 @@ using DocStringExtensions
 export BoxFilter, GaussianFilter
 
 using Oceananigans: location
-using Oceananigans.Grids: topology, Periodic, minimum_xspacing, minimum_yspacing, minimum_zspacing
+using Oceananigans.Grids: topology, Periodic,
+                          minimum_xspacing, minimum_yspacing, minimum_zspacing,
+                          xspacings, yspacings, zspacings
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 
 using Oceanostics: CustomKFO
@@ -177,6 +179,25 @@ direction_min_spacing(grid, d) =
     d == 1 ? minimum_xspacing(grid) :
     d == 2 ? minimum_yspacing(grid) :
              minimum_zspacing(grid)
+
+direction_spacings(grid, d) =
+    d == 1 ? xspacings(grid) :
+    d == 2 ? yspacings(grid) :
+             zspacings(grid)
+
+# A filter that precomputes its weights in cell-offset units (e.g. GaussianFilter)
+# implicitly assumes a uniform spacing along each filtered direction. This
+# helper rejects non-uniform directions up front with a helpful error.
+function validate_uniform_spacing(grid, sorted_dims, filter_name)
+    for d in sorted_dims
+        sp_min, sp_max = extrema(direction_spacings(grid, d))
+        sp_min == sp_max || throw(ArgumentError(
+            "$filter_name requires uniform grid spacing along filtered directions, but direction $d " *
+            "has variable spacing (min=$sp_min, max=$sp_max). Its weights are precomputed in cell-offset " *
+            "units assuming a constant Δ along the direction; on a stretched grid the filter's " *
+            "physical-space footprint would vary per cell. Filter only directions whose spacing is uniform."))
+    end
+end
 #---
 
 #+++ Validation

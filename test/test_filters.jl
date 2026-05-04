@@ -426,6 +426,29 @@ function test_gaussian_n_points_tuple_order()
     @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(5, 7, 9))
 end
 
+# GaussianFilter precomputes its weights using one Δ per direction, so it
+# only supports uniform spacing along every filtered direction. Non-uniform
+# directions must error at construction time with a clear message. Other
+# directions on the same grid may be non-uniform, as long as they aren't
+# being filtered.
+function test_gaussian_uniform_spacing_required()
+    zfaces(k) = -1 + (k-1)/8 + 0.05 * sin(2π*(k-1)/8)
+    grid = RectilinearGrid(arch, size=(8, 8, 8), x=(0, 1), y=(0, 1), z=zfaces,
+                           topology=(Periodic, Periodic, Bounded))
+    c = CenterField(grid)
+
+    # Filtering the stretched z direction must error — alone or alongside other dims.
+    @test_throws ArgumentError GaussianFilter(c; dims=(3,),   σ=0.1)
+    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=0.1)
+
+    # Filtering only the uniform x and y directions must still succeed.
+    @test GaussianFilter(c; dims=(1,),   σ=0.1) isa KernelFunctionOperation
+    @test GaussianFilter(c; dims=(1, 2), σ=0.1) isa KernelFunctionOperation
+
+    # BoxFilter is unaffected: its weights don't depend on Δ.
+    @test BoxFilter(c; dims=(3,), n_points=3) isa KernelFunctionOperation
+end
+
 # Apply the GaussianFilter to a discrete Dirac delta (a 1D field that is zero
 # everywhere except at one interior point). The output must equal the
 # normalized Gaussian kernel — this is the filter's impulse response, and
@@ -528,6 +551,7 @@ filter_configs = [
         test_gaussian_dirac_delta()
         test_gaussian_n_points_inferred()
         test_gaussian_n_points_tuple_order()
+        test_gaussian_uniform_spacing_required()
     end
 end
 #---
