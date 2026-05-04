@@ -220,7 +220,7 @@ parse_boundary_spec(x) =
     throw(ArgumentError("`boundary` must be :shrink, :edge, or (left=a, right=b); got $(repr(x))"))
 #---
 
-include("BoxFilter.jl")
-include("GaussianFilter.jl")
+include("box_filter.jl")
+include("gaussian_filter.jl")
 
 end # module
