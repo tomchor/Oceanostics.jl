@@ -41,9 +41,9 @@ const TotalViscousDissipation = CustomKFO{<:typeof(total_∂ⱼ_τ₂ⱼ)}
 const StokesShear = CustomKFO{<:typeof(y_curl_Uˢ_cross_U)}
 const StokesTendency = CustomKFO{<:typeof(∂t_vˢ)}
 const Forcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any}
-const TotalTendency = CustomKFO{<:typeof(v_velocity_tendency)}
+const TotalTendency = Union{CustomKFO{<:typeof(v_velocity_tendency)},
+                            CustomKFO{<:typeof(hydrostatic_free_surface_v_velocity_tendency)}}
 
-# Aliases for consistency with TracerEquation naming
 const VAdvection = Advection
 const VBuoyancyAcceleration = BuoyancyAcceleration
 const VCoriolisAcceleration = CoriolisAcceleration
@@ -60,7 +60,7 @@ const VTotalTendency = TotalTendency
 """
     $(SIGNATURES)
 
-Calculates the advection of v-momentum as
+Calculate the advection of v-momentum as
 
     ADV = ∂ⱼ (uⱼ v)
 
@@ -80,26 +80,24 @@ KernelFunctionOperation at (Center, Face, Center)
 └── arguments: ("Centered", "NamedTuple", "Field")
 ```
 """
-function Advection(model, u, v, w, advection; location = (Center, Face, Center))
+function Advection(model, u, v, w, advection_scheme; location = (Center, Face, Center))
     validate_location(location, "Advection", (Center, Face, Center))
     total_velocities = (; u, v, w)
-    return KernelFunctionOperation{Center, Face, Center}(div_𝐯v, model.grid, advection, total_velocities, v)
+    return KernelFunctionOperation{Center, Face, Center}(div_𝐯v, model.grid, advection_scheme, total_velocities, v)
 end
 
-function Advection(model; kwargs...)
-    return Advection(model, model.velocities..., model.advection; kwargs...)
-end
+Advection(model; kwargs...) =
+    Advection(model, model.velocities..., model.advection; kwargs...)
 
-function Advection(model::HydrostaticFreeSurfaceModel; kwargs...)
-    return Advection(model, model.velocities..., model.advection.momentum; kwargs...)
-end
+Advection(model::HydrostaticFreeSurfaceModel; kwargs...) =
+    Advection(model, model.velocities..., model.advection.momentum; kwargs...)
 #---
 
 #+++ Buoyancy acceleration
 """
     $(SIGNATURES)
 
-Calculates the buoyancy acceleration in the y-direction as
+Calculate the buoyancy acceleration in the y-direction as
 
     BUOY = ĝᵧ b
 
@@ -124,16 +122,15 @@ function BuoyancyAcceleration(model, buoyancy, tracers; location = (Center, Face
     return KernelFunctionOperation{Center, Face, Center}(y_dot_g_bᶜᶠᶜ, model.grid, buoyancy, tracers)
 end
 
-function BuoyancyAcceleration(model; kwargs...)
-    return BuoyancyAcceleration(model, model.buoyancy, model.tracers; kwargs...)
-end
+BuoyancyAcceleration(model; kwargs...) =
+    BuoyancyAcceleration(model, model.buoyancy, model.tracers; kwargs...)
 #---
 
 #+++ Coriolis acceleration
 """
     $(SIGNATURES)
 
-Calculates the Coriolis acceleration in the y-direction as
+Calculate the Coriolis acceleration in the y-direction as
 
     COR = - (f × u)ᵧ
 
@@ -158,20 +155,19 @@ function CoriolisAcceleration(model, coriolis, velocities; location = (Center, F
     return KernelFunctionOperation{Center, Face, Center}(y_f_cross_U, model.grid, coriolis, velocities)
 end
 
-function CoriolisAcceleration(model; kwargs...)
-    return CoriolisAcceleration(model, model.coriolis, model.velocities; kwargs...)
-end
+CoriolisAcceleration(model; kwargs...) =
+    CoriolisAcceleration(model, model.coriolis, model.velocities; kwargs...)
 #---
 
 #+++ Pressure gradient
 """
     $(SIGNATURES)
 
-Calculates the pressure gradient force in the y-direction as
+Calculate the hydrostatic pressure gradient force in the y-direction as
 
     PRES = - ∂p/∂y
 
-where p is the pressure field.
+where p is the hydrostatic pressure anomaly.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -193,9 +189,6 @@ function PressureGradient(model, hydrostatic_pressure; location = (Center, Face,
 end
 
 function PressureGradient(model; kwargs...)
-    # Both NH and HFS keep the hydrostatic pressure anomaly (`pHY′`) under a
-    # different field name: NH has `model.pressures.pHY′` (NamedTuple of pNHS, pHY′);
-    # HFS has `model.pressure.pHY′` (NamedTuple with just pHY′). Pull whichever is present.
     hydrostatic_pressure = if hasfield(typeof(model), :pressures)
         model.pressures.pHY′
     elseif hasfield(typeof(model), :pressure)
@@ -211,7 +204,7 @@ end
 """
     $(SIGNATURES)
 
-Calculates the viscous dissipation term (excluding immersed boundaries) as
+Calculate the viscous dissipation term (excluding immersed boundaries) as
 
     VISC = - ∂ⱼ τ₂ⱼ,
 
@@ -236,14 +229,13 @@ function ViscousDissipation(model, closure, diffusivities, clock, model_fields, 
     return KernelFunctionOperation{Center, Face, Center}(∂ⱼ_τ₂ⱼ, model.grid, closure, diffusivities, clock, model_fields, buoyancy)
 end
 
-function ViscousDissipation(model; kwargs...)
-    return ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
-end
+ViscousDissipation(model; kwargs...) =
+    ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
 
 """
     $(SIGNATURES)
 
-Calculates the viscous dissipation term due to immersed boundaries as
+Calculate the viscous dissipation term due to immersed boundaries as
 
     VISC = - ∂ⱼ τ₂ⱼ,
 
@@ -276,7 +268,7 @@ end
 """
     $(SIGNATURES)
 
-Calculates the total viscous dissipation term as
+Calculate the total viscous dissipation term as
 
     VISC = - ∂ⱼ τ₂ⱼ - ∂ⱼ τ₂ⱼ_immersed,
 
@@ -312,7 +304,7 @@ end
 """
     $(SIGNATURES)
 
-Calculates the Stokes shear term as
+Calculate the Stokes shear term as
 
     STOKES_SHEAR = ((∇ × uˢ) × u)ᵧ
 
@@ -337,14 +329,17 @@ function StokesShear(model, stokes_drift, velocities, time; location = (Center, 
     return KernelFunctionOperation{Center, Face, Center}(y_curl_Uˢ_cross_U, model.grid, stokes_drift, velocities, time)
 end
 
-function StokesShear(model; kwargs...)
-    return StokesShear(model, model.stokes_drift, model.velocities, model.clock.time; kwargs...)
-end
+StokesShear(model::HydrostaticFreeSurfaceModel; kwargs...) =
+    throw(ArgumentError("VMomentumEquation.StokesShear is not defined for HydrostaticFreeSurfaceModel: " *
+                        "Stokes drift is not part of the hydrostatic free-surface model."))
+
+StokesShear(model; kwargs...) =
+    StokesShear(model, model.stokes_drift, model.velocities, model.clock.time; kwargs...)
 
 """
     $(SIGNATURES)
 
-Calculates the Stokes tendency term as
+Calculate the Stokes tendency term as
 
     STOKES_TEND = ∂vˢ/∂t
 
@@ -369,9 +364,12 @@ function StokesTendency(model, stokes_drift, time; location = (Center, Face, Cen
     return KernelFunctionOperation{Center, Face, Center}(∂t_vˢ, model.grid, stokes_drift, time)
 end
 
-function StokesTendency(model; kwargs...)
-    return StokesTendency(model, model.stokes_drift, model.clock.time; kwargs...)
-end
+StokesTendency(model::HydrostaticFreeSurfaceModel; kwargs...) =
+    throw(ArgumentError("VMomentumEquation.StokesTendency is not defined for HydrostaticFreeSurfaceModel: " *
+                        "Stokes drift is not part of the hydrostatic free-surface model."))
+
+StokesTendency(model; kwargs...) =
+    StokesTendency(model, model.stokes_drift, model.clock.time; kwargs...)
 #---
 
 #+++ Forcing
@@ -379,6 +377,11 @@ end
     $(SIGNATURES)
 
 Calculate the forcing term `Fᵛ` on the y-momentum equation for `model`.
+
+`Forcing` is a type alias for the generic `KernelFunctionOperation` (no narrowing
+on the kernel function), so a constructor on `Forcing(model)` would clash across the
+U/V/W modules. To disambiguate, the V-momentum convenience constructor takes an
+explicit `Val(:v)` tag.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -393,21 +396,14 @@ KernelFunctionOperation at (Center, Face, Center)
 ├── kernel_function: zeroforcing (generic function with 1 method)
 └── arguments: ("Clock", "NamedTuple")
 ```
-
-The `Val(:v)` tag is required to disambiguate from `UMomentumEquation.Forcing` since
-`Forcing` is a type alias for `KernelFunctionOperation` and constructor methods are
-shared across modules.
 """
-function Forcing(model, forcing, clock, model_fields, ::Val{:v}; location = (Center, Face, Center))
+function Forcing(model, forcing_func, clock, model_fields, ::Val{:v}; location = (Center, Face, Center))
     validate_location(location, "Forcing", (Center, Face, Center))
-    return KernelFunctionOperation{Center, Face, Center}(forcing, model.grid, clock, model_fields)
+    return KernelFunctionOperation{Center, Face, Center}(forcing_func, model.grid, clock, model_fields)
 end
 
-# NB: we tag with Val(:v) so the 1-arg convenience does not collide with UMomentumEquation.Forcing(model),
-# since `Forcing` aliases KernelFunctionOperation and the constructor is shared across modules.
-function Forcing(model, ::Val{:v}; kwargs...)
-    return Forcing(model, model.forcing.v, model.clock, fields(model), Val(:v); kwargs...)
-end
+Forcing(model, ::Val{:v}; kwargs...) =
+    Forcing(model, model.forcing.v, model.clock, fields(model), Val(:v); kwargs...)
 #---
 
 #+++ Total tendency
@@ -442,14 +438,14 @@ KernelFunctionOperation at (Center, Face, Center)
 └── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "zeroforcing")
 ```
 """
-function TotalTendency(model::HydrostaticFreeSurfaceModel, advection, coriolis, closure, v_immersed_bc, velocities, free_surface, tracers, buoyancy, closure_fields, hydrostatic_pressure_anomaly, auxiliary_fields, vertical_coordinate, clock, forcing; location = (Center, Face, Center))
+function TotalTendency(model::HydrostaticFreeSurfaceModel, advection_scheme, coriolis, closure, v_immersed_bc, velocities, free_surface, tracers, buoyancy, closure_fields, hydrostatic_pressure_anomaly, auxiliary_fields, vertical_coordinate, clock, forcing_func; location = (Center, Face, Center))
     validate_location(location, "TotalTendency", (Center, Face, Center))
-    return KernelFunctionOperation{Center, Face, Center}(hydrostatic_free_surface_v_velocity_tendency, model.grid, advection, coriolis, closure, v_immersed_bc, velocities, free_surface, tracers, buoyancy, closure_fields, hydrostatic_pressure_anomaly, auxiliary_fields, vertical_coordinate, clock, forcing)
+    return KernelFunctionOperation{Center, Face, Center}(hydrostatic_free_surface_v_velocity_tendency, model.grid, advection_scheme, coriolis, closure, v_immersed_bc, velocities, free_surface, tracers, buoyancy, closure_fields, hydrostatic_pressure_anomaly, auxiliary_fields, vertical_coordinate, clock, forcing_func)
 end
 
-function TotalTendency(model, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing; location = (Center, Face, Center))
+function TotalTendency(model, advection_scheme, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing_func; location = (Center, Face, Center))
     validate_location(location, "TotalTendency", (Center, Face, Center))
-    return KernelFunctionOperation{Center, Face, Center}(v_velocity_tendency, model.grid, advection, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing)
+    return KernelFunctionOperation{Center, Face, Center}(v_velocity_tendency, model.grid, advection_scheme, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing_func)
 end
 
 function TotalTendency(model; kwargs...)

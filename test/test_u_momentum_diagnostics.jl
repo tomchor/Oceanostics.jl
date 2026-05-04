@@ -142,31 +142,37 @@ function test_u_momentum_terms(model)
     @test TVISC isa UTotalViscousDissipation
     @test TVISC_field isa Field
 
-    # Test StokesShear
-    SSTOKES = UMomentumEquation.StokesShear(model, model.stokes_drift, model.velocities, model.clock.time)
-    SSTOKES_field = Field(SSTOKES)
-    @test SSTOKES isa UMomentumEquation.StokesShear
-    @test SSTOKES isa UStokesShear
-    @test SSTOKES_field isa Field
+    # Stokes terms only apply to NonhydrostaticModel (HFS has no stokes_drift field)
+    if !(model isa HydrostaticFreeSurfaceModel)
+        # Test StokesShear
+        SSTOKES = UMomentumEquation.StokesShear(model, model.stokes_drift, model.velocities, model.clock.time)
+        SSTOKES_field = Field(SSTOKES)
+        @test SSTOKES isa UMomentumEquation.StokesShear
+        @test SSTOKES isa UStokesShear
+        @test SSTOKES_field isa Field
 
-    SSTOKES = UMomentumEquation.StokesShear(model)
-    SSTOKES_field = Field(SSTOKES)
-    @test SSTOKES isa UMomentumEquation.StokesShear
-    @test SSTOKES isa UStokesShear
-    @test SSTOKES_field isa Field
+        SSTOKES = UMomentumEquation.StokesShear(model)
+        SSTOKES_field = Field(SSTOKES)
+        @test SSTOKES isa UMomentumEquation.StokesShear
+        @test SSTOKES isa UStokesShear
+        @test SSTOKES_field isa Field
 
-    # Test StokesTendency
-    TSTOKES = UMomentumEquation.StokesTendency(model, model.stokes_drift, model.clock.time)
-    TSTOKES_field = Field(TSTOKES)
-    @test TSTOKES isa UMomentumEquation.StokesTendency
-    @test TSTOKES isa UStokesTendency
-    @test TSTOKES_field isa Field
+        # Test StokesTendency
+        TSTOKES = UMomentumEquation.StokesTendency(model, model.stokes_drift, model.clock.time)
+        TSTOKES_field = Field(TSTOKES)
+        @test TSTOKES isa UMomentumEquation.StokesTendency
+        @test TSTOKES isa UStokesTendency
+        @test TSTOKES_field isa Field
 
-    TSTOKES = UMomentumEquation.StokesTendency(model)
-    TSTOKES_field = Field(TSTOKES)
-    @test TSTOKES isa UMomentumEquation.StokesTendency
-    @test TSTOKES isa UStokesTendency
-    @test TSTOKES_field isa Field
+        TSTOKES = UMomentumEquation.StokesTendency(model)
+        TSTOKES_field = Field(TSTOKES)
+        @test TSTOKES isa UMomentumEquation.StokesTendency
+        @test TSTOKES isa UStokesTendency
+        @test TSTOKES_field isa Field
+    else
+        @test_throws ArgumentError UMomentumEquation.StokesShear(model)
+        @test_throws ArgumentError UMomentumEquation.StokesTendency(model)
+    end
 
     # Test Forcing
     FORC = UMomentumEquation.Forcing(model, model.forcing.u, model.clock, fields(model), Val(:u))
@@ -224,11 +230,13 @@ function test_u_momentum_field_locations(model)
     TVISC = UMomentumEquation.TotalViscousDissipation(model)
     @test location(TVISC) == (Face, Center, Center)
 
-    SSTOKES = UMomentumEquation.StokesShear(model)
-    @test location(SSTOKES) == (Face, Center, Center)
+    if !(model isa HydrostaticFreeSurfaceModel)
+        SSTOKES = UMomentumEquation.StokesShear(model)
+        @test location(SSTOKES) == (Face, Center, Center)
 
-    TSTOKES = UMomentumEquation.StokesTendency(model)
-    @test location(TSTOKES) == (Face, Center, Center)
+        TSTOKES = UMomentumEquation.StokesTendency(model)
+        @test location(TSTOKES) == (Face, Center, Center)
+    end
 
     FORC = UMomentumEquation.Forcing(model)
     @test location(FORC) == (Face, Center, Center)

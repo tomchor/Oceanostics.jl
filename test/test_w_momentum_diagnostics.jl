@@ -154,7 +154,7 @@ function test_w_momentum_terms(model)
     @test TSTOKES isa WStokesTendency
     @test TSTOKES_field isa Field
 
-    # Test Forcing — Val(:w) tag avoids collision with UMomentumEquation.Forcing
+    # Test Forcing
     FORC = WMomentumEquation.Forcing(model, model.forcing.w, model.clock, fields(model), Val(:w))
     FORC_field = Field(FORC)
     @test FORC isa WMomentumEquation.Forcing
