@@ -193,7 +193,8 @@ function resolve_gaussian_widths(N, σ, grid, dims, sorted_dims)
     if N === nothing
         return ntuple(i -> infer_width(σ, grid, sorted_dims[i]), length(sorted_dims))
     elseif N isa Tuple
-        length(N) == length(dims) || throw(ArgumentError("`N` tuple must have one entry per dim in `dims`; got length $(length(N)) for dims=$dims"))
+        error_message = "`N` tuple must have one entry per dim in `dims`; got length $(length(N)) for dims=$dims"
+        length(N) == length(dims) || throw(ArgumentError(error_message))
         foreach(validate_N, N)
         return ntuple(i -> begin
             user_idx = findfirst(==(sorted_dims[i]), dims)
