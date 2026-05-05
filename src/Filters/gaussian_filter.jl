@@ -179,9 +179,7 @@ function GaussianFilter(ψ; dims, σ, N=nothing, boundary=:shrink)
     sorted_widths = resolve_gaussian_widths(N, σ, grid, dims, sorted_dims)
     validate_periodic_widths(grid, sorted_dims, policies, sorted_widths)
     σT = convert(eltype(grid), σ)
-    sorted_weights = ntuple(i -> gaussian_weights(sorted_widths[i],
-                                                  σT / direction_min_spacing(grid, sorted_dims[i])),
-                            length(sorted_dims))
+    sorted_weights = ntuple(i -> gaussian_weights(sorted_widths[i], σT / direction_min_spacing(grid, sorted_dims[i])), length(sorted_dims))
 
     return build_filter_kfo((d, i) -> GaussianFilterKernel{d}(sorted_weights[i]),
                             grid, loc, sorted_dims, sorted_widths, policies, ψ)
