@@ -27,9 +27,10 @@ end
 # Throughout the test functions, `width` is the half-width of the stencil
 # (cells on each side of the centre cell), which is the natural variable for
 # the reference implementations below. The filter API takes the total
-# `n_points = 2*width + 1`, so this helper does the conversion in one place.
+# stencil size `N = 2*width + 1`, so this helper does the conversion in one
+# place.
 function compute_filter(ψ, Filter, dims, width; kwargs...)
-    cf = Field(Filter(ψ; dims=dims, n_points=2*width + 1, kwargs...))
+    cf = Field(Filter(ψ; dims=dims, N=2*width + 1, kwargs...))
     return cf
 end
 
@@ -138,7 +139,7 @@ end
 
 #+++ Test functions (shared across filters)
 function test_constructor(grid, Filter, fkw)
-    bf = Filter(CenterField(grid); dims=(1,), n_points=3, fkw...)
+    bf = Filter(CenterField(grid); dims=(1,), N=3, fkw...)
     @test bf isa KernelFunctionOperation
     @test bf isa Filter
 end
@@ -175,16 +176,16 @@ function test_periodic_stencil_sum(grid, Ns, Filter, make_weights, fkw)
 end
 
 function test_output_location(grid, Filter, fkw)
-    @test location(Filter(CenterField(grid); dims=(1,),      n_points=3, fkw...)) == (Center, Center, Center)
-    @test location(Filter(XFaceField(grid);  dims=(1,),      n_points=3, fkw...)) == (Face,   Center, Center)
-    @test location(Filter(YFaceField(grid);  dims=(1, 2),    n_points=3, fkw...)) == (Center, Face,   Center)
-    @test location(Filter(ZFaceField(grid);  dims=(1, 2, 3), n_points=3, fkw...)) == (Center, Center, Face)
+    @test location(Filter(CenterField(grid); dims=(1,),      N=3, fkw...)) == (Center, Center, Center)
+    @test location(Filter(XFaceField(grid);  dims=(1,),      N=3, fkw...)) == (Face,   Center, Center)
+    @test location(Filter(YFaceField(grid);  dims=(1, 2),    N=3, fkw...)) == (Center, Face,   Center)
+    @test location(Filter(ZFaceField(grid);  dims=(1, 2, 3), N=3, fkw...)) == (Center, Center, Face)
 end
 
 function test_abstract_operation_input(grid, Nx, Ny, Filter, fkw)
     c  = center_field_from(grid, (x, y, z) -> x + y)
     op = 2 * c
-    @test Filter(op; dims=(1, 2), n_points=3, fkw...) isa KernelFunctionOperation
+    @test Filter(op; dims=(1, 2), N=3, fkw...) isa KernelFunctionOperation
 
     f = compute_filter(op, Filter, (1, 2), 1; fkw...)
     @test interior(f)[2:Nx-1, 2:Ny-1, :] ≈ 2 .* interior(c)[2:Nx-1, 2:Ny-1, :]
@@ -192,36 +193,36 @@ end
 
 function test_kfo_input(grid, Filter, fkw)
     c     = center_field_from(grid, (x, y, z) -> sin(2π * x))
-    inner = Filter(c;     dims=(1,), n_points=3, fkw...)
-    outer = Filter(inner; dims=(2,), n_points=3, fkw...)
+    inner = Filter(c;     dims=(1,), N=3, fkw...)
+    outer = Filter(inner; dims=(2,), N=3, fkw...)
     @test outer isa KernelFunctionOperation
     @test location(outer) == (Center, Center, Center)
 end
 
 function test_dims_validation(grid, Filter, fkw)
     c = CenterField(grid)
-    @test_throws ArgumentError Filter(c; dims=(),     n_points=3, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(0,),   n_points=3, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(4,),   n_points=3, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1, 1), n_points=3, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(:x,),  n_points=3, fkw...)
-    @test_throws ArgumentError Filter(c; dims=[1, 2], n_points=3, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(),     N=3, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(0,),   N=3, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(4,),   N=3, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1, 1), N=3, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(:x,),  N=3, fkw...)
+    @test_throws ArgumentError Filter(c; dims=[1, 2], N=3, fkw...)
 end
 
-function test_n_points_validation(grid, Filter, fkw)
+function test_N_validation(grid, Filter, fkw)
     c = CenterField(grid)
-    @test_throws ArgumentError Filter(c; dims=(1,), n_points=0,   fkw...)  # zero
-    @test_throws ArgumentError Filter(c; dims=(1,), n_points=-1,  fkw...)  # negative
-    @test_throws ArgumentError Filter(c; dims=(1,), n_points=1,   fkw...)  # below minimum (3)
-    @test_throws ArgumentError Filter(c; dims=(1,), n_points=2,   fkw...)  # even
-    @test_throws ArgumentError Filter(c; dims=(1,), n_points=4,   fkw...)  # even
-    @test_throws ArgumentError Filter(c; dims=(1,), n_points=3.5, fkw...)  # non-integer
+    @test_throws ArgumentError Filter(c; dims=(1,), N=0,   fkw...)  # zero
+    @test_throws ArgumentError Filter(c; dims=(1,), N=-1,  fkw...)  # negative
+    @test_throws ArgumentError Filter(c; dims=(1,), N=1,   fkw...)  # below minimum (3)
+    @test_throws ArgumentError Filter(c; dims=(1,), N=2,   fkw...)  # even
+    @test_throws ArgumentError Filter(c; dims=(1,), N=4,   fkw...)  # even
+    @test_throws ArgumentError Filter(c; dims=(1,), N=3.5, fkw...)  # non-integer
 end
 
-# For a periodic direction with N cells, wrap_periodic_index is only valid when
-# the stencil spans at most one period, i.e. n_points ≤ 2N+1.
-function test_periodic_n_points_too_large(Filter, fkw)
-    # N=4 in each direction → 2N+1 = 9; n_points=11 exceeds this limit.
+# For a periodic direction with `Nd_grid` cells, wrap_periodic_index is only
+# valid when the stencil spans at most one period, i.e. N ≤ 2*Nd_grid+1.
+function test_periodic_N_too_large(Filter, fkw)
+    # Nd_grid=4 in each direction → 2*Nd_grid+1 = 9; N=11 exceeds this limit.
     small_periodic = make_grid(; Nx=4, Ny=4, Nz=4, topology=(Periodic, Periodic, Periodic))
     small_bounded  = make_grid(; Nx=4, Ny=4, Nz=4, topology=(Bounded,  Bounded,  Bounded))
     small_mixed    = make_grid(; Nx=4, Ny=4, Nz=4, topology=(Periodic, Bounded,  Bounded))
@@ -230,15 +231,15 @@ function test_periodic_n_points_too_large(Filter, fkw)
     c_b = CenterField(small_bounded)
     c_m = CenterField(small_mixed)
 
-    # n_points=11 > 2*4+1=9 in a periodic direction: must fail
-    @test_throws ArgumentError Filter(c_p; dims=(1,), n_points=11, fkw...)
-    # n_points=9 == 2*4+1=9 in a periodic direction: edge of valid range, must succeed
-    @test Filter(c_p; dims=(1,), n_points=9, fkw...) isa KernelFunctionOperation
-    # n_points=11 in a bounded direction only: no periodic constraint, must succeed
-    @test Filter(c_b; dims=(1,), n_points=11, fkw...) isa KernelFunctionOperation
-    # Mixed topology: n_points=11 in periodic x must fail, in bounded y must succeed
-    @test_throws ArgumentError Filter(c_m; dims=(1,), n_points=11, fkw...)
-    @test Filter(c_m; dims=(2,), n_points=11, fkw...) isa KernelFunctionOperation
+    # N=11 > 2*4+1=9 in a periodic direction: must fail
+    @test_throws ArgumentError Filter(c_p; dims=(1,), N=11, fkw...)
+    # N=9 == 2*4+1=9 in a periodic direction: edge of valid range, must succeed
+    @test Filter(c_p; dims=(1,), N=9, fkw...) isa KernelFunctionOperation
+    # N=11 in a bounded direction only: no periodic constraint, must succeed
+    @test Filter(c_b; dims=(1,), N=11, fkw...) isa KernelFunctionOperation
+    # Mixed topology: N=11 in periodic x must fail, in bounded y must succeed
+    @test_throws ArgumentError Filter(c_m; dims=(1,), N=11, fkw...)
+    @test Filter(c_m; dims=(2,), N=11, fkw...) isa KernelFunctionOperation
 end
 
 function test_small_halo(Filter, fkw)
@@ -248,9 +249,9 @@ function test_small_halo(Filter, fkw)
 
     for g in (tiny_periodic, tiny_bounded, tiny_mixed)
         c = CenterField(g)
-        @test Filter(c; dims=(1,),      n_points=11, fkw...)                                 isa KernelFunctionOperation
-        @test Filter(c; dims=(1, 2, 3), n_points=11, boundary=:edge, fkw...)                 isa KernelFunctionOperation
-        @test Filter(c; dims=(1, 2, 3), n_points=11, boundary=(left=0.0, right=0.0), fkw...) isa KernelFunctionOperation
+        @test Filter(c; dims=(1,),      N=11, fkw...)                                 isa KernelFunctionOperation
+        @test Filter(c; dims=(1, 2, 3), N=11, boundary=:edge, fkw...)                 isa KernelFunctionOperation
+        @test Filter(c; dims=(1, 2, 3), N=11, boundary=(left=0.0, right=0.0), fkw...) isa KernelFunctionOperation
     end
 end
 
@@ -316,12 +317,12 @@ end
 
 function test_boundary_validation(grid, Filter, fkw)
     c = CenterField(grid)
-    @test_throws ArgumentError Filter(c; dims=(1,),   n_points=3, boundary=:foo, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,),   n_points=3, boundary=(foo=1,), fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,),   n_points=3, boundary=(left=1, right=2, mid=3), fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,),   n_points=3, boundary=42, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1, 2), n_points=3, boundary=(:shrink,), fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,),   n_points=3, boundary=(:shrink, :edge), fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,),   N=3, boundary=:foo, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,),   N=3, boundary=(foo=1,), fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,),   N=3, boundary=(left=1, right=2, mid=3), fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,),   N=3, boundary=42, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1, 2), N=3, boundary=(:shrink,), fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,),   N=3, boundary=(:shrink, :edge), fkw...)
 end
 #---
 
@@ -382,75 +383,75 @@ end
 #+++ GaussianFilter-specific tests
 function test_σ_validation(grid)
     c = CenterField(grid)
-    @test_throws ArgumentError GaussianFilter(c; dims=(1,), n_points=3, σ=0)
-    @test_throws ArgumentError GaussianFilter(c; dims=(1,), n_points=3, σ=-1.0)
-    @test_throws ArgumentError GaussianFilter(c; dims=(1,), n_points=3, σ="foo")
+    @test_throws ArgumentError GaussianFilter(c; dims=(1,), N=3, σ=0)
+    @test_throws ArgumentError GaussianFilter(c; dims=(1,), N=3, σ=-1.0)
+    @test_throws ArgumentError GaussianFilter(c; dims=(1,), N=3, σ="foo")
 end
 
-# Test the n_points=nothing inference path. On a uniform grid with spacing Δ,
-# infer_width(σ, grid, d) = ceil(2σ/Δ). Here σ = 1.5*Δ → width = 3, n_points = 7.
-# The inferred filter must produce the same output as the explicit n_points=7 filter.
-function test_gaussian_n_points_inferred()
+# Test the N=nothing inference path. On a uniform grid with spacing Δ,
+# infer_width(σ, grid, d) = ceil(2σ/Δ). Here σ = 1.5*Δ → width = 3, N = 7.
+# The inferred filter must produce the same output as the explicit N=7 filter.
+function test_gaussian_N_inferred()
     N = 8; Δ = 1/N
-    σ = 1.5 * Δ   # infer_width = ceil(2*1.5) = 3 → n_points_inferred = 7
+    σ = 1.5 * Δ   # infer_width = ceil(2*1.5) = 3 → N_inferred = 7
     grid = make_grid(; Nx=N, Ny=N, Nz=N)
     c = center_field_from(grid, (x, y, z) -> sin(2π * x) + cos(2π * z))
 
-    # Smoke: omitting n_points produces a valid KFO for both 1D and 2D filtering
+    # Smoke: omitting N produces a valid KFO for both 1D and 2D filtering
     @test GaussianFilter(c; dims=(1,),    σ=σ) isa KernelFunctionOperation
     @test GaussianFilter(c; dims=(1, 3), σ=σ) isa KernelFunctionOperation
 
-    # Numerical: inferred path equals explicit n_points=7
+    # Numerical: inferred path equals explicit N=7
     f_inferred = Field(GaussianFilter(c; dims=(1,), σ=σ))
-    f_explicit  = Field(GaussianFilter(c; dims=(1,), σ=σ, n_points=7))
+    f_explicit  = Field(GaussianFilter(c; dims=(1,), σ=σ, N=7))
     @test Array(interior(f_inferred)) ≈ Array(interior(f_explicit))
 
     # Same check for a 2D filter
     f_inferred_2d = Field(GaussianFilter(c; dims=(1, 3), σ=σ))
-    f_explicit_2d = Field(GaussianFilter(c; dims=(1, 3), σ=σ, n_points=7))
+    f_explicit_2d = Field(GaussianFilter(c; dims=(1, 3), σ=σ, N=7))
     @test Array(interior(f_inferred_2d)) ≈ Array(interior(f_explicit_2d))
 end
 
 # On an anisotropic uniform grid (different Δ per direction), each
-# direction's inferred n_points must use that direction's own Δ. With
+# direction's inferred N must use that direction's own Δ. With
 # Δx = 0.125 and Δz = 0.25, σ = 0.2 should give:
-#   x: ceil(2*0.2/0.125) = 4 → n_points = 9
-#   z: ceil(2*0.2/0.25)  = 2 → n_points = 5
-# So inferring on dims=(1, 3) must equal explicit n_points=(9, 5).
-function test_gaussian_n_points_inferred_anisotropic()
+#   x: ceil(2*0.2/0.125) = 4 → N = 9
+#   z: ceil(2*0.2/0.25)  = 2 → N = 5
+# So inferring on dims=(1, 3) must equal explicit N=(9, 5).
+function test_gaussian_N_inferred_anisotropic()
     grid = RectilinearGrid(arch, size=(8, 8, 8), x=(0, 1), y=(0, 1), z=(0, 2),
                            topology=(Periodic, Periodic, Periodic))
     c = center_field_from(grid, (x, y, z) -> sin(2π * x) * cos(π * z))
     σ = 0.2
 
     f_inferred = Field(GaussianFilter(c; dims=(1, 3), σ=σ))
-    f_explicit = Field(GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(9, 5)))
+    f_explicit = Field(GaussianFilter(c; dims=(1, 3), σ=σ, N=(9, 5)))
     @test Array(interior(f_inferred)) ≈ Array(interior(f_explicit))
 end
 
-# Test per-dimension n_points::Tuple with dims listed out of sorted order.
-# dims=(3, 1), n_points=(5, 7) means: 5 points for direction 3, 7 for direction 1.
-# This should equal dims=(1, 3), n_points=(7, 5) — the same widths, dims just reordered.
-function test_gaussian_n_points_tuple_order()
+# Test per-dimension N::Tuple with dims listed out of sorted order.
+# dims=(3, 1), N=(5, 7) means: 5 points for direction 3, 7 for direction 1.
+# This should equal dims=(1, 3), N=(7, 5) — the same widths, dims just reordered.
+function test_gaussian_N_tuple_order()
     N = 8; Δ = 1/N
     σ = 1.5 * Δ
     grid = make_grid(; Nx=N, Ny=N, Nz=N)
     c = center_field_from(grid, (x, y, z) -> sin(2π * x) * cos(2π * z))
 
     # Two ways to spell the same filter: width=3 in x (dim 1), width=2 in z (dim 3)
-    f_a = Field(GaussianFilter(c; dims=(3, 1), σ=σ, n_points=(5, 7)))  # z→5, x→7
-    f_b = Field(GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(7, 5)))  # x→7, z→5
+    f_a = Field(GaussianFilter(c; dims=(3, 1), σ=σ, N=(5, 7)))  # z→5, x→7
+    f_b = Field(GaussianFilter(c; dims=(1, 3), σ=σ, N=(7, 5)))  # x→7, z→5
     @test Array(interior(f_a)) ≈ Array(interior(f_b))
 
     # Validation: wrong tuple length must error
-    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(5,))
-    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(5, 7, 9))
+    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, N=(5,))
+    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, N=(5, 7, 9))
 
     # Validation: invalid per-entry values must error too (each entry is
-    # checked individually via foreach(validate_n_points, n_points)).
-    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(3, 4))    # even
-    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(5, 1))    # below minimum (3)
-    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, n_points=(5, 3.5))  # non-integer
+    # checked individually via foreach(validate_N, N)).
+    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, N=(3, 4))    # even
+    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, N=(5, 1))    # below minimum (3)
+    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, N=(5, 3.5))  # non-integer
 end
 
 # GaussianFilter precomputes its weights using one Δ per direction, so it
@@ -473,7 +474,7 @@ function test_gaussian_uniform_spacing_required()
     @test GaussianFilter(c; dims=(1, 2), σ=0.1) isa KernelFunctionOperation
 
     # BoxFilter is unaffected: its weights don't depend on Δ.
-    @test BoxFilter(c; dims=(3,), n_points=3) isa KernelFunctionOperation
+    @test BoxFilter(c; dims=(3,), N=3) isa KernelFunctionOperation
 end
 
 # Apply the GaussianFilter to a discrete Dirac delta (a 1D field that is zero
@@ -561,8 +562,8 @@ filter_configs = [
 
             @testset "Argument validation" begin
                 test_dims_validation(grid, Filter, fkw)
-                test_n_points_validation(grid, Filter, fkw)
-                test_periodic_n_points_too_large(Filter, fkw)
+                test_N_validation(grid, Filter, fkw)
+                test_periodic_N_too_large(Filter, fkw)
                 test_boundary_validation(grid, Filter, fkw)
             end
         end
@@ -576,9 +577,9 @@ filter_configs = [
     @testset "GaussianFilter-specific" begin
         test_σ_validation(make_grid())
         test_gaussian_dirac_delta()
-        test_gaussian_n_points_inferred()
-        test_gaussian_n_points_inferred_anisotropic()
-        test_gaussian_n_points_tuple_order()
+        test_gaussian_N_inferred()
+        test_gaussian_N_inferred_anisotropic()
+        test_gaussian_N_tuple_order()
         test_gaussian_uniform_spacing_required()
     end
 end

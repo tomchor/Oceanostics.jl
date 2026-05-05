@@ -128,36 +128,32 @@ end
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` that computes a Gaussian-weighted local
-average of `ψ` over the directions listed in `dims`.
+Return a `KernelFunctionOperation` that computes a Gaussian-weighted local average of `ψ` over the
+directions listed in `dims`.
 
-`σ` is the standard deviation of the Gaussian kernel in physical units (the
-same units as the grid spacing). Internally the filter precomputes its
-weights once per direction in cell-offset units using `σ_cells = σ / Δ`,
-where `Δ` is the (uniform) grid spacing along that direction; each stencil
-point at cell offset `Δi` then receives weight `exp(-Δi² / (2 σ_cells²))`.
-The filter is normalized: the weighted sum is divided by the sum of the
-surviving weights, so all boundary policies behave consistently.
+`σ` is the standard deviation of the Gaussian kernel in physical units (the same units as the grid
+spacing). Internally the filter precomputes its weights once per direction in cell-offset units
+using `σ_cells = σ / Δ`, where `Δ` is the (uniform) grid spacing along that direction; each
+stencil point at cell offset `Δi` then receives weight `exp(-Δi² / (2 σ_cells²))`. The filter is
+normalized: the weighted sum is divided by the sum of the surviving weights, so all boundary
+policies behave consistently.
 
 !!! warning "Uniform spacing required"
-    Because the per-direction weights are precomputed assuming a single `Δ`,
-    `GaussianFilter` only supports **uniform spacing along each filtered
-    direction**. Non-uniform (stretched) directions raise an `ArgumentError`
-    at construction time. Other directions on the same grid may be
-    non-uniform — only the ones listed in `dims` need to be uniform. Use
-    [`BoxFilter`](@ref) on stretched directions, since its weights do not
-    depend on `Δ`.
+    Because the per-direction weights are precomputed assuming a single `Δ`, `GaussianFilter` only
+    supports **uniform spacing along each filtered direction**. Non-uniform (stretched) directions
+    raise an `ArgumentError` at construction time. Other directions on the same grid may be
+    non-uniform — only the ones listed in `dims` need to be uniform. Use [`BoxFilter`](@ref) on
+    stretched directions, since its weights do not depend on `Δ`.
 
-`n_points` is the total number of grid points in the stencil along each
-filtered direction; it must be an **odd integer ≥ 3** so the stencil is
-symmetric around the current cell. If unspecified, `n_points` is inferred
-per-direction from `σ` and `Δ` so that the stencil extends roughly `2σ` on
-each side of the current cell. To override, pass either a single odd integer
-(applied to every filtered dim) or a tuple with one odd-integer count per
-dim in `dims` (in the order the user passed them). For `Periodic`
-directions the stencil must span at most one period (`n_points ≤ 2N+1`,
-where `N` is the number of cells along that direction); this is enforced at
-construction time.
+`N` is the **total number of grid points used by the filter stencil** along each filtered
+direction — i.e. how many cells contribute to a single filtered output value. `N` must be an
+**odd integer ≥ 3** so the stencil is symmetric around the current cell. (This is the size of the
+filter stencil — *not* the size of the grid.) If unspecified, `N` is inferred per-direction from
+`σ` and `Δ` so that the stencil extends roughly `2σ` on each side of the current cell. To
+override, pass either a single odd integer (applied to every filtered dim) or a tuple with one
+odd-integer count per dim in `dims` (in the order the user passed them). For `Periodic`
+directions the stencil must span at most one period (`N ≤ 2*Nd_grid + 1`, where `Nd_grid` is the
+number of cells along that direction); this is enforced at construction time.
 
 See `BoxFilter` for the `dims` and `boundary` keyword documentation.
 
@@ -175,12 +171,12 @@ julia> GaussianFilter(c; dims=(1, 3), σ=0.1) isa KernelFunctionOperation
 true
 ```
 """
-function GaussianFilter(ψ; dims, σ, n_points=nothing, boundary=:shrink)
+function GaussianFilter(ψ; dims, σ, N=nothing, boundary=:shrink)
     validate_σ(σ)
     grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
     validate_uniform_spacing(grid, sorted_dims, "GaussianFilter")
 
-    sorted_widths = resolve_gaussian_widths(n_points, σ, grid, dims, sorted_dims)
+    sorted_widths = resolve_gaussian_widths(N, σ, grid, dims, sorted_dims)
     validate_periodic_widths(grid, sorted_dims, policies, sorted_widths)
     σT = convert(eltype(grid), σ)
     sorted_weights = ntuple(i -> gaussian_weights(sorted_widths[i],
@@ -193,20 +189,19 @@ end
 
 infer_width(σ, grid, d) = ceil(Int, 2σ / direction_min_spacing(grid, d))
 
-function resolve_gaussian_widths(n_points, σ, grid, dims, sorted_dims)
-    if n_points === nothing
+function resolve_gaussian_widths(N, σ, grid, dims, sorted_dims)
+    if N === nothing
         return ntuple(i -> infer_width(σ, grid, sorted_dims[i]), length(sorted_dims))
-    elseif n_points isa Tuple
-        length(n_points) == length(dims) ||
-            throw(ArgumentError("`n_points` tuple must have one entry per dim in `dims`; got length $(length(n_points)) for dims=$dims"))
-        foreach(validate_n_points, n_points)
+    elseif N isa Tuple
+        length(N) == length(dims) || throw(ArgumentError("`N` tuple must have one entry per dim in `dims`; got length $(length(N)) for dims=$dims"))
+        foreach(validate_N, N)
         return ntuple(i -> begin
             user_idx = findfirst(==(sorted_dims[i]), dims)
-            (n_points[user_idx] - 1) ÷ 2
+            (N[user_idx] - 1) ÷ 2
         end, length(sorted_dims))
     else
-        validate_n_points(n_points)
-        return ntuple(_ -> (n_points - 1) ÷ 2, length(sorted_dims))
+        validate_N(N)
+        return ntuple(_ -> (N - 1) ÷ 2, length(sorted_dims))
     end
 end
 #---

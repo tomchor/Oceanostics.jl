@@ -182,23 +182,18 @@ validate_dims(dims::Tuple{Vararg{Int}}) =
     (!isempty(dims) & all(d -> d in (1, 2, 3), dims) & allunique(dims)) ||
         throw(ArgumentError("`dims` must be a non-empty tuple of distinct integers drawn from (1, 2, 3); got $dims"))
 
-validate_dims(dims) =
-    throw(ArgumentError("`dims` must be a tuple of integers; got $(typeof(dims))"))
+validate_dims(dims) = throw(ArgumentError("`dims` must be a tuple of integers; got $(typeof(dims))"))
 
-validate_n_points(n_points::Integer) =
-    ((n_points >= 3) & isodd(n_points)) ||
-        throw(ArgumentError("`n_points` must be an odd integer ≥ 3; got $n_points"))
-
-validate_n_points(n_points) =
-    throw(ArgumentError("`n_points` must be an odd integer ≥ 3; got $(typeof(n_points))"))
+validate_N(N::Integer) = ((N >= 3) & isodd(N)) || throw(ArgumentError("`N` must be an odd integer ≥ 3; got $N"))
+validate_N(N) = throw(ArgumentError("`N` must be an odd integer ≥ 3; got $(typeof(N))"))
 
 function validate_periodic_widths(grid, sorted_dims, policies, widths)
     for (i, (d, policy)) in enumerate(zip(sorted_dims, policies))
         if policy isa PeriodicBoundary
-            N = size(grid, d)
-            n_points = 2 * widths[i] + 1
-            n_points <= 2N + 1 ||
-                throw(ArgumentError("`n_points` ($n_points) exceeds 2N+1 ($(2N+1)) for the periodic direction $d (N=$N); the periodic wrapping assumes the stencil spans at most one period"))
+            Nd_grid = size(grid, d)
+            N = 2 * widths[i] + 1
+            N <= 2 * Nd_grid + 1 ||
+                throw(ArgumentError("for the periodic direction d=$d, `N` ($N) exceeds the maximum allowed 2*Nd_grid+1 = $(2*Nd_grid+1) (this direction has $Nd_grid cells); the periodic wrapping assumes the stencil spans at most one period"))
         end
     end
 end
@@ -215,9 +210,7 @@ function parse_boundary_spec(nt::NamedTuple)
 end
 
 parse_boundary_spec(p::AbstractBoundaryPolicy) = p
-
-parse_boundary_spec(x) =
-    throw(ArgumentError("`boundary` must be :shrink, :edge, or (left=a, right=b); got $(repr(x))"))
+parse_boundary_spec(x) = throw(ArgumentError("`boundary` must be :shrink, :edge, or (left=a, right=b); got $(repr(x))"))
 #---
 
 include("box_filter.jl")

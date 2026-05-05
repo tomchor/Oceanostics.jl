@@ -79,11 +79,14 @@ Return a `KernelFunctionOperation` that computes a local box-average of `ψ`
 over the directions listed in `dims`.
 
 `dims` is a tuple of distinct integers drawn from `(1, 2, 3)` (where `1`, `2`,
-`3` correspond to `x`, `y`, `z`). `n_points` is the total number of grid
-points in the stencil along each filtered direction; it must be an **odd
-integer ≥ 3** so the stencil is symmetric around the current cell (e.g.
-`n_points=3` is a 3-point running mean, `n_points=5` is a 5-point running
-mean).
+`3` correspond to `x`, `y`, `z`).
+
+`N` is the **total number of grid points used by the filter stencil** along
+each filtered direction — i.e. how many cells are averaged together to
+produce one filtered output value (e.g. `N=3` is a 3-point running mean,
+`N=5` is a 5-point running mean). `N` must be an **odd integer ≥ 3** so the
+stencil is symmetric around the current cell. (This is the size of the
+filter stencil — *not* the size of the grid.)
 
 A multi-directional filter is assembled as a single `KernelFunctionOperation`
 whose kernel function is a 1D `BoxFilterKernel{d₁}`, with the next dimension's
@@ -92,7 +95,8 @@ whose kernel function is a 1D `BoxFilterKernel{d₁}`, with the next dimension's
 
 ## Boundary handling
 
-Stencil offsets that leave the interior `1:N` of a direction are handled
+Stencil offsets that leave the interior `1:Nd_grid` of a direction (where
+`Nd_grid` is the number of cells along that direction) are handled
 per-direction. For `Periodic` directions offsets are always wrapped
 periodically, independent of the `boundary` keyword. For `Bounded`
 directions the `boundary` keyword picks the policy (default: `:shrink`):
@@ -100,27 +104,27 @@ directions the `boundary` keyword picks the policy (default: `:shrink`):
   - `:shrink` — drop out-of-bounds offsets from *both* the sum and the
     count, so the filter is an honest local average whose effective stencil
     shrinks near a wall. **This is the default for `Bounded` directions.**
-  - `:edge` — replicate the boundary-cell value (reads `ψ[1]` or `ψ[N]` for
-    offsets past either end).
+  - `:edge` — replicate the boundary-cell value (reads `ψ[1]` or `ψ[Nd_grid]`
+    for offsets past either end).
   - `(left=a, right=b)` — pad with constant `a` on the low-index side and
     `b` on the high-index side (`a` and `b` are promoted to a common type).
 
 `boundary` may be a single spec applied to every filtered dim, or a tuple
 with one entry per dim in `dims` (in the order the user passed them):
 
-    BoxFilter(ψ; dims=(1, 2), n_points=7, boundary=:edge)
-    BoxFilter(ψ; dims=(1, 2), n_points=7, boundary=(:shrink, :edge))
-    BoxFilter(ψ; dims=(1,),   n_points=7, boundary=(left=0.0, right=1.0))
+    BoxFilter(ψ; dims=(1, 2), N=7, boundary=:edge)
+    BoxFilter(ψ; dims=(1, 2), N=7, boundary=(:shrink, :edge))
+    BoxFilter(ψ; dims=(1,),   N=7, boundary=(left=0.0, right=1.0))
 
 Because every policy wraps, clamps, or skips indices up front, `halo_size(grid)`
-does not constrain `n_points`: a small halo on a bounded direction is fine. The
+does not constrain `N`: a small halo on a bounded direction is fine. The
 output location matches the location of `ψ`, and `ψ` can be any input that
 supports the standard Oceananigans `ψ[i, j, k]` indexing contract (e.g. a
 `Field` or any `AbstractOperation`).
 
-For `Periodic` directions the stencil must span at most one period:
-`n_points ≤ 2N+1`, where `N` is the number of cells along that direction. This
-is enforced at construction time.
+For `Periodic` directions the stencil must span at most one period: `N ≤
+2*Nd_grid + 1`, where `Nd_grid` is the number of cells along that direction.
+This is enforced at construction time.
 
 ## Examples
 
@@ -137,14 +141,14 @@ julia> grid = RectilinearGrid(size=(8, 8), x=(0, 1), z=(0, 1),
 
 julia> c = CenterField(grid);
 
-julia> BoxFilter(c; dims=(1, 3), n_points=5, boundary=:edge) isa KernelFunctionOperation
+julia> BoxFilter(c; dims=(1, 3), N=5, boundary=:edge) isa KernelFunctionOperation
 true
 ```
 """
-function BoxFilter(ψ; dims, n_points, boundary=:shrink)
-    validate_n_points(n_points)
+function BoxFilter(ψ; dims, N, boundary=:shrink)
+    validate_N(N)
     grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
-    width = (n_points - 1) ÷ 2
+    width = (N - 1) ÷ 2
     widths = ntuple(_ -> width, length(sorted_dims))
     validate_periodic_widths(grid, sorted_dims, policies, widths)
     return build_filter_kfo((d, _) -> BoxFilterKernel{d}(), grid, loc, sorted_dims, widths, policies, ψ)
