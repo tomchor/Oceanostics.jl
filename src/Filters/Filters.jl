@@ -60,7 +60,7 @@ ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), type
 # `x/y/z_stencil_fetch` read from an indexable field `ψ`.
 # `x/y/z_stencil_call`  evaluate a kernel function `f` at the adjusted index.
 
-@inline wrap_periodic_index(i, N) = i + ifelse(i < 1, N, 0) - ifelse(i > N, N, 0)
+@inline wrap_periodic_index(i, N) = i + N * (i < 1) - N * (i > N)
 
 @inline x_stencil_fetch(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[wrap_periodic_index(i, N), j, k], 1)
 @inline y_stencil_fetch(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, wrap_periodic_index(j, N), k], 1)
