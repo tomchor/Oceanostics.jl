@@ -67,3 +67,5 @@ The `budgets` test group is the most expensive (5-hour CI timeout) and validates
 - Many constructors use `validate_location` to enforce that diagnostics are only computed at their mathematically valid grid locations
 - Dissipation rate diagnostics use `validate_dissipative_closure` to restrict to `AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}`
 - Unicode identifiers are used extensively (ψ, ε, ν, ∂, ℑ, etc.) matching mathematical notation
+- One-line code expressions are preferred when they fit within 130 columns; only break them across lines when they exceed that width
+- Prose text (docstrings, comments, `.md` files) should wrap at around 100 columns
