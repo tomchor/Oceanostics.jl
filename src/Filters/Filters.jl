@@ -121,8 +121,8 @@ function resolve_filter_policies(ψ, dims, boundary)
     loc = location(ψ)
 
     per_user_dim_specs = if boundary isa Tuple
-        length(boundary) == length(dims) ||
-            throw(ArgumentError("`boundary` must be a single spec or a tuple with one entry per dim in `dims`; got length $(length(boundary)) for dims=$dims"))
+        error_message = "`boundary` must be a single spec or a tuple with one entry per dim in `dims`; got length $(length(boundary)) for dims=$dims"
+        length(boundary) == length(dims) || throw(ArgumentError(error_message))
         boundary
     else
         ntuple(_ -> boundary, length(dims))
