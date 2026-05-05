@@ -59,7 +59,7 @@ export BottomCellValue
 #---
 
 #+++ Filters exports
-export BoxFilter
+export BoxFilter, GaussianFilter
 #---
 
 #+++ PotentialEnergyEquationTerms exports
@@ -181,7 +181,7 @@ include("KineticEnergyEquation.jl")
 include("TurbulentKineticEnergyEquation.jl")
 include("PotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
-include("Filters.jl")
+include("Filters/Filters.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
