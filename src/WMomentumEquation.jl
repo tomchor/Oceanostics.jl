@@ -353,6 +353,10 @@ function Forcing(model, forcing_func, clock, model_fields, ::Val{:w}; location =
     return KernelFunctionOperation{Center, Center, Face}(forcing_func, model.grid, clock, model_fields)
 end
 
+Forcing(model::HydrostaticFreeSurfaceModel, ::Val{:w}; kwargs...) =
+    throw(ArgumentError("WMomentumEquation.Forcing is not defined for HydrostaticFreeSurfaceModel: " *
+                        "w is diagnosed from continuity rather than evolved by a prognostic equation."))
+
 Forcing(model, ::Val{:w}; kwargs...) =
     Forcing(model, model.forcing.w, model.clock, fields(model), Val(:w); kwargs...)
 #---

@@ -36,7 +36,12 @@ immersed_bc = FluxBoundaryCondition(bc_function)
 w_boundary_conditions = FieldBoundaryConditions(immersed=immersed_bc)
 boundary_conditions = (; w = w_boundary_conditions)
 
-model_kwargs = (; tracers, forcing, boundary_conditions, buoyancy=BuoyancyTracer(), coriolis=FPlane(f=1e-4))
+stokes_drift = UniformStokesDrift(∂z_uˢ = (z, t) -> exp(z) * cos(t),
+                                  ∂z_vˢ = (z, t) -> exp(z) * sin(t),
+                                  ∂t_uˢ = (z, t) -> -exp(z) * sin(t),
+                                  ∂t_vˢ = (z, t) ->  exp(z) * cos(t))
+
+model_kwargs = (; tracers, forcing, boundary_conditions, buoyancy=BuoyancyTracer(), coriolis=FPlane(f=1e-4), stokes_drift)
 #---
 
 #+++ Test options
@@ -237,6 +242,9 @@ function test_w_momentum_hfs_unsupported()
     grid = first(values(grids))
     hfs_model = HydrostaticFreeSurfaceModel(grid; tracers, buoyancy=BuoyancyTracer())
     @test_throws ArgumentError WMomentumEquation.TotalTendency(hfs_model)
+    @test_throws ArgumentError WMomentumEquation.Forcing(hfs_model, Val(:w))
+    @test_throws ArgumentError WMomentumEquation.StokesShear(hfs_model)
+    @test_throws ArgumentError WMomentumEquation.StokesTendency(hfs_model)
     return nothing
 end
 #---

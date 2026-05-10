@@ -36,7 +36,13 @@ immersed_bc = FluxBoundaryCondition(bc_function)
 v_boundary_conditions = FieldBoundaryConditions(immersed=immersed_bc)
 boundary_conditions = (; v = v_boundary_conditions)
 
-model_kwargs = (; tracers, forcing, boundary_conditions, buoyancy=BuoyancyTracer(), coriolis=FPlane(f=1e-4))
+stokes_drift = UniformStokesDrift(∂z_uˢ = (z, t) -> exp(z) * cos(t),
+                                  ∂z_vˢ = (z, t) -> exp(z) * sin(t),
+                                  ∂t_uˢ = (z, t) -> -exp(z) * sin(t),
+                                  ∂t_vˢ = (z, t) ->  exp(z) * cos(t))
+
+model_kwargs    = (; tracers, forcing, boundary_conditions, buoyancy=BuoyancyTracer(), coriolis=FPlane(f=1e-4))
+nh_model_kwargs = (; model_kwargs..., stokes_drift) # stokes_drift only applies to NonhydrostaticModel
 #---
 
 #+++ Test options
@@ -272,10 +278,11 @@ end
             @info "      with $model_type"
             # HFS defaults to VectorInvariant momentum advection, which uses U_dot_∇u
             # rather than div_𝐯v. Force the flux-form scheme so the Advection diagnostic
-            # (which wraps div_𝐯v) is well-defined.
+            # (which wraps div_𝐯v) is well-defined. HFS has no stokes_drift field, so we
+            # pass the Stokes-drift only to the NH model.
             model = model_type === HydrostaticFreeSurfaceModel ?
                 model_type(grid; model_kwargs..., momentum_advection=Centered()) :
-                model_type(grid; model_kwargs...)
+                model_type(grid; nh_model_kwargs...)
 
             @info "        Testing v-momentum terms"
             test_v_momentum_terms(model)

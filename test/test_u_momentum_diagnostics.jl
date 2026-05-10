@@ -36,7 +36,13 @@ immersed_bc = FluxBoundaryCondition(bc_function)
 u_boundary_conditions = FieldBoundaryConditions(immersed=immersed_bc)
 boundary_conditions = (; u = u_boundary_conditions)
 
-model_kwargs = (; tracers, forcing, boundary_conditions, buoyancy=BuoyancyTracer(), coriolis=FPlane(f=1e-4))
+stokes_drift = UniformStokesDrift(∂z_uˢ = (z, t) -> exp(z) * cos(t),
+                                  ∂z_vˢ = (z, t) -> exp(z) * sin(t),
+                                  ∂t_uˢ = (z, t) -> -exp(z) * sin(t),
+                                  ∂t_vˢ = (z, t) ->  exp(z) * cos(t))
+
+model_kwargs    = (; tracers, forcing, boundary_conditions, buoyancy=BuoyancyTracer(), coriolis=FPlane(f=1e-4))
+nh_model_kwargs = (; model_kwargs..., stokes_drift) # stokes_drift only applies to NonhydrostaticModel
 #---
 
 #+++ Test options
@@ -265,6 +271,26 @@ function test_u_momentum_location_validation(model)
 end
 #---
 
+@testset "Momentum equation type-alias orthogonality" begin
+    # Each kernel-specific type alias is parameterised on its underlying Oceananigans
+    # kernel (div_𝐯u vs div_𝐯v vs div_𝐯w, …) and must be distinct across U/V/W so that
+    # `isa` discriminates the momentum component being computed.
+    @test UAdvection !== VAdvection && UAdvection !== WAdvection && VAdvection !== WAdvection
+    @test UBuoyancyAcceleration !== VBuoyancyAcceleration && UBuoyancyAcceleration !== WBuoyancyAcceleration
+    @test UCoriolisAcceleration !== VCoriolisAcceleration && UCoriolisAcceleration !== WCoriolisAcceleration
+    @test UPressureGradient !== VPressureGradient # W has no PressureGradient
+    @test UViscousDissipation !== VViscousDissipation && UViscousDissipation !== WViscousDissipation
+    @test UImmersedViscousDissipation !== VImmersedViscousDissipation && UImmersedViscousDissipation !== WImmersedViscousDissipation
+    @test UTotalViscousDissipation !== VTotalViscousDissipation && UTotalViscousDissipation !== WTotalViscousDissipation
+    @test UStokesShear !== VStokesShear && UStokesShear !== WStokesShear
+    @test UStokesTendency !== VStokesTendency && UStokesTendency !== WStokesTendency
+    @test UTotalTendency !== VTotalTendency && UTotalTendency !== WTotalTendency
+
+    # Forcing is intentionally aliased to the generic KernelFunctionOperation in every
+    # module (no kernel narrowing), so the prefixed Forcing aliases are the same type.
+    @test UForcing === VForcing === WForcing
+end
+
 @testset "U-momentum equation diagnostics tests" begin
     @info "  Testing u-momentum diagnostics"
     for (grid_class, grid) in zip(keys(grids), values(grids))
@@ -273,10 +299,11 @@ end
             @info "      with $model_type"
             # HFS defaults to VectorInvariant momentum advection, which uses U_dot_∇u
             # rather than div_𝐯u. Force the flux-form scheme so the Advection diagnostic
-            # (which wraps div_𝐯u) is well-defined.
+            # (which wraps div_𝐯u) is well-defined. HFS has no stokes_drift field, so we
+            # pass the Stokes-drift only to the NH model.
             model = model_type === HydrostaticFreeSurfaceModel ?
                 model_type(grid; model_kwargs..., momentum_advection=Centered()) :
-                model_type(grid; model_kwargs...)
+                model_type(grid; nh_model_kwargs...)
 
             @info "        Testing u-momentum terms"
             test_u_momentum_terms(model)
