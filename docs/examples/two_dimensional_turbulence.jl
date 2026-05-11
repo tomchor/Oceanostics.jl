@@ -83,9 +83,21 @@ KE = KineticEnergyEquation.KineticEnergy(model)
 # The idea in calculating this term is that, in integrated form, all transport contributions in it
 # should equal zero and `∫εᴰ` should equal `∫ε`.
 #
+# To illustrate the effect of spatial low-pass filtering, we also compute two related quantities:
+# the `GaussianFilter` applied to `KE`, and the `KineticEnergy` computed from the
+# `GaussianFilter`ed velocities. In general these two quantities differ, since filtering and the
+# (nonlinear) KE operator do not commute.
+
+σ = π/8
+KE_filt = GaussianFilter(KE, dims=(1, 2), σ=σ)
+
+u_filt = GaussianFilter(u, dims=(1, 2), σ=σ)
+v_filt = GaussianFilter(v, dims=(1, 2), σ=σ)
+KE_of_filt = KineticEnergyEquation.KineticEnergy(model, u_filt, v_filt, w)
+
 # We output the previous quantities to a NetCDF file
 
-output_fields = (; KE, ε, ∫KE, ∫ε, ∫εᴰ)
+output_fields = (; KE, ε, KE_filt, KE_of_filt, ∫KE, ∫ε, ∫εᴰ)
 
 using NCDatasets
 filename = "two_dimensional_turbulence"
@@ -104,8 +116,10 @@ run!(simulation)
 # Now we'll read the results using `FieldTimeSeries`
 
 filepath = simulation.output_writers[:nc].filepath
-KE_t = FieldTimeSeries(filepath, "KE")
-ε_t  = FieldTimeSeries(filepath, "ε")
+KE_t       = FieldTimeSeries(filepath, "KE")
+ε_t        = FieldTimeSeries(filepath, "ε")
+KE_filt_t  = FieldTimeSeries(filepath, "KE_filt")
+KE_of_filt_t = FieldTimeSeries(filepath, "KE_of_filt")
 
 # Volume-integrated quantities are scalar time series, so we read them directly with NCDatasets:
 
@@ -128,6 +142,8 @@ axis_kwargs = (xlabel = "x", ylabel = "y",
 
 ax1 = Axis(fig[2, 1]; title = "Kinetic energy", axis_kwargs...)
 ax2 = Axis(fig[2, 2]; title = "Kinetic energy dissip rate", axis_kwargs...)
+ax5 = Axis(fig[4, 1]; title = "GaussianFilter(KE)", axis_kwargs...)
+ax6 = Axis(fig[4, 2]; title = "KE(GaussianFiltered velocities)", axis_kwargs...)
 
 # Now we plot the snapshots and set the title
 
@@ -136,8 +152,10 @@ n = Observable(1)
 # `n` above is a [`Makie.Observable`](https://docs.makie.org/stable/documentation/nodes/index.html),
 # which allows us to animate things easily. Creating observable `KE` and `ε` can be done simply with
 
-KEₙ = @lift KE_t[$n]
-εₙ  = @lift ε_t[$n]
+KEₙ          = @lift KE_t[$n]
+εₙ           = @lift ε_t[$n]
+KE_filtₙ     = @lift KE_filt_t[$n]
+KE_of_filtₙ  = @lift KE_of_filt_t[$n]
 
 # Now we plot the heatmaps, each with its own colorbar below
 
@@ -147,16 +165,22 @@ Colorbar(fig[3, 1], hm_KE; vertical=false, height=8, ticklabelsize=12)
 hm_ε = heatmap!(ax2, εₙ, colormap = :inferno, colorrange=(0, 5e-5))
 Colorbar(fig[3, 2], hm_ε; vertical=false, height=8, ticklabelsize=12)
 
+hm_KE_filt = heatmap!(ax5, KE_filtₙ, colormap = :plasma, colorrange=(0, 5e-2))
+Colorbar(fig[5, 1], hm_KE_filt; vertical=false, height=8, ticklabelsize=12)
+
+hm_KE_of_filt = heatmap!(ax6, KE_of_filtₙ, colormap = :plasma, colorrange=(0, 5e-2))
+Colorbar(fig[5, 2], hm_KE_of_filt; vertical=false, height=8, ticklabelsize=12)
+
 # We now plot the time evolution of our integrated quantities
 
 axis_kwargs = (xlabel = "Time",
                height=150, width=300)
 
-ax3 = Axis(fig[4, 1]; axis_kwargs...)
+ax3 = Axis(fig[6, 1]; axis_kwargs...)
 times = KE_t.times
 lines!(ax3, times, ∫KE)
 
-ax4 = Axis(fig[4, 2]; axis_kwargs...)
+ax4 = Axis(fig[6, 2]; axis_kwargs...)
 lines!(ax4, times, ∫ε,  label="∫εdV")
 lines!(ax4, times, ∫εᴰ, label="∫εᴰdV", linestyle=:dash)
 axislegend(ax4, labelsize=14)
@@ -172,14 +196,9 @@ vlines!(ax4, tₙ, color=:black, linestyle=:dash)
 title = @lift "Time = " * string(round(times[$n], digits=2))
 Label(fig[1, 1:2], title, fontsize=24, tellwidth=false);
 
-# Next we adjust the total figure size based on our panels, which makes it look like this
+# Next we adjust the total figure size based on our panels and we record a movie.
 
 resize_to_layout!(fig)
-current_figure() # hide
-fig
-
-# Finally, we record a movie.
-
 @info "Animating..."
 record(fig, filename * ".mp4", 1:length(times), framerate=24) do i
     n[] = i
