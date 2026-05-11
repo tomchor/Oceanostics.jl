@@ -165,10 +165,10 @@ Colorbar(fig[3, 1], hm_KE; vertical=false, height=8, ticklabelsize=12)
 hm_ε = heatmap!(ax2, εₙ, colormap = :inferno, colorrange=(0, 5e-5))
 Colorbar(fig[3, 2], hm_ε; vertical=false, height=8, ticklabelsize=12)
 
-hm_KE_filt = heatmap!(ax5, KE_filtₙ, colormap = :plasma, colorrange=(0, 5e-2))
+hm_KE_filt = heatmap!(ax5, KE_filtₙ, colormap = :plasma, colorrange=(0, 2e-2))
 Colorbar(fig[5, 1], hm_KE_filt; vertical=false, height=8, ticklabelsize=12)
 
-hm_KE_of_filt = heatmap!(ax6, KE_of_filtₙ, colormap = :plasma, colorrange=(0, 5e-2))
+hm_KE_of_filt = heatmap!(ax6, KE_of_filtₙ, colormap = :plasma, colorrange=(0, 2e-2))
 Colorbar(fig[5, 2], hm_KE_of_filt; vertical=false, height=8, ticklabelsize=12)
 
 # We now plot the time evolution of our integrated quantities
