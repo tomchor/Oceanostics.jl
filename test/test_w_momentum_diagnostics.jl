@@ -3,6 +3,7 @@ using CUDA: has_cuda_gpu
 
 using Oceananigans
 using Oceananigans.Fields: location
+using Oceananigans.TimeSteppers: update_state!
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 
 using Oceanostics
@@ -223,6 +224,42 @@ function test_w_momentum_field_locations(model)
     return nothing
 end
 
+function test_w_momentum_budget_closure(grid)
+    # Build a NH model with every term active so the budget exercises the full RHS of w_velocity_tendency.
+    sd = UniformStokesDrift(∂z_uˢ = (z, t) -> exp(z) * cos(t),
+                            ∂z_vˢ = (z, t) -> exp(z) * sin(t),
+                            ∂t_uˢ = (z, t) -> -exp(z) * sin(t),
+                            ∂t_vˢ = (z, t) ->  exp(z) * cos(t))
+    model = NonhydrostaticModel(grid; tracers = :b,
+                                      buoyancy = BuoyancyTracer(),
+                                      coriolis = FPlane(f = 1e-4),
+                                      stokes_drift = sd,
+                                      closure = ScalarDiffusivity(ν = 1e-4, κ = 1e-4),
+                                      forcing = (; w = Forcing((x, y, z, t) -> cos(t))))
+    set!(model, u = (x, y, z) -> sin(2π*x) * cos(2π*y) * exp(z),
+                v = (x, y, z) -> cos(2π*x) * sin(2π*y) * exp(z),
+                w = (x, y, z) -> sin(2π*x) * sin(2π*z),
+                b = (x, y, z) -> sin(2π*z))
+    update_state!(model) # populates model.pressures.pHY′ from b
+
+    # Reconstruct G_w. When the hydrostatic pressure anomaly pHY′ is non-nothing (the case here),
+    # Oceananigans' w_velocity_tendency uses `maybe_z_dot_g_bᶜᶜᶠ`, which returns zero — the buoyancy
+    # contribution is absorbed into pHY′ via the hydrostatic balance ∂z(pHY′) = b. So the budget is:
+    #   G_w = -ADV - COR - TVISC + STOKES_SHEAR + STOKES_TENDENCY + FORCING
+    ADV   = WMomentumEquation.Advection(model)
+    COR   = WMomentumEquation.CoriolisAcceleration(model)
+    TVISC = WMomentumEquation.TotalViscousDissipation(model)
+    SS    = WMomentumEquation.StokesShear(model)
+    ST    = WMomentumEquation.StokesTendency(model)
+    FORC  = WMomentumEquation.Forcing(model, Val(:w))
+    TEND  = WMomentumEquation.TotalTendency(model)
+
+    budget = compute!(Field(-ADV - COR - TVISC + SS + ST + FORC))
+    tend   = compute!(Field(TEND))
+    @test interior(budget) ≈ interior(tend)
+    return nothing
+end
+
 function test_w_momentum_location_validation(model)
     # Test that invalid locations throw errors
     @test_throws ArgumentError WMomentumEquation.Advection(model; location = (Center, Center, Center))
@@ -270,4 +307,7 @@ end
 
     @info "    Testing that TotalTendency is unsupported on HydrostaticFreeSurfaceModel"
     test_w_momentum_hfs_unsupported()
+
+    @info "    Testing w-momentum budget closure on NonhydrostaticModel"
+    test_w_momentum_budget_closure(underlying_regular_grid)
 end

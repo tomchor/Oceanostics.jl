@@ -3,6 +3,7 @@ using CUDA: has_cuda_gpu
 
 using Oceananigans
 using Oceananigans.Fields: location
+using Oceananigans.TimeSteppers: update_state!
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 
 using Oceanostics
@@ -253,6 +254,42 @@ function test_u_momentum_field_locations(model)
     return nothing
 end
 
+function test_u_momentum_budget_closure(grid)
+    # Build a NH model with every term active so the budget exercises the full RHS of u_velocity_tendency.
+    sd = UniformStokesDrift(∂z_uˢ = (z, t) -> exp(z) * cos(t),
+                            ∂z_vˢ = (z, t) -> exp(z) * sin(t),
+                            ∂t_uˢ = (z, t) -> -exp(z) * sin(t),
+                            ∂t_vˢ = (z, t) ->  exp(z) * cos(t))
+    model = NonhydrostaticModel(grid; tracers = :b,
+                                      buoyancy = BuoyancyTracer(),
+                                      coriolis = FPlane(f = 1e-4),
+                                      stokes_drift = sd,
+                                      closure = ScalarDiffusivity(ν = 1e-4, κ = 1e-4),
+                                      forcing = (; u = Forcing((x, y, z, t) -> cos(t))))
+    set!(model, u = (x, y, z) -> sin(2π*x) * cos(2π*y) * exp(z),
+                v = (x, y, z) -> cos(2π*x) * sin(2π*y) * exp(z),
+                w = (x, y, z) -> sin(2π*x) * sin(2π*z),
+                b = (x, y, z) -> sin(2π*z))
+    update_state!(model) # populates model.pressures.pHY′ from b
+
+    # Reconstruct G_u from individual diagnostics, matching Oceananigans' u_velocity_tendency sign convention:
+    #   G_u = -ADV + BUOY - COR - PRES - TVISC + STOKES_SHEAR + STOKES_TENDENCY + FORCING
+    ADV   = UMomentumEquation.Advection(model)
+    BUOY  = UMomentumEquation.BuoyancyAcceleration(model)
+    COR   = UMomentumEquation.CoriolisAcceleration(model)
+    PRES  = UMomentumEquation.PressureGradient(model)
+    TVISC = UMomentumEquation.TotalViscousDissipation(model)
+    SS    = UMomentumEquation.StokesShear(model)
+    ST    = UMomentumEquation.StokesTendency(model)
+    FORC  = UMomentumEquation.Forcing(model)
+    TEND  = UMomentumEquation.TotalTendency(model)
+
+    budget = compute!(Field(-ADV + BUOY - COR - PRES - TVISC + SS + ST + FORC))
+    tend   = compute!(Field(TEND))
+    @test interior(budget) ≈ interior(tend)
+    return nothing
+end
+
 function test_u_momentum_location_validation(model)
     # Test that invalid locations throw errors
     @test_throws ArgumentError UMomentumEquation.Advection(model; location = (Center, Center, Center))
@@ -315,4 +352,7 @@ end
             test_u_momentum_location_validation(model)
         end
     end
+
+    @info "    Testing u-momentum budget closure on NonhydrostaticModel"
+    test_u_momentum_budget_closure(underlying_regular_grid)
 end
