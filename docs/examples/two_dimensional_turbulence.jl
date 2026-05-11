@@ -115,10 +115,10 @@ run!(simulation)
 
 # Now we'll read the results using `FieldTimeSeries`
 
-filepath = simulation.output_writers[:nc].filepath
-KE_t       = FieldTimeSeries(filepath, "KE")
-ε_t        = FieldTimeSeries(filepath, "ε")
-KE_filt_t  = FieldTimeSeries(filepath, "KE_filt")
+filepath     = simulation.output_writers[:nc].filepath
+KE_t         = FieldTimeSeries(filepath, "KE")
+ε_t          = FieldTimeSeries(filepath, "ε")
+KE_filt_t    = FieldTimeSeries(filepath, "KE_filt")
 KE_of_filt_t = FieldTimeSeries(filepath, "KE_of_filt")
 
 # Volume-integrated quantities are scalar time series, so we read them directly with NCDatasets:
