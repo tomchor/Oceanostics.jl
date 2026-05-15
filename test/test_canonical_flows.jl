@@ -31,6 +31,9 @@ closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
 
 grids = Dict("regular grid" => regular_grid,
              "stretched grid" => stretched_grid)
+
+model_types = (NonhydrostaticModel,
+               HydrostaticFreeSurfaceModel)
 #---
 
 #+++ Test functions
@@ -42,7 +45,11 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
     model = model_type(grid; closure)
     u₀(x, y, z) = +α*x
     v₀(x, y, z) = -α*y
-    set!(model, u=u₀, v=v₀, w=0, enforce_incompressibility=false)
+    if model isa NonhydrostaticModel
+        set!(model, u=u₀, v=v₀, w=0, enforce_incompressibility=false)
+    else
+        set!(model, u=u₀, v=v₀)
+    end
 
     u, v, w = model.velocities
 
@@ -63,7 +70,7 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
         ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
 
         @test getindex(S, idxs...) ≈ √2*α
-        @test getindex(Ω, idxs...) ≈ 0
+        @test ≈(getindex(Ω, idxs...), 0, atol=10eps())
         @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ -α^2
         @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
     end
@@ -79,7 +86,11 @@ function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, clo
     model = model_type(grid; closure)
     u₀(x, y, z) = +ζ*y / 2
     v₀(x, y, z) = -ζ*x / 2
-    set!(model, u=u₀, v=v₀, w=0, enforce_incompressibility=false)
+    if model isa NonhydrostaticModel
+        set!(model, u=u₀, v=v₀, w=0, enforce_incompressibility=false)
+    else
+        set!(model, u=u₀, v=v₀)
+    end
 
     u, v, w = model.velocities
 
@@ -113,7 +124,11 @@ and QVelocityGradientTensorInvariant have the right values for a uniform shear f
 function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1), σ=1)
     model = model_type(grid; closure)
     u₀(x, y, z) = σ * y
-    set!(model, u=u₀, v=0, w=0, enforce_incompressibility=false)
+    if model isa NonhydrostaticModel
+        set!(model, u=u₀, v=0, w=0, enforce_incompressibility=false)
+    else
+        set!(model, u=u₀)
+    end
 
     u, v, w = model.velocities
 
@@ -146,16 +161,19 @@ end
     @info "  Testing known flows"
     for (grid_class, grid) in zip(keys(grids), values(grids))
         @info "    with $grid_class"
-        for closure in closures
-            @info "        with $(summary(closure))"
-            @info "          Testing uniform strain flow"
-            test_uniform_strain_flow(grid; closure, α=3)
+        for model_type in model_types
+            @info "      with $model_type"
+            for closure in closures
+                @info "        with $(summary(closure))"
+                @info "          Testing uniform strain flow"
+                test_uniform_strain_flow(grid; model_type, closure, α=3)
 
-            @info "          Testing solid body rotation flow"
-            test_solid_body_rotation_flow(grid; closure, ζ=3)
+                @info "          Testing solid body rotation flow"
+                test_solid_body_rotation_flow(grid; model_type, closure, ζ=3)
 
-            @info "          Testing uniform shear flow"
-            test_uniform_shear_flow(grid; closure, σ=3)
+                @info "          Testing uniform shear flow"
+                test_uniform_shear_flow(grid; model_type, closure, σ=3)
+            end
         end
     end
 end
