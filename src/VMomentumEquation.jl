@@ -86,10 +86,8 @@ function Advection(model, u, v, w, advection_scheme; location = (Center, Face, C
     return KernelFunctionOperation{Center, Face, Center}(div_𝐯v, model.grid, advection_scheme, total_velocities, v)
 end
 
-Advection(model; kwargs...) = Advection(model, model.velocities..., model.advection; kwargs...)
-
-Advection(model::HydrostaticFreeSurfaceModel; kwargs...) =
-    Advection(model, model.velocities..., model.advection.momentum; kwargs...)
+Advection(model; kwargs...)                              = Advection(model, model.velocities..., model.advection; kwargs...)
+Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.velocities..., model.advection.momentum; kwargs...)
 #---
 
 #+++ Buoyancy acceleration
@@ -186,6 +184,9 @@ function PressureGradient(model, hydrostatic_pressure; location = (Center, Face,
 end
 
 function PressureGradient(model; kwargs...)
+    # Both NH and HFS keep the hydrostatic pressure anomaly (`pHY′`) under different field names:
+    # NH has `model.pressures.pHY′` (NamedTuple of pNHS, pHY′);
+    # HFS has `model.pressure.pHY′` (NamedTuple with just pHY′). Pull whichever is present.
     hydrostatic_pressure = if hasfield(typeof(model), :pressures)
         model.pressures.pHY′
     elseif hasfield(typeof(model), :pressure)
@@ -226,8 +227,7 @@ function ViscousDissipation(model, closure, diffusivities, clock, model_fields, 
     return KernelFunctionOperation{Center, Face, Center}(∂ⱼ_τ₂ⱼ, model.grid, closure, diffusivities, clock, model_fields, buoyancy)
 end
 
-ViscousDissipation(model; kwargs...) =
-    ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
+ViscousDissipation(model; kwargs...) = ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
 
 """
     $(SIGNATURES)
@@ -326,9 +326,8 @@ function StokesShear(model, stokes_drift, velocities, time; location = (Center, 
     return KernelFunctionOperation{Center, Face, Center}(y_curl_Uˢ_cross_U, model.grid, stokes_drift, velocities, time)
 end
 
-StokesShear(model::HydrostaticFreeSurfaceModel; kwargs...) =
-    throw(ArgumentError("VMomentumEquation.StokesShear is not defined for HydrostaticFreeSurfaceModel: " *
-                        "Stokes drift is not part of the hydrostatic free-surface model."))
+StokesShear(model::HydrostaticFreeSurfaceModel; kwargs...) = throw(ArgumentError("VMomentumEquation.StokesShear is not defined for HydrostaticFreeSurfaceModel: " *
+                                                                                 "Stokes drift is not part of the hydrostatic free-surface model."))
 
 StokesShear(model; kwargs...) = StokesShear(model, model.stokes_drift, model.velocities, model.clock.time; kwargs...)
 
@@ -360,9 +359,8 @@ function StokesTendency(model, stokes_drift, time; location = (Center, Face, Cen
     return KernelFunctionOperation{Center, Face, Center}(∂t_vˢ, model.grid, stokes_drift, time)
 end
 
-StokesTendency(model::HydrostaticFreeSurfaceModel; kwargs...) =
-    throw(ArgumentError("VMomentumEquation.StokesTendency is not defined for HydrostaticFreeSurfaceModel: " *
-                        "Stokes drift is not part of the hydrostatic free-surface model."))
+StokesTendency(model::HydrostaticFreeSurfaceModel; kwargs...) = throw(ArgumentError("VMomentumEquation.StokesTendency is not defined for HydrostaticFreeSurfaceModel: " *
+                                                                                    "Stokes drift is not part of the hydrostatic free-surface model."))
 
 StokesTendency(model; kwargs...) = StokesTendency(model, model.stokes_drift, model.clock.time; kwargs...)
 #---

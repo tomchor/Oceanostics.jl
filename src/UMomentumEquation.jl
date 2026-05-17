@@ -86,10 +86,8 @@ function Advection(model, u, v, w, advection_scheme; location = (Face, Center, C
     return KernelFunctionOperation{Face, Center, Center}(div_𝐯u, model.grid, advection_scheme, total_velocities, u)
 end
 
-Advection(model; kwargs...) = Advection(model, model.velocities..., model.advection; kwargs...)
-
-Advection(model::HydrostaticFreeSurfaceModel; kwargs...) =
-    Advection(model, model.velocities..., model.advection.momentum; kwargs...)
+Advection(model; kwargs...)                              = Advection(model, model.velocities..., model.advection; kwargs...)
+Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.velocities..., model.advection.momentum; kwargs...)
 #---
 
 #+++ Buoyancy acceleration
@@ -328,9 +326,8 @@ function StokesShear(model, stokes_drift, velocities, time; location = (Face, Ce
     return KernelFunctionOperation{Face, Center, Center}(x_curl_Uˢ_cross_U, model.grid, stokes_drift, velocities, time)
 end
 
-StokesShear(model::HydrostaticFreeSurfaceModel; kwargs...) =
-    throw(ArgumentError("UMomentumEquation.StokesShear is not defined for HydrostaticFreeSurfaceModel: " *
-                        "Stokes drift is not part of the hydrostatic free-surface model."))
+StokesShear(model::HydrostaticFreeSurfaceModel; kwargs...) = throw(ArgumentError("UMomentumEquation.StokesShear is not defined for HydrostaticFreeSurfaceModel: " *
+                                                                                  "Stokes drift is not part of the hydrostatic free-surface model."))
 
 StokesShear(model; kwargs...) = StokesShear(model, model.stokes_drift, model.velocities, model.clock.time; kwargs...)
 
@@ -362,9 +359,8 @@ function StokesTendency(model, stokes_drift, time; location = (Face, Center, Cen
     return KernelFunctionOperation{Face, Center, Center}(∂t_uˢ, model.grid, stokes_drift, time)
 end
 
-StokesTendency(model::HydrostaticFreeSurfaceModel; kwargs...) =
-    throw(ArgumentError("UMomentumEquation.StokesTendency is not defined for HydrostaticFreeSurfaceModel: " *
-                        "Stokes drift is not part of the hydrostatic free-surface model."))
+StokesTendency(model::HydrostaticFreeSurfaceModel; kwargs...) = throw(ArgumentError("UMomentumEquation.StokesTendency is not defined for HydrostaticFreeSurfaceModel: " *
+                                                                                    "Stokes drift is not part of the hydrostatic free-surface model."))
 
 StokesTendency(model; kwargs...) = StokesTendency(model, model.stokes_drift, model.clock.time; kwargs...)
 #---

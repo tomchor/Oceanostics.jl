@@ -82,10 +82,8 @@ function Advection(model, u, v, w, advection_scheme; location = (Center, Center,
     return KernelFunctionOperation{Center, Center, Face}(div_𝐯w, model.grid, advection_scheme, total_velocities, w)
 end
 
-Advection(model; kwargs...) = Advection(model, model.velocities..., model.advection; kwargs...)
-
-Advection(model::HydrostaticFreeSurfaceModel; kwargs...) =
-    Advection(model, model.velocities..., model.advection.momentum; kwargs...)
+Advection(model; kwargs...)                              = Advection(model, model.velocities..., model.advection; kwargs...)
+Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.velocities..., model.advection.momentum; kwargs...)
 #---
 
 #+++ Buoyancy acceleration
@@ -181,8 +179,7 @@ function ViscousDissipation(model, closure, diffusivities, clock, model_fields, 
     return KernelFunctionOperation{Center, Center, Face}(∂ⱼ_τ₃ⱼ, model.grid, closure, diffusivities, clock, model_fields, buoyancy)
 end
 
-ViscousDissipation(model; kwargs...) =
-    ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
+ViscousDissipation(model; kwargs...) = ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
 
 """
     $(SIGNATURES)
@@ -281,9 +278,8 @@ function StokesShear(model, stokes_drift, velocities, time; location = (Center, 
     return KernelFunctionOperation{Center, Center, Face}(z_curl_Uˢ_cross_U, model.grid, stokes_drift, velocities, time)
 end
 
-StokesShear(model::HydrostaticFreeSurfaceModel; kwargs...) =
-    throw(ArgumentError("WMomentumEquation.StokesShear is not defined for HydrostaticFreeSurfaceModel: " *
-                        "Stokes drift is not part of the hydrostatic free-surface model."))
+StokesShear(model::HydrostaticFreeSurfaceModel; kwargs...) = throw(ArgumentError("WMomentumEquation.StokesShear is not defined for HydrostaticFreeSurfaceModel: " *
+                                                                                 "Stokes drift is not part of the hydrostatic free-surface model."))
 
 StokesShear(model; kwargs...) = StokesShear(model, model.stokes_drift, model.velocities, model.clock.time; kwargs...)
 
@@ -315,9 +311,8 @@ function StokesTendency(model, stokes_drift, time; location = (Center, Center, F
     return KernelFunctionOperation{Center, Center, Face}(∂t_wˢ, model.grid, stokes_drift, time)
 end
 
-StokesTendency(model::HydrostaticFreeSurfaceModel; kwargs...) =
-    throw(ArgumentError("WMomentumEquation.StokesTendency is not defined for HydrostaticFreeSurfaceModel: " *
-                        "Stokes drift is not part of the hydrostatic free-surface model."))
+StokesTendency(model::HydrostaticFreeSurfaceModel; kwargs...) = throw(ArgumentError("WMomentumEquation.StokesTendency is not defined for HydrostaticFreeSurfaceModel: " *
+                                                                                    "Stokes drift is not part of the hydrostatic free-surface model."))
 
 StokesTendency(model; kwargs...) = StokesTendency(model, model.stokes_drift, model.clock.time; kwargs...)
 #---
@@ -352,9 +347,8 @@ function Forcing(model, forcing_func, clock, model_fields, ::Val{:w}; location =
     return KernelFunctionOperation{Center, Center, Face}(forcing_func, model.grid, clock, model_fields)
 end
 
-Forcing(model::HydrostaticFreeSurfaceModel, ::Val{:w}; kwargs...) =
-    throw(ArgumentError("WMomentumEquation.Forcing is not defined for HydrostaticFreeSurfaceModel: " *
-                        "w is diagnosed from continuity rather than evolved by a prognostic equation."))
+Forcing(model::HydrostaticFreeSurfaceModel, ::Val{:w}; kwargs...) = throw(ArgumentError("WMomentumEquation.Forcing is not defined for HydrostaticFreeSurfaceModel: " *
+                                                                                        "w is diagnosed from continuity rather than evolved by a prognostic equation."))
 
 Forcing(model, ::Val{:w}; kwargs...) = Forcing(model, model.forcing.w, model.clock, fields(model), Val(:w); kwargs...)
 #---
@@ -400,9 +394,8 @@ function Tendency(model, advection_scheme, coriolis, stokes_drift, closure, w_im
     return KernelFunctionOperation{Center, Center, Face}(w_velocity_tendency, model.grid, advection_scheme, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing_func)
 end
 
-Tendency(model::HydrostaticFreeSurfaceModel; kwargs...) =
-    throw(ArgumentError("WMomentumEquation.Tendency is not defined for HydrostaticFreeSurfaceModel: " *
-                        "w is diagnosed from continuity rather than evolved by a prognostic equation."))
+Tendency(model::HydrostaticFreeSurfaceModel; kwargs...) = throw(ArgumentError("WMomentumEquation.Tendency is not defined for HydrostaticFreeSurfaceModel: " *
+                                                                              "w is diagnosed from continuity rather than evolved by a prognostic equation."))
 
 function Tendency(model; kwargs...)
     w_immersed_bc = model.velocities.w.boundary_conditions.immersed
