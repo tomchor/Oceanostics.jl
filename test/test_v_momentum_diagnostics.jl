@@ -194,21 +194,21 @@ function test_v_momentum_terms(model)
     @test FORC isa VForcing
     @test FORC_field isa Field
 
-    # Test TotalTendency
+    # Test Tendency
     if model isa HydrostaticFreeSurfaceModel
-        TEND = VMomentumEquation.TotalTendency(model, model.advection.momentum, model.coriolis, model.closure, v_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.v)
+        TEND = VMomentumEquation.Tendency(model, model.advection.momentum, model.coriolis, model.closure, v_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.v)
     else
-        TEND = VMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.v)
+        TEND = VMomentumEquation.Tendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.v)
     end
     TEND_field = Field(TEND)
-    @test TEND isa VMomentumEquation.TotalTendency
-    @test TEND isa VTotalTendency
+    @test TEND isa VMomentumEquation.Tendency
+    @test TEND isa VTendency
     @test TEND_field isa Field
 
-    TEND = VMomentumEquation.TotalTendency(model)
+    TEND = VMomentumEquation.Tendency(model)
     TEND_field = Field(TEND)
-    @test TEND isa VMomentumEquation.TotalTendency
-    @test TEND isa VTotalTendency
+    @test TEND isa VMomentumEquation.Tendency
+    @test TEND isa VTendency
     @test TEND_field isa Field
 
     return nothing
@@ -248,7 +248,7 @@ function test_v_momentum_field_locations(model)
     FORC = VMomentumEquation.Forcing(model, Val(:v))
     @test location(FORC) == (Center, Face, Center)
 
-    TEND = VMomentumEquation.TotalTendency(model)
+    TEND = VMomentumEquation.Tendency(model)
     @test location(TEND) == (Center, Face, Center)
 
     return nothing
@@ -282,10 +282,10 @@ function test_v_momentum_budget_closure(grid)
     SS    = VMomentumEquation.StokesShear(model)
     ST    = VMomentumEquation.StokesTendency(model)
     FORC  = VMomentumEquation.Forcing(model, Val(:v))
-    TEND  = VMomentumEquation.TotalTendency(model)
+    TEND  = VMomentumEquation.Tendency(model)
 
-    budget = compute!(Field(-ADV + BUOY - COR - PRES - TVISC + SS + ST + FORC))
-    tend   = compute!(Field(TEND))
+    budget = Field(-ADV + BUOY - COR - PRES - TVISC + SS + ST + FORC)
+    tend   = Field(TEND)
     @test interior(budget) ≈ interior(tend)
     return nothing
 end
@@ -301,7 +301,7 @@ function test_v_momentum_location_validation(model)
     @test_throws ArgumentError VMomentumEquation.TotalViscousDissipation(model; location = (Center, Center, Center))
     @test_throws ArgumentError VMomentumEquation.StokesShear(model; location = (Center, Center, Center))
     @test_throws ArgumentError VMomentumEquation.StokesTendency(model; location = (Center, Center, Center))
-    @test_throws ArgumentError VMomentumEquation.TotalTendency(model; location = (Center, Center, Center))
+    @test_throws ArgumentError VMomentumEquation.Tendency(model; location = (Center, Center, Center))
 
     return nothing
 end

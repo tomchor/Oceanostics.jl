@@ -194,21 +194,21 @@ function test_u_momentum_terms(model)
     @test FORC isa UForcing
     @test FORC_field isa Field
 
-    # Test TotalTendency
+    # Test Tendency
     if model isa HydrostaticFreeSurfaceModel
-        TEND = UMomentumEquation.TotalTendency(model, model.advection.momentum, model.coriolis, model.closure, u_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.u)
+        TEND = UMomentumEquation.Tendency(model, model.advection.momentum, model.coriolis, model.closure, u_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.u)
     else
-        TEND = UMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, u_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.u)
+        TEND = UMomentumEquation.Tendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, u_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.u)
     end
     TEND_field = Field(TEND)
-    @test TEND isa UMomentumEquation.TotalTendency
-    @test TEND isa UTotalTendency
+    @test TEND isa UMomentumEquation.Tendency
+    @test TEND isa UTendency
     @test TEND_field isa Field
 
-    TEND = UMomentumEquation.TotalTendency(model)
+    TEND = UMomentumEquation.Tendency(model)
     TEND_field = Field(TEND)
-    @test TEND isa UMomentumEquation.TotalTendency
-    @test TEND isa UTotalTendency
+    @test TEND isa UMomentumEquation.Tendency
+    @test TEND isa UTendency
     @test TEND_field isa Field
 
     return nothing
@@ -248,7 +248,7 @@ function test_u_momentum_field_locations(model)
     FORC = UMomentumEquation.Forcing(model)
     @test location(FORC) == (Face, Center, Center)
 
-    TEND = UMomentumEquation.TotalTendency(model)
+    TEND = UMomentumEquation.Tendency(model)
     @test location(TEND) == (Face, Center, Center)
 
     return nothing
@@ -282,10 +282,10 @@ function test_u_momentum_budget_closure(grid)
     SS    = UMomentumEquation.StokesShear(model)
     ST    = UMomentumEquation.StokesTendency(model)
     FORC  = UMomentumEquation.Forcing(model)
-    TEND  = UMomentumEquation.TotalTendency(model)
+    TEND  = UMomentumEquation.Tendency(model)
 
-    budget = compute!(Field(-ADV + BUOY - COR - PRES - TVISC + SS + ST + FORC))
-    tend   = compute!(Field(TEND))
+    budget = Field(-ADV + BUOY - COR - PRES - TVISC + SS + ST + FORC)
+    tend   = Field(TEND)
     @test interior(budget) ≈ interior(tend)
     return nothing
 end
@@ -302,7 +302,7 @@ function test_u_momentum_location_validation(model)
     @test_throws ArgumentError UMomentumEquation.StokesShear(model; location = (Center, Center, Center))
     @test_throws ArgumentError UMomentumEquation.StokesTendency(model; location = (Center, Center, Center))
     @test_throws ArgumentError UMomentumEquation.Forcing(model; location = (Center, Center, Center))
-    @test_throws ArgumentError UMomentumEquation.TotalTendency(model; location = (Center, Center, Center))
+    @test_throws ArgumentError UMomentumEquation.Tendency(model; location = (Center, Center, Center))
 
     return nothing
 end
@@ -321,7 +321,7 @@ end
     @test UTotalViscousDissipation !== VTotalViscousDissipation && UTotalViscousDissipation !== WTotalViscousDissipation
     @test UStokesShear !== VStokesShear && UStokesShear !== WStokesShear
     @test UStokesTendency !== VStokesTendency && UStokesTendency !== WStokesTendency
-    @test UTotalTendency !== VTotalTendency && UTotalTendency !== WTotalTendency
+    @test UTendency !== VTendency && UTendency !== WTendency
 
     # Forcing is intentionally aliased to the generic KernelFunctionOperation in every
     # module (no kernel narrowing), so the prefixed Forcing aliases are the same type.

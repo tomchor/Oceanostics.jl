@@ -12,12 +12,16 @@ using Oceananigans.StokesDrifts: z_curl_Uˢ_cross_U, ∂t_wˢ
 
 using Oceanostics: validate_location, CustomKFO
 
+# NB: no `PressureGradient` here, unlike U/V. `w_velocity_tendency` has no `-∂z(pHY′)` line —
+# Oceananigans treats the vertical hydrostatic balance as a property of the pressure projection
+# step rather than as an explicit term, so the only mode-dependent piece is whether buoyancy
+# itself appears (case `hydrostatic_pressure_anomaly = nothing`) or not (default, with splitting).
 export Advection, BuoyancyAcceleration, CoriolisAcceleration,
        ViscousDissipation, ImmersedViscousDissipation, TotalViscousDissipation,
-       StokesShear, StokesTendency, Forcing, TotalTendency,
+       StokesShear, StokesTendency, Forcing, Tendency,
        WAdvection, WBuoyancyAcceleration, WCoriolisAcceleration,
        WViscousDissipation, WImmersedViscousDissipation, WTotalViscousDissipation,
-       WStokesShear, WStokesTendency, WForcing, WTotalTendency
+       WStokesShear, WStokesTendency, WForcing, WTendency
 
 # Inline function for total viscous dissipation
 @inline total_∂ⱼ_τ₃ⱼ(i, j, k, grid, velocities, w_immersed_bc, closure, diffusivities, clock, model_fields, buoyancy) =
@@ -34,7 +38,7 @@ const TotalViscousDissipation = CustomKFO{<:typeof(total_∂ⱼ_τ₃ⱼ)}
 const StokesShear = CustomKFO{<:typeof(z_curl_Uˢ_cross_U)}
 const StokesTendency = CustomKFO{<:typeof(∂t_wˢ)}
 const Forcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any}
-const TotalTendency = CustomKFO{<:typeof(w_velocity_tendency)}
+const Tendency = CustomKFO{<:typeof(w_velocity_tendency)}
 
 # Aliases for consistency with TracerEquation naming
 const WAdvection = Advection
@@ -46,7 +50,7 @@ const WTotalViscousDissipation = TotalViscousDissipation
 const WStokesShear = StokesShear
 const WStokesTendency = StokesTendency
 const WForcing = Forcing
-const WTotalTendency = TotalTendency
+const WTendency = Tendency
 
 #+++ Advection
 """
@@ -380,7 +384,7 @@ For NonhydrostaticModel, this includes:
 - Forcing: Fʷ
 
 `HydrostaticFreeSurfaceModel` does not have a prognostic w-momentum equation
-(w is diagnosed from continuity), so `TotalTendency` is only defined for
+(w is diagnosed from continuity), so `Tendency` is only defined for
 `NonhydrostaticModel`.
 
 ```jldoctest
@@ -390,25 +394,25 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(grid);
 
-julia> TEND = WMomentumEquation.TotalTendency(model)
+julia> TEND = WMomentumEquation.Tendency(model)
 KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: w_velocity_tendency (generic function with 1 method)
 └── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
 ```
 """
-function TotalTendency(model, advection_scheme, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing_func; location = (Center, Center, Face))
-    validate_location(location, "TotalTendency", (Center, Center, Face))
+function Tendency(model, advection_scheme, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing_func; location = (Center, Center, Face))
+    validate_location(location, "Tendency", (Center, Center, Face))
     return KernelFunctionOperation{Center, Center, Face}(w_velocity_tendency, model.grid, advection_scheme, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing_func)
 end
 
-TotalTendency(model::HydrostaticFreeSurfaceModel; kwargs...) =
-    throw(ArgumentError("WMomentumEquation.TotalTendency is not defined for HydrostaticFreeSurfaceModel: " *
+Tendency(model::HydrostaticFreeSurfaceModel; kwargs...) =
+    throw(ArgumentError("WMomentumEquation.Tendency is not defined for HydrostaticFreeSurfaceModel: " *
                         "w is diagnosed from continuity rather than evolved by a prognostic equation."))
 
-function TotalTendency(model; kwargs...)
+function Tendency(model; kwargs...)
     w_immersed_bc = model.velocities.w.boundary_conditions.immersed
-    return TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.w; kwargs...)
+    return Tendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.w; kwargs...)
 end
 #---
 

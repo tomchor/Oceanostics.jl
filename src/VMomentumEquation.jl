@@ -16,10 +16,10 @@ using Oceanostics: validate_location, CustomKFO
 
 export Advection, BuoyancyAcceleration, CoriolisAcceleration, PressureGradient,
        ViscousDissipation, ImmersedViscousDissipation, TotalViscousDissipation,
-       StokesShear, StokesTendency, Forcing, TotalTendency,
+       StokesShear, StokesTendency, Forcing, Tendency,
        VAdvection, VBuoyancyAcceleration, VCoriolisAcceleration, VPressureGradient,
        VViscousDissipation, VImmersedViscousDissipation, VTotalViscousDissipation,
-       VStokesShear, VStokesTendency, VForcing, VTotalTendency
+       VStokesShear, VStokesTendency, VForcing, VTendency
 
 # Inline function for total viscous dissipation
 @inline total_∂ⱼ_τ₂ⱼ(i, j, k, grid, velocities, v_immersed_bc, closure, diffusivities, clock, model_fields, buoyancy) =
@@ -41,7 +41,7 @@ const TotalViscousDissipation = CustomKFO{<:typeof(total_∂ⱼ_τ₂ⱼ)}
 const StokesShear = CustomKFO{<:typeof(y_curl_Uˢ_cross_U)}
 const StokesTendency = CustomKFO{<:typeof(∂t_vˢ)}
 const Forcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any}
-const TotalTendency = Union{CustomKFO{<:typeof(v_velocity_tendency)},
+const Tendency = Union{CustomKFO{<:typeof(v_velocity_tendency)},
                             CustomKFO{<:typeof(hydrostatic_free_surface_v_velocity_tendency)}}
 
 const VAdvection = Advection
@@ -54,7 +54,7 @@ const VTotalViscousDissipation = TotalViscousDissipation
 const VStokesShear = StokesShear
 const VStokesTendency = StokesTendency
 const VForcing = Forcing
-const VTotalTendency = TotalTendency
+const VTendency = Tendency
 
 #+++ Advection
 """
@@ -431,30 +431,30 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(grid);
 
-julia> TEND = VMomentumEquation.TotalTendency(model)
+julia> TEND = VMomentumEquation.Tendency(model)
 KernelFunctionOperation at (Center, Face, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: v_velocity_tendency (generic function with 1 method)
 └── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
 ```
 """
-function TotalTendency(model::HydrostaticFreeSurfaceModel, advection_scheme, coriolis, closure, v_immersed_bc, velocities, free_surface, tracers, buoyancy, closure_fields, hydrostatic_pressure_anomaly, auxiliary_fields, vertical_coordinate, clock, forcing_func; location = (Center, Face, Center))
-    validate_location(location, "TotalTendency", (Center, Face, Center))
+function Tendency(model::HydrostaticFreeSurfaceModel, advection_scheme, coriolis, closure, v_immersed_bc, velocities, free_surface, tracers, buoyancy, closure_fields, hydrostatic_pressure_anomaly, auxiliary_fields, vertical_coordinate, clock, forcing_func; location = (Center, Face, Center))
+    validate_location(location, "Tendency", (Center, Face, Center))
     return KernelFunctionOperation{Center, Face, Center}(hydrostatic_free_surface_v_velocity_tendency, model.grid, advection_scheme, coriolis, closure, v_immersed_bc, velocities, free_surface, tracers, buoyancy, closure_fields, hydrostatic_pressure_anomaly, auxiliary_fields, vertical_coordinate, clock, forcing_func)
 end
 
-function TotalTendency(model, advection_scheme, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing_func; location = (Center, Face, Center))
-    validate_location(location, "TotalTendency", (Center, Face, Center))
+function Tendency(model, advection_scheme, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing_func; location = (Center, Face, Center))
+    validate_location(location, "Tendency", (Center, Face, Center))
     return KernelFunctionOperation{Center, Face, Center}(v_velocity_tendency, model.grid, advection_scheme, coriolis, stokes_drift, closure, v_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing_func)
 end
 
-function TotalTendency(model; kwargs...)
+function Tendency(model; kwargs...)
     v_immersed_bc = model.velocities.v.boundary_conditions.immersed
 
     if model isa HydrostaticFreeSurfaceModel
-        return TotalTendency(model, model.advection.momentum, model.coriolis, model.closure, v_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.v; kwargs...)
+        return Tendency(model, model.advection.momentum, model.coriolis, model.closure, v_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.v; kwargs...)
     else
-        return TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.v; kwargs...)
+        return Tendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, v_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.v; kwargs...)
     end
 end
 #---

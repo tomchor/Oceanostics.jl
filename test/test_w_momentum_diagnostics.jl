@@ -173,17 +173,17 @@ function test_w_momentum_terms(model)
     @test FORC isa WForcing
     @test FORC_field isa Field
 
-    # Test TotalTendency (NonhydrostaticModel only)
-    TEND = WMomentumEquation.TotalTendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.w)
+    # Test Tendency (NonhydrostaticModel only)
+    TEND = WMomentumEquation.Tendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.w)
     TEND_field = Field(TEND)
-    @test TEND isa WMomentumEquation.TotalTendency
-    @test TEND isa WTotalTendency
+    @test TEND isa WMomentumEquation.Tendency
+    @test TEND isa WTendency
     @test TEND_field isa Field
 
-    TEND = WMomentumEquation.TotalTendency(model)
+    TEND = WMomentumEquation.Tendency(model)
     TEND_field = Field(TEND)
-    @test TEND isa WMomentumEquation.TotalTendency
-    @test TEND isa WTotalTendency
+    @test TEND isa WMomentumEquation.Tendency
+    @test TEND isa WTendency
     @test TEND_field isa Field
 
     return nothing
@@ -218,44 +218,53 @@ function test_w_momentum_field_locations(model)
     FORC = WMomentumEquation.Forcing(model, Val(:w))
     @test location(FORC) == (Center, Center, Face)
 
-    TEND = WMomentumEquation.TotalTendency(model)
+    TEND = WMomentumEquation.Tendency(model)
     @test location(TEND) == (Center, Center, Face)
 
     return nothing
 end
 
-function test_w_momentum_budget_closure(grid)
+function test_w_momentum_budget_closure(grid; pressure_splitting = true)
     # Build a NH model with every term active so the budget exercises the full RHS of w_velocity_tendency.
+    # `pressure_splitting=true` keeps NH's default hydrostatic pressure anomaly field; `false`
+    # disables the split (`hydrostatic_pressure_anomaly = nothing`).
     sd = UniformStokesDrift(∂z_uˢ = (z, t) -> exp(z) * cos(t),
                             ∂z_vˢ = (z, t) -> exp(z) * sin(t),
                             ∂t_uˢ = (z, t) -> -exp(z) * sin(t),
                             ∂t_vˢ = (z, t) ->  exp(z) * cos(t))
-    model = NonhydrostaticModel(grid; tracers = :b,
-                                      buoyancy = BuoyancyTracer(),
-                                      coriolis = FPlane(f = 1e-4),
-                                      stokes_drift = sd,
-                                      closure = ScalarDiffusivity(ν = 1e-4, κ = 1e-4),
-                                      forcing = (; w = Forcing((x, y, z, t) -> cos(t))))
+    common = (; tracers = :b,
+                buoyancy = BuoyancyTracer(),
+                coriolis = FPlane(f = 1e-4),
+                stokes_drift = sd,
+                closure = ScalarDiffusivity(ν = 1e-4, κ = 1e-4),
+                forcing = (; w = Forcing((x, y, z, t) -> cos(t))))
+    model = pressure_splitting ?
+        NonhydrostaticModel(grid; common...) :
+        NonhydrostaticModel(grid; common..., hydrostatic_pressure_anomaly = nothing)
     set!(model, u = (x, y, z) -> sin(2π*x) * cos(2π*y) * exp(z),
                 v = (x, y, z) -> cos(2π*x) * sin(2π*y) * exp(z),
                 w = (x, y, z) -> sin(2π*x) * sin(2π*z),
                 b = (x, y, z) -> sin(2π*z))
-    update_state!(model) # populates model.pressures.pHY′ from b
+    update_state!(model) # populates model.pressures.pHY′ from b (or leaves it nothing)
 
-    # Reconstruct G_w. When the hydrostatic pressure anomaly pHY′ is non-nothing (the case here),
-    # Oceananigans' w_velocity_tendency uses `maybe_z_dot_g_bᶜᶜᶠ`, which returns zero — the buoyancy
-    # contribution is absorbed into pHY′ via the hydrostatic balance ∂z(pHY′) = b. So the budget is:
-    #   G_w = -ADV - COR - TVISC + STOKES_SHEAR + STOKES_TENDENCY + FORCING
+    # Reconstruct G_w. Unlike U/V, w_velocity_tendency has no `-∂z(pHY′)` term: Oceananigans
+    # treats the vertical hydrostatic balance as a property of the pressure-projection step.
+    # The only mode-dependent piece is whether buoyancy itself appears (via `maybe_z_dot_g_bᶜᶜᶠ`):
+    #   pressure_splitting=true  → no BUOY in tendency (assumed absorbed by pHY′)
+    #   pressure_splitting=false → BUOY appears with +1
     ADV   = WMomentumEquation.Advection(model)
+    BUOY  = WMomentumEquation.BuoyancyAcceleration(model)
     COR   = WMomentumEquation.CoriolisAcceleration(model)
     TVISC = WMomentumEquation.TotalViscousDissipation(model)
     SS    = WMomentumEquation.StokesShear(model)
     ST    = WMomentumEquation.StokesTendency(model)
     FORC  = WMomentumEquation.Forcing(model, Val(:w))
-    TEND  = WMomentumEquation.TotalTendency(model)
+    TEND  = WMomentumEquation.Tendency(model)
 
-    budget = compute!(Field(-ADV - COR - TVISC + SS + ST + FORC))
-    tend   = compute!(Field(TEND))
+    budget = pressure_splitting ?
+        Field(-ADV - COR - TVISC + SS + ST + FORC) :
+        Field(-ADV + BUOY - COR - TVISC + SS + ST + FORC)
+    tend = Field(TEND)
     @test interior(budget) ≈ interior(tend)
     return nothing
 end
@@ -270,7 +279,7 @@ function test_w_momentum_location_validation(model)
     @test_throws ArgumentError WMomentumEquation.TotalViscousDissipation(model; location = (Center, Center, Center))
     @test_throws ArgumentError WMomentumEquation.StokesShear(model; location = (Center, Center, Center))
     @test_throws ArgumentError WMomentumEquation.StokesTendency(model; location = (Center, Center, Center))
-    @test_throws ArgumentError WMomentumEquation.TotalTendency(model; location = (Center, Center, Center))
+    @test_throws ArgumentError WMomentumEquation.Tendency(model; location = (Center, Center, Center))
 
     return nothing
 end
@@ -278,7 +287,7 @@ end
 function test_w_momentum_hfs_unsupported()
     grid = first(values(grids))
     hfs_model = HydrostaticFreeSurfaceModel(grid; tracers, buoyancy=BuoyancyTracer())
-    @test_throws ArgumentError WMomentumEquation.TotalTendency(hfs_model)
+    @test_throws ArgumentError WMomentumEquation.Tendency(hfs_model)
     @test_throws ArgumentError WMomentumEquation.Forcing(hfs_model, Val(:w))
     @test_throws ArgumentError WMomentumEquation.StokesShear(hfs_model)
     @test_throws ArgumentError WMomentumEquation.StokesTendency(hfs_model)
@@ -305,9 +314,12 @@ end
         end
     end
 
-    @info "    Testing that TotalTendency is unsupported on HydrostaticFreeSurfaceModel"
+    @info "    Testing that Tendency is unsupported on HydrostaticFreeSurfaceModel"
     test_w_momentum_hfs_unsupported()
 
-    @info "    Testing w-momentum budget closure on NonhydrostaticModel"
-    test_w_momentum_budget_closure(underlying_regular_grid)
+    @info "    Testing w-momentum budget closure on NonhydrostaticModel (with hydrostatic/nonhydrostatic pressure splitting)"
+    test_w_momentum_budget_closure(underlying_regular_grid; pressure_splitting = true)
+
+    @info "    Testing w-momentum budget closure on NonhydrostaticModel (without pressure splitting)"
+    test_w_momentum_budget_closure(underlying_regular_grid; pressure_splitting = false)
 end
