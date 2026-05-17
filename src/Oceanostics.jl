@@ -14,13 +14,13 @@ export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDif
 #---
 
 #+++ UMomentumEquation exports
-export UAdvection, UBuoyancyAcceleration, UCoriolisAcceleration, UPressureGradient,
+export UAdvection, UBuoyancyAcceleration, UCoriolisAcceleration, UPressureGradient, UBarotropicPressureGradient,
        UViscousDissipation, UImmersedViscousDissipation, UTotalViscousDissipation,
        UStokesShear, UStokesTendency, UForcing, UTendency
 #---
 
 #+++ VMomentumEquation exports
-export VAdvection, VBuoyancyAcceleration, VCoriolisAcceleration, VPressureGradient,
+export VAdvection, VBuoyancyAcceleration, VCoriolisAcceleration, VPressureGradient, VBarotropicPressureGradient,
        VViscousDissipation, VImmersedViscousDissipation, VTotalViscousDissipation,
        VStokesShear, VStokesTendency, VForcing, VTendency
 #---

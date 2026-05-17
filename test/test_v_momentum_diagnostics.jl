@@ -290,6 +290,42 @@ function test_v_momentum_budget_closure(grid)
     return nothing
 end
 
+function test_v_momentum_hfs_budget_closure(grid)
+    # Build an HFS model with every term active so the budget exercises the full RHS of
+    # hydrostatic_free_surface_v_velocity_tendency. `momentum_advection = Centered()` is required
+    # so the diagnostic Advection (which wraps U_dot_∇v with the model's scheme) matches the
+    # tendency's advection for any non-VectorInvariant scheme.
+    model = HydrostaticFreeSurfaceModel(grid; tracers = :b,
+                                              buoyancy = BuoyancyTracer(),
+                                              coriolis = FPlane(f = 1e-4),
+                                              momentum_advection = Centered(),
+                                              closure = ScalarDiffusivity(ν = 1e-4, κ = 1e-4),
+                                              forcing = (; v = Forcing((x, y, z, t) -> cos(t))))
+    set!(model, u = (x, y, z) -> sin(2π*x) * cos(2π*y) * exp(z),
+                v = (x, y, z) -> cos(2π*x) * sin(2π*y) * exp(z),
+                b = (x, y, z) -> sin(2π*z))
+    update_state!(model) # populates model.pressure.pHY′ from b
+
+    # Reconstruct G_v for HFS:
+    #   G_v = -ADV - BARO - COR - PRES - TVISC + FORCING
+    # HFS has no Stokes terms and no BuoyancyAcceleration term (buoyancy is absorbed into pHY′).
+    # BARO is the explicit barotropic free-surface gradient; on ImplicitFreeSurface it returns
+    # zero (the contribution is handled inside the pressure solve) so the budget closes
+    # without it, but including it keeps the formula correct for ExplicitFreeSurface too.
+    ADV   = VMomentumEquation.Advection(model)
+    COR   = VMomentumEquation.CoriolisAcceleration(model)
+    PRES  = VMomentumEquation.PressureGradient(model)
+    BARO  = VMomentumEquation.BarotropicPressureGradient(model)
+    TVISC = VMomentumEquation.TotalViscousDissipation(model)
+    FORC  = VMomentumEquation.Forcing(model, Val(:v))
+    TEND  = VMomentumEquation.Tendency(model)
+
+    budget = Field(-ADV - BARO - COR - PRES - TVISC + FORC)
+    tend   = Field(TEND)
+    @test interior(budget) ≈ interior(tend)
+    return nothing
+end
+
 function test_v_momentum_location_validation(model)
     # Test that invalid locations throw errors
     @test_throws ArgumentError VMomentumEquation.Advection(model; location = (Center, Center, Center))
@@ -334,4 +370,7 @@ end
 
     @info "    Testing v-momentum budget closure on NonhydrostaticModel"
     test_v_momentum_budget_closure(underlying_regular_grid)
+
+    @info "    Testing v-momentum budget closure on HydrostaticFreeSurfaceModel"
+    test_v_momentum_hfs_budget_closure(underlying_regular_grid)
 end

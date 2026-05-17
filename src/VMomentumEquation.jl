@@ -5,19 +5,20 @@ using Oceananigans: fields, Face, Center, KernelFunctionOperation, AbstractModel
 using Oceananigans.Models: HydrostaticFreeSurfaceModel
 using Oceananigans.Models.NonhydrostaticModels: v_velocity_tendency
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: hydrostatic_free_surface_v_velocity_tendency
-using Oceananigans.Advection: div_𝐯v
+using Oceananigans.Advection: div_𝐯v, U_dot_∇v
 using Oceananigans.BuoyancyFormulations: y_dot_g_bᶜᶠᶜ
 using Oceananigans.Coriolis: y_f_cross_U
 using Oceananigans.TurbulenceClosures: ∂ⱼ_τ₂ⱼ, immersed_∂ⱼ_τ₂ⱼ
 using Oceananigans.StokesDrifts: y_curl_Uˢ_cross_U, ∂t_vˢ
 using Oceananigans.Operators: ∂yᶜᶠᶜ
+using Oceananigans.Models.HydrostaticFreeSurfaceModels: explicit_barotropic_pressure_y_gradient
 
 using Oceanostics: validate_location, CustomKFO
 
-export Advection, BuoyancyAcceleration, CoriolisAcceleration, PressureGradient,
+export Advection, BuoyancyAcceleration, CoriolisAcceleration, PressureGradient, BarotropicPressureGradient,
        ViscousDissipation, ImmersedViscousDissipation, TotalViscousDissipation,
        StokesShear, StokesTendency, Forcing, Tendency,
-       VAdvection, VBuoyancyAcceleration, VCoriolisAcceleration, VPressureGradient,
+       VAdvection, VBuoyancyAcceleration, VCoriolisAcceleration, VPressureGradient, VBarotropicPressureGradient,
        VViscousDissipation, VImmersedViscousDissipation, VTotalViscousDissipation,
        VStokesShear, VStokesTendency, VForcing, VTendency
 
@@ -31,10 +32,11 @@ export Advection, BuoyancyAcceleration, CoriolisAcceleration, PressureGradient,
 @inline hydrostatic_pressure_gradient_y(i, j, k, grid, ::Nothing) = zero(grid)
 
 # Type aliases for major functions
-const Advection = CustomKFO{<:typeof(div_𝐯v)}
+const Advection = Union{CustomKFO{<:typeof(div_𝐯v)}, CustomKFO{<:typeof(U_dot_∇v)}}
 const BuoyancyAcceleration = CustomKFO{<:typeof(y_dot_g_bᶜᶠᶜ)}
 const CoriolisAcceleration = CustomKFO{<:typeof(y_f_cross_U)}
 const PressureGradient = CustomKFO{<:typeof(hydrostatic_pressure_gradient_y)}
+const BarotropicPressureGradient = CustomKFO{<:typeof(explicit_barotropic_pressure_y_gradient)}
 const ViscousDissipation = CustomKFO{<:typeof(∂ⱼ_τ₂ⱼ)}
 const ImmersedViscousDissipation = CustomKFO{<:typeof(immersed_∂ⱼ_τ₂ⱼ)}
 const TotalViscousDissipation = CustomKFO{<:typeof(total_∂ⱼ_τ₂ⱼ)}
@@ -42,12 +44,13 @@ const StokesShear = CustomKFO{<:typeof(y_curl_Uˢ_cross_U)}
 const StokesTendency = CustomKFO{<:typeof(∂t_vˢ)}
 const Forcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any}
 const Tendency = Union{CustomKFO{<:typeof(v_velocity_tendency)},
-                            CustomKFO{<:typeof(hydrostatic_free_surface_v_velocity_tendency)}}
+                       CustomKFO{<:typeof(hydrostatic_free_surface_v_velocity_tendency)}}
 
 const VAdvection = Advection
 const VBuoyancyAcceleration = BuoyancyAcceleration
 const VCoriolisAcceleration = CoriolisAcceleration
 const VPressureGradient = PressureGradient
+const VBarotropicPressureGradient = BarotropicPressureGradient
 const VViscousDissipation = ViscousDissipation
 const VImmersedViscousDissipation = ImmersedViscousDissipation
 const VTotalViscousDissipation = TotalViscousDissipation
@@ -60,11 +63,16 @@ const VTendency = Tendency
 """
     $(SIGNATURES)
 
-Calculate the advection of v-momentum as
+Calculate the advection of v-momentum. For `NonhydrostaticModel` this wraps the flux-form
+divergence kernel [`div_𝐯v`](https://clima.github.io/OceananigansDocumentation/stable/appendix/library/#Oceananigans.Advection.div_𝐯v-NTuple{7,%20Any})
+as
 
     ADV = ∂ⱼ (uⱼ v)
 
-using Oceananigans' kernel [`div_𝐯v`.](https://clima.github.io/OceananigansDocumentation/stable/appendix/library/#Oceananigans.Advection.div_𝐯v-NTuple{7,%20Any})
+For `HydrostaticFreeSurfaceModel` this wraps the vector-invariant kernel `U_dot_∇v` (which
+is what `hydrostatic_free_surface_v_velocity_tendency` actually uses) as
+
+    ADV = (u · ∇) v
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -86,8 +94,13 @@ function Advection(model, u, v, w, advection_scheme; location = (Center, Face, C
     return KernelFunctionOperation{Center, Face, Center}(div_𝐯v, model.grid, advection_scheme, total_velocities, v)
 end
 
+function Advection(model::HydrostaticFreeSurfaceModel, advection_scheme, velocities; location = (Center, Face, Center))
+    validate_location(location, "Advection", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(U_dot_∇v, model.grid, advection_scheme, velocities)
+end
+
 Advection(model; kwargs...)                              = Advection(model, model.velocities..., model.advection; kwargs...)
-Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.velocities..., model.advection.momentum; kwargs...)
+Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.advection.momentum, model.velocities; kwargs...)
 #---
 
 #+++ Buoyancy acceleration
@@ -196,6 +209,41 @@ function PressureGradient(model; kwargs...)
     end
     return PressureGradient(model, hydrostatic_pressure; kwargs...)
 end
+#---
+
+#+++ Barotropic pressure gradient
+"""
+    $(SIGNATURES)
+
+Calculate the explicit barotropic pressure gradient in the y-direction. For
+`HydrostaticFreeSurfaceModel` this is the contribution of the free surface ``η`` to the
+horizontal pressure gradient that's treated explicitly during time-stepping (i.e., not
+solved implicitly). For `ExplicitFreeSurface` it equals `g ∂y η`; for `ImplicitFreeSurface`
+or `SplitExplicitFreeSurface` the contribution is handled inside the pressure solve so
+this kernel returns zero. For `NonhydrostaticModel` (`free_surface == nothing`) it also
+returns zero. This term completes the v-momentum budget closure on HFS.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> BARO = VMomentumEquation.BarotropicPressureGradient(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: explicit_barotropic_pressure_y_gradient (generic function with 4 methods)
+└── arguments: ("Nothing",)
+```
+"""
+function BarotropicPressureGradient(model, free_surface; location = (Center, Face, Center))
+    validate_location(location, "BarotropicPressureGradient", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(explicit_barotropic_pressure_y_gradient, model.grid, free_surface)
+end
+
+BarotropicPressureGradient(model; kwargs...) =
+    BarotropicPressureGradient(model, hasfield(typeof(model), :free_surface) ? model.free_surface : nothing; kwargs...)
 #---
 
 #+++ Viscous dissipation
