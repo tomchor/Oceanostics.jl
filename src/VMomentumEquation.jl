@@ -86,8 +86,7 @@ function Advection(model, u, v, w, advection_scheme; location = (Center, Face, C
     return KernelFunctionOperation{Center, Face, Center}(div_𝐯v, model.grid, advection_scheme, total_velocities, v)
 end
 
-Advection(model; kwargs...) =
-    Advection(model, model.velocities..., model.advection; kwargs...)
+Advection(model; kwargs...) = Advection(model, model.velocities..., model.advection; kwargs...)
 
 Advection(model::HydrostaticFreeSurfaceModel; kwargs...) =
     Advection(model, model.velocities..., model.advection.momentum; kwargs...)
@@ -122,8 +121,7 @@ function BuoyancyAcceleration(model, buoyancy, tracers; location = (Center, Face
     return KernelFunctionOperation{Center, Face, Center}(y_dot_g_bᶜᶠᶜ, model.grid, buoyancy, tracers)
 end
 
-BuoyancyAcceleration(model; kwargs...) =
-    BuoyancyAcceleration(model, model.buoyancy, model.tracers; kwargs...)
+BuoyancyAcceleration(model; kwargs...) = BuoyancyAcceleration(model, model.buoyancy, model.tracers; kwargs...)
 #---
 
 #+++ Coriolis acceleration
@@ -155,8 +153,7 @@ function CoriolisAcceleration(model, coriolis, velocities; location = (Center, F
     return KernelFunctionOperation{Center, Face, Center}(y_f_cross_U, model.grid, coriolis, velocities)
 end
 
-CoriolisAcceleration(model; kwargs...) =
-    CoriolisAcceleration(model, model.coriolis, model.velocities; kwargs...)
+CoriolisAcceleration(model; kwargs...) = CoriolisAcceleration(model, model.coriolis, model.velocities; kwargs...)
 #---
 
 #+++ Pressure gradient
@@ -333,8 +330,7 @@ StokesShear(model::HydrostaticFreeSurfaceModel; kwargs...) =
     throw(ArgumentError("VMomentumEquation.StokesShear is not defined for HydrostaticFreeSurfaceModel: " *
                         "Stokes drift is not part of the hydrostatic free-surface model."))
 
-StokesShear(model; kwargs...) =
-    StokesShear(model, model.stokes_drift, model.velocities, model.clock.time; kwargs...)
+StokesShear(model; kwargs...) = StokesShear(model, model.stokes_drift, model.velocities, model.clock.time; kwargs...)
 
 """
     $(SIGNATURES)
@@ -368,8 +364,7 @@ StokesTendency(model::HydrostaticFreeSurfaceModel; kwargs...) =
     throw(ArgumentError("VMomentumEquation.StokesTendency is not defined for HydrostaticFreeSurfaceModel: " *
                         "Stokes drift is not part of the hydrostatic free-surface model."))
 
-StokesTendency(model; kwargs...) =
-    StokesTendency(model, model.stokes_drift, model.clock.time; kwargs...)
+StokesTendency(model; kwargs...) = StokesTendency(model, model.stokes_drift, model.clock.time; kwargs...)
 #---
 
 #+++ Forcing
@@ -402,8 +397,7 @@ function Forcing(model, forcing_func, clock, model_fields, ::Val{:v}; location =
     return KernelFunctionOperation{Center, Face, Center}(forcing_func, model.grid, clock, model_fields)
 end
 
-Forcing(model, ::Val{:v}; kwargs...) =
-    Forcing(model, model.forcing.v, model.clock, fields(model), Val(:v); kwargs...)
+Forcing(model, ::Val{:v}; kwargs...) = Forcing(model, model.forcing.v, model.clock, fields(model), Val(:v); kwargs...)
 #---
 
 #+++ Total tendency

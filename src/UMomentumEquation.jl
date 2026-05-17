@@ -86,8 +86,7 @@ function Advection(model, u, v, w, advection_scheme; location = (Face, Center, C
     return KernelFunctionOperation{Face, Center, Center}(div_𝐯u, model.grid, advection_scheme, total_velocities, u)
 end
 
-Advection(model; kwargs...) =
-    Advection(model, model.velocities..., model.advection; kwargs...)
+Advection(model; kwargs...) = Advection(model, model.velocities..., model.advection; kwargs...)
 
 Advection(model::HydrostaticFreeSurfaceModel; kwargs...) =
     Advection(model, model.velocities..., model.advection.momentum; kwargs...)
@@ -122,8 +121,7 @@ function BuoyancyAcceleration(model, buoyancy, tracers; location = (Face, Center
     return KernelFunctionOperation{Face, Center, Center}(x_dot_g_bᶠᶜᶜ, model.grid, buoyancy, tracers)
 end
 
-BuoyancyAcceleration(model; kwargs...) =
-    BuoyancyAcceleration(model, model.buoyancy, model.tracers; kwargs...)
+BuoyancyAcceleration(model; kwargs...) = BuoyancyAcceleration(model, model.buoyancy, model.tracers; kwargs...)
 #---
 
 #+++ Coriolis acceleration
@@ -155,8 +153,7 @@ function CoriolisAcceleration(model, coriolis, velocities; location = (Face, Cen
     return KernelFunctionOperation{Face, Center, Center}(x_f_cross_U, model.grid, coriolis, velocities)
 end
 
-CoriolisAcceleration(model; kwargs...) =
-    CoriolisAcceleration(model, model.coriolis, model.velocities; kwargs...)
+CoriolisAcceleration(model; kwargs...) = CoriolisAcceleration(model, model.coriolis, model.velocities; kwargs...)
 #---
 
 #+++ Pressure gradient
@@ -232,8 +229,7 @@ function ViscousDissipation(model, closure, diffusivities, clock, model_fields, 
     return KernelFunctionOperation{Face, Center, Center}(∂ⱼ_τ₁ⱼ, model.grid, closure, diffusivities, clock, model_fields, buoyancy)
 end
 
-ViscousDissipation(model; kwargs...) =
-    ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
+ViscousDissipation(model; kwargs...) = ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
 
 """
     $(SIGNATURES)
@@ -336,8 +332,7 @@ StokesShear(model::HydrostaticFreeSurfaceModel; kwargs...) =
     throw(ArgumentError("UMomentumEquation.StokesShear is not defined for HydrostaticFreeSurfaceModel: " *
                         "Stokes drift is not part of the hydrostatic free-surface model."))
 
-StokesShear(model; kwargs...) =
-    StokesShear(model, model.stokes_drift, model.velocities, model.clock.time; kwargs...)
+StokesShear(model; kwargs...) = StokesShear(model, model.stokes_drift, model.velocities, model.clock.time; kwargs...)
 
 """
     $(SIGNATURES)
@@ -371,8 +366,7 @@ StokesTendency(model::HydrostaticFreeSurfaceModel; kwargs...) =
     throw(ArgumentError("UMomentumEquation.StokesTendency is not defined for HydrostaticFreeSurfaceModel: " *
                         "Stokes drift is not part of the hydrostatic free-surface model."))
 
-StokesTendency(model; kwargs...) =
-    StokesTendency(model, model.stokes_drift, model.clock.time; kwargs...)
+StokesTendency(model; kwargs...) = StokesTendency(model, model.stokes_drift, model.clock.time; kwargs...)
 #---
 
 #+++ Forcing
@@ -400,8 +394,7 @@ function Forcing(model, forcing_func, clock, model_fields, ::Val{:u}; location =
     return KernelFunctionOperation{Face, Center, Center}(forcing_func, model.grid, clock, model_fields)
 end
 
-Forcing(model; kwargs...) =
-    Forcing(model, model.forcing.u, model.clock, fields(model), Val(:u); kwargs...)
+Forcing(model; kwargs...) = Forcing(model, model.forcing.u, model.clock, fields(model), Val(:u); kwargs...)
 #---
 
 #+++ Total tendency
