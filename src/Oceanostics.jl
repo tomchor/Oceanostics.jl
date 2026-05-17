@@ -5,11 +5,30 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, F}
 
 #+++ Module export
-export TracerEquation, KineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation
+export TracerEquation, KineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
+       UMomentumEquation, VMomentumEquation, WMomentumEquation
 #---
 
 #+++ TracerEquation exports
 export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing
+#---
+
+#+++ UMomentumEquation exports
+export UAdvection, UBuoyancyAcceleration, UCoriolisAcceleration, UPressureGradient,
+       UViscousDissipation, UImmersedViscousDissipation, UTotalViscousDissipation,
+       UStokesShear, UStokesTendency, UForcing, UTendency
+#---
+
+#+++ VMomentumEquation exports
+export VAdvection, VBuoyancyAcceleration, VCoriolisAcceleration, VPressureGradient,
+       VViscousDissipation, VImmersedViscousDissipation, VTotalViscousDissipation,
+       VStokesShear, VStokesTendency, VForcing, VTendency
+#---
+
+#+++ WMomentumEquation exports
+export WAdvection, WBuoyancyAcceleration, WCoriolisAcceleration,
+       WViscousDissipation, WImmersedViscousDissipation, WTotalViscousDissipation,
+       WStokesShear, WStokesTendency, WForcing, WTendency
 #---
 
 #+++ TracerVarianceEquation exports
@@ -58,7 +77,7 @@ using Oceananigans.Grids: Center, Face
 
 validate_location(location, type, valid_location=(Center, Center, Center)) =
     location != valid_location &&
-        error("$type only supports location = $valid_location for now.")
+        throw(ArgumentError("$type only supports location = $valid_location for now."))
 
 validate_dissipative_closure(closure) = error("Cannot calculate dissipation rate for $closure")
 validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}) = nothing
@@ -154,6 +173,9 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
 #---
 
 include("TracerEquation.jl")
+include("UMomentumEquation.jl")
+include("VMomentumEquation.jl")
+include("WMomentumEquation.jl")
 include("TracerVarianceEquation.jl")
 include("KineticEnergyEquation.jl")
 include("TurbulentKineticEnergyEquation.jl")
@@ -162,7 +184,7 @@ include("FlowDiagnostics.jl")
 include("Filters/Filters.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
-using .TracerEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
+using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
 using .FlowDiagnostics
 using .Filters
 using .ProgressMessengers

@@ -63,6 +63,7 @@ The `budgets` test group is the most expensive (5-hour CI timeout) and validates
 
 ## Conventions
 
+- **Naming**: functions and methods use `snake_case`; `CamelCase` is reserved for types, structs, and modules. A `const X = CustomKFO{<:typeof(...)}` parametric type alias *is* a type — methods like `function X(model, ...)` are constructor methods on it and stay CamelCase, since `X(args)` invokes the type's constructor. Genuine standalone helper functions (e.g. inline kernel helpers like `total_∂ⱼ_τ₁ⱼ`) are snake_case.
 - Diagnostic constructors accept either a full `model` object or individual fields (velocities, tracers, etc.) for flexibility
 - Many constructors use `validate_location` to enforce that diagnostics are only computed at their mathematically valid grid locations
 - Dissipation rate diagnostics use `validate_dissipative_closure` to restrict to `AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}`
