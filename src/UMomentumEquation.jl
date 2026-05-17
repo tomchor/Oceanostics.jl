@@ -128,7 +128,7 @@ BuoyancyAcceleration(model; kwargs...) = BuoyancyAcceleration(model, model.buoya
 
 Calculate the Coriolis acceleration in the x-direction as
 
-    COR = - f × u
+    COR = f × u
 
 where f is the Coriolis parameter vector and u is the velocity vector.
 
@@ -160,7 +160,7 @@ CoriolisAcceleration(model; kwargs...) = CoriolisAcceleration(model, model.corio
 
 Calculate the hydrostatic pressure gradient force in the x-direction as
 
-    PRES = - ∂p/∂x
+    PRES = ∂p/∂x
 
 where p is the hydrostatic pressure anomaly.
 
@@ -204,7 +204,7 @@ end
 
 Calculate the viscous dissipation term (excluding immersed boundaries) as
 
-    VISC = - ∂ⱼ τ₁ⱼ,
+    VISC = ∂ⱼ τ₁ⱼ,
 
 where τ₁ⱼ is the viscous stress tensor for the x-momentum equation.
 
@@ -234,7 +234,7 @@ ViscousDissipation(model; kwargs...) = ViscousDissipation(model, model.closure, 
 
 Calculate the viscous dissipation term due to immersed boundaries as
 
-    VISC = - ∂ⱼ τ₁ⱼ,
+    VISC = ∂ⱼ τ₁ⱼ,
 
 where τ₁ⱼ is the immersed boundary viscous stress tensor for the x-momentum equation.
 
@@ -267,7 +267,7 @@ end
 
 Calculate the total viscous dissipation term as
 
-    VISC = - ∂ⱼ τ₁ⱼ - ∂ⱼ τ₁ⱼ_immersed,
+    VISC = ∂ⱼ τ₁ⱼ + ∂ⱼ τ₁ⱼ_immersed,
 
 where τ₁ⱼ is the interior viscous stress tensor and τ₁ⱼ_immersed is the immersed boundary
 viscous stress tensor for the x-momentum equation.
