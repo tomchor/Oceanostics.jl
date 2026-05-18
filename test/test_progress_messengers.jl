@@ -15,11 +15,16 @@ regular_grid = RectilinearGrid(arch, size=(N, N, N), extent=(1, 1, 1))
 #---
 
 #+++ Testing options
-closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
-            SmagorinskyLilly(),
-            DynamicSmagorinsky(averaging=(1, 2)),
-            DynamicSmagorinsky(averaging=LagrangianAveraging()),
-            (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
+nonhydrostatic_closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),
+                           SmagorinskyLilly(),
+                           DynamicSmagorinsky(averaging=(1, 2)),
+                           DynamicSmagorinsky(averaging=LagrangianAveraging()),
+                           (ScalarDiffusivity(ν=1e-6, κ=1e-7), AnisotropicMinimumDissipation()),)
+
+hydrostatic_closures = (ScalarDiffusivity(ν=1e-6, κ=1e-7),)
+
+model_closures = ((NonhydrostaticModel, nonhydrostatic_closures),
+                  (HydrostaticFreeSurfaceModel, hydrostatic_closures))
 #---
 
 #+++ Testing functions
@@ -33,36 +38,39 @@ end
 
 @testset "ProgressMessenger tests" begin
     @info "    Testing ProgressMessengers"
-    for closure in closures
-        model = NonhydrostaticModel(regular_grid;
-                                    buoyancy = BuoyancyForce(BuoyancyTracer()),
-                                    coriolis = FPlane(f=1e-4),
-                                    tracers = :b,
-                                    closure = closure)
+    for (model_type, closures) in model_closures
+        @info "      with $model_type"
+        for closure in closures
+            model = model_type(regular_grid;
+                               buoyancy = BuoyancyForce(BuoyancyTracer()),
+                               coriolis = FPlane(f=1e-4),
+                               tracers = :b,
+                               closure = closure)
 
-        @info "        Testing BasicMessenger with $closure"
-        model.clock.iteration = 0
-        test_progress_messenger(model, BasicMessenger())
+            @info "        Testing BasicMessenger with $closure"
+            model.clock.iteration = 0
+            test_progress_messenger(model, BasicMessenger())
 
-        @info "        Testing SingleLineMessenger with $closure"
-        model.clock.iteration = 0
-        @test test_progress_messenger(model, SingleLineMessenger())
+            @info "        Testing SingleLineMessenger with $closure"
+            model.clock.iteration = 0
+            @test test_progress_messenger(model, SingleLineMessenger())
 
-        # Test that SingleLineMessenger is indeed a single line
-        simulation = Simulation(model; Δt=1e-2, stop_iteration=1)
-        msg = SingleLineMessenger(print=false)(simulation)
-        @test countlines(IOBuffer(msg)) == 1
+            # Test that SingleLineMessenger is indeed a single line
+            simulation = Simulation(model; Δt=1e-2, stop_iteration=1)
+            msg = SingleLineMessenger(print=false)(simulation)
+            @test countlines(IOBuffer(msg)) == 1
 
-        @info "        Testing TimedMessenger with $closure"
-        model.clock.iteration = 0
-        @test test_progress_messenger(model, TimedMessenger())
+            @info "        Testing TimedMessenger with $closure"
+            model.clock.iteration = 0
+            @test test_progress_messenger(model, TimedMessenger())
 
-        @info "        Testing custom progress messenger with $closure"
-        model.clock.iteration = 0
-        step_duration = StepDuration()
-        progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false)
-                                      + SimulationTime() + TimeStep() + MaxVelocities()
-                                      + AdvectiveCFLNumber() + step_duration)(simulation)
-        @test test_progress_messenger(model, progress)
+            @info "        Testing custom progress messenger with $closure"
+            model.clock.iteration = 0
+            step_duration = StepDuration()
+            progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false)
+                                          + SimulationTime() + TimeStep() + MaxVelocities()
+                                          + AdvectiveCFLNumber() + step_duration)(simulation)
+            @test test_progress_messenger(model, progress)
+        end
     end
 end

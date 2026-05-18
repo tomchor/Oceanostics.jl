@@ -29,6 +29,7 @@ end
 #+++ Organize pages and HTML format
 pages = ["Home" => "index.md",
          "Budget equations" => ["Tracer equation"                   => "tracer_equation.md",
+                                "Momentum equation"                 => "momentum_equation.md",
                                 "Kinetic energy equation"           => "kinetic_energy_equation.md",
                                 "Turbulent kinetic energy equation" => "turbulent_kinetic_energy_equation.md",
                                 "Tracer variance equation"          => "tracer_variance_equation.md",
@@ -58,7 +59,8 @@ makedocs(sitename = "Oceanostics.jl",
          doctest = true,
          clean = true,
          format = format,
-         checkdocs = :none
+         checkdocs = :none,
+         doctestfilters = [r"with \d+ methods?"], # method count drifts with Oceananigans versions
          )
 #---
 

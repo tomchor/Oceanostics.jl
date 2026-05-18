@@ -142,10 +142,8 @@ end
                 @info "          Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(grid; model_type, closure)
 
-                if model_type == NonhydrostaticModel
-                    @info "          Testing shear production terms"
-                    test_shear_production_terms(model)
-                end
+                @info "          Testing shear production terms"
+                test_shear_production_terms(model)
             end
         end
 
