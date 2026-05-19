@@ -157,7 +157,8 @@ KEₙ          = @lift KE_t[$n]
 KE_filtₙ     = @lift KE_filt_t[$n]
 KE_of_filtₙ  = @lift KE_of_filt_t[$n]
 
-# Now we plot the heatmaps, each with its own colorbar below
+# Now we plot the heatmaps, each with its own colorbar below. The filtered KE panels use the
+# same colormap as KE but a tighter colorrange to emphasize their differences.
 
 hm_KE = heatmap!(ax1, KEₙ, colormap = :plasma, colorrange=(0, 5e-2))
 Colorbar(fig[3, 1], hm_KE; vertical=false, height=8, ticklabelsize=12)
