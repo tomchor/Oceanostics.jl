@@ -100,6 +100,11 @@ function Advection(model::HydrostaticFreeSurfaceModel, advection_scheme, velocit
     return KernelFunctionOperation{Face, Center, Center}(U_dot_∇u, model.grid, advection_scheme, velocities)
 end
 
+# HFS-typed 5-arg overload so that explicit calls `Advection(hfs_model, u, v, w, scheme)` also use
+# `U_dot_∇u` rather than dispatching to the generic NH `div_𝐯u` form.
+Advection(model::HydrostaticFreeSurfaceModel, u, v, w, advection_scheme; kwargs...) =
+    Advection(model, advection_scheme, (; u, v, w); kwargs...)
+
 Advection(model; kwargs...)                              = Advection(model, model.velocities..., model.advection; kwargs...)
 Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.advection.momentum, model.velocities; kwargs...)
 #---

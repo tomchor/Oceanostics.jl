@@ -309,13 +309,12 @@ end
 
 function test_v_momentum_hfs_budget_closure(grid)
     # Build an HFS model with every term active so the budget exercises the full RHS of
-    # hydrostatic_free_surface_v_velocity_tendency. `momentum_advection = Centered()` is required
-    # so the diagnostic Advection (which wraps U_dot_∇v with the model's scheme) matches the
-    # tendency's advection for any non-VectorInvariant scheme.
+    # hydrostatic_free_surface_v_velocity_tendency. The default `momentum_advection`
+    # (`VectorInvariant`) is used — the diagnostic `Advection` dispatches on the model type
+    # to wrap `U_dot_∇v` with whatever scheme the model carries.
     model = HydrostaticFreeSurfaceModel(grid; tracers = :b,
                                               buoyancy = BuoyancyTracer(),
                                               coriolis = FPlane(f = 1e-4),
-                                              momentum_advection = Centered(),
                                               closure = ScalarDiffusivity(ν = 1e-4, κ = 1e-4),
                                               forcing = (; v = Forcing((x, y, z, t) -> cos(t))))
     set!(model, u = (x, y, z) -> sin(2π*x) * cos(2π*y) * exp(z),
@@ -367,12 +366,12 @@ end
         @info "    with $grid_class"
         for model_type in model_types
             @info "      with $model_type"
-            # HFS defaults to VectorInvariant momentum advection, which uses U_dot_∇u
-            # rather than div_𝐯v. Force the flux-form scheme so the Advection diagnostic
-            # (which wraps div_𝐯v) is well-defined. HFS has no stokes_drift field, so we
-            # pass the Stokes-drift only to the NH model.
+            # HFS uses the default `VectorInvariant` momentum advection. The diagnostic
+            # `Advection` dispatches on the model type to wrap `U_dot_∇v` with whatever
+            # scheme the model carries, so no override is needed. HFS has no
+            # `stokes_drift` field, so we pass the Stokes-drift only to the NH model.
             model = model_type === HydrostaticFreeSurfaceModel ?
-                model_type(grid; model_kwargs..., momentum_advection=Centered()) :
+                model_type(grid; model_kwargs...) :
                 model_type(grid; nh_model_kwargs...)
 
             @info "        Testing v-momentum terms"

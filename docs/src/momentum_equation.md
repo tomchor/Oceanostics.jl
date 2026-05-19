@@ -117,13 +117,14 @@ and must be included for closure.
   U/V/W `StokesShear` and `StokesTendency` throw an `ArgumentError` on
   `HydrostaticFreeSurfaceModel`: `w` is diagnosed from continuity rather than evolved by a
   prognostic equation, and HFS has no `stokes_drift` field.
-- `Advection(::HydrostaticFreeSurfaceModel)` wraps `U_dot_∇u`/`U_dot_∇v` (the
-  vector-invariant kernel that HFS's tendency actually uses). For models built with the
-  default `VectorInvariant` momentum advection, the diagnostic dispatches to that scheme.
-  Note that the diagnostic returns a KFO whose kernel function is `U_dot_∇u`/`U_dot_∇v`,
-  whereas the NH `Advection` diagnostic returns a KFO whose kernel function is
-  `div_𝐯u`/`div_𝐯v` — both pass the `isa Advection` type check via the `Advection` Union
-  alias.
+- `Advection(::HydrostaticFreeSurfaceModel)` (and the explicit-args form
+  `Advection(::HydrostaticFreeSurfaceModel, u, v, w, scheme)`) both wrap
+  `U_dot_∇u`/`U_dot_∇v` — the vector-invariant kernel that HFS's tendency actually uses.
+  This works with HFS's default `VectorInvariant` momentum advection as well as any
+  flux-form scheme. The diagnostic returns a KFO whose kernel function is
+  `U_dot_∇u`/`U_dot_∇v`, whereas the NH `Advection` diagnostic returns a KFO whose kernel
+  function is `div_𝐯u`/`div_𝐯v` — both pass the `isa Advection` type check via the
+  `Advection` Union alias.
 
 ## `Forcing` dispatch quirk
 
