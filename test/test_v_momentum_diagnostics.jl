@@ -109,6 +109,20 @@ function test_v_momentum_terms(model)
     @test PRES isa VPressureGradient
     @test PRES_field isa Field
 
+    # Test BarotropicPressureGradient
+    free_surface = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
+    BARO = VMomentumEquation.BarotropicPressureGradient(model, free_surface)
+    BARO_field = Field(BARO)
+    @test BARO isa VMomentumEquation.BarotropicPressureGradient
+    @test BARO isa VBarotropicPressureGradient
+    @test BARO_field isa Field
+
+    BARO = VMomentumEquation.BarotropicPressureGradient(model)
+    BARO_field = Field(BARO)
+    @test BARO isa VMomentumEquation.BarotropicPressureGradient
+    @test BARO isa VBarotropicPressureGradient
+    @test BARO_field isa Field
+
     # Test ViscousDissipation
     VISC = VMomentumEquation.ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
     VISC_field = Field(VISC)
@@ -228,6 +242,9 @@ function test_v_momentum_field_locations(model)
     PRES = VMomentumEquation.PressureGradient(model)
     @test location(PRES) == (Center, Face, Center)
 
+    BARO = VMomentumEquation.BarotropicPressureGradient(model)
+    @test location(BARO) == (Center, Face, Center)
+
     VISC = VMomentumEquation.ViscousDissipation(model)
     @test location(VISC) == (Center, Face, Center)
 
@@ -332,6 +349,7 @@ function test_v_momentum_location_validation(model)
     @test_throws ArgumentError VMomentumEquation.BuoyancyAcceleration(model; location = (Face, Center, Center))
     @test_throws ArgumentError VMomentumEquation.CoriolisAcceleration(model; location = (Center, Center, Face))
     @test_throws ArgumentError VMomentumEquation.PressureGradient(model; location = (Center, Center, Center))
+    @test_throws ArgumentError VMomentumEquation.BarotropicPressureGradient(model; location = (Center, Center, Center))
     @test_throws ArgumentError VMomentumEquation.ViscousDissipation(model; location = (Center, Center, Center))
     @test_throws ArgumentError VMomentumEquation.ImmersedViscousDissipation(model; location = (Center, Center, Center))
     @test_throws ArgumentError VMomentumEquation.TotalViscousDissipation(model; location = (Center, Center, Center))

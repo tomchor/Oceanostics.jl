@@ -109,6 +109,20 @@ function test_u_momentum_terms(model)
     @test PRES isa UPressureGradient
     @test PRES_field isa Field
 
+    # Test BarotropicPressureGradient
+    free_surface = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
+    BARO = UMomentumEquation.BarotropicPressureGradient(model, free_surface)
+    BARO_field = Field(BARO)
+    @test BARO isa UMomentumEquation.BarotropicPressureGradient
+    @test BARO isa UBarotropicPressureGradient
+    @test BARO_field isa Field
+
+    BARO = UMomentumEquation.BarotropicPressureGradient(model)
+    BARO_field = Field(BARO)
+    @test BARO isa UMomentumEquation.BarotropicPressureGradient
+    @test BARO isa UBarotropicPressureGradient
+    @test BARO_field isa Field
+
     # Test ViscousDissipation
     VISC = UMomentumEquation.ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
     VISC_field = Field(VISC)
@@ -228,6 +242,9 @@ function test_u_momentum_field_locations(model)
     PRES = UMomentumEquation.PressureGradient(model)
     @test location(PRES) == (Face, Center, Center)
 
+    BARO = UMomentumEquation.BarotropicPressureGradient(model)
+    @test location(BARO) == (Face, Center, Center)
+
     VISC = UMomentumEquation.ViscousDissipation(model)
     @test location(VISC) == (Face, Center, Center)
 
@@ -332,6 +349,7 @@ function test_u_momentum_location_validation(model)
     @test_throws ArgumentError UMomentumEquation.BuoyancyAcceleration(model; location = (Center, Face, Center))
     @test_throws ArgumentError UMomentumEquation.CoriolisAcceleration(model; location = (Center, Center, Face))
     @test_throws ArgumentError UMomentumEquation.PressureGradient(model; location = (Center, Center, Center))
+    @test_throws ArgumentError UMomentumEquation.BarotropicPressureGradient(model; location = (Center, Center, Center))
     @test_throws ArgumentError UMomentumEquation.ViscousDissipation(model; location = (Center, Center, Center))
     @test_throws ArgumentError UMomentumEquation.ImmersedViscousDissipation(model; location = (Center, Center, Center))
     @test_throws ArgumentError UMomentumEquation.TotalViscousDissipation(model; location = (Center, Center, Center))
@@ -352,6 +370,7 @@ end
     @test UBuoyancyAcceleration !== VBuoyancyAcceleration && UBuoyancyAcceleration !== WBuoyancyAcceleration
     @test UCoriolisAcceleration !== VCoriolisAcceleration && UCoriolisAcceleration !== WCoriolisAcceleration
     @test UPressureGradient !== VPressureGradient # W has no PressureGradient
+    @test UBarotropicPressureGradient !== VBarotropicPressureGradient # W has no BarotropicPressureGradient
     @test UViscousDissipation !== VViscousDissipation && UViscousDissipation !== WViscousDissipation
     @test UImmersedViscousDissipation !== VImmersedViscousDissipation && UImmersedViscousDissipation !== WImmersedViscousDissipation
     @test UTotalViscousDissipation !== VTotalViscousDissipation && UTotalViscousDissipation !== WTotalViscousDissipation
