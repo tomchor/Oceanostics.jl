@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Momentum equation · Oceanostics.jl</title><meta name="title" content="Momentum equation · Oceanostics.jl"/><meta property="og:title" content="Momentum equation · Oceanostics.jl"/><meta property="twitter:title" content="Momentum equation · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox" checked/><label class="tocitem" for="menuitem-2"><span class="docs-label">Budget equations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../tracer_equation/">Tracer equation</a></li><li class="is-active"><a class="tocitem" href>Momentum equation</a><ul class="internal"><li><a class="tocitem" href="#Example"><span>Example</span></a></li><li><a class="tocitem" href="#Budget-closure"><span>Budget closure</span></a></li><li><a class="tocitem" href="#HydrostaticFreeSurfaceModel-caveats"><span><code>HydrostaticFreeSurfaceModel</code> caveats</span></a></li><li><a class="tocitem" href="#Forcing-dispatch-quirk"><span><code>Forcing</code> dispatch quirk</span></a></li><li><a class="tocitem" href="#U-momentum"><span>U-momentum</span></a></li><li><a class="tocitem" href="#V-momentum"><span>V-momentum</span></a></li><li><a class="tocitem" href="#W-momentum"><span>W-momentum</span></a></li></ul></li><li><a class="tocitem" href="../kinetic_energy_equation/">Kinetic energy equation</a></li><li><a class="tocitem" href="../turbulent_kinetic_energy_equation/">Turbulent kinetic energy equation</a></li><li><a class="tocitem" href="../tracer_variance_equation/">Tracer variance equation</a></li><li><a class="tocitem" href="../potential_energy_equation/">Potential energy equation</a></li></ul></li><li><a class="tocitem" href="../flow_diagnostics/">Flow diagnostics</a></li><li><a class="tocitem" href="../progress_messengers/">Progress messengers</a></li><li><a class="tocitem" href="../filters/">Filters</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox"/><label class="tocitem" for="menuitem-6"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../generated/two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li><a class="tocitem" href="../generated/kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li><a class="tocitem" href="../generated/tilted_bottom_boundary_layer/">Tilted bottom boundary layer</a></li></ul></li><li><a class="tocitem" href="../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Budget equations</a></li><li class="is-active"><a href>Momentum equation</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Momentum equation</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/src/momentum_equation.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Momentum-equation"><a class="docs-heading-anchor" href="#Momentum-equation">Momentum equation</a><a id="Momentum-equation-1"></a><a class="docs-heading-anchor-permalink" href="#Momentum-equation" title="Permalink"></a></h1><p>The <code>UMomentumEquation</code>, <code>VMomentumEquation</code>, and <code>WMomentumEquation</code> modules provide diagnostics for every term on the right-hand side of the momentum equations. The momentum equation for the <span>$i$</span>-th velocity component <span>$u_i$</span> is</p><p class="math-container">\[\partial_t u_i = \underbrace{-\partial_j(u_j u_i)}_{\text{advection}}
+               + \underbrace{\hat{g}_i \, b}_{\text{buoyancy}}
+               + \underbrace{-\epsilon_{ijk} f_j u_k}_{\text{Coriolis}}
+               + \underbrace{-\partial_i p}_{\text{pressure}}
+               + \underbrace{-\partial_j \tau_{ij}}_{\text{viscous}}
+               + \underbrace{(\nabla \times \mathbf{u}^S) \times \mathbf{u}}_{\text{Stokes shear}}
+               + \underbrace{\partial_t u_i^S}_{\text{Stokes tendency}}
+               + \underbrace{F_{u_i}}_{\text{forcing}}\]</p><p>where <span>$\hat{g}_i$</span> is the <span>$i$</span>-th component of the gravitational unit vector, <span>$b$</span> is the buoyancy, <span>$f_j$</span> is the Coriolis frequency, <span>$p$</span> is the pressure, <span>$\tau_{ij}$</span> is the viscous/subgrid stress tensor, <span>$\mathbf{u}^S$</span> is the Stokes drift, and <span>$F_{u_i}$</span> is the forcing. This decomposition lets the user compute each contribution independently, build diagnostics like budget closure, or analyse the energetics of individual processes.</p><p>Each module wraps the corresponding Oceananigans velocity-tendency kernel and provides diagnostics at the natural grid location for that velocity component:</p><table><tr><th style="text-align: right">Module</th><th style="text-align: right">Location</th><th style="text-align: right">Tendency wrapped</th></tr><tr><td style="text-align: right"><code>UMomentumEquation</code></td><td style="text-align: right"><code>(Face, Center, Center)</code></td><td style="text-align: right"><code>u_velocity_tendency</code> (NH) / <code>hydrostatic_free_surface_u_velocity_tendency</code> (HFS)</td></tr><tr><td style="text-align: right"><code>VMomentumEquation</code></td><td style="text-align: right"><code>(Center, Face, Center)</code></td><td style="text-align: right"><code>v_velocity_tendency</code> (NH) / <code>hydrostatic_free_surface_v_velocity_tendency</code> (HFS)</td></tr><tr><td style="text-align: right"><code>WMomentumEquation</code></td><td style="text-align: right"><code>(Center, Center, Face)</code></td><td style="text-align: right"><code>w_velocity_tendency</code> (NH only)</td></tr></table><p>Constructors accept either a full Oceananigans <code>model</code> object (the convenience form) or the individual arguments expected by the underlying kernel function. The <code>model</code>-only form is enough for most analysis workflows.</p><h2 id="Example"><a class="docs-heading-anchor" href="#Example">Example</a><a id="Example-1"></a><a class="docs-heading-anchor-permalink" href="#Example" title="Permalink"></a></h2><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, coriolis=FPlane(f=1e-4));
+
+julia&gt; ADV = UMomentumEquation.Advection(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: div_𝐯u (generic function with 10 methods)
+└── arguments: (&quot;Centered&quot;, &quot;NamedTuple&quot;, &quot;Field&quot;)
+
+julia&gt; BUOY = UMomentumEquation.BuoyancyAcceleration(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: x_dot_g_bᶠᶜᶜ (generic function with 10 methods)
+└── arguments: (&quot;BuoyancyForce&quot;, &quot;NamedTuple&quot;)
+
+julia&gt; COR = VMomentumEquation.CoriolisAcceleration(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: y_f_cross_U (generic function with 10 methods)
+└── arguments: (&quot;FPlane&quot;, &quot;NamedTuple&quot;)</code></pre><h2 id="Budget-closure"><a class="docs-heading-anchor" href="#Budget-closure">Budget closure</a><a id="Budget-closure-1"></a><a class="docs-heading-anchor-permalink" href="#Budget-closure" title="Permalink"></a></h2><p>The combined RHS — <code>Tendency(model)</code> — wraps Oceananigans&#39; internal <code>*_velocity_tendency</code> kernel directly. The sum of the individual term diagnostics, taken with the correct signs from Oceananigans&#39; source, equals <code>Tendency</code> to machine precision. For <code>NonhydrostaticModel</code> the u/v formula is</p><p class="math-container">\[\text{Tendency} = -\text{Advection} + \text{BuoyancyAcceleration}
+                  -\text{CoriolisAcceleration}
+                  -\text{PressureGradient}
+                  -\text{TotalViscousDissipation}
+                  +\text{StokesShear} + \text{StokesTendency} + \text{Forcing}\]</p><p>The w-momentum equation is similar but with one subtlety: Oceananigans&#39; <code>w_velocity_tendency</code> has no explicit <code>-\partial_z p</code> line. The vertical hydrostatic balance is treated as a property of the pressure-projection step, and whether the buoyancy term appears in the tendency depends on whether the model uses hydrostatic/nonhydrostatic pressure splitting:</p><table><tr><th style="text-align: right"><code>hydrostatic_pressure_anomaly</code></th><th style="text-align: right">Buoyancy term in <code>Tendency</code></th><th style="text-align: right">Budget formula</th></tr><tr><td style="text-align: right"><code>Field</code> (default, splitting on)</td><td style="text-align: right">absorbed by <span>$pHY&#39;$</span></td><td style="text-align: right"><code>-ADV - COR - TVISC + SS + ST + FORC</code></td></tr><tr><td style="text-align: right"><code>nothing</code> (splitting off)</td><td style="text-align: right">included as <span>$+b$</span></td><td style="text-align: right"><code>-ADV + BUOY - COR - TVISC + SS + ST + FORC</code></td></tr></table><h2 id="HydrostaticFreeSurfaceModel-caveats"><a class="docs-heading-anchor" href="#HydrostaticFreeSurfaceModel-caveats"><code>HydrostaticFreeSurfaceModel</code> caveats</a><a id="HydrostaticFreeSurfaceModel-caveats-1"></a><a class="docs-heading-anchor-permalink" href="#HydrostaticFreeSurfaceModel-caveats" title="Permalink"></a></h2><ul><li><code>WMomentumEquation.Tendency</code>, <code>WMomentumEquation.Forcing(model, Val(:w))</code>, and the U/V/W <code>StokesShear</code> and <code>StokesTendency</code> throw an <code>ArgumentError</code> on <code>HydrostaticFreeSurfaceModel</code>: <code>w</code> is diagnosed from continuity rather than evolved by a prognostic equation, and HFS has no <code>stokes_drift</code> field.</li><li><code>Advection(::HydrostaticFreeSurfaceModel)</code> wraps <code>div_𝐯u</code>/<code>div_𝐯v</code> (the flux-form kernel). HFS&#39;s default <code>VectorInvariant</code> momentum advection uses <code>U_dot_∇u</code> instead, so to use the <code>Advection</code> diagnostic with HFS you must build the model with a flux-form scheme, e.g. <code>momentum_advection = Centered()</code>.</li><li>For HFS, <code>Tendency</code> wraps <code>hydrostatic_free_surface_*_velocity_tendency</code>, which differs from the NH tendency: it has no Stokes terms, includes a barotropic free-surface pressure gradient, and a grid-slope contribution. Budget closure for HFS is not yet supported by this module — it would require additional diagnostics for those terms.</li></ul><h2 id="Forcing-dispatch-quirk"><a class="docs-heading-anchor" href="#Forcing-dispatch-quirk"><code>Forcing</code> dispatch quirk</a><a id="Forcing-dispatch-quirk-1"></a><a class="docs-heading-anchor-permalink" href="#Forcing-dispatch-quirk" title="Permalink"></a></h2><p><code>Forcing</code> aliases <code>KernelFunctionOperation</code> directly (no narrowing on the kernel function), so its constructor methods are shared across the three modules. To avoid clobbering <code>UMomentumEquation.Forcing(model)</code> when the V and W modules are also loaded, the V/W single-argument convenience form takes an explicit <code>Val</code> tag:</p><pre><code class="language-julia hljs">UMomentumEquation.Forcing(model)              # u-momentum forcing
+VMomentumEquation.Forcing(model, Val(:v))     # v-momentum forcing
+WMomentumEquation.Forcing(model, Val(:w))     # w-momentum forcing</code></pre><p>The full explicit form <code>Forcing(model, forcing, clock, model_fields, Val(:u/:v/:w))</code> is available in all three modules.</p><h2 id="U-momentum"><a class="docs-heading-anchor" href="#U-momentum">U-momentum</a><a id="U-momentum-1"></a><a class="docs-heading-anchor-permalink" href="#U-momentum" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.UMomentumEquation.Advection"><a class="docstring-binding" href="#Oceanostics.UMomentumEquation.Advection"><code>Oceanostics.UMomentumEquation.Advection</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Advection(model, u, v, w, advection_scheme; location)
+</code></pre><p>Calculate the advection of u-momentum as</p><pre><code class="language-julia hljs">ADV = ∂ⱼ (uⱼ u)</code></pre><p>using Oceananigans&#39; kernel <a href="https://clima.github.io/OceananigansDocumentation/stable/appendix/library/#Oceananigans.Advection.div_𝐯u-NTuple{7,%20Any}"><code>div_𝐯u</code>.</a></p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; ADV = UMomentumEquation.Advection(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: div_𝐯u (generic function with 10 methods)
+└── arguments: (&quot;Centered&quot;, &quot;NamedTuple&quot;, &quot;Field&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/UMomentumEquation.jl#L60-L82">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.UMomentumEquation.BuoyancyAcceleration"><a class="docstring-binding" href="#Oceanostics.UMomentumEquation.BuoyancyAcceleration"><code>Oceanostics.UMomentumEquation.BuoyancyAcceleration</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">BuoyancyAcceleration(model, buoyancy, tracers; location)
+</code></pre><p>Calculate the buoyancy acceleration in the x-direction as</p><pre><code class="language-julia hljs">BUOY = ĝₓ b</code></pre><p>where ĝₓ is the x-component of the gravitational unit vector and b is the buoyancy.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
+
+julia&gt; BUOY = UMomentumEquation.BuoyancyAcceleration(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: x_dot_g_bᶠᶜᶜ (generic function with 10 methods)
+└── arguments: (&quot;BuoyancyForce&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/UMomentumEquation.jl#L94-L116">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.UMomentumEquation.CoriolisAcceleration"><a class="docstring-binding" href="#Oceanostics.UMomentumEquation.CoriolisAcceleration"><code>Oceanostics.UMomentumEquation.CoriolisAcceleration</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">CoriolisAcceleration(model, coriolis, velocities; location)
+</code></pre><p>Calculate the Coriolis acceleration in the x-direction as</p><pre><code class="language-julia hljs">COR = f × u</code></pre><p>where f is the Coriolis parameter vector and u is the velocity vector.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4));
+
+julia&gt; COR = UMomentumEquation.CoriolisAcceleration(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: x_f_cross_U (generic function with 10 methods)
+└── arguments: (&quot;FPlane&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/UMomentumEquation.jl#L126-L148">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.UMomentumEquation.PressureGradient"><a class="docstring-binding" href="#Oceanostics.UMomentumEquation.PressureGradient"><code>Oceanostics.UMomentumEquation.PressureGradient</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">PressureGradient(model, hydrostatic_pressure; location)
+</code></pre><p>Calculate the hydrostatic pressure gradient force in the x-direction as</p><pre><code class="language-julia hljs">PRES = ∂p/∂x</code></pre><p>where p is the hydrostatic pressure anomaly.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; PRES = UMomentumEquation.PressureGradient(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: hydrostatic_pressure_gradient_x (generic function with 2 methods)
+└── arguments: (&quot;Nothing&quot;,)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/UMomentumEquation.jl#L158-L180">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.UMomentumEquation.ViscousDissipation"><a class="docstring-binding" href="#Oceanostics.UMomentumEquation.ViscousDissipation"><code>Oceanostics.UMomentumEquation.ViscousDissipation</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ViscousDissipation(
+    model,
+    closure,
+    diffusivities,
+    clock,
+    model_fields,
+    buoyancy;
+    location
+)
+</code></pre><p>Calculate the viscous dissipation term (excluding immersed boundaries) as</p><pre><code class="language-julia hljs">VISC = ∂ⱼ τ₁ⱼ,</code></pre><p>where τ₁ⱼ is the viscous stress tensor for the x-momentum equation.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; VISC = UMomentumEquation.ViscousDissipation(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ∂ⱼ_τ₁ⱼ (generic function with 10 methods)
+└── arguments: (&quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/UMomentumEquation.jl#L202-L224">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.UMomentumEquation.ImmersedViscousDissipation"><a class="docstring-binding" href="#Oceanostics.UMomentumEquation.ImmersedViscousDissipation"><code>Oceanostics.UMomentumEquation.ImmersedViscousDissipation</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ImmersedViscousDissipation(
+    model,
+    velocities,
+    u_immersed_bc,
+    closure,
+    diffusivities,
+    clock,
+    model_fields;
+    location
+)
+</code></pre><p>Calculate the viscous dissipation term due to immersed boundaries as</p><pre><code class="language-julia hljs">VISC = ∂ⱼ τ₁ⱼ,</code></pre><p>where τ₁ⱼ is the immersed boundary viscous stress tensor for the x-momentum equation.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; VISC = UMomentumEquation.ImmersedViscousDissipation(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: immersed_∂ⱼ_τ₁ⱼ (generic function with 2 methods)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/UMomentumEquation.jl#L232-L254">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.UMomentumEquation.TotalViscousDissipation"><a class="docstring-binding" href="#Oceanostics.UMomentumEquation.TotalViscousDissipation"><code>Oceanostics.UMomentumEquation.TotalViscousDissipation</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">TotalViscousDissipation(
+    model,
+    velocities,
+    u_immersed_bc,
+    closure,
+    diffusivities,
+    clock,
+    model_fields,
+    buoyancy;
+    location
+)
+</code></pre><p>Calculate the total viscous dissipation term as</p><pre><code class="language-julia hljs">VISC = ∂ⱼ τ₁ⱼ + ∂ⱼ τ₁ⱼ_immersed,</code></pre><p>where τ₁ⱼ is the interior viscous stress tensor and τ₁ⱼ_immersed is the immersed boundary viscous stress tensor for the x-momentum equation.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; VISC = UMomentumEquation.TotalViscousDissipation(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: total_∂ⱼ_τ₁ⱼ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/UMomentumEquation.jl#L265-L288">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.UMomentumEquation.StokesShear"><a class="docstring-binding" href="#Oceanostics.UMomentumEquation.StokesShear"><code>Oceanostics.UMomentumEquation.StokesShear</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">StokesShear(model, stokes_drift, velocities, time; location)
+</code></pre><p>Calculate the Stokes shear term as</p><pre><code class="language-julia hljs">STOKES_SHEAR = (∇ × uˢ) × u</code></pre><p>where uˢ is the Stokes drift velocity and u is the velocity vector.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; STOKES = UMomentumEquation.StokesShear(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: x_curl_Uˢ_cross_U (generic function with 10 methods)
+└── arguments: (&quot;Nothing&quot;, &quot;NamedTuple&quot;, &quot;Float64&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/UMomentumEquation.jl#L301-L323">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.UMomentumEquation.StokesTendency"><a class="docstring-binding" href="#Oceanostics.UMomentumEquation.StokesTendency"><code>Oceanostics.UMomentumEquation.StokesTendency</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">StokesTendency(model, stokes_drift, time; location)
+</code></pre><p>Calculate the Stokes tendency term as</p><pre><code class="language-julia hljs">STOKES_TEND = ∂uˢ/∂t</code></pre><p>where uˢ is the Stokes drift velocity.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; STOKES = UMomentumEquation.StokesTendency(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ∂t_uˢ (generic function with 10 methods)
+└── arguments: (&quot;Nothing&quot;, &quot;Float64&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/UMomentumEquation.jl#L334-L356">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.UMomentumEquation.Forcing"><a class="docstring-binding" href="#Oceanostics.UMomentumEquation.Forcing"><code>Oceanostics.UMomentumEquation.Forcing</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Forcing(
+    model,
+    forcing_func,
+    clock,
+    model_fields,
+    ;
+    location
+)
+</code></pre><p>Calculate the forcing term <code>Fᵘ</code> on the x-momentum equation for <code>model</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; FORC = UMomentumEquation.Forcing(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: Returns (generic function with 1 method)
+└── arguments: (&quot;Clock&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/UMomentumEquation.jl#L369-L387">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.UMomentumEquation.Tendency"><a class="docstring-binding" href="#Oceanostics.UMomentumEquation.Tendency"><code>Oceanostics.UMomentumEquation.Tendency</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Tendency(
+    model,
+    advection_scheme,
+    coriolis,
+    closure,
+    u_immersed_bc,
+    velocities,
+    free_surface,
+    tracers,
+    buoyancy,
+    closure_fields,
+    hydrostatic_pressure_anomaly,
+    auxiliary_fields,
+    vertical_coordinate,
+    clock,
+    forcing_func;
+    location
+)
+</code></pre><p>Calculate the total tendency of the u-momentum equation as computed by Oceananigans.</p><p>For NonhydrostaticModel, this includes:</p><ul><li>Advection: -∇⋅(𝐯u)</li><li>Background advection terms</li><li>Buoyancy: ĝₓ b</li><li>Coriolis: -f × u</li><li>Pressure gradient: -∂p/∂x</li><li>Viscous dissipation: -∇⋅τ₁</li><li>Immersed viscous dissipation</li><li>Stokes shear: (∇ × uˢ) × u</li><li>Stokes tendency: ∂uˢ/∂t</li><li>Forcing: Fᵘ</li></ul><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; TEND = UMomentumEquation.Tendency(model)
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: u_velocity_tendency (generic function with 1 method)
+└── arguments: (&quot;Centered&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Oceananigans.Models.NonhydrostaticModels.BackgroundFields&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;Returns&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/UMomentumEquation.jl#L397-L427">source</a></section></details></article><h2 id="V-momentum"><a class="docs-heading-anchor" href="#V-momentum">V-momentum</a><a id="V-momentum-1"></a><a class="docs-heading-anchor-permalink" href="#V-momentum" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.VMomentumEquation.Advection"><a class="docstring-binding" href="#Oceanostics.VMomentumEquation.Advection"><code>Oceanostics.VMomentumEquation.Advection</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Advection(model, u, v, w, advection_scheme; location)
+</code></pre><p>Calculate the advection of v-momentum as</p><pre><code class="language-julia hljs">ADV = ∂ⱼ (uⱼ v)</code></pre><p>using Oceananigans&#39; kernel <a href="https://clima.github.io/OceananigansDocumentation/stable/appendix/library/#Oceananigans.Advection.div_𝐯v-NTuple{7,%20Any}"><code>div_𝐯v</code>.</a></p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; ADV = VMomentumEquation.Advection(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: div_𝐯v (generic function with 10 methods)
+└── arguments: (&quot;Centered&quot;, &quot;NamedTuple&quot;, &quot;Field&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/VMomentumEquation.jl#L60-L82">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.VMomentumEquation.BuoyancyAcceleration"><a class="docstring-binding" href="#Oceanostics.VMomentumEquation.BuoyancyAcceleration"><code>Oceanostics.VMomentumEquation.BuoyancyAcceleration</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">BuoyancyAcceleration(model, buoyancy, tracers; location)
+</code></pre><p>Calculate the buoyancy acceleration in the y-direction as</p><pre><code class="language-julia hljs">BUOY = ĝᵧ b</code></pre><p>where ĝᵧ is the y-component of the gravitational unit vector and b is the buoyancy.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
+
+julia&gt; BUOY = VMomentumEquation.BuoyancyAcceleration(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: y_dot_g_bᶜᶠᶜ (generic function with 10 methods)
+└── arguments: (&quot;BuoyancyForce&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/VMomentumEquation.jl#L94-L116">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.VMomentumEquation.CoriolisAcceleration"><a class="docstring-binding" href="#Oceanostics.VMomentumEquation.CoriolisAcceleration"><code>Oceanostics.VMomentumEquation.CoriolisAcceleration</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">CoriolisAcceleration(model, coriolis, velocities; location)
+</code></pre><p>Calculate the Coriolis acceleration in the y-direction as</p><pre><code class="language-julia hljs">COR = (f × u)ᵧ</code></pre><p>where f is the Coriolis parameter vector and u is the velocity vector.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4));
+
+julia&gt; COR = VMomentumEquation.CoriolisAcceleration(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: y_f_cross_U (generic function with 10 methods)
+└── arguments: (&quot;FPlane&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/VMomentumEquation.jl#L126-L148">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.VMomentumEquation.PressureGradient"><a class="docstring-binding" href="#Oceanostics.VMomentumEquation.PressureGradient"><code>Oceanostics.VMomentumEquation.PressureGradient</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">PressureGradient(model, hydrostatic_pressure; location)
+</code></pre><p>Calculate the hydrostatic pressure gradient force in the y-direction as</p><pre><code class="language-julia hljs">PRES = ∂p/∂y</code></pre><p>where p is the hydrostatic pressure anomaly.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; PRES = VMomentumEquation.PressureGradient(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: hydrostatic_pressure_gradient_y (generic function with 2 methods)
+└── arguments: (&quot;Nothing&quot;,)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/VMomentumEquation.jl#L158-L180">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.VMomentumEquation.ViscousDissipation"><a class="docstring-binding" href="#Oceanostics.VMomentumEquation.ViscousDissipation"><code>Oceanostics.VMomentumEquation.ViscousDissipation</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ViscousDissipation(
+    model,
+    closure,
+    diffusivities,
+    clock,
+    model_fields,
+    buoyancy;
+    location
+)
+</code></pre><p>Calculate the viscous dissipation term (excluding immersed boundaries) as</p><pre><code class="language-julia hljs">VISC = ∂ⱼ τ₂ⱼ,</code></pre><p>where τ₂ⱼ is the viscous stress tensor for the y-momentum equation.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; VISC = VMomentumEquation.ViscousDissipation(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ∂ⱼ_τ₂ⱼ (generic function with 10 methods)
+└── arguments: (&quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/VMomentumEquation.jl#L202-L224">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.VMomentumEquation.ImmersedViscousDissipation"><a class="docstring-binding" href="#Oceanostics.VMomentumEquation.ImmersedViscousDissipation"><code>Oceanostics.VMomentumEquation.ImmersedViscousDissipation</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ImmersedViscousDissipation(
+    model,
+    velocities,
+    v_immersed_bc,
+    closure,
+    diffusivities,
+    clock,
+    model_fields;
+    location
+)
+</code></pre><p>Calculate the viscous dissipation term due to immersed boundaries as</p><pre><code class="language-julia hljs">VISC = ∂ⱼ τ₂ⱼ,</code></pre><p>where τ₂ⱼ is the immersed boundary viscous stress tensor for the y-momentum equation.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; VISC = VMomentumEquation.ImmersedViscousDissipation(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: immersed_∂ⱼ_τ₂ⱼ (generic function with 2 methods)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/VMomentumEquation.jl#L232-L254">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.VMomentumEquation.TotalViscousDissipation"><a class="docstring-binding" href="#Oceanostics.VMomentumEquation.TotalViscousDissipation"><code>Oceanostics.VMomentumEquation.TotalViscousDissipation</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">TotalViscousDissipation(
+    model,
+    velocities,
+    v_immersed_bc,
+    closure,
+    diffusivities,
+    clock,
+    model_fields,
+    buoyancy;
+    location
+)
+</code></pre><p>Calculate the total viscous dissipation term as</p><pre><code class="language-julia hljs">VISC = ∂ⱼ τ₂ⱼ + ∂ⱼ τ₂ⱼ_immersed,</code></pre><p>where τ₂ⱼ is the interior viscous stress tensor and τ₂ⱼ_immersed is the immersed boundary viscous stress tensor for the y-momentum equation.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; VISC = VMomentumEquation.TotalViscousDissipation(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: total_∂ⱼ_τ₂ⱼ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/VMomentumEquation.jl#L265-L288">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.VMomentumEquation.StokesShear"><a class="docstring-binding" href="#Oceanostics.VMomentumEquation.StokesShear"><code>Oceanostics.VMomentumEquation.StokesShear</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">StokesShear(model, stokes_drift, velocities, time; location)
+</code></pre><p>Calculate the Stokes shear term as</p><pre><code class="language-julia hljs">STOKES_SHEAR = ((∇ × uˢ) × u)ᵧ</code></pre><p>where uˢ is the Stokes drift velocity and u is the velocity vector.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; STOKES = VMomentumEquation.StokesShear(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: y_curl_Uˢ_cross_U (generic function with 10 methods)
+└── arguments: (&quot;Nothing&quot;, &quot;NamedTuple&quot;, &quot;Float64&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/VMomentumEquation.jl#L301-L323">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.VMomentumEquation.StokesTendency"><a class="docstring-binding" href="#Oceanostics.VMomentumEquation.StokesTendency"><code>Oceanostics.VMomentumEquation.StokesTendency</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">StokesTendency(model, stokes_drift, time; location)
+</code></pre><p>Calculate the Stokes tendency term as</p><pre><code class="language-julia hljs">STOKES_TEND = ∂vˢ/∂t</code></pre><p>where vˢ is the y-component of the Stokes drift velocity.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; STOKES = VMomentumEquation.StokesTendency(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ∂t_vˢ (generic function with 10 methods)
+└── arguments: (&quot;Nothing&quot;, &quot;Float64&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/VMomentumEquation.jl#L334-L356">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.VMomentumEquation.Forcing"><a class="docstring-binding" href="#Oceanostics.VMomentumEquation.Forcing"><code>Oceanostics.VMomentumEquation.Forcing</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Forcing(
+    model,
+    forcing_func,
+    clock,
+    model_fields,
+    ;
+    location
+)
+</code></pre><p>Calculate the forcing term <code>Fᵛ</code> on the y-momentum equation for <code>model</code>.</p><p><code>Forcing</code> is a type alias for the generic <code>KernelFunctionOperation</code> (no narrowing on the kernel function), so a constructor on <code>Forcing(model)</code> would clash across the U/V/W modules. To disambiguate, the V-momentum convenience constructor takes an explicit <code>Val(:v)</code> tag.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; FORC = VMomentumEquation.Forcing(model, Val(:v))
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: Returns (generic function with 1 method)
+└── arguments: (&quot;Clock&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/VMomentumEquation.jl#L369-L392">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.VMomentumEquation.Tendency"><a class="docstring-binding" href="#Oceanostics.VMomentumEquation.Tendency"><code>Oceanostics.VMomentumEquation.Tendency</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Tendency(
+    model,
+    advection_scheme,
+    coriolis,
+    closure,
+    v_immersed_bc,
+    velocities,
+    free_surface,
+    tracers,
+    buoyancy,
+    closure_fields,
+    hydrostatic_pressure_anomaly,
+    auxiliary_fields,
+    vertical_coordinate,
+    clock,
+    forcing_func;
+    location
+)
+</code></pre><p>Calculate the total tendency of the v-momentum equation as computed by Oceananigans.</p><p>For NonhydrostaticModel, this includes:</p><ul><li>Advection: -∇⋅(𝐯v)</li><li>Background advection terms</li><li>Buoyancy: ĝᵧ b</li><li>Coriolis: -(f × u)ᵧ</li><li>Pressure gradient: -∂p/∂y</li><li>Viscous dissipation: -∇⋅τ₂</li><li>Immersed viscous dissipation</li><li>Stokes shear: ((∇ × uˢ) × u)ᵧ</li><li>Stokes tendency: ∂vˢ/∂t</li><li>Forcing: Fᵛ</li></ul><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; TEND = VMomentumEquation.Tendency(model)
+KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: v_velocity_tendency (generic function with 1 method)
+└── arguments: (&quot;Centered&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Oceananigans.Models.NonhydrostaticModels.BackgroundFields&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;Returns&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/VMomentumEquation.jl#L402-L432">source</a></section></details></article><h2 id="W-momentum"><a class="docs-heading-anchor" href="#W-momentum">W-momentum</a><a id="W-momentum-1"></a><a class="docs-heading-anchor-permalink" href="#W-momentum" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.WMomentumEquation.Advection"><a class="docstring-binding" href="#Oceanostics.WMomentumEquation.Advection"><code>Oceanostics.WMomentumEquation.Advection</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Advection(model, u, v, w, advection_scheme; location)
+</code></pre><p>Calculate the advection of w-momentum as</p><pre><code class="language-julia hljs">ADV = ∂ⱼ (uⱼ w)</code></pre><p>using Oceananigans&#39; kernel <a href="https://clima.github.io/OceananigansDocumentation/stable/appendix/library/#Oceananigans.Advection.div_𝐯w-NTuple{7,%20Any}"><code>div_𝐯w</code>.</a></p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; ADV = WMomentumEquation.Advection(model)
+KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: div_𝐯w (generic function with 10 methods)
+└── arguments: (&quot;Centered&quot;, &quot;NamedTuple&quot;, &quot;Field&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/WMomentumEquation.jl#L56-L78">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.WMomentumEquation.BuoyancyAcceleration"><a class="docstring-binding" href="#Oceanostics.WMomentumEquation.BuoyancyAcceleration"><code>Oceanostics.WMomentumEquation.BuoyancyAcceleration</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">BuoyancyAcceleration(model, buoyancy, tracers; location)
+</code></pre><p>Calculate the buoyancy acceleration in the z-direction as</p><pre><code class="language-julia hljs">BUOY = ĝ_z b</code></pre><p>where ĝ_z is the z-component of the gravitational unit vector and b is the buoyancy.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
+
+julia&gt; BUOY = WMomentumEquation.BuoyancyAcceleration(model)
+KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: z_dot_g_bᶜᶜᶠ (generic function with 10 methods)
+└── arguments: (&quot;BuoyancyForce&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/WMomentumEquation.jl#L90-L112">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.WMomentumEquation.CoriolisAcceleration"><a class="docstring-binding" href="#Oceanostics.WMomentumEquation.CoriolisAcceleration"><code>Oceanostics.WMomentumEquation.CoriolisAcceleration</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">CoriolisAcceleration(model, coriolis, velocities; location)
+</code></pre><p>Calculate the Coriolis acceleration in the z-direction as</p><pre><code class="language-julia hljs">COR = (f × u)_z</code></pre><p>where f is the Coriolis parameter vector and u is the velocity vector.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4));
+
+julia&gt; COR = WMomentumEquation.CoriolisAcceleration(model)
+KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: z_f_cross_U (generic function with 10 methods)
+└── arguments: (&quot;FPlane&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/WMomentumEquation.jl#L122-L144">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.WMomentumEquation.ViscousDissipation"><a class="docstring-binding" href="#Oceanostics.WMomentumEquation.ViscousDissipation"><code>Oceanostics.WMomentumEquation.ViscousDissipation</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ViscousDissipation(
+    model,
+    closure,
+    diffusivities,
+    clock,
+    model_fields,
+    buoyancy;
+    location
+)
+</code></pre><p>Calculate the viscous dissipation term (excluding immersed boundaries) as</p><pre><code class="language-julia hljs">VISC = ∂ⱼ τ₃ⱼ,</code></pre><p>where τ₃ⱼ is the viscous stress tensor for the z-momentum equation.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; VISC = WMomentumEquation.ViscousDissipation(model)
+KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ∂ⱼ_τ₃ⱼ (generic function with 10 methods)
+└── arguments: (&quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/WMomentumEquation.jl#L154-L176">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.WMomentumEquation.ImmersedViscousDissipation"><a class="docstring-binding" href="#Oceanostics.WMomentumEquation.ImmersedViscousDissipation"><code>Oceanostics.WMomentumEquation.ImmersedViscousDissipation</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ImmersedViscousDissipation(
+    model,
+    velocities,
+    w_immersed_bc,
+    closure,
+    diffusivities,
+    clock,
+    model_fields;
+    location
+)
+</code></pre><p>Calculate the viscous dissipation term due to immersed boundaries as</p><pre><code class="language-julia hljs">VISC = ∂ⱼ τ₃ⱼ,</code></pre><p>where τ₃ⱼ is the immersed boundary viscous stress tensor for the z-momentum equation.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; VISC = WMomentumEquation.ImmersedViscousDissipation(model)
+KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: immersed_∂ⱼ_τ₃ⱼ (generic function with 2 methods)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/WMomentumEquation.jl#L184-L206">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.WMomentumEquation.TotalViscousDissipation"><a class="docstring-binding" href="#Oceanostics.WMomentumEquation.TotalViscousDissipation"><code>Oceanostics.WMomentumEquation.TotalViscousDissipation</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">TotalViscousDissipation(
+    model,
+    velocities,
+    w_immersed_bc,
+    closure,
+    diffusivities,
+    clock,
+    model_fields,
+    buoyancy;
+    location
+)
+</code></pre><p>Calculate the total viscous dissipation term as</p><pre><code class="language-julia hljs">VISC = ∂ⱼ τ₃ⱼ + ∂ⱼ τ₃ⱼ_immersed,</code></pre><p>where τ₃ⱼ is the interior viscous stress tensor and τ₃ⱼ_immersed is the immersed boundary viscous stress tensor for the z-momentum equation.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; VISC = WMomentumEquation.TotalViscousDissipation(model)
+KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: total_∂ⱼ_τ₃ⱼ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/WMomentumEquation.jl#L217-L240">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.WMomentumEquation.StokesShear"><a class="docstring-binding" href="#Oceanostics.WMomentumEquation.StokesShear"><code>Oceanostics.WMomentumEquation.StokesShear</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">StokesShear(model, stokes_drift, velocities, time; location)
+</code></pre><p>Calculate the Stokes shear term as</p><pre><code class="language-julia hljs">STOKES_SHEAR = ((∇ × uˢ) × u)_z</code></pre><p>where uˢ is the Stokes drift velocity and u is the velocity vector.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; STOKES = WMomentumEquation.StokesShear(model)
+KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: z_curl_Uˢ_cross_U (generic function with 10 methods)
+└── arguments: (&quot;Nothing&quot;, &quot;NamedTuple&quot;, &quot;Float64&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/WMomentumEquation.jl#L253-L275">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.WMomentumEquation.StokesTendency"><a class="docstring-binding" href="#Oceanostics.WMomentumEquation.StokesTendency"><code>Oceanostics.WMomentumEquation.StokesTendency</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">StokesTendency(model, stokes_drift, time; location)
+</code></pre><p>Calculate the Stokes tendency term as</p><pre><code class="language-julia hljs">STOKES_TEND = ∂wˢ/∂t</code></pre><p>where wˢ is the z-component of the Stokes drift velocity.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; STOKES = WMomentumEquation.StokesTendency(model)
+KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ∂t_wˢ (generic function with 10 methods)
+└── arguments: (&quot;Nothing&quot;, &quot;Float64&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/WMomentumEquation.jl#L286-L308">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.WMomentumEquation.Forcing"><a class="docstring-binding" href="#Oceanostics.WMomentumEquation.Forcing"><code>Oceanostics.WMomentumEquation.Forcing</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Forcing(
+    model,
+    forcing_func,
+    clock,
+    model_fields,
+    ;
+    location
+)
+</code></pre><p>Calculate the forcing term <code>Fʷ</code> on the z-momentum equation for <code>model</code>.</p><p><code>Forcing</code> is a type alias for the generic <code>KernelFunctionOperation</code> (no narrowing on the kernel function), so a constructor on <code>Forcing(model)</code> would clash across the U/V/W modules. To disambiguate, the W-momentum convenience constructor takes an explicit <code>Val(:w)</code> tag.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; FORC = WMomentumEquation.Forcing(model, Val(:w))
+KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: Returns (generic function with 1 method)
+└── arguments: (&quot;Clock&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/WMomentumEquation.jl#L321-L344">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.WMomentumEquation.Tendency"><a class="docstring-binding" href="#Oceanostics.WMomentumEquation.Tendency"><code>Oceanostics.WMomentumEquation.Tendency</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Tendency(
+    model,
+    advection_scheme,
+    coriolis,
+    stokes_drift,
+    closure,
+    w_immersed_bc,
+    buoyancy,
+    background_fields,
+    velocities,
+    tracers,
+    auxiliary_fields,
+    diffusivities,
+    hydrostatic_pressure,
+    clock,
+    forcing_func;
+    location
+)
+</code></pre><p>Calculate the total tendency of the w-momentum equation as computed by Oceananigans.</p><p>For NonhydrostaticModel, this includes:</p><ul><li>Advection: -∇⋅(𝐯w)</li><li>Background advection terms</li><li>Buoyancy: ĝ_z b</li><li>Coriolis: -(f × u)_z</li><li>Pressure gradient: -∂p/∂z</li><li>Viscous dissipation: -∇⋅τ₃</li><li>Immersed viscous dissipation</li><li>Stokes shear: ((∇ × uˢ) × u)_z</li><li>Stokes tendency: ∂wˢ/∂t</li><li>Forcing: Fʷ</li></ul><p><code>HydrostaticFreeSurfaceModel</code> does not have a prognostic w-momentum equation (w is diagnosed from continuity), so <code>Tendency</code> is only defined for <code>NonhydrostaticModel</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; TEND = WMomentumEquation.Tendency(model)
+KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: w_velocity_tendency (generic function with 1 method)
+└── arguments: (&quot;Centered&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Oceananigans.Models.NonhydrostaticModels.BackgroundFields&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;Returns&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/7f31310bccaa89009f9672d3cf254e7644047bec/src/WMomentumEquation.jl#L357-L391">source</a></section></details></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tracer_equation/">« Tracer equation</a><a class="docs-footer-nextpage" href="../kinetic_energy_equation/">Kinetic energy equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Wednesday 20 May 2026 12:11">Wednesday 20 May 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

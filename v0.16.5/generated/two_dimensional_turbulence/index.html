@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Two-dimensional turbulence · Oceanostics.jl</title><meta name="title" content="Two-dimensional turbulence · Oceanostics.jl"/><meta property="og:title" content="Two-dimensional turbulence · Oceanostics.jl"/><meta property="twitter:title" content="Two-dimensional turbulence · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox" checked/><label class="tocitem" for="menuitem-2"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>Two-dimensional turbulence</a><ul class="internal"><li><a class="tocitem" href="#Model-and-simulation-setup"><span>Model and simulation setup</span></a></li><li><a class="tocitem" href="#Model-diagnostics"><span>Model diagnostics</span></a></li><li><a class="tocitem" href="#Run-the-simulation-and-process-results"><span>Run the simulation and process results</span></a></li></ul></li><li><a class="tocitem" href="../kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li><a class="tocitem" href="../tilted_bottom_boundary_layer/">Tilted bottom boundary layer</a></li></ul></li><li><a class="tocitem" href="../../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Two-dimensional turbulence</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Two-dimensional turbulence</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/examples/two_dimensional_turbulence.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="two_d_turbulence_example"><a class="docs-heading-anchor" href="#two_d_turbulence_example">Two-dimensional turbulence example</a><a id="two_d_turbulence_example-1"></a><a class="docs-heading-anchor-permalink" href="#two_d_turbulence_example" title="Permalink"></a></h1><p>In this example (based on the homonymous <a href="https://clima.github.io/OceananigansDocumentation/stable/literated/two_dimensional_turbulence/">Oceananigans one</a>) we simulate a 2D flow initialized with random noise and observe the flow evolve.</p><p>Before starting, make sure you have the required packages installed for this example, which can be done with</p><pre><code class="language-julia hljs">using Pkg
+pkg&quot;add Oceananigans, Oceanostics, CairoMakie, Rasters&quot;</code></pre><h2 id="Model-and-simulation-setup"><a class="docs-heading-anchor" href="#Model-and-simulation-setup">Model and simulation setup</a><a id="Model-and-simulation-setup-1"></a><a class="docs-heading-anchor-permalink" href="#Model-and-simulation-setup" title="Permalink"></a></h2><p>We begin by creating a model with an isotropic diffusivity and fifth-order advection on a 128² grid.</p><pre><code class="language-julia hljs">using Oceananigans
+
+grid = RectilinearGrid(size=(128, 128), extent=(2π, 2π), topology=(Periodic, Periodic, Flat))
+
+model = NonhydrostaticModel(; grid, timestepper = :RungeKutta3,
+                            advection = UpwindBiased(order=5),
+                            closure = ScalarDiffusivity(ν=1e-5))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 128×128×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: UpwindBiased(order=5)
+├── tracers: ()
+├── closure: ScalarDiffusivity{ExplicitTimeDiscretization}(ν=1.0e-5)
+├── buoyancy: Nothing
+└── coriolis: Nothing</code></pre><p>Let&#39;s give the model zero-mean grid-scale white noise as the initial condition</p><pre><code class="language-julia hljs">using Statistics
+
+u, v, w = model.velocities
+
+noise(x, y) = rand()
+set!(model, u=noise, v=noise)
+
+u .-= mean(u)
+v .-= mean(v)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">128×128×1 Field{Center, Face, Center} on RectilinearGrid on CPU
+├── grid: 128×128×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── boundary conditions: FieldBoundaryConditions
+│   └── west: Periodic, east: Periodic, south: Periodic, north: Periodic, bottom: Nothing, top: Nothing, immersed: Nothing
+└── data: 134×134×1 OffsetArray(::Array{Float64, 3}, -2:131, -2:131, 1:1) with eltype Float64 with indices -2:131×-2:131×1:1
+    └── max=0.719807, min=-0.713607, mean=-3.67463e-16</code></pre><p>We use this model to create a simulation with a <code>TimeStepWizard</code> to maximize the Δt</p><pre><code class="language-julia hljs">simulation = Simulation(model, Δt=0.2, stop_time=50)
+
+wizard = TimeStepWizard(cfl=0.8, diffusive_cfl=0.8)
+simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Callback of TimeStepWizard(cfl=0.8, max_Δt=Inf, min_Δt=0.0) on IterationInterval(5)</code></pre><h2 id="Model-diagnostics"><a class="docs-heading-anchor" href="#Model-diagnostics">Model diagnostics</a><a id="Model-diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Model-diagnostics" title="Permalink"></a></h2><p>Up until now we have only used Oceananigans, but we can make use of Oceanostics for the first diagnostic we&#39;ll set-up: a progress messenger. Here we use a <code>BasicMessenger</code>, which, as the name suggests, displays basic information about the simulation</p><pre><code class="language-julia hljs">using Oceanostics
+
+progress = ProgressMessengers.BasicMessenger()
+
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Callback of Oceanostics.ProgressMessengers.BasicMessenger{Oceanostics.ProgressMessengers.AbstractProgressMessenger} on IterationInterval(100)</code></pre><p>Using Oceanostics we can easily calculate two important diagnostics, the kinetic energy KE and its dissipation rate ε</p><pre><code class="language-julia hljs">KE = KineticEnergyEquation.KineticEnergy(model)
+ε = KineticEnergyEquation.DissipationRate(model)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">KernelFunctionOperation at (Center, Center, Center)
+├── grid: 128×128×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Nothing&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;)</code></pre><p>And we can define their volume-integrals</p><pre><code class="language-julia hljs">∫KE = Integral(KE)
+∫ε = Integral(ε)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Integral of BinaryOperation at (Center, Center, Center) over dims (1, 2, 3)
+└── operand: BinaryOperation at (Center, Center, Center)
+    └── grid: 128×128×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo</code></pre><p>We also create another integrated quantity that appears in the TKE evolution equation: the <code>KineticEnergyStress</code>, which in our case is</p><p class="math-container">\[\varepsilon^D = u_i \partial_j \tau_{ij}\]</p><p>where <span>$\tau_{ij}$</span> is the diffusive flux of <span>$i$</span> momentum in the <span>$j$</span>-th direction.</p><pre><code class="language-julia hljs">∫εᴰ = Integral(KineticEnergyEquation.Stress(model))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Integral of BinaryOperation at (Center, Center, Center) over dims (1, 2, 3)
+└── operand: BinaryOperation at (Center, Center, Center)
+    └── grid: 128×128×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo</code></pre><p>The idea in calculating this term is that, in integrated form, all transport contributions in it should equal zero and <code>∫εᴰ</code> should equal <code>∫ε</code>.</p><p>We output the previous quantities to a NetCDF file</p><pre><code class="language-julia hljs">output_fields = (; KE, ε, ∫KE, ∫ε, ∫εᴰ)
+
+using NCDatasets
+filename = &quot;two_dimensional_turbulence&quot;
+simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
+                                              filename = joinpath(@__DIR__, filename),
+                                              schedule = TimeInterval(0.6),
+                                              overwrite_existing = true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NetCDFWriter scheduled on TimeInterval(600 ms):
+├── filepath: build/generated/two_dimensional_turbulence.nc
+├── dimensions: time(0), y_afa(128), x_faa(128), x_caa(128), y_aca(128)
+├── 5 outputs: (ε, ∫εᴰ, ∫ε, KE, ∫KE)
+├── array_type: Array{Float32}
+├── file_splitting: NoFileSplitting
+└── file size: 29.6 KiB</code></pre><h2 id="Run-the-simulation-and-process-results"><a class="docs-heading-anchor" href="#Run-the-simulation-and-process-results">Run the simulation and process results</a><a id="Run-the-simulation-and-process-results-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-simulation-and-process-results" title="Permalink"></a></h2><p>To run the simulation:</p><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>Initializing simulation...
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[000.00%] time = 0 seconds,  Δt = 100 ms,  walltime = 29.226 seconds,  advective CFL = 2.3,  diffusive CFL = 0.00042
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>    ... simulation initialization complete (7.754 seconds)
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Executing initial time step...
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>    ... initial time step complete (2.254 seconds).
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[014.40%] time = 7.200 seconds,  Δt = 94.124 ms,  walltime = 35.368 seconds,  advective CFL = 0.79,  diffusive CFL = 0.00039
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[031.81%] time = 15.904 seconds,  Δt = 102.774 ms,  walltime = 36.628 seconds,  advective CFL = 0.8,  diffusive CFL = 0.00043
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[049.78%] time = 24.890 seconds,  Δt = 103.934 ms,  walltime = 37.852 seconds,  advective CFL = 0.8,  diffusive CFL = 0.00043
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[068.12%] time = 34.062 seconds,  Δt = 92.113 ms,  walltime = 39.074 seconds,  advective CFL = 0.8,  diffusive CFL = 0.00038
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[086.60%] time = 43.302 seconds,  Δt = 100.678 ms,  walltime = 40.325 seconds,  advective CFL = 0.8,  diffusive CFL = 0.00042
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulation is stopping after running for 17.207 seconds.
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulation time 50 seconds equals or exceeds stop time 50 seconds.</code></pre><p>Now we&#39;ll read the results using Rasters.jl, which works somewhat similarly to Python&#39;s Xarray and can speed-up the workflow</p><pre><code class="language-julia hljs">using Rasters
+
+ds = RasterStack(simulation.output_writers[:nc].filepath)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr90">┌ </span><span class="sgr38_5" style="color:#ff875f">128</span>×<span class="sgr38_5" style="color:#0087d7">128</span>×<span class="sgr38_5" style="color:#5fd7ff">84</span>×<span class="sgr38_5" style="color:#ff5f87">128</span>×<span class="sgr38_5" style="color:#b2b2b2">128</span> RasterStack<span class="sgr90"> ┐</span>
+<span class="sgr90">├────────────────────────────────┴─────────────────────────────────────── dims ┐</span>
+  <span class="sgr38_5" style="color:#ff875f">↓ x_caa</span> Sampled{Float32} <span class="sgr38_5" style="color:#ff875f">[0.024543693f0, …, 6.2586417f0]</span> <span class="sgr38_5" style="color:#808080">ForwardOrdered</span> <span class="sgr38_5" style="color:#808080">Regular</span> <span class="sgr38_5" style="color:#808080">Points</span>,
+  <span class="sgr38_5" style="color:#0087d7">→ y_aca</span> Sampled{Float32} <span class="sgr38_5" style="color:#0087d7">[0.024543693f0, …, 6.2586417f0]</span> <span class="sgr38_5" style="color:#808080">ForwardOrdered</span> <span class="sgr38_5" style="color:#808080">Regular</span> <span class="sgr38_5" style="color:#808080">Points</span>,
+  <span class="sgr38_5" style="color:#5fd7ff">↗ Ti</span> Sampled{Float64} <span class="sgr38_5" style="color:#5fd7ff">[0.0, …, 49.8]</span> <span class="sgr38_5" style="color:#808080">ForwardOrdered</span> <span class="sgr38_5" style="color:#808080">Regular</span> <span class="sgr38_5" style="color:#808080">Points</span>,
+  <span class="sgr38_5" style="color:#ff5f87">⬔ x_faa</span> Sampled{Float32} <span class="sgr38_5" style="color:#ff5f87">[-7.512788f-18, …, 6.234098f0]</span> <span class="sgr38_5" style="color:#808080">ForwardOrdered</span> <span class="sgr38_5" style="color:#808080">Regular</span> <span class="sgr38_5" style="color:#808080">Points</span>,
+  <span class="sgr38_5" style="color:#b2b2b2">◩ y_afa</span> Sampled{Float32} <span class="sgr38_5" style="color:#b2b2b2">[-7.512788f-18, …, 6.234098f0]</span> <span class="sgr38_5" style="color:#808080">ForwardOrdered</span> <span class="sgr38_5" style="color:#808080">Regular</span> <span class="sgr38_5" style="color:#808080">Points</span>
+<span class="sgr90">├────────────────────────────────────────────────────────────────────── layers ┤</span>
+<span class="sgr38_5" style="color:#00afaf">  :Δx_caa</span><span class="sgr90"> eltype: </span>Union{Missing, Float32}<span class="sgr90"> dims: </span><span class="sgr38_5" style="color:#ff875f">x_caa</span><span class="sgr90"> size: </span><span class="sgr38_5" style="color:#ff875f">128</span>
+<span class="sgr38_5" style="color:#00afaf">  :Δx_faa</span><span class="sgr90"> eltype: </span>Union{Missing, Float32}<span class="sgr90"> dims: </span><span class="sgr38_5" style="color:#ff5f87">x_faa</span><span class="sgr90"> size: </span><span class="sgr38_5" style="color:#ff5f87">128</span>
+<span class="sgr38_5" style="color:#00afaf">  :Δy_aca</span><span class="sgr90"> eltype: </span>Union{Missing, Float32}<span class="sgr90"> dims: </span><span class="sgr38_5" style="color:#0087d7">y_aca</span><span class="sgr90"> size: </span><span class="sgr38_5" style="color:#0087d7">128</span>
+<span class="sgr38_5" style="color:#00afaf">  :Δy_afa</span><span class="sgr90"> eltype: </span>Union{Missing, Float32}<span class="sgr90"> dims: </span><span class="sgr38_5" style="color:#b2b2b2">y_afa</span><span class="sgr90"> size: </span><span class="sgr38_5" style="color:#b2b2b2">128</span>
+<span class="sgr38_5" style="color:#00afaf">  :KE    </span><span class="sgr90"> eltype: </span>Union{Missing, Float32}<span class="sgr90"> dims: </span><span class="sgr38_5" style="color:#ff875f">x_caa</span>, <span class="sgr38_5" style="color:#0087d7">y_aca</span>, <span class="sgr38_5" style="color:#5fd7ff">Ti</span><span class="sgr90"> size: </span><span class="sgr38_5" style="color:#ff875f">128</span>×<span class="sgr38_5" style="color:#0087d7">128</span>×<span class="sgr38_5" style="color:#5fd7ff">84</span>
+<span class="sgr38_5" style="color:#00afaf">  :ε     </span><span class="sgr90"> eltype: </span>Union{Missing, Float32}<span class="sgr90"> dims: </span><span class="sgr38_5" style="color:#ff875f">x_caa</span>, <span class="sgr38_5" style="color:#0087d7">y_aca</span>, <span class="sgr38_5" style="color:#5fd7ff">Ti</span><span class="sgr90"> size: </span><span class="sgr38_5" style="color:#ff875f">128</span>×<span class="sgr38_5" style="color:#0087d7">128</span>×<span class="sgr38_5" style="color:#5fd7ff">84</span>
+<span class="sgr38_5" style="color:#00afaf">  :∫KE   </span><span class="sgr90"> eltype: </span>Union{Missing, Float32}<span class="sgr90"> dims: </span><span class="sgr38_5" style="color:#5fd7ff">Ti</span><span class="sgr90"> size: </span><span class="sgr38_5" style="color:#5fd7ff">84</span>
+<span class="sgr38_5" style="color:#00afaf">  :∫ε    </span><span class="sgr90"> eltype: </span>Union{Missing, Float32}<span class="sgr90"> dims: </span><span class="sgr38_5" style="color:#5fd7ff">Ti</span><span class="sgr90"> size: </span><span class="sgr38_5" style="color:#5fd7ff">84</span>
+<span class="sgr38_5" style="color:#00afaf">  :∫εᴰ   </span><span class="sgr90"> eltype: </span>Union{Missing, Float32}<span class="sgr90"> dims: </span><span class="sgr38_5" style="color:#5fd7ff">Ti</span><span class="sgr90"> size: </span><span class="sgr38_5" style="color:#5fd7ff">84</span>
+<span class="sgr90">├──────────────────────────────────────────────────────────────────── metadata ┤</span>
+  Metadata{Rasters.NCDsource}<span class="sgr90"> of </span>Dict{String, Any} with 6 entries:
+  &quot;interval&quot;             =&gt; 0.6
+  &quot;Oceananigans&quot;         =&gt; &quot;This file was generated using &quot;
+  &quot;Julia&quot;                =&gt; &quot;This file was generated using &quot;
+  &quot;output time interval&quot; =&gt; &quot;Output was saved every 600 ms.&quot;
+  &quot;date&quot;                 =&gt; &quot;This file was generated on 2025-11-13T20:20:39.893…
+  &quot;schedule&quot;             =&gt; &quot;TimeInterval&quot;
+<span class="sgr90">├────────────────────────────────────────────────────────────────────── raster ┤</span>
+<span class="sgr90">  missingval: </span>missing
+<span class="sgr90">  extent: </span>Extent(x_caa = (0.024543693f0, 6.2586417f0), y_aca = (0.024543693f0, 6.2586417f0), Ti = (0.0, 49.8), x_faa = (-7.512788f-18, 6.234098f0), y_afa = (-7.512788f-18, 6.234098f0))
+<span class="sgr90">└──────────────────────────────────────────────────────────────────────────────┘</span></code></pre><p>In order to plot results, we use Makie.jl, for which Rasters.jl already has some recipes</p><pre><code class="language-julia hljs">using CairoMakie
+
+set_theme!(Theme(fontsize = 24))
+fig = Figure()
+
+axis_kwargs = (xlabel = &quot;x&quot;, ylabel = &quot;y&quot;,
+               aspect = DataAspect(),
+               height = 300, width = 300)
+
+ax1 = Axis(fig[2, 1]; title = &quot;Kinetic energy&quot;, axis_kwargs...)
+ax2 = Axis(fig[2, 2]; title = &quot;Kinetic energy dissip rate&quot;, axis_kwargs...)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Axis with 0 plots:
+</code></pre><p>Now we plot the snapshots and set the title</p><pre><code class="language-julia hljs">n = Observable(1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Observable(1)
+</code></pre><p><code>n</code> above is a <a href="https://docs.makie.org/stable/documentation/nodes/index.html"><code>Makie.Observable</code></a>, which allows us to animate things easily. Creating observable <code>KE</code> and <code>ε</code> can be done simply with</p><pre><code class="language-julia hljs">KEₙ = @lift set(ds.KE[z_aac=1, Ti=$n], :x_caa =&gt; X, :y_aca =&gt; Y);
+εₙ  = @lift set(ds.ε[z_aac=1, Ti=$n],  :x_caa =&gt; X, :y_aca =&gt; Y);</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span></code></pre><p>Note that, in Rasters, the <code>time</code> coordinate gets shortened to <code>Ti</code>.</p><p>Now we plot the heatmaps, each with its own colorbar below</p><pre><code class="language-julia hljs">hm_KE = heatmap!(ax1, KEₙ, colormap = :plasma, colorrange=(0, 5e-2))
+Colorbar(fig[3, 1], hm_KE; vertical=false, height=8, ticklabelsize=12)
+
+hm_ε = heatmap!(ax2, εₙ, colormap = :inferno, colorrange=(0, 5e-5))
+Colorbar(fig[3, 2], hm_ε; vertical=false, height=8, ticklabelsize=12)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Makie.Colorbar()</code></pre><p>We now plot the time evolution of our integrated quantities</p><pre><code class="language-julia hljs">axis_kwargs = (xlabel = &quot;Time&quot;,
+               height=150, width=300)
+
+ax3 = Axis(fig[4, 1]; axis_kwargs...)
+times = dims(ds, :Ti)
+lines!(ax3, Array(times), Array(ds.∫KE))
+
+ax4 = Axis(fig[4, 2]; axis_kwargs...)
+lines!(ax4, Array(times), Array(ds.∫ε), label=&quot;∫εdV&quot;)
+lines!(ax4, Array(times), Array(ds.∫εᴰ), label=&quot;∫εᴰdV&quot;, linestyle=:dash)
+axislegend(ax4, labelsize=14)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Makie.Legend()</code></pre><p>Now we mark the time by placing a vertical line in the bottom plots:</p><pre><code class="language-julia hljs">tₙ = @lift times[$n]
+vlines!(ax3, tₙ, color=:black, linestyle=:dash)
+vlines!(ax4, tₙ, color=:black, linestyle=:dash)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Makie.VLines{Tuple{Float64}}</code></pre><p>and by creating a useful title</p><pre><code class="language-julia hljs">title = @lift &quot;Time = &quot; * string(round(times[$n], digits=2))
+Label(fig[1, 1:2], title, fontsize=24, tellwidth=false);</code></pre><p>Next we adjust the total figure size based on our panels, which makes it look like this</p><pre><code class="language-julia hljs">resize_to_layout!(fig)
+fig</code></pre><img src="aedea7d4.png" alt="Example block output"/><p>Finally, we record a movie.</p><pre><code class="language-julia hljs">@info &quot;Animating...&quot;
+record(fig, filename * &quot;.mp4&quot;, 1:length(times), framerate=24) do i
+    n[] = i
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>Animating...
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span>
+<span class="sgr33"><span class="sgr1">┌ Warning: </span></span>(DimensionalData.Dimensions.Dim{:z_aac},) dims were not found in object.
+<span class="sgr33"><span class="sgr1">└ </span></span><span class="sgr90">@ DimensionalData.Dimensions ~/.julia/packages/DimensionalData/FWnw9/src/Dimensions/primitives.jl:852</span></code></pre><p><video src="../two_dimensional_turbulence.mp4" controls="true" title><a href="../two_dimensional_turbulence.mp4"></a></video></p><p>Although simple, this example and the animation above already illustrate a couple of interesting things. First, the KE dissipation rate <code>ε</code> is distributed at much smaller scales than the KE, which is expected due to the second-order derivatives present in <code>ε</code>.</p><p>Second, again as expected, the volume-integrated KE dissipation rate is the same as the volume-integrated KE diffusion term (since all the non-dissipation parts of the term volume-integrate to zero). In fact, both <code>KineticEnergyDissipationRate</code> and <code>KineticEnergyStress</code> in Oceanostics are implemented in an energy-conserving form (i.e., they use the exact same discretization scheme and interpolations as used in Oceananigans), so they agree to machine-precision, and are great for closing budgets.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Home</a><a class="docs-footer-nextpage" href="../kelvin_helmholtz/">Kelvin-Helmholtz instability »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.15.0 on <span class="colophon-date" title="Thursday 13 November 2025 20:21">Thursday 13 November 2025</span>. Using Julia version 1.12.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

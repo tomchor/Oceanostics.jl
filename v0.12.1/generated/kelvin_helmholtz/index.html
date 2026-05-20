@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Kelvin-Helmholtz instability · Oceanostics.jl</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Oceanostics.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox" checked/><label class="tocitem" for="menuitem-2"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li class="is-active"><a class="tocitem" href>Kelvin-Helmholtz instability</a><ul class="internal"><li><a class="tocitem" href="#Model-and-simulation-setup"><span>Model and simulation setup</span></a></li><li><a class="tocitem" href="#Model-diagnostics"><span>Model diagnostics</span></a></li><li><a class="tocitem" href="#Run-the-simulation-and-process-results"><span>Run the simulation and process results</span></a></li></ul></li><li><a class="tocitem" href="../tilted_bottom_boundary_layer/">Tilted bottom boundary layer</a></li></ul></li><li><a class="tocitem" href="../../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Kelvin-Helmholtz instability</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Kelvin-Helmholtz instability</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/examples/kelvin_helmholtz.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Kelvin-Helmholtz-instability"><a class="docs-heading-anchor" href="#Kelvin-Helmholtz-instability">Kelvin-Helmholtz instability</a><a id="Kelvin-Helmholtz-instability-1"></a><a class="docs-heading-anchor-permalink" href="#Kelvin-Helmholtz-instability" title="Permalink"></a></h1><p>This example simulates a simple 2D Kelvin-Helmholtz instability and is based on the similar <a href="https://clima.github.io/OceananigansDocumentation/stable/generated/kelvin_helmholtz_instability/">Oceananigans example</a>.</p><p>Before starting, make sure you have the required packages installed for this example, which can be done with</p><pre><code class="language-julia hljs">using Pkg
+pkg&quot;add Oceananigans, Oceanostics, CairoMakie, Rasters&quot;</code></pre><h2 id="Model-and-simulation-setup"><a class="docs-heading-anchor" href="#Model-and-simulation-setup">Model and simulation setup</a><a id="Model-and-simulation-setup-1"></a><a class="docs-heading-anchor-permalink" href="#Model-and-simulation-setup" title="Permalink"></a></h2><p>We begin by creating a model with an isotropic diffusivity and fifth-order advection on a <code>xz</code> 128² grid using a buoyancy <code>b</code> as the active scalar. We&#39;ll work here with nondimensional quantities.</p><pre><code class="language-julia hljs">using Oceananigans
+
+N = 128
+L = 10
+grid = RectilinearGrid(size=(N, N), x=(-L/2, +L/2), z=(-L/2, +L/2), topology=(Periodic, Flat, Bounded))
+
+model = NonhydrostaticModel(; grid, timestepper = :RungeKutta3,
+                            advection = UpwindBiasedFifthOrder(),
+                            closure = ScalarDiffusivity(ν=2e-5, κ=2e-5),
+                            buoyancy = BuoyancyTracer(), tracers = :b)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 128×1×128 RectilinearGrid{Float64, Periodic, Flat, Bounded} on CPU with 3×0×3 halo
+├── timestepper: RungeKutta3TimeStepper
+├── tracers: b
+├── closure: ScalarDiffusivity{ExplicitTimeDiscretization}(ν=2.0e-5, κ=(b=2.0e-5,))
+├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
+└── coriolis: Nothing</code></pre><p>We use hyperbolic tangent functions for the initial conditions and set the maximum Richardson number below the threshold of 1/4. We also add some grid-scale small-amplitude noise to <code>u</code> to kick the instability off:</p><pre><code class="language-julia hljs">noise(x, y, z) = 2e-2 * randn()
+shear_flow(x, y, z) = tanh(z) + noise(x, y, z)
+
+Ri₀ = 0.1; h = 1/4
+stratification(x, y, z) = h * Ri₀ * tanh(z / h)
+
+set!(model, u=shear_flow, b=stratification)</code></pre><p>Next create an adaptive-time-step simulation using the model above:</p><pre><code class="language-julia hljs">simulation = Simulation(model, Δt=0.1, stop_time=100)
+
+wizard = TimeStepWizard(cfl=0.8, max_Δt=1)
+simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Callback of TimeStepWizard(cfl=0.8, max_Δt=1.0, min_Δt=0.0) on IterationInterval(2)</code></pre><h2 id="Model-diagnostics"><a class="docs-heading-anchor" href="#Model-diagnostics">Model diagnostics</a><a id="Model-diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Model-diagnostics" title="Permalink"></a></h2><p>We set-up a progress messenger using the <code>TimedMessenger</code>, which displays, among other information, the time step duration</p><pre><code class="language-julia hljs">using Oceanostics
+
+progress = ProgressMessengers.TimedMessenger()
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Callback of Oceanostics.ProgressMessengers.TimedMessenger{Oceanostics.ProgressMessengers.AbstractProgressMessenger} on IterationInterval(200)</code></pre><p>We can also define some useful diagnostics for of the flow, starting with the <code>RichardsonNumber</code></p><pre><code class="language-julia hljs">Ri = RichardsonNumber(model)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">KernelFunctionOperation at (Center, Center, Face)
+├── grid: 128×1×128 RectilinearGrid{Float64, Periodic, Flat, Bounded} on CPU with 3×0×3 halo
+├── kernel_function: richardson_number_ccf (generic function with 1 method)
+└── arguments: (&quot;128×1×128 Field{Face, Center, Center} on RectilinearGrid on CPU&quot;, &quot;128×1×128 Field{Center, Face, Center} on RectilinearGrid on CPU&quot;, &quot;128×1×129 Field{Center, Center, Face} on RectilinearGrid on CPU&quot;, &quot;128×1×128 Field{Center, Center, Center} on RectilinearGrid on CPU&quot;, &quot;Tuple{Int64, Int64, Int64}&quot;)</code></pre><p>We also set-up the <code>QVelocityGradientTensorInvariant</code>, which is usually used for visualizing vortices in the flow:</p><pre><code class="language-julia hljs">Q = QVelocityGradientTensorInvariant(model)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">KernelFunctionOperation at (Center, Center, Center)
+├── grid: 128×1×128 RectilinearGrid{Float64, Periodic, Flat, Bounded} on CPU with 3×0×3 halo
+├── kernel_function: Q_velocity_gradient_tensor_invariant_ccc (generic function with 1 method)
+└── arguments: (&quot;128×1×128 Field{Face, Center, Center} on RectilinearGrid on CPU&quot;, &quot;128×1×128 Field{Center, Face, Center} on RectilinearGrid on CPU&quot;, &quot;128×1×129 Field{Center, Center, Face} on RectilinearGrid on CPU&quot;)</code></pre><p>Q is one of the velocity gradient tensor invariants and it measures the amount of vorticity versus the strain in the flow and, when it&#39;s positive, indicates a vortex. This method of vortex visualization is called the <a href="https://tinyurl.com/mwv6fskc">Q-criterion</a>.</p><p>Let&#39;s also keep track of the amount of buoyancy mixing by measuring the buoyancy variance dissipation rate and diffusive term. When volume-integrated, these two quantities should be equal.</p><pre><code class="language-julia hljs">∫χᴰ = Integral(TracerVarianceDissipationRate(model, :b))
+∫χ = Integral(TracerVarianceDiffusiveTerm(model, :b))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">sum! over dims (1, 2, 3) of BinaryOperation at (Center, Center, Center)
+└── operand: BinaryOperation at (Center, Center, Center)
+    └── grid: 128×1×128 RectilinearGrid{Float64, Periodic, Flat, Bounded} on CPU with 3×0×3 halo</code></pre><p>Now we write these quantities, along with <code>b</code>, to a NetCDF:</p><pre><code class="language-julia hljs">output_fields = (; Ri, Q, model.tracers.b, ∫χ, ∫χᴰ)
+filename = &quot;kelvin_helmholtz&quot;
+simulation.output_writers[:nc] = NetCDFOutputWriter(model, output_fields,
+                                                    filename = joinpath(@__DIR__, filename),
+                                                    schedule = TimeInterval(1),
+                                                    overwrite_existing = true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NetCDFOutputWriter scheduled on TimeInterval(1 second):
+├── filepath: /home/runner/work/Oceanostics.jl/Oceanostics.jl/docs/build/generated/kelvin_helmholtz.nc
+├── dimensions: zC(128), zF(129), xC(128), yF(1), xF(128), yC(1), time(0)
+├── 5 outputs: (Q, ∫χᴰ, Ri, b, ∫χ)
+└── array type: Array{Float64}</code></pre><h2 id="Run-the-simulation-and-process-results"><a class="docs-heading-anchor" href="#Run-the-simulation-and-process-results">Run the simulation and process results</a><a id="Run-the-simulation-and-process-results-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-simulation-and-process-results" title="Permalink"></a></h2><p>To run the simulation:</p><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">[ Info: Initializing simulation...
+┌ Info: iter =      0,  [000.00%] time = 0 seconds,  Δt = 59.036 ms,  walltime = 24.991 seconds,  walltime / timestep = 0 seconds
+└           |u⃗|ₘₐₓ = [1.04e+00,  0.00e+00,  3.45e-02] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00019,  νₘₐₓ = 2e-05 m²/s
+[ Info:     ... simulation initialization complete (17.846 seconds)
+[ Info: Executing initial time step...
+[ Info:     ... initial time step complete (14.335 seconds).
+┌ Info: iter =    200,  [011.79%] time = 11.789 seconds,  Δt = 60.666 ms,  walltime = 1.062 minutes,  walltime / timestep = 193.620 ms
+└           |u⃗|ₘₐₓ = [1.02e+00,  0.00e+00,  2.95e-02] m/s,  advective CFL = 0.8,  diffusive CFL = 0.0002,  νₘₐₓ = 2e-05 m²/s
+┌ Info: iter =    400,  [023.43%] time = 23.427 seconds,  Δt = 60.991 ms,  walltime = 1.215 minutes,  walltime / timestep = 45.997 ms
+└           |u⃗|ₘₐₓ = [1.02e+00,  0.00e+00,  4.38e-02] m/s,  advective CFL = 0.8,  diffusive CFL = 0.0002,  νₘₐₓ = 2e-05 m²/s
+┌ Info: iter =    600,  [035.06%] time = 35.060 seconds,  Δt = 60.203 ms,  walltime = 1.367 minutes,  walltime / timestep = 45.669 ms
+└           |u⃗|ₘₐₓ = [1.03e+00,  0.00e+00,  6.67e-02] m/s,  advective CFL = 0.8,  diffusive CFL = 0.0002,  νₘₐₓ = 2e-05 m²/s
+┌ Info: iter =    800,  [046.45%] time = 46.446 seconds,  Δt = 55.701 ms,  walltime = 1.514 minutes,  walltime / timestep = 43.934 ms
+└           |u⃗|ₘₐₓ = [1.08e+00,  0.00e+00,  2.07e-01] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00018,  νₘₐₓ = 2e-05 m²/s
+┌ Info: iter =   1000,  [056.59%] time = 56.592 seconds,  Δt = 49.191 ms,  walltime = 1.658 minutes,  walltime / timestep = 43.130 ms
+└           |u⃗|ₘₐₓ = [1.16e+00,  0.00e+00,  3.70e-01] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00016,  νₘₐₓ = 2e-05 m²/s
+┌ Info: iter =   1200,  [066.10%] time = 1.102 minutes,  Δt = 49.898 ms,  walltime = 1.800 minutes,  walltime / timestep = 42.608 ms
+└           |u⃗|ₘₐₓ = [1.15e+00,  0.00e+00,  3.70e-01] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00016,  νₘₐₓ = 2e-05 m²/s
+┌ Info: iter =   1400,  [076.11%] time = 1.268 minutes,  Δt = 52.945 ms,  walltime = 1.942 minutes,  walltime / timestep = 42.678 ms
+└           |u⃗|ₘₐₓ = [1.11e+00,  0.00e+00,  2.85e-01] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00017,  νₘₐₓ = 2e-05 m²/s
+┌ Info: iter =   1600,  [086.41%] time = 1.440 minutes,  Δt = 51.553 ms,  walltime = 2.084 minutes,  walltime / timestep = 42.628 ms
+└           |u⃗|ₘₐₓ = [1.13e+00,  0.00e+00,  3.21e-01] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00017,  νₘₐₓ = 2e-05 m²/s
+┌ Info: iter =   1800,  [096.05%] time = 1.601 minutes,  Δt = 49.542 ms,  walltime = 2.225 minutes,  walltime / timestep = 42.353 ms
+└           |u⃗|ₘₐₓ = [1.16e+00,  0.00e+00,  3.57e-01] m/s,  advective CFL = 0.8,  diffusive CFL = 0.00016,  νₘₐₓ = 2e-05 m²/s
+[ Info: Simulation is stopping after running for 1.903 minutes.
+[ Info: Simulation time 1.667 minutes equals or exceeds stop time 1.667 minutes.</code></pre><p>Now we&#39;ll read the results using Rasters.jl, which works somewhat similarly to Python&#39;s Xarray and can speed-up the work the workflow</p><pre><code class="language-julia hljs">using Rasters
+
+ds = RasterStack(simulation.output_writers[:nc].filepath)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">RasterStack with dimensions: 
+  Dim{:xC} Sampled{Float64} Float64[-4.9609375, -4.8828125, …, 4.8828125, 4.9609375] ForwardOrdered Regular Points,
+  Dim{:yC} Sampled{Float64} Float64[1.0] ForwardOrdered Regular Points,
+  Dim{:zC} Sampled{Float64} Float64[-4.9609375, -4.8828125, …, 4.8828125, 4.9609375] ForwardOrdered Regular Points,
+  Ti Sampled{Float64} Float64[0.0, 1.0, …, 99.0, 100.0] ForwardOrdered Regular Points,
+  Dim{:zF} Sampled{Float64} Float64[-5.0, -4.921875, …, 4.921875, 5.0] ForwardOrdered Regular Points
+and 5 layers:
+  :Q   Float64 dims: Dim{:xC}, Dim{:yC}, Dim{:zC}, Ti (128×1×128×101)
+  :∫χᴰ Float64 dims: Ti (101)
+  :Ri  Float64 dims: Dim{:xC}, Dim{:yC}, Dim{:zF}, Ti (128×1×129×101)
+  :b   Float64 dims: Dim{:xC}, Dim{:yC}, Dim{:zC}, Ti (128×1×128×101)
+  :∫χ  Float64 dims: Ti (101)
+
+with metadata Metadata{Rasters.NCDsource} of Dict{String, Any} with 6 entries:
+  &quot;interval&quot;             =&gt; 1.0
+  &quot;Oceananigans&quot;         =&gt; &quot;This file was generated using &quot;
+  &quot;Julia&quot;                =&gt; &quot;This file was generated using Julia Version 1.9.3\…
+  &quot;output time interval&quot; =&gt; &quot;Output was saved every 1 second.&quot;
+  &quot;date&quot;                 =&gt; &quot;This file was generated on 2023-09-07T15:40:27.902…
+  &quot;schedule&quot;             =&gt; &quot;TimeInterval&quot;</code></pre><p>We now use Makie to create the figure and its axes</p><pre><code class="language-julia hljs">using CairoMakie
+
+set_theme!(Theme(fontsize = 24))
+fig = Figure()
+
+kwargs = (xlabel=&quot;x&quot;, ylabel=&quot;z&quot;, height=150, width=250)
+ax1 = Axis(fig[2, 1]; title = &quot;Ri&quot;, kwargs...)
+ax2 = Axis(fig[2, 2]; title = &quot;Q&quot;, kwargs...)
+ax3 = Axis(fig[2, 3]; title = &quot;b&quot;, kwargs...);</code></pre><p>Next we use <code>Observable</code>s to lift the values and plot heatmaps and their colorbars</p><pre><code class="language-julia hljs">n = Observable(1)
+
+Riₙ = @lift set(ds.Ri[Ti=$n, yC=Near(0)], :xC =&gt; X, :zF =&gt; Z)
+hm1 = heatmap!(ax1, Riₙ; colormap = :bwr, colorrange = (-1, +1))
+Colorbar(fig[3, 1], hm1, vertical=false, height=8)
+
+Qₙ = @lift set(ds.Q[Ti=$n, yC=Near(0)], :xC =&gt; X, :zC =&gt; Z)
+hm2 = heatmap!(ax2, Qₙ; colormap = :inferno, colorrange = (0, 0.2))
+Colorbar(fig[3, 2], hm2, vertical=false, height=8)
+
+bₙ = @lift set(ds.b[Ti=$n, yC=Near(0)], :xC =&gt; X, :zC =&gt; Z)
+hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-2.5e-2, +2.5e-2))
+Colorbar(fig[3, 3], hm3, vertical=false, height=8);</code></pre><p>We now plot the time evolution of our integrated quantities</p><pre><code class="language-julia hljs">axb = Axis(fig[4, 1:3]; xlabel=&quot;Time&quot;, height=100)
+times = dims(ds, :Ti)
+lines!(axb, Array(times), ds.∫χ,  label = &quot;∫χdV&quot;)
+lines!(axb, Array(times), ds.∫χᴰ, label = &quot;∫χᴰdV&quot;, linestyle=:dash)
+axislegend(position=:lb, labelsize=14)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Makie.Legend()</code></pre><p>Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title</p><pre><code class="language-julia hljs">tₙ = @lift times[$n]
+vlines!(axb, tₙ, color=:black, linestyle=:dash)
+
+title = @lift &quot;Time = &quot; * string(round(times[$n], digits=2))
+fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);</code></pre><p>Finally, we adjust the figure dimensions to fit all the panels and record a movie</p><pre><code class="language-julia hljs">resize_to_layout!(fig)
+
+@info &quot;Animating...&quot;
+record(fig, filename * &quot;.mp4&quot;, 1:length(times), framerate=10) do i
+       n[] = i
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;kelvin_helmholtz.mp4&quot;</code></pre><p><video src="../kelvin_helmholtz.mp4" controls="true" title><a href="../kelvin_helmholtz.mp4"></a></video></p><p>Similarly to the kinetic energy dissipation rate (see the <a href="../two_dimensional_turbulence/#two_d_turbulence_example">Two-dimensional turbulence example</a>), <code>TracerVarianceDissipationRate</code> and <code>TracerVarianceDiffusiveTerm</code> are implemented with a energy-conserving formulation, which means that (for <code>NoFlux</code> boundary conditions) their volume-integral should be exactly (up to machine precision) the same.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../two_dimensional_turbulence/">« Two-dimensional turbulence</a><a class="docs-footer-nextpage" href="../tilted_bottom_boundary_layer/">Tilted bottom boundary layer »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Thursday 7 September 2023 15:52">Thursday 7 September 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
