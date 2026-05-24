@@ -30,7 +30,7 @@ model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
 
 # Grid-scale white noise is not really *resolved* by the grid, so instead we build a randomized
 # but well-resolved velocity initial condition as a sum of `N_blobs` Gaussian bumps with random
-# centers and random amplitudes. Each bump is ``\sigma_b \approx 4\Delta x`` wide and the
+# centers and random amplitudes. Each bump is ``\sigma_b \approx 10\Delta x`` wide and the
 # periodic copies of each center are summed in so the resulting field is smooth across the
 # periodic boundary. The tracer keeps a smooth sine/cosine pattern.
 
@@ -47,9 +47,11 @@ yc      = grid.Ly * rand(N_blobs)
 amp_u   = randn(N_blobs) # random Gaussian amplitudes for u
 amp_v   = randn(N_blobs) # ... and for v
 
-# Sum of blobs and their periodic images at (dx, dy) ∈ {-2π, 0, 2π}²
+# Sum of blobs and their periodic images at (dx, dy) ∈ {-Lx, 0, Lx} × {-Ly, 0, Ly}
 blob_sum(x, y, amp) = sum(amp[k] * exp(-((x - xc[k] - dx)^2 + (y - yc[k] - dy)^2) / σ_blob^2)
-                          for k in 1:N_blobs, dx in (-2π, 0, 2π), dy in (-2π, 0, 2π))
+                          for k in 1:N_blobs,
+                              dx in (-grid.Lx, 0, grid.Lx),
+                              dy in (-grid.Ly, 0, grid.Ly))
 
 uᵢ(x, y) = blob_sum(x, y, amp_u)
 vᵢ(x, y) = blob_sum(x, y, amp_v)
@@ -62,7 +64,8 @@ v .-= mean(v)
 
 # We use this model to create a simulation with a `TimeStepWizard` to maximize the Δt
 
-Δt = 0.2 * minimum_xspacing(grid) / maximum(u) # Start with a conservative Δt
+u_max = max(maximum(abs, u), maximum(abs, v)) # peak speed magnitude (not signed max)
+Δt = 0.2 * minimum_xspacing(grid) / u_max      # Start with a conservative Δt
 simulation = Simulation(model; Δt, stop_time=80)
 
 wizard = TimeStepWizard(cfl=0.8, diffusive_cfl=0.8)
@@ -114,19 +117,25 @@ KE        = KineticEnergyEquation.KineticEnergy(model)
 ∫ε  = Integral(ε)
 ∫χ  = Integral(χ)
 
-# We output snapshots in consecutive-iteration pairs every 0.6 time units. The
-# `ConsecutiveIterations` schedule writes a second snapshot one model step after each scheduled
-# output time, which lets us finite-difference the integrated quantities across that single
-# step to estimate ``d/dt`` accurately — no time-integration accumulator is needed.
-
-output_fields = (; speed, vorticity, KE, c, ∫KE, ∫c², ∫ε, ∫χ)
+# We use two NetCDF writers. A *visualization* writer outputs the 2D snapshot fields on a plain
+# `TimeInterval(0.6)`. A *budget* writer outputs only the (cheap) integrated scalars on
+# `ConsecutiveIterations(TimeInterval(0.6))` — i.e. a second sample one model step after each
+# scheduled time — which lets us finite-difference the integrated quantities across that single
+# step to estimate ``d/dt`` without time-integration accumulators. Separating the two avoids
+# writing the heavy 2D fields twice per output time.
 
 using NCDatasets
 filename = "two_dimensional_turbulence"
-simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
+
+simulation.output_writers[:nc] = NetCDFWriter(model, (; speed, vorticity, KE, c),
                                               filename = joinpath(@__DIR__, filename),
-                                              schedule = ConsecutiveIterations(TimeInterval(0.6)),
+                                              schedule = TimeInterval(0.6),
                                               overwrite_existing = true)
+
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫KE, ∫c², ∫ε, ∫χ),
+                                                  filename = joinpath(@__DIR__, filename * "_budget"),
+                                                  schedule = ConsecutiveIterations(TimeInterval(0.6)),
+                                                  overwrite_existing = true)
 
 
 # ## Run the simulation and process results
@@ -135,30 +144,35 @@ simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
 
 run!(simulation)
 
-# Read snapshot fields and the integrated scalars.
+# Read visualization snapshots from the `:nc` writer.
 
-filepath    = simulation.output_writers[:nc].filepath
-speed_t     = FieldTimeSeries(filepath, "speed")
-vorticity_t = FieldTimeSeries(filepath, "vorticity")
-KE_t        = FieldTimeSeries(filepath, "KE")
-c_t         = FieldTimeSeries(filepath, "c")
+snap_filepath = simulation.output_writers[:nc].filepath
+speed_t       = FieldTimeSeries(snap_filepath, "speed")
+vorticity_t   = FieldTimeSeries(snap_filepath, "vorticity")
+KE_t          = FieldTimeSeries(snap_filepath, "KE")
+c_t           = FieldTimeSeries(snap_filepath, "c")
 
-ds = NCDataset(filepath)
+ds = NCDataset(snap_filepath)
 times = ds["time"][:]
-∫KE_t = ds["∫KE"][:]
-∫c²_t = ds["∫c²"][:]
-∫ε_t  = ds["∫ε"][:]
-∫χ_t  = ds["∫χ"][:]
 close(ds)
 
-# `ConsecutiveIterations` arranges the snapshot times in pairs:
-# `(t₀, t₀+Δt_model, t₀+0.6, t₀+0.6+Δt_model, …)`. Pair `k` has indices `(2k-1, 2k)`; we obtain
-# ``d/dt`` from a one-step finite difference inside each pair, evaluated at the pair midpoint.
+# Read the integrated-quantity scalars from the `:budget` writer. These come in consecutive-
+# iteration pairs: `(t₀, t₀+Δt_model, t₀+0.6, t₀+0.6+Δt_model, …)`. Pair `k` has indices
+# `(2k-1, 2k)`; we obtain ``d/dt`` from a one-step finite difference inside each pair.
 
-idx1     = 1:2:length(times) - 1   # primary snapshots
-idx2     = 2:2:length(times)       # consecutive-iteration snapshots
-Δt_pair  = times[idx2] .- times[idx1]
-t_pair   = @. 0.5 * (times[idx1] + times[idx2])
+bud_filepath = simulation.output_writers[:budget].filepath
+ds_bud = NCDataset(bud_filepath)
+times_bud = ds_bud["time"][:]
+∫KE_t = ds_bud["∫KE"][:]
+∫c²_t = ds_bud["∫c²"][:]
+∫ε_t  = ds_bud["∫ε"][:]
+∫χ_t  = ds_bud["∫χ"][:]
+close(ds_bud)
+
+idx1     = 1:2:length(times_bud) - 1   # primary snapshots
+idx2     = 2:2:length(times_bud)       # consecutive-iteration snapshots
+Δt_pair  = times_bud[idx2] .- times_bud[idx1]
+t_pair   = @. 0.5 * (times_bud[idx1] + times_bud[idx2])
 
 dKEdt    = (∫KE_t[idx2] .- ∫KE_t[idx1]) ./ Δt_pair
 dc²dt    = (∫c²_t[idx2] .- ∫c²_t[idx1]) ./ Δt_pair
@@ -190,15 +204,14 @@ ax_ω     = Axis(fig[2, 2]; title = "Vorticity",      axis_kwargs...)
 ax_KE    = Axis(fig[2, 3]; title = "Kinetic energy", axis_kwargs...)
 ax_c     = Axis(fig[2, 4]; title = "Tracer c",       axis_kwargs...)
 
-# Animate only the primary snapshots (one frame per pair) — the consecutive iterations are
-# essentially identical to their pair-mates by eye.
+# Each frame is one visualization snapshot.
 
 n = Observable(1)
 
-speedₙ = @lift speed_t[idx1[$n]]
-ωₙ     = @lift vorticity_t[idx1[$n]]
-KEₙ    = @lift KE_t[idx1[$n]]
-cₙ     = @lift c_t[idx1[$n]]
+speedₙ = @lift speed_t[$n]
+ωₙ     = @lift vorticity_t[$n]
+KEₙ    = @lift KE_t[$n]
+cₙ     = @lift c_t[$n]
 
 hm_speed = heatmap!(ax_speed, speedₙ, colormap = :magma, colorrange=(0, 1.5))
 Colorbar(fig[3, 1], hm_speed; vertical=false, height=8, ticklabelsize=12)
@@ -230,20 +243,20 @@ lines!(ax_c²bud, t_pair, -χ_pair, label = "-∫χ dV")
 lines!(ax_c²bud, t_pair, c²_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_c²bud; labelsize = 10, position = :rb)
 
-# Time marker on both budget panels
+# Time marker on both budget panels (using the snapshot time shown in the heatmaps)
 
-tₙ = @lift t_pair[$n]
+tₙ = @lift times[$n]
 vlines!(ax_KEbud, tₙ, color = :black, linestyle = :dot)
 vlines!(ax_c²bud, tₙ, color = :black, linestyle = :dot)
 
-title = @lift "Time = " * string(round(t_pair[$n], digits=2))
+title = @lift "Time = " * string(round(times[$n], digits=2))
 Label(fig[1, 1:4], title, fontsize=24, tellwidth=false);
 
 # Adjust the total figure size based on our panels and record a movie.
 
 resize_to_layout!(fig)
 @info "Animating..."
-record(fig, filename * ".mp4", 1:length(t_pair), framerate=24) do i
+record(fig, filename * ".mp4", 1:length(times), framerate=24) do i
     n[] = i
 end
 nothing #hide
