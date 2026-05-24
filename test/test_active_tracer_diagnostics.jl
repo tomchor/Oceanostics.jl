@@ -84,10 +84,12 @@ function test_buoyancy_diagnostics(model)
     @test PVtw isa ErtelPotentialVorticity
     @test Field(PVtw) isa Field
 
-    PVtw = ErtelPotentialVorticity(model, u, v, w, b, FPlane(f=1e-4); thermal_wind = true)
+    PVtw = ErtelPotentialVorticity(model, u, v, b, FPlane(f=1e-4))
     @test PVtw isa ThermalWindPotentialVorticity
     @test PVtw isa ErtelPotentialVorticity
     @test Field(PVtw) isa Field
+
+    @test_throws ArgumentError ErtelPotentialVorticity(model, u, v, b, FPlane(f=1e-4); thermal_wind = false)
 
     DEPV = DirectionalErtelPotentialVorticity(model, (0, 0, 1))
     @test DEPV isa DirectionalErtelPotentialVorticity

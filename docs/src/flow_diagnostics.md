@@ -115,6 +115,7 @@ the thermal-wind variant can still be identified by type.
 
 ```@docs
 Oceanostics.FlowDiagnostics.ErtelPotentialVorticity
+Oceanostics.FlowDiagnostics.ThermalWindPotentialVorticity
 ```
 
 ### Directional Ertel potential vorticity

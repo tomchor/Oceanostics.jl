@@ -199,6 +199,14 @@ end
     return pv_x + pv_y + pv_z
 end
 
+"""
+    ThermalWindPotentialVorticity
+
+Narrower type alias matching only the thermal-wind variant of
+[`ErtelPotentialVorticity`](@ref). Useful for identifying or dispatching on the
+thermal-wind variant via `isa`. Construct via
+`ErtelPotentialVorticity(model; thermal_wind = true)`.
+"""
 const ThermalWindPotentialVorticity = CustomKFO{<:typeof(potential_vorticity_in_thermal_wind_fff)}
 
 const ErtelPotentialVorticity = CustomKFO{<:Union{typeof(ertel_potential_vorticity_fff),
@@ -223,9 +231,9 @@ If `thermal_wind = true`, the thermal-wind approximation is used instead, giving
 ```
 
 where `f` is the (vertical component of the) Coriolis frequency, `ωᶻ` is the vertical relative vorticity,
-and `∂U/∂z`, `∂V/∂z` comprise the thermal wind shear. The returned object is still a subtype of
-`ErtelPotentialVorticity`, and additionally a `ThermalWindPotentialVorticity` so it can be identified
-separately.
+and `∂U/∂z`, `∂V/∂z` comprise the thermal wind shear. The returned object is an instance of both
+`ErtelPotentialVorticity` and `ThermalWindPotentialVorticity`, so the thermal-wind variant can be
+identified separately.
 
 ```jldoctest
 julia> using Oceananigans
@@ -287,6 +295,14 @@ function ErtelPotentialVorticity(model, u, v, w, tracer, coriolis; thermal_wind 
     end
     return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid,
                                                      u, v, w, tracer, fx, fy, fz)
+end
+
+function ErtelPotentialVorticity(model, u, v, tracer, coriolis; thermal_wind = true, loc = (Face, Face, Face))
+    thermal_wind || throw(ArgumentError("ErtelPotentialVorticity called without `w` requires `thermal_wind = true`"))
+    validate_location(loc, "ErtelPotentialVorticity", (Face, Face, Face))
+    _, _, fz = get_coriolis_frequency_components(coriolis)
+    return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid,
+                                                     u, v, tracer, fz)
 end
 
 @inline function directional_ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, params)
