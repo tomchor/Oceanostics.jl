@@ -14,6 +14,7 @@ export Iteration, SimulationTime, TimeStep, PercentageProgress, Walltime, StepDu
 export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber, BasicStabilityMessenger, StabilityMessenger
 export CourantNumber, NormalizedMaxViscosity
 export BasicMessenger, SingleLineMessenger, TimedMessenger
+export NUMBER_CRAYON, set_number_color!, @crayon_str
 
 abstract type AbstractProgressMessenger end
 
@@ -22,16 +23,31 @@ space = ""
 indented_newline = "\n          "
 
 #+++ ColoredNumber wrapper
-const NUMBER_CRAYON = crayon"bold cyan"
+"""
+    NUMBER_CRAYON :: Ref{Crayon}
 
-# Wraps a formatted-number string so it renders in NUMBER_CRAYON. Concatenation
+Process-global `Crayon` used to color numeric values in progress messenger
+output. Reassign with `set_number_color!` (or `NUMBER_CRAYON[] = ...`) to
+change the color at runtime.
+"""
+const NUMBER_CRAYON = Ref(crayon"light_blue")
+
+"""
+    set_number_color!(c::Crayon)
+
+Configure the `Crayon` used for numeric values in progress messenger output.
+Takes effect immediately for subsequent messenger calls.
+"""
+set_number_color!(c::Crayon) = (NUMBER_CRAYON[] = c)
+
+# Wraps a formatted-number string so it renders in NUMBER_CRAYON[]. Concatenation
 # with `String` returns a `String` with the ANSI codes baked in, so the
 # existing `+`/`*` messenger composition works unchanged.
 struct ColoredNumber
     str :: String
 end
 
-Base.string(cn::ColoredNumber) = string(NUMBER_CRAYON, cn.str, inv(NUMBER_CRAYON))
+Base.string(cn::ColoredNumber) = string(NUMBER_CRAYON[], cn.str, inv(NUMBER_CRAYON[]))
 Base.print(io::IO, cn::ColoredNumber) = print(io, string(cn))
 *(s::AbstractString, cn::ColoredNumber) = s * string(cn)
 *(cn::ColoredNumber, s::AbstractString) = string(cn) * s

@@ -45,6 +45,38 @@ julia> typeof(progress) <: Oceanostics.ProgressMessengers.AbstractProgressMessen
 true
 ```
 
+## Colored numeric output
+
+Numeric values produced by every messenger are rendered in a distinct terminal
+color (light blue by default) so they stand out from the surrounding labels and
+units. The color is controlled by a single process-global `Crayon` and can be
+changed at runtime:
+
+```julia
+using Oceanostics.ProgressMessengers
+
+set_number_color!(crayon"bold magenta")             # named color, bold
+set_number_color!(Crayon(foreground = (255, 128, 0))) # 24-bit RGB
+```
+
+The `@crayon_str` string macro is re-exported from `ProgressMessengers`, so the
+`crayon"…"` form works without adding [Crayons.jl](https://github.com/KristofferC/Crayons.jl)
+as a direct dependency. Any messenger — pre-built or one you write yourself —
+picks up the new color on the next call.
+
+To turn coloring off, assign a no-op crayon:
+
+```julia
+set_number_color!(Crayon())
+```
+
+Notes:
+- `NUMBER_CRAYON` is process-global; concurrent simulations in the same Julia
+  process share one color.
+- Output captured to non-TTY destinations (log files, some CI consoles) will
+  contain raw ANSI escape sequences. Set a no-op crayon as above to keep logs
+  plain.
+
 ## Pre-built messengers
 
 | Type                  | Description |
