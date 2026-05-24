@@ -55,7 +55,7 @@ and units:
 using Oceananigans, Oceanostics, Oceanostics.ProgressMessengers
 
 grid  = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
-model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-6, κ=1e-7))
+model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-6, κ=1e-7))
 sim   = Simulation(model; Δt=0.01, stop_iteration=10)
 
 println(BasicMessenger(print=false)(sim))
