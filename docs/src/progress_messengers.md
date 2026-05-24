@@ -49,22 +49,39 @@ true
 
 Numeric values produced by every messenger are rendered in a distinct terminal
 color (light yellow by default) so they stand out from the surrounding labels
-and units. The color is controlled by a single process-global `Crayon` and can
-be changed at runtime:
+and units:
 
-```julia
-using Oceanostics.ProgressMessengers
+```@example pm_color
+using Oceananigans, Oceanostics, Oceanostics.ProgressMessengers
 
-set_number_color!(crayon"bold magenta")             # named color, bold
-set_number_color!(Crayon(foreground = (255, 128, 0))) # 24-bit RGB
+grid  = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
+model = NonhydrostaticModel(; grid, closure=ScalarDiffusivity(ν=1e-6, κ=1e-7))
+sim   = Simulation(model; Δt=0.01, stop_iteration=10)
+
+println(BasicMessenger(print=false)(sim))
 ```
 
-The `@crayon_str` string macro is re-exported from `ProgressMessengers`, so the
-`crayon"…"` form works without adding [Crayons.jl](https://github.com/KristofferC/Crayons.jl)
-as a direct dependency. Any messenger — pre-built or one you write yourself —
-picks up the new color on the next call.
+The color is controlled by a single process-global `Crayon` and can be changed
+at runtime with `set_number_color!`. Any messenger — pre-built or one you write
+yourself — picks up the new color on the next call:
 
-To turn coloring off, assign a no-op crayon:
+```@example pm_color
+set_number_color!(crayon"bold magenta")
+println(BasicMessenger(print=false)(sim))
+```
+
+24-bit RGB works too:
+
+```@example pm_color
+set_number_color!(Crayon(foreground = (255, 128, 0)))   # orange
+println(BasicMessenger(print=false)(sim))
+```
+
+Both the `@crayon_str` string macro and the `Crayon` constructor are re-exported
+from `ProgressMessengers`, so users don't need to add
+[Crayons.jl](https://github.com/KristofferC/Crayons.jl) as a direct dependency.
+
+To disable colors entirely, assign a no-op crayon:
 
 ```julia
 set_number_color!(Crayon())
@@ -74,7 +91,7 @@ Notes:
 - `NUMBER_CRAYON` is process-global; concurrent simulations in the same Julia
   process share one color.
 - Output captured to non-TTY destinations (log files, some CI consoles) will
-  contain raw ANSI escape sequences. Set a no-op crayon as above to keep logs
+  contain raw ANSI escape sequences. Use the no-op crayon above to keep logs
   plain.
 
 ## Pre-built messengers
