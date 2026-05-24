@@ -1,8 +1,6 @@
 # # [Two-dimensional turbulence example](@id two_d_turbulence_example)
 #
-# In this example (based on the homonymous [Oceananigans
-# one](https://clima.github.io/OceananigansDocumentation/stable/literated/two_dimensional_turbulence/))
-# we simulate a 2D flow initialized with random-noise velocities and a passive tracer ``c`` with
+# In this example we simulate a 2D flow initialized with random-noise velocities and a passive tracer ``c`` with
 # a smooth sine/cosine initial condition. We then use Oceanostics to close the volume-integrated
 # kinetic-energy and tracer-variance (``c^2``) budgets.
 #
@@ -17,14 +15,13 @@
 # ## Model and simulation setup
 
 # We begin by creating a model with an isotropic diffusivity and a fourth-order centered
-# advection scheme on a 128² grid, with one passive tracer `c`. Using a centered (rather than
-# upwind) scheme means the advection terms volume-integrate to zero exactly, so the
-# volume-integrated KE and ``c^2`` budgets reduce to purely dissipative balances and we can
-# close them against ``\varepsilon`` and ``\chi`` alone.
+# advection scheme on a 256² grid, with one passive tracer `c`. Using a centered scheme
+# avoids numerical dissipation, so the volume-integrated KE and ``c^2`` budgets reduce to purely
+# dissipative balances and we can close them against ``\varepsilon`` and ``\chi`` alone.
 
 using Oceananigans
 
-grid = RectilinearGrid(size=(128, 128), extent=(2π, 2π), topology=(Periodic, Periodic, Flat))
+grid = RectilinearGrid(size=(256, 256), extent=(2π, 2π), topology=(Periodic, Periodic, Flat))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = Centered(order=4),
@@ -44,11 +41,11 @@ c = model.tracers.c
 
 Random.seed!(772)
 N_blobs = 32
-σ_blob  = 10 * (2π / grid.Nx)            # blob width: ~4 grid cells
-xc      = grid.Lx * rand(N_blobs)        # random centers in [0, 2π)²
+σ_blob  = 10 * minimum_xspacing(grid)
+xc      = grid.Lx * rand(N_blobs)
 yc      = grid.Ly * rand(N_blobs)
-amp_u   = randn(N_blobs)            # random Gaussian amplitudes for u
-amp_v   = randn(N_blobs)            # ... and for v
+amp_u   = randn(N_blobs) # random Gaussian amplitudes for u
+amp_v   = randn(N_blobs) # ... and for v
 
 # Sum of blobs and their periodic images at (dx, dy) ∈ {-2π, 0, 2π}²
 blob_sum(x, y, amp) = sum(amp[k] * exp(-((x - xc[k] - dx)^2 + (y - yc[k] - dy)^2) / σ_blob^2)
@@ -65,8 +62,8 @@ v .-= mean(v)
 
 # We use this model to create a simulation with a `TimeStepWizard` to maximize the Δt
 
-Δt = 0.2 * minimum_xspacing(grid) / maximum(u)
-simulation = Simulation(model; Δt, stop_time=50)
+Δt = 0.2 * minimum_xspacing(grid) / maximum(u) # Start with a conservative Δt
+simulation = Simulation(model; Δt, stop_time=100)
 
 wizard = TimeStepWizard(cfl=0.8, diffusive_cfl=0.8)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
@@ -83,12 +80,16 @@ using Oceanostics
 progress = ProgressMessengers.BasicMessenger()
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 
-# We define the visualization fields — the kinetic energy `KE` and its dissipation rate `ε` —
-# and the tracer-variance dissipation rate `χ`, which we will use to close the ``c^2`` budget.
+# We define the visualization fields — speed, vorticity, kinetic energy `KE` — and the
+# dissipation rates `ε` and `χ`, which we will use to close the budgets.
 
-KE = KineticEnergyEquation.KineticEnergy(model)
-ε  = KineticEnergyEquation.DissipationRate(model)
-χ  = TracerVarianceEquation.TracerVarianceDissipationRate(model, :c)
+using Oceananigans.AbstractOperations: @at
+
+speed     = @at (Center, Center, Center) sqrt(u^2 + v^2)
+vorticity = ∂x(v) - ∂y(u)
+KE        = KineticEnergyEquation.KineticEnergy(model)
+ε         = KineticEnergyEquation.DissipationRate(model)
+χ         = TracerVarianceEquation.TracerVarianceDissipationRate(model, :c)
 
 # To close the budgets we also define the relevant volume integrals as scalar outputs. For a 2D
 # periodic domain with no forcing or buoyancy, advection and pressure-redistribution terms
@@ -105,18 +106,12 @@ KE = KineticEnergyEquation.KineticEnergy(model)
 ∫ε  = Integral(ε)
 ∫χ  = Integral(χ)
 
-# A spatial low-pass filter applied to `KE` — illustrates that filtering and the (nonlinear) KE
-# operator do not commute.
-
-σ = π/8
-KE_filt = GaussianFilter(KE, dims=(1, 2), σ=σ)
-
 # We output snapshots in consecutive-iteration pairs every 0.6 time units. The
 # `ConsecutiveIterations` schedule writes a second snapshot one model step after each scheduled
 # output time, which lets us finite-difference the integrated quantities across that single
 # step to estimate ``d/dt`` accurately — no time-integration accumulator is needed.
 
-output_fields = (; KE, ε, c, KE_filt, ∫KE, ∫c², ∫ε, ∫χ)
+output_fields = (; speed, vorticity, KE, c, ∫KE, ∫c², ∫ε, ∫χ)
 
 using NCDatasets
 filename = "two_dimensional_turbulence"
@@ -134,11 +129,11 @@ run!(simulation)
 
 # Read snapshot fields and the integrated scalars.
 
-filepath  = simulation.output_writers[:nc].filepath
-KE_t      = FieldTimeSeries(filepath, "KE")
-ε_t       = FieldTimeSeries(filepath, "ε")
-c_t       = FieldTimeSeries(filepath, "c")
-KE_filt_t = FieldTimeSeries(filepath, "KE_filt")
+filepath    = simulation.output_writers[:nc].filepath
+speed_t     = FieldTimeSeries(filepath, "speed")
+vorticity_t = FieldTimeSeries(filepath, "vorticity")
+KE_t        = FieldTimeSeries(filepath, "KE")
+c_t         = FieldTimeSeries(filepath, "c")
 
 ds = NCDataset(filepath)
 times = ds["time"][:]
@@ -148,21 +143,21 @@ times = ds["time"][:]
 ∫χ_t  = ds["∫χ"][:]
 close(ds)
 
-# `ConsecutiveIterations(TimeInterval(0.6))` arranges the snapshot times in pairs:
+# `ConsecutiveIterations` arranges the snapshot times in pairs:
 # `(t₀, t₀+Δt_model, t₀+0.6, t₀+0.6+Δt_model, …)`. Pair `k` has indices `(2k-1, 2k)`; we obtain
 # ``d/dt`` from a one-step finite difference inside each pair, evaluated at the pair midpoint.
 
-idx1   = 1:2:length(times)-1     # primary snapshots
-idx2   = 2:2:length(times)       # consecutive-iteration snapshots
-Δt_pair = times[idx2] .- times[idx1]
-t_pair  = @. 0.5 * (times[idx1] + times[idx2])
+idx1     = 1:2:length(times) - 1   # primary snapshots
+idx2     = 2:2:length(times)       # consecutive-iteration snapshots
+Δt_pair  = times[idx2] .- times[idx1]
+t_pair   = @. 0.5 * (times[idx1] + times[idx2])
 
-dKEdt  = (∫KE_t[idx2] .- ∫KE_t[idx1]) ./ Δt_pair
-dc²dt  = (∫c²_t[idx2] .- ∫c²_t[idx1]) ./ Δt_pair
+dKEdt    = (∫KE_t[idx2] .- ∫KE_t[idx1]) ./ Δt_pair
+dc²dt    = (∫c²_t[idx2] .- ∫c²_t[idx1]) ./ Δt_pair
 
 # Source terms at the pair midpoint
-ε_pair = @. 0.5 * (∫ε_t[idx1] + ∫ε_t[idx2])
-χ_pair = @. 0.5 * (∫χ_t[idx1] + ∫χ_t[idx2])
+ε_pair   = @. 0.5 * (∫ε_t[idx1] + ∫ε_t[idx2])
+χ_pair   = @. 0.5 * (∫χ_t[idx1] + ∫χ_t[idx2])
 
 KE_resid = @. dKEdt - (-ε_pair)
 c²_resid = @. dc²dt - (-χ_pair)
@@ -181,38 +176,38 @@ axis_kwargs = (xlabel = "x", ylabel = "y",
                aspect = DataAspect(),
                height = 250, width = 250)
 
-ax_KE = Axis(fig[2, 1]; title = "Kinetic energy",      axis_kwargs...)
-ax_ε  = Axis(fig[2, 2]; title = "KE dissipation rate", axis_kwargs...)
-ax_c  = Axis(fig[4, 1]; title = "Tracer c",            axis_kwargs...)
-ax_Kf = Axis(fig[4, 2]; title = "GaussianFilter(KE)",  axis_kwargs...)
+ax_speed = Axis(fig[2, 1]; title = "Speed",          axis_kwargs...)
+ax_ω     = Axis(fig[2, 2]; title = "Vorticity",      axis_kwargs...)
+ax_KE    = Axis(fig[2, 3]; title = "Kinetic energy", axis_kwargs...)
+ax_c     = Axis(fig[2, 4]; title = "Tracer c",       axis_kwargs...)
 
 # Animate only the primary snapshots (one frame per pair) — the consecutive iterations are
 # essentially identical to their pair-mates by eye.
 
 n = Observable(1)
 
-KEₙ      = @lift KE_t[idx1[$n]]
-εₙ       = @lift ε_t[idx1[$n]]
-cₙ       = @lift c_t[idx1[$n]]
-KE_filtₙ = @lift KE_filt_t[idx1[$n]]
+speedₙ = @lift speed_t[idx1[$n]]
+ωₙ     = @lift vorticity_t[idx1[$n]]
+KEₙ    = @lift KE_t[idx1[$n]]
+cₙ     = @lift c_t[idx1[$n]]
 
-hm_KE = heatmap!(ax_KE, KEₙ, colormap = :plasma, colorrange=(0, 5e-2))
-Colorbar(fig[3, 1], hm_KE; vertical=false, height=8, ticklabelsize=12)
+hm_speed = heatmap!(ax_speed, speedₙ, colormap = :magma, colorrange=(0, 1.5))
+Colorbar(fig[3, 1], hm_speed; vertical=false, height=8, ticklabelsize=12)
 
-hm_ε = heatmap!(ax_ε, εₙ, colormap = :inferno, colorrange=(0, 5e-5))
-Colorbar(fig[3, 2], hm_ε; vertical=false, height=8, ticklabelsize=12)
+hm_ω = heatmap!(ax_ω, ωₙ, colormap = :balance, colorrange=(-10, 10))
+Colorbar(fig[3, 2], hm_ω; vertical=false, height=8, ticklabelsize=12)
+
+hm_KE = heatmap!(ax_KE, KEₙ, colormap = :plasma, colorrange=(0, 0.5))
+Colorbar(fig[3, 3], hm_KE; vertical=false, height=8, ticklabelsize=12)
 
 hm_c = heatmap!(ax_c, cₙ, colormap = :balance, colorrange=(-1.5, 1.5))
-Colorbar(fig[5, 1], hm_c; vertical=false, height=8, ticklabelsize=12)
-
-hm_Kf = heatmap!(ax_Kf, KE_filtₙ, colormap = :plasma, colorrange=(0, 2e-2))
-Colorbar(fig[5, 2], hm_Kf; vertical=false, height=8, ticklabelsize=12)
+Colorbar(fig[3, 4], hm_c; vertical=false, height=8, ticklabelsize=12)
 
 # Volume-integrated KE budget — `d(∫KE)/dt` against `-∫ε dV`, with the residual.
 
-budget_kwargs = (xlabel = "Time", height = 180, width = 540)
+budget_kwargs = (xlabel = "Time", height = 180, width = 1080)
 
-ax_KEbud = Axis(fig[6, 1:2]; title = "Volume-integrated KE budget", budget_kwargs...)
+ax_KEbud = Axis(fig[4, 1:4]; title = "Volume-integrated KE budget", budget_kwargs...)
 lines!(ax_KEbud, t_pair, dKEdt,   label = "d(∫KE)/dt")
 lines!(ax_KEbud, t_pair, -ε_pair, label = "-∫ε dV")
 lines!(ax_KEbud, t_pair, KE_resid, label = "residual", color = :black, linestyle = :dash)
@@ -220,7 +215,7 @@ axislegend(ax_KEbud; labelsize = 10, position = :rb)
 
 # Volume-integrated c² budget — `d(∫c²)/dt` against `-∫χ dV`, with the residual.
 
-ax_c²bud = Axis(fig[7, 1:2]; title = "Volume-integrated ∫c² budget", budget_kwargs...)
+ax_c²bud = Axis(fig[5, 1:4]; title = "Volume-integrated ∫c² budget", budget_kwargs...)
 lines!(ax_c²bud, t_pair, dc²dt,   label = "d(∫c²)/dt")
 lines!(ax_c²bud, t_pair, -χ_pair, label = "-∫χ dV")
 lines!(ax_c²bud, t_pair, c²_resid, label = "residual", color = :black, linestyle = :dash)
@@ -233,7 +228,7 @@ vlines!(ax_KEbud, tₙ, color = :black, linestyle = :dot)
 vlines!(ax_c²bud, tₙ, color = :black, linestyle = :dot)
 
 title = @lift "Time = " * string(round(t_pair[$n], digits=2))
-Label(fig[1, 1:2], title, fontsize=24, tellwidth=false);
+Label(fig[1, 1:4], title, fontsize=24, tellwidth=false);
 
 # Adjust the total figure size based on our panels and record a movie.
 
