@@ -100,6 +100,14 @@ KE        = KineticEnergyEquation.KineticEnergy(model)
 # \frac{d}{dt} \int \mathrm{KE}\, dV = -\int \varepsilon\, dV,\qquad
 # \frac{d}{dt} \int c^2\, dV = -\int \chi\, dV.
 # ```
+#
+# A caveat: a discretized version of the continuum KE equation (such as the one above) is not guaranteed to exactly conserve energy at
+# the *discrete* level. To get strict discrete conservation of energy one would have to derive a discrete
+# KE equation directly from the discrete momentum equations — using both the current and
+# previous time-step velocities. We are not doing that here: we compute ``\varepsilon``
+# from the current model state and finite-difference snapshots of ``\int \mathrm{KE}\, dV``
+# independently. The two relations are consistent in the continuum limit but only approximately
+# at the discrete level, so we expect the KE budget to close only approximately.
 
 ∫KE = Integral(KE)
 ∫c² = Integral(c^2)
