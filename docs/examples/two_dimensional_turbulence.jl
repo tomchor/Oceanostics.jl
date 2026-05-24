@@ -63,7 +63,7 @@ v .-= mean(v)
 # We use this model to create a simulation with a `TimeStepWizard` to maximize the Δt
 
 Δt = 0.2 * minimum_xspacing(grid) / maximum(u) # Start with a conservative Δt
-simulation = Simulation(model; Δt, stop_time=100)
+simulation = Simulation(model; Δt, stop_time=80)
 
 wizard = TimeStepWizard(cfl=0.8, diffusive_cfl=0.8)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
@@ -172,9 +172,10 @@ using CairoMakie
 set_theme!(Theme(fontsize = 20))
 fig = Figure()
 
-axis_kwargs = (xlabel = "x", ylabel = "y",
-               aspect = DataAspect(),
-               height = 250, width = 250)
+axis_kwargs = (aspect = DataAspect(),
+               height = 250, width = 250,
+               xticksvisible = false, yticksvisible = false,
+               xticklabelsvisible = false, yticklabelsvisible = false)
 
 ax_speed = Axis(fig[2, 1]; title = "Speed",          axis_kwargs...)
 ax_ω     = Axis(fig[2, 2]; title = "Vorticity",      axis_kwargs...)
@@ -205,7 +206,7 @@ Colorbar(fig[3, 4], hm_c; vertical=false, height=8, ticklabelsize=12)
 
 # Volume-integrated KE budget — `d(∫KE)/dt` against `-∫ε dV`, with the residual.
 
-budget_kwargs = (xlabel = "Time", height = 180, width = 1080)
+budget_kwargs = (height = 180, width = 1080)
 
 ax_KEbud = Axis(fig[4, 1:4]; title = "Volume-integrated KE budget", budget_kwargs...)
 lines!(ax_KEbud, t_pair, dKEdt,   label = "d(∫KE)/dt")
@@ -215,7 +216,7 @@ axislegend(ax_KEbud; labelsize = 10, position = :rb)
 
 # Volume-integrated c² budget — `d(∫c²)/dt` against `-∫χ dV`, with the residual.
 
-ax_c²bud = Axis(fig[5, 1:4]; title = "Volume-integrated ∫c² budget", budget_kwargs...)
+ax_c²bud = Axis(fig[5, 1:4]; title = "Volume-integrated ∫c² budget", xlabel = "Time", budget_kwargs...)
 lines!(ax_c²bud, t_pair, dc²dt,   label = "d(∫c²)/dt")
 lines!(ax_c²bud, t_pair, -χ_pair, label = "-∫χ dV")
 lines!(ax_c²bud, t_pair, c²_resid, label = "residual", color = :black, linestyle = :dash)
