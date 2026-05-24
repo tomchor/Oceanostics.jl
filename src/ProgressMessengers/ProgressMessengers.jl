@@ -14,7 +14,7 @@ export Iteration, SimulationTime, TimeStep, PercentageProgress, Walltime, StepDu
 export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber, BasicStabilityMessenger, StabilityMessenger
 export CourantNumber, NormalizedMaxViscosity
 export BasicMessenger, SingleLineMessenger, TimedMessenger
-export NUMBER_CRAYON, set_number_color!, @crayon_str
+export NUMBER_CRAYON, set_number_color!, Crayon, @crayon_str
 
 abstract type AbstractProgressMessenger end
 
@@ -30,7 +30,7 @@ Process-global `Crayon` used to color numeric values in progress messenger
 output. Reassign with `set_number_color!` (or `NUMBER_CRAYON[] = ...`) to
 change the color at runtime.
 """
-const NUMBER_CRAYON = Ref(crayon"light_blue")
+const NUMBER_CRAYON = Ref(crayon"light_yellow")
 
 """
     set_number_color!(c::Crayon)
@@ -82,8 +82,8 @@ const StringOrProgressMessenger = Union{String, AbstractProgressMessenger}
 @inline *(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = FunctionMessenger(sim -> a      * space * b(sim))
 #---
 
-return_or_print(message, pm::AbstractProgressMessenger) = pm.print ? (@info message) : (return message)
-return_or_print(message) = return message
+return_or_print(message, pm::AbstractProgressMessenger) = pm.print ? (@info message) : (return string(message))
+return_or_print(message) = return string(message)
 
 include("velocities.jl")
 include("timing.jl")

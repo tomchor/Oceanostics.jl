@@ -48,9 +48,9 @@ true
 ## Colored numeric output
 
 Numeric values produced by every messenger are rendered in a distinct terminal
-color (light blue by default) so they stand out from the surrounding labels and
-units. The color is controlled by a single process-global `Crayon` and can be
-changed at runtime:
+color (light yellow by default) so they stand out from the surrounding labels
+and units. The color is controlled by a single process-global `Crayon` and can
+be changed at runtime:
 
 ```julia
 using Oceanostics.ProgressMessengers
