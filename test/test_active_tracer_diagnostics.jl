@@ -79,12 +79,14 @@ function test_buoyancy_diagnostics(model)
     @test EPV_field isa Field
     @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
 
-    PVtw = ThermalWindPotentialVorticity(model)
+    PVtw = ErtelPotentialVorticity(model; thermal_wind = true)
     @test PVtw isa ThermalWindPotentialVorticity
+    @test PVtw isa ErtelPotentialVorticity
     @test Field(PVtw) isa Field
 
-    PVtw = ThermalWindPotentialVorticity(model, u, v, b, FPlane(f=1e-4))
+    PVtw = ErtelPotentialVorticity(model, u, v, w, b, FPlane(f=1e-4); thermal_wind = true)
     @test PVtw isa ThermalWindPotentialVorticity
+    @test PVtw isa ErtelPotentialVorticity
     @test Field(PVtw) isa Field
 
     DEPV = DirectionalErtelPotentialVorticity(model, (0, 0, 1))

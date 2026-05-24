@@ -180,34 +180,6 @@ end
     return pv_barot + pv_baroc
 end
 
-const ThermalWindPotentialVorticity = CustomKFO{<:typeof(potential_vorticity_in_thermal_wind_fff)}
-
-"""
-    $(SIGNATURES)
-
-Calculate the Potential Vorticty assuming thermal wind balance for `model`, where the characteristics of
-the Coriolis rotation are taken from `model.coriolis`. The Potential Vorticity in this case
-is defined as
-
-```
-    TWPV = (f + ωᶻ) ∂b/∂z - f ((∂U/∂z)² + (∂V/∂z)²)
-```
-where `f` is the Coriolis frequency, `ωᶻ` is the relative vorticity in the `z` direction, `b` is the buoyancy, and
-`∂U/∂z` and `∂V/∂z` comprise the thermal wind shear.
-"""
-function ThermalWindPotentialVorticity(model; tracer_name = :b, loc = (Face, Face, Face))
-    validate_location(loc, "ThermalWindPotentialVorticity", (Face, Face, Face))
-    u, v, w = model.velocities
-    return ThermalWindPotentialVorticity(model, u, v, model.tracers[tracer_name], model.coriolis; loc)
-end
-
-function ThermalWindPotentialVorticity(model, u, v, tracer, coriolis; loc = (Face, Face, Face))
-    validate_location(loc, "ThermalWindPotentialVorticity", (Face, Face, Face))
-    fx, fy, fz = get_coriolis_frequency_components(coriolis)
-    return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid,
-                                                     u, v, tracer, fz)
-end
-
 @inline function ertel_potential_vorticity_fff(i, j, k, grid, u, v, w, b, fx, fy, fz)
     dWdy =  ℑxᶠᵃᵃ(i, j, k, grid, ∂yᶜᶠᶠ, w) # C, C, F  → C, F, F  → F, F, F
     dVdz =  ℑxᶠᵃᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v) # C, F, C  → C, F, F  → F, F, F
@@ -227,7 +199,10 @@ end
     return pv_x + pv_y + pv_z
 end
 
-const ErtelPotentialVorticity = CustomKFO{<:typeof(ertel_potential_vorticity_fff)}
+const ThermalWindPotentialVorticity = CustomKFO{<:typeof(potential_vorticity_in_thermal_wind_fff)}
+
+const ErtelPotentialVorticity = CustomKFO{<:Union{typeof(ertel_potential_vorticity_fff),
+                                                  typeof(potential_vorticity_in_thermal_wind_fff)}}
 
 """
     $(SIGNATURES)
@@ -240,6 +215,17 @@ is defined as
 
 where ωₜₒₜ is the total (relative + planetary) vorticity vector, `b` is the buoyancy and ∇ is the gradient
 operator.
+
+If `thermal_wind = true`, the thermal-wind approximation is used instead, giving
+
+```
+    EPV = (f + ωᶻ) ∂b/∂z - f ((∂U/∂z)² + (∂V/∂z)²)
+```
+
+where `f` is the (vertical component of the) Coriolis frequency, `ωᶻ` is the vertical relative vorticity,
+and `∂U/∂z`, `∂V/∂z` comprise the thermal wind shear. The returned object is still a subtype of
+`ErtelPotentialVorticity`, and additionally a `ThermalWindPotentialVorticity` so it can be identified
+separately.
 
 ```jldoctest
 julia> using Oceananigans
@@ -286,14 +272,19 @@ Note that EPV values are correctly calculated both in the interior and the bound
 interior and top boundary, EPV = f×N² = 10⁻¹⁰, while EPV = 0 at the bottom boundary since ∂b/∂z
 is zero there.
 """
-function ErtelPotentialVorticity(model; tracer_name = :b, loc = (Face, Face, Face))
+function ErtelPotentialVorticity(model; tracer_name = :b, thermal_wind = false, loc = (Face, Face, Face))
     validate_location(loc, "ErtelPotentialVorticity", (Face, Face, Face))
-    return ErtelPotentialVorticity(model, model.velocities..., model.tracers[tracer_name], model.coriolis; loc)
+    return ErtelPotentialVorticity(model, model.velocities..., model.tracers[tracer_name], model.coriolis;
+                                   thermal_wind, loc)
 end
 
-function ErtelPotentialVorticity(model, u, v, w, tracer, coriolis; loc = (Face, Face, Face))
+function ErtelPotentialVorticity(model, u, v, w, tracer, coriolis; thermal_wind = false, loc = (Face, Face, Face))
     validate_location(loc, "ErtelPotentialVorticity", (Face, Face, Face))
     fx, fy, fz = get_coriolis_frequency_components(coriolis)
+    if thermal_wind
+        return KernelFunctionOperation{Face, Face, Face}(potential_vorticity_in_thermal_wind_fff, model.grid,
+                                                         u, v, tracer, fz)
+    end
     return KernelFunctionOperation{Face, Face, Face}(ertel_potential_vorticity_fff, model.grid,
                                                      u, v, w, tracer, fx, fy, fz)
 end
