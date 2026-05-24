@@ -31,24 +31,42 @@ model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             tracers = :c,
                             closure = ScalarDiffusivity(ν=1e-5, κ=1e-3))
 
-# We give the velocities zero-mean grid-scale white noise as the initial condition and the tracer
-# a smooth sine/cosine pattern.
+# Grid-scale white noise is not really *resolved* by the grid, so instead we build a randomized
+# but well-resolved velocity initial condition as a sum of `N_blobs` Gaussian bumps with random
+# centers and random amplitudes. Each bump is ``\sigma_b \approx 4\Delta x`` wide and the
+# periodic copies of each center are summed in so the resulting field is smooth across the
+# periodic boundary. The tracer keeps a smooth sine/cosine pattern.
 
-using Statistics
+using Random, Statistics
 
 u, v, w = model.velocities
 c = model.tracers.c
 
-noise(x, y) = rand()
+Random.seed!(772)
+N_blobs = 32
+σ_blob  = 10 * (2π / grid.Nx)            # blob width: ~4 grid cells
+xc      = grid.Lx * rand(N_blobs)        # random centers in [0, 2π)²
+yc      = grid.Ly * rand(N_blobs)
+amp_u   = randn(N_blobs)            # random Gaussian amplitudes for u
+amp_v   = randn(N_blobs)            # ... and for v
+
+# Sum of blobs and their periodic images at (dx, dy) ∈ {-2π, 0, 2π}²
+blob_sum(x, y, amp) = sum(amp[k] * exp(-((x - xc[k] - dx)^2 + (y - yc[k] - dy)^2) / σ_blob^2)
+                          for k in 1:N_blobs, dx in (-2π, 0, 2π), dy in (-2π, 0, 2π))
+
+uᵢ(x, y) = blob_sum(x, y, amp_u)
+vᵢ(x, y) = blob_sum(x, y, amp_v)
 cᵢ(x, y) = sin(2x) * cos(3y) + cos(x) * sin(2y)
-set!(model, u=noise, v=noise, c=cᵢ)
+
+set!(model, u=uᵢ, v=vᵢ, c=cᵢ)
 
 u .-= mean(u)
 v .-= mean(v)
 
 # We use this model to create a simulation with a `TimeStepWizard` to maximize the Δt
 
-simulation = Simulation(model, Δt=0.2, stop_time=50)
+Δt = 0.2 * minimum_xspacing(grid) / maximum(u)
+simulation = Simulation(model; Δt, stop_time=50)
 
 wizard = TimeStepWizard(cfl=0.8, diffusive_cfl=0.8)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
