@@ -4,12 +4,14 @@ version = "0.16.13"
 authors = ["tomchor <tomaschor@gmail.com>"]
 
 [deps]
+Crayons = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 SeawaterPolynomials = "d496a93d-167e-4197-9f49-d3af4ff8fe40"
 
 [compat]
+Crayons = "4"
 DocStringExtensions = "0.9"
 Oceananigans = "0.102, 0.103, 0.104, 0.105, 0.106, 0.107"
 SeawaterPolynomials = "0.3"

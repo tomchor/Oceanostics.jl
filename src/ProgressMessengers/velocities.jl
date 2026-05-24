@@ -7,7 +7,7 @@ end
 
 @inline function (mu::MaxUVelocity)(sim)
     u_max = maximum(abs, sim.model.velocities.u)
-    message = @sprintf("%.2e", u_max)
+    message = ColoredNumber(@sprintf("%.2e", u_max))
     mu.with_prefix     && (message = "|u|ₘₐₓ = " * message)
     mu.with_units && (message = message * " m/s")
     return_or_print(message, mu)
@@ -21,7 +21,7 @@ end
 
 @inline function (mv::MaxVVelocity)(sim)
     v_max = maximum(abs, sim.model.velocities.v)
-    message = @sprintf("%.2e", v_max)
+    message = ColoredNumber(@sprintf("%.2e", v_max))
     mv.with_prefix     && (message = "|v|ₘₐₓ = " * message)
     mv.with_units && (message = message * " m/s")
     return_or_print(message, mv)
@@ -35,7 +35,7 @@ end
 
 @inline function (mw::MaxWVelocity)(sim)
     w_max = maximum(abs, sim.model.velocities.w)
-    message = @sprintf("%.2e", w_max)
+    message = ColoredNumber(@sprintf("%.2e", w_max))
     mw.with_prefix     && (message = "|w|ₘₐₓ = " * message)
     mw.with_units && (message = message * " m/s")
     return_or_print(message, mw)

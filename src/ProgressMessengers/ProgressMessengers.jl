@@ -2,6 +2,7 @@ module ProgressMessengers
 using DocStringExtensions
 
 using Printf
+using Crayons
 
 import Base: +, *
 
@@ -19,6 +20,23 @@ abstract type AbstractProgressMessenger end
 comma = ",  "
 space = ""
 indented_newline = "\n          "
+
+#+++ ColoredNumber wrapper
+const NUMBER_CRAYON = crayon"bold cyan"
+
+# Wraps a formatted-number string so it renders in NUMBER_CRAYON. Concatenation
+# with `String` returns a `String` with the ANSI codes baked in, so the
+# existing `+`/`*` messenger composition works unchanged.
+struct ColoredNumber
+    str :: String
+end
+
+Base.string(cn::ColoredNumber) = string(NUMBER_CRAYON, cn.str, inv(NUMBER_CRAYON))
+Base.print(io::IO, cn::ColoredNumber) = print(io, string(cn))
+*(s::AbstractString, cn::ColoredNumber) = s * string(cn)
+*(cn::ColoredNumber, s::AbstractString) = string(cn) * s
+*(a::ColoredNumber, b::ColoredNumber) = string(a) * string(b)
+#---
 
 #+++ FunctionMessenger
 Base.@kwdef struct FunctionMessenger{F} <: AbstractProgressMessenger
