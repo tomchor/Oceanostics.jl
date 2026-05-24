@@ -20,7 +20,7 @@ abstract type AbstractProgressMessenger end
 
 comma = ",  "
 space = ""
-indented_newline = "\n          "
+indented_newline = "\n      "
 
 #+++ ColoredNumber wrapper
 """
