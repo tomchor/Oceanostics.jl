@@ -103,19 +103,18 @@ The full Ertel potential vorticity:
 where ``\boldsymbol{\omega}_{\text{tot}}`` is the absolute (relative + planetary) vorticity.
 Computed at `(Face, Face, Face)`.
 
-```@docs
-Oceanostics.FlowDiagnostics.ErtelPotentialVorticity
-```
-
-### Thermal wind potential vorticity
-
-A simplified PV assuming thermal wind balance:
+Passing `thermal_wind = true` to `ErtelPotentialVorticity` returns the simplified PV that assumes
+thermal wind balance:
 
 ```math
-\text{TWPV} = (f + \omega^z)\,\partial_z b - f\left[(\partial_z U)^2 + (\partial_z V)^2\right]
+\text{EPV} = (f + \omega^z)\,\partial_z b - f\left[(\partial_z U)^2 + (\partial_z V)^2\right]
 ```
 
+The result is a subtype of both `ErtelPotentialVorticity` and `ThermalWindPotentialVorticity`, so
+the thermal-wind variant can still be identified by type.
+
 ```@docs
+Oceanostics.FlowDiagnostics.ErtelPotentialVorticity
 Oceanostics.FlowDiagnostics.ThermalWindPotentialVorticity
 ```
 
