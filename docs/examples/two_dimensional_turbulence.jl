@@ -49,7 +49,7 @@ amp_v   = randn(N_blobs) # ... and for v
 
 # Sum of blobs and their periodic images at (dx, dy) ∈ {-Lx, 0, Lx} × {-Ly, 0, Ly}
 blob_sum(x, y, amp) = sum(amp[k] * exp(-((x - xc[k] - dx)^2 + (y - yc[k] - dy)^2) / σ_blob^2)
-                          for k in 1:N_blobs,
+                          for k  in 1:N_blobs,
                               dx in (-grid.Lx, 0, grid.Lx),
                               dy in (-grid.Ly, 0, grid.Ly))
 
@@ -88,7 +88,7 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 
 using Oceananigans.AbstractOperations: @at
 
-speed     = @at (Center, Center, Center) sqrt(u^2 + v^2)
+speed     = @at (Center, Center, Center) √(u^2 + v^2)
 vorticity = ∂x(v) - ∂y(u)
 KE        = KineticEnergyEquation.KineticEnergy(model)
 ε         = KineticEnergyEquation.DissipationRate(model)
