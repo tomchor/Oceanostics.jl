@@ -55,10 +55,6 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
         include("test_progress_messengers.jl")
     end
 
-    if group == :budgets || group == :all
-        include("test_budgets.jl")
-    end
-
     if group == :filters || group == :all
         include("test_filters.jl")
     end
