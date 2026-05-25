@@ -26,7 +26,7 @@ grid = RectilinearGrid(size=(256, 256), extent=(2π, 2π), topology=(Periodic, P
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = Centered(order=4),
                             tracers = :c,
-                            closure = ScalarDiffusivity(ν=1e-5, κ=1e-3))
+                            closure = ScalarDiffusivity(ν=1e-4, κ=1e-3))
 
 # Grid-scale white noise is not really *resolved* by the grid, so instead we build a randomized
 # but well-resolved velocity initial condition as a sum of `N_blobs` Gaussian bumps with random
@@ -186,8 +186,8 @@ c²_resid = @. dc²dt - (-χ_pair)
 
 using Test                               #hide
 rms(x) = √(sum(abs2, x) / length(x))     #hide
-@test rms(KE_resid) < 0.25 * rms(dKEdt)  #hide
-@test rms(KE_resid) < 0.25 * rms(ε_pair) #hide
+@test rms(KE_resid) < 0.02 * rms(dKEdt)  #hide
+@test rms(KE_resid) < 0.02 * rms(ε_pair) #hide
 @test rms(c²_resid) < 0.01 * rms(dc²dt)  #hide
 @test rms(c²_resid) < 0.01 * rms(χ_pair) #hide
 
