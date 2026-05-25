@@ -184,6 +184,13 @@ dc²dt    = (∫c²_t[idx2] .- ∫c²_t[idx1]) ./ Δt_pair
 KE_resid = @. dKEdt - (-ε_pair)
 c²_resid = @. dc²dt - (-χ_pair)
 
+using Test                               #hide
+rms(x) = √(sum(abs2, x) / length(x))     #hide
+@test rms(KE_resid) < 0.25 * rms(dKEdt)  #hide
+@test rms(KE_resid) < 0.25 * rms(ε_pair) #hide
+@test rms(c²_resid) < 0.01 * rms(dc²dt)  #hide
+@test rms(c²_resid) < 0.01 * rms(χ_pair) #hide
+
 
 # ## Plotting
 #
