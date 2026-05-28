@@ -2,6 +2,7 @@ module ProgressMessengers
 using DocStringExtensions
 
 using Printf
+using Crayons
 
 import Base: +, *
 
@@ -13,12 +14,45 @@ export Iteration, SimulationTime, TimeStep, PercentageProgress, Walltime, StepDu
 export MaxViscosity, AdvectiveCFLNumber, DiffusiveCFLNumber, BasicStabilityMessenger, StabilityMessenger
 export CourantNumber, NormalizedMaxViscosity
 export BasicMessenger, SingleLineMessenger, TimedMessenger
+export NUMBER_CRAYON, set_number_color!, Crayon, @crayon_str
 
 abstract type AbstractProgressMessenger end
 
 comma = ",  "
 space = ""
-indented_newline = "\n          "
+indented_newline = "\n      "
+
+#+++ ColoredNumber wrapper
+"""
+    NUMBER_CRAYON :: Ref{Crayon}
+
+Process-global `Crayon` used to color numeric values in progress messenger
+output. Reassign with `set_number_color!` (or `NUMBER_CRAYON[] = ...`) to
+change the color at runtime.
+"""
+const NUMBER_CRAYON = Ref(crayon"light_yellow")
+
+"""
+    set_number_color!(c::Crayon)
+
+Configure the `Crayon` used for numeric values in progress messenger output.
+Takes effect immediately for subsequent messenger calls.
+"""
+set_number_color!(c::Crayon) = (NUMBER_CRAYON[] = c)
+
+# Wraps a formatted-number string so it renders in NUMBER_CRAYON[]. Concatenation
+# with `String` returns a `String` with the ANSI codes baked in, so the
+# existing `+`/`*` messenger composition works unchanged.
+struct ColoredNumber
+    str :: String
+end
+
+Base.string(cn::ColoredNumber) = string(NUMBER_CRAYON[], cn.str, inv(NUMBER_CRAYON[]))
+Base.print(io::IO, cn::ColoredNumber) = print(io, string(cn))
+*(s::AbstractString, cn::ColoredNumber) = s * string(cn)
+*(cn::ColoredNumber, s::AbstractString) = string(cn) * s
+*(a::ColoredNumber, b::ColoredNumber) = string(a) * string(b)
+#---
 
 #+++ FunctionMessenger
 Base.@kwdef struct FunctionMessenger{F} <: AbstractProgressMessenger
@@ -48,8 +82,8 @@ const StringOrProgressMessenger = Union{String, AbstractProgressMessenger}
 @inline *(a::StringOrProgressMessenger, b::AbstractProgressMessenger) = FunctionMessenger(sim -> a      * space * b(sim))
 #---
 
-return_or_print(message, pm::AbstractProgressMessenger) = pm.print ? (@info message) : (return message)
-return_or_print(message) = return message
+return_or_print(message, pm::AbstractProgressMessenger) = pm.print ? (@info message) : (return string(message))
+return_or_print(message) = return string(message)
 
 include("velocities.jl")
 include("timing.jl")

@@ -9,7 +9,7 @@ end
 
 @inline function (itm::Iteration)(simulation)
     iter = iteration(simulation)
-    message = @sprintf("%6d", iter)
+    message = ColoredNumber(@sprintf("%6d", iter))
     itm.with_prefix && (message = "iter = " * message)
     return_or_print(message, itm)
 end
@@ -24,7 +24,7 @@ end
 
 @inline function (tm::SimulationTime)(simulation)
     t = time(simulation)
-    message = tm.with_units ? prettytime(t) : @sprintf("%.2g", t)
+    message = ColoredNumber(tm.with_units ? prettytime(t) : @sprintf("%.2g", t))
     tm.with_prefix && (message = "time = " * message)
     return_or_print(message, tm)
 end
@@ -39,7 +39,7 @@ end
 
 @inline function (ts::TimeStep)(simulation)
     Δt = simulation.Δt
-    message = ts.with_units ? prettytime(Δt) : @sprintf("%.2g", Δt)
+    message = ColoredNumber(ts.with_units ? prettytime(Δt) : @sprintf("%.2g", Δt))
     ts.with_prefix && (message = "Δt = " * message)
     return_or_print(message, ts)
 end
@@ -56,11 +56,11 @@ end
     percentage_progress_time      = 100 * time(simulation) / simulation.stop_time
     percentage_progress_iteration = 100 * iteration(simulation) / simulation.stop_iteration
     if percentage_progress_time > percentage_progress_iteration
-        message = @sprintf("%06.2f%%", percentage_progress_time)
+        message = ColoredNumber(@sprintf("%06.2f%%", percentage_progress_time))
         pp.with_units  && (message = message * " by simulation time")
 
     else
-        message = @sprintf("%06.2f%%", percentage_progress_iteration)
+        message = ColoredNumber(@sprintf("%06.2f%%", percentage_progress_iteration))
         pp.with_units  && (message = message * " by iteration")
     end
     pp.with_prefix && (message = "progress = " * message)
@@ -78,7 +78,7 @@ end
 
 function (wt::Walltime)(simulation)
     current_wall_seconds = 1e-9 * time_ns() - wt.wall_seconds⁰
-    message = wt.with_units ? prettytime(current_wall_seconds) : @sprintf("%.2g", current_wall_seconds)
+    message = ColoredNumber(wt.with_units ? prettytime(current_wall_seconds) : @sprintf("%.2g", current_wall_seconds))
     wt.with_prefix && (message = "walltime = " * message)
     return_or_print(message, wt)
 end
@@ -103,7 +103,7 @@ function (wpt::StepDuration)(simulation)
     wpt.wall_seconds⁻ = 1e-9 * time_ns()
     wpt.iteration⁻ = iter
 
-    message = wpt.with_units ? prettytime(wall_time_per_step) : @sprintf("%.2g", wall_time_per_step)
+    message = ColoredNumber(wpt.with_units ? prettytime(wall_time_per_step) : @sprintf("%.2g", wall_time_per_step))
     wpt.with_prefix && (message = "walltime / timestep = " * message)
     return_or_print(message, wpt)
 end

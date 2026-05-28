@@ -51,9 +51,10 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 
 ### Key Dependencies
 
-- **Oceananigans.jl**: The ocean simulation framework — provides grids, models, operators, closures, and `KernelFunctionOperation`
+- **Oceananigans.jl**: The ocean simulation framework — provides grids, models, operators, closures, and `KernelFunctionOperation`. Model constructors (e.g. `NonhydrostaticModel`, `HydrostaticFreeSurfaceModel`) take the grid **positionally**: `NonhydrostaticModel(grid; closure=..., tracers=...)`, *not* `NonhydrostaticModel(; grid, ...)`
 - **SeawaterPolynomials.jl**: Equation of state for density calculations (used in PotentialEnergy, MixedLayerDepth)
 - **DocStringExtensions.jl**: `$(SIGNATURES)` and `$(TYPEDEF)` macros in docstrings
+- **Crayons.jl**: ANSI terminal coloring used by `ProgressMessengers` for the `ColoredNumber` wrapper and the user-facing `set_number_color!` / `@crayon_str` / `Crayon` exports
 
 ### Testing
 
@@ -70,3 +71,4 @@ Budget closure is checked by `@test` assertions embedded in `docs/examples/two_d
 - Unicode identifiers are used extensively (ψ, ε, ν, ∂, ℑ, etc.) matching mathematical notation
 - One-line code expressions are preferred when they fit within 130 columns; only break them across lines when they exceed that width
 - Prose text (docstrings, comments, `.md` files) should wrap at around 100 columns
+- When adding a new leaf progress messenger, wrap its formatted-number string (the result of `@sprintf` / `prettytime`) in `ColoredNumber(...)` so the value participates in the configurable `NUMBER_CRAYON` coloring; prefix and unit text stay as plain `String`
