@@ -87,14 +87,10 @@ z₀ = 0.1meters # (roughness length)
 z₁ = znodes(grid, Center())[1] # Closest grid center to the bottom
 cᴰ = (κ / log(z₁ / z₀))^2 # Drag coefficient
 
-@inline drag_u(x, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * u
-@inline drag_v(x, t, u, v, p) = - p.cᴰ * √(u^2 + (v + p.V∞)^2) * (v + p.V∞)
+drag_bc = BulkDrag(coefficient=cᴰ, background_velocities=(0, V∞, 0))
 
-drag_bc_u = FluxBoundaryCondition(drag_u, field_dependencies=(:u, :v), parameters=(; cᴰ, V∞))
-drag_bc_v = FluxBoundaryCondition(drag_v, field_dependencies=(:u, :v), parameters=(; cᴰ, V∞))
-
-u_bcs = FieldBoundaryConditions(bottom = drag_bc_u)
-v_bcs = FieldBoundaryConditions(bottom = drag_bc_v)
+u_bcs = FieldBoundaryConditions(bottom = drag_bc)
+v_bcs = FieldBoundaryConditions(bottom = drag_bc)
 
 # ## Create model and simulation
 #
