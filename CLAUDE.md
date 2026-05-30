@@ -16,7 +16,7 @@ julia --project -e 'using Pkg; Pkg.test()'
 TEST_GROUP=vel_diagnostics julia --project -e 'using Pkg; Pkg.test()'
 ```
 
-Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`.
+Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `u_momentum_diagnostics`, `v_momentum_diagnostics`, `w_momentum_diagnostics`, `ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `filters`.
 
 ```bash
 # Instantiate/build the package
@@ -42,6 +42,8 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 
 - **`Oceanostics`** (main module in `src/Oceanostics.jl`): Shared utilities — `validate_location`, `validate_dissipative_closure`, `add_background_fields`, `perturbation_fields`, `get_coriolis_frequency_components`, viscosity helpers for closure tuples (`_νᶜᶜᶜ`)
 - **`TracerEquation`**: Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, Forcing terms
+- **`UMomentumEquation` / `VMomentumEquation` / `WMomentumEquation`**: Per-component momentum-budget terms (advection, stress, pressure gradient, Coriolis, buoyancy, forcing). Tested as separate `*_momentum_diagnostics` groups.
+- **`Filters`** (submodule): Spatial filters (`box_filter.jl`, `gaussian_filter.jl`) for diagnostics that need scale separation.
 - **`KineticEnergyEquation`**: KE, its tendency, advection, stress, forcing, pressure redistribution, buoyancy production, dissipation rate (general and isotropic)
 - **`TurbulentKineticEnergyEquation`**: TKE, isotropic dissipation, shear production rates (X/Y/Z and total)
 - **`TracerVarianceEquation`**: Tendency, dissipation rate, diffusion of tracer variance
