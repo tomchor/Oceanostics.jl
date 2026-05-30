@@ -1,3 +1,20 @@
+# A self-contained "fully unroll this loop" macro. This is the same pattern as
+# `KernelAbstractions.Extras.@unroll`: attach the LLVM `llvm.loop.unroll.full`
+# loopinfo node to the body so the optimizer is required to unroll the loop.
+# Done inline here so the `Filters` submodule does not need to add
+# `KernelAbstractions` as a direct dependency.
+macro unroll_full(expr)
+    expr.head === :for || error("@unroll_full needs a `for` loop")
+    i, iter = expr.args[1].args
+    body = expr.args[2]
+    return esc(quote
+        for $i in $iter
+            $body
+            $(Expr(:loopinfo, (Symbol("llvm.loop.unroll.full"), 1)))
+        end
+    end)
+end
+
 """
     GaussianFilterKernel{D, W} <: Function
 
@@ -14,13 +31,20 @@ const GaussianFilter = CustomKFO{<:GaussianFilterKernel}
 
 GaussianFilterKernel{D}(weights::W) where {D, W} = GaussianFilterKernel{D, W}(weights)
 
+# `@unroll` (LLVM `llvm.loop.unroll.full` hint) is essential here: the weights
+# tuple is captured by-value in each thread's register file, and tuple
+# indexing by a non-constant `idx` would force spilling the tuple to per-thread
+# local memory. Forcing a full unroll keeps every tuple access at a constant
+# index, so the weights live in registers (or are folded into the IR as
+# constants), avoiding a ~20× cliff at width ≳ 8.
+
 #+++ Terminal methods (indexable input).
 @inline function (kern::GaussianFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Nx = size(grid, 1)
     s = zero(grid); w_sum = zero(grid)
-    @inbounds for idx in 1:(2*width+1)
+    @unroll_full for idx in 1:(2*width+1)
         Δi = idx - width - 1
-        w = kern.weights[idx]
+        @inbounds w = kern.weights[idx]
         val, cnt = x_stencil_fetch(policy, ψ, i + Δi, j, k, Nx)
         s += w * val
         w_sum += w * cnt
@@ -31,9 +55,9 @@ end
 @inline function (kern::GaussianFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Ny = size(grid, 2)
     s = zero(grid); w_sum = zero(grid)
-    @inbounds for idx in 1:(2*width+1)
+    @unroll_full for idx in 1:(2*width+1)
         Δj = idx - width - 1
-        w = kern.weights[idx]
+        @inbounds w = kern.weights[idx]
         val, cnt = y_stencil_fetch(policy, ψ, i, j + Δj, k, Ny)
         s += w * val
         w_sum += w * cnt
@@ -44,9 +68,9 @@ end
 @inline function (kern::GaussianFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Nz = size(grid, 3)
     s = zero(grid); w_sum = zero(grid)
-    @inbounds for idx in 1:(2*width+1)
+    @unroll_full for idx in 1:(2*width+1)
         Δk = idx - width - 1
-        w = kern.weights[idx]
+        @inbounds w = kern.weights[idx]
         val, cnt = z_stencil_fetch(policy, ψ, i, j, k + Δk, Nz)
         s += w * val
         w_sum += w * cnt
@@ -59,9 +83,9 @@ end
 @inline function (kern::GaussianFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Nx = size(grid, 1)
     s = zero(grid); w_sum = zero(grid)
-    @inbounds for idx in 1:(2*width+1)
+    @unroll_full for idx in 1:(2*width+1)
         Δi = idx - width - 1
-        w = kern.weights[idx]
+        @inbounds w = kern.weights[idx]
         val, cnt = x_stencil_call(policy, f, i + Δi, j, k, Nx, grid, fargs...)
         s += w * val
         w_sum += w * cnt
@@ -72,9 +96,9 @@ end
 @inline function (kern::GaussianFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Ny = size(grid, 2)
     s = zero(grid); w_sum = zero(grid)
-    @inbounds for idx in 1:(2*width+1)
+    @unroll_full for idx in 1:(2*width+1)
         Δj = idx - width - 1
-        w = kern.weights[idx]
+        @inbounds w = kern.weights[idx]
         val, cnt = y_stencil_call(policy, f, i, j + Δj, k, Ny, grid, fargs...)
         s += w * val
         w_sum += w * cnt
@@ -85,9 +109,9 @@ end
 @inline function (kern::GaussianFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Nz = size(grid, 3)
     s = zero(grid); w_sum = zero(grid)
-    @inbounds for idx in 1:(2*width+1)
+    @unroll_full for idx in 1:(2*width+1)
         Δk = idx - width - 1
-        w = kern.weights[idx]
+        @inbounds w = kern.weights[idx]
         val, cnt = z_stencil_call(policy, f, i, j, k + Δk, Nz, grid, fargs...)
         s += w * val
         w_sum += w * cnt
@@ -157,6 +181,16 @@ number of cells along that direction); this is enforced at construction time.
 
 See `BoxFilter` for the `dims` and `boundary` keyword documentation.
 
+## Performance notes
+
+A multi-direction Gaussian filter is mathematically separable. The constructor still returns a
+single composable `KernelFunctionOperation`, but when that operation is the operand of a `Field`
+(the standard `Field(GaussianFilter(...))` / `compute!` path), the implementation evaluates the
+filter as a sequence of 1D passes through intermediate fields. This reduces the per-output read
+count from `N^d` to `d × N`, which is the main reason multi-direction filters with wide stencils
+are competitive on GPUs. If the filter is composed into another `AbstractOperation` (e.g.
+`2 * GaussianFilter(c; dims=(1,2,3))`) it falls back to the fused, single-kernel evaluation.
+
 ## Examples
 
 ```jldoctest
@@ -202,5 +236,110 @@ function resolve_gaussian_widths(N, σ, grid, dims, sorted_dims)
         validate_N(N)
         return ntuple(_ -> (N - 1) ÷ 2, length(sorted_dims))
     end
+end
+#---
+
+#+++ Staged multi-direction evaluation
+#
+# A `GaussianFilter` over `d ≥ 2` directions is built by `build_filter_kfo` as
+# a single `KernelFunctionOperation` whose kernel function is the outermost
+# 1D `GaussianFilterKernel`, and whose `arguments` thread the inner 1D
+# kernels in. Evaluating that fused KFO costs `N^d` reads per output cell.
+#
+# Gaussian filters are separable, so the same field can be computed as a
+# sequence of `d` 1D passes through intermediate fields, costing `d × N`
+# reads per output cell. Here we override `Oceananigans.Fields.compute!` for
+# `Field{...,<:GaussianFilter}` so the standard `Field(GaussianFilter(...))`
+# path uses the staged evaluation. When the filter is *nested* inside
+# another `AbstractOperation` (e.g. `2 * GaussianFilter(...)`) the operand
+# stays a single fused KFO and the original inlined code path runs.
+
+# These type aliases match the args-tuple shape produced by `build_filter_kfo`
+# for the 2D and 3D cases. 1D filters fall through to the default `compute!`.
+const _GaussianFilter2D = KernelFunctionOperation{LX, LY, LZ, G, T,
+                                                  <:GaussianFilterKernel,
+                                                  <:Tuple{Val, AbstractBoundaryPolicy,
+                                                          GaussianFilterKernel, Val, AbstractBoundaryPolicy,
+                                                          Any}} where {LX, LY, LZ, G, T}
+
+const _GaussianFilter3D = KernelFunctionOperation{LX, LY, LZ, G, T,
+                                                  <:GaussianFilterKernel,
+                                                  <:Tuple{Val, AbstractBoundaryPolicy,
+                                                          GaussianFilterKernel, Val, AbstractBoundaryPolicy,
+                                                          GaussianFilterKernel, Val, AbstractBoundaryPolicy,
+                                                          Any}} where {LX, LY, LZ, G, T}
+
+import Oceananigans.Fields: compute!
+using Oceananigans: location
+using Oceananigans.Fields: Field, offset_index, set_status!
+using Oceananigans.AbstractOperations: KernelFunctionOperation, compute_at!, _compute!
+using Oceananigans.BoundaryConditions: fill_halo_regions!
+using Oceananigans.Architectures: architecture
+using Oceananigans.Utils: KernelParameters, launch!
+
+@inline _staged_compute!(comp, time) = _compute_staged_gaussian!(comp, time)
+
+compute!(comp::Field{<:Any, <:Any, <:Any, <:_GaussianFilter2D}, time=nothing) = _staged_compute!(comp, time)
+compute!(comp::Field{<:Any, <:Any, <:Any, <:_GaussianFilter3D}, time=nothing) = _staged_compute!(comp, time)
+
+# Build the i-th single-dim KFO in the chain at the filter's location.
+@inline function _single_dim_kfo(loc, grid, kern, valw, pol, input)
+    return KernelFunctionOperation{loc...}(kern, grid, valw, pol, input)
+end
+
+# Allocate an intermediate Field and compute the 1D pass into it, *without*
+# filling halo regions. The next pass reads only the interior of the
+# intermediate (every `*_stencil_fetch` clamps/wraps offsets into `1:N`), so
+# halo data is irrelevant. Skipping the halo fill saves several small kernel
+# launches per intermediate.
+function _stage_into_temp(loc, grid, kern, valw, pol, input)
+    kfo = _single_dim_kfo(loc, grid, kern, valw, pol, input)
+    temp = Field(kfo, compute=false)
+    _launch_compute_into!(temp.data, temp.indices, grid, kfo)
+    return temp
+end
+
+# Write the result of evaluating `kfo` at every (i,j,k) of the iteration
+# space into `data`. Reuses Oceananigans' trivial copy kernel `_compute!`
+# (`data[i,j,k] = operand[i,j,k]`).
+function _launch_compute_into!(data, indices, grid, kfo)
+    arch = architecture(grid)
+    params = KernelParameters(size(kfo), map(offset_index, indices))
+    launch!(arch, grid, params, _compute!, data, kfo)
+    return nothing
+end
+
+function _compute_staged_gaussian!(comp, time)
+    op    = comp.operand
+    grid  = op.grid
+    loc   = location(op)
+    args  = op.arguments
+    kern1 = op.kernel_function
+
+    # Recurse into ψ in case it is itself a computed field that needs
+    # refreshing before we read from it.
+    ψ = args[end]
+    compute_at!(ψ, time)
+
+    if length(args) == 6
+        valw1, pol1                                = args[1], args[2]
+        kern2, valw2, pol2                         = args[3], args[4], args[5]
+
+        temp1 = _stage_into_temp(loc, grid, kern1, valw1, pol1, ψ)
+        final = _single_dim_kfo(loc, grid, kern2, valw2, pol2, temp1)
+    else  # length(args) == 9 — 3D filter
+        valw1, pol1                                = args[1], args[2]
+        kern2, valw2, pol2                         = args[3], args[4], args[5]
+        kern3, valw3, pol3                         = args[6], args[7], args[8]
+
+        temp1 = _stage_into_temp(loc, grid, kern1, valw1, pol1, ψ)
+        temp2 = _stage_into_temp(loc, grid, kern2, valw2, pol2, temp1)
+        final = _single_dim_kfo(loc, grid, kern3, valw3, pol3, temp2)
+    end
+
+    _launch_compute_into!(comp.data, comp.indices, grid, final)
+    fill_halo_regions!(comp)
+    set_status!(comp.status, time)
+    return comp
 end
 #---
