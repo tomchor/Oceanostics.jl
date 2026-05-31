@@ -58,4 +58,8 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
     if group == :filters || group == :all
         include("test_filters.jl")
     end
+
+    if group == :perf_invariants || group == :all
+        include("test_perf_invariants.jl")
+    end
 end

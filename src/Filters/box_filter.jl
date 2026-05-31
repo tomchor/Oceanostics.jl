@@ -8,11 +8,18 @@ recursive one that invokes another kernel function at each stencil point.
 struct BoxFilterKernel{D} <: Function end
 const BoxFilter = CustomKFO{<:BoxFilterKernel}
 
+# `@unroll_full` (defined in `Filters.jl`) is applied here for the same
+# reason as in `GaussianFilterKernel`: without it the per-thread
+# accumulator state and per-iteration policy branch can fail to specialize,
+# producing a measurable cliff at large widths. For `BoxFilter` there is no
+# weights tuple, but unrolling still lets LLVM hoist the boundary-policy
+# branch out of the loop body so each iteration becomes branch-free.
+
 #+++ Terminal methods (indexable input).
 @inline function (::BoxFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Nx = size(grid, 1)
     s = zero(grid); n = 0
-    @inbounds for Δi in -width:width
+    @unroll_full for Δi in -width:width
         val, cnt = x_stencil_fetch(policy, ψ, i + Δi, j, k, Nx)
         s += val; n += cnt
     end
@@ -22,7 +29,7 @@ end
 @inline function (::BoxFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Ny = size(grid, 2)
     s = zero(grid); n = 0
-    @inbounds for Δj in -width:width
+    @unroll_full for Δj in -width:width
         val, cnt = y_stencil_fetch(policy, ψ, i, j + Δj, k, Ny)
         s += val; n += cnt
     end
@@ -32,7 +39,7 @@ end
 @inline function (::BoxFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Nz = size(grid, 3)
     s = zero(grid); n = 0
-    @inbounds for Δk in -width:width
+    @unroll_full for Δk in -width:width
         val, cnt = z_stencil_fetch(policy, ψ, i, j, k + Δk, Nz)
         s += val; n += cnt
     end
@@ -44,7 +51,7 @@ end
 @inline function (::BoxFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Nx = size(grid, 1)
     s = zero(grid); n = 0
-    @inbounds for Δi in -width:width
+    @unroll_full for Δi in -width:width
         val, cnt = x_stencil_call(policy, f, i + Δi, j, k, Nx, grid, fargs...)
         s += val; n += cnt
     end
@@ -54,7 +61,7 @@ end
 @inline function (::BoxFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Ny = size(grid, 2)
     s = zero(grid); n = 0
-    @inbounds for Δj in -width:width
+    @unroll_full for Δj in -width:width
         val, cnt = y_stencil_call(policy, f, i, j + Δj, k, Ny, grid, fargs...)
         s += val; n += cnt
     end
@@ -64,7 +71,7 @@ end
 @inline function (::BoxFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Nz = size(grid, 3)
     s = zero(grid); n = 0
-    @inbounds for Δk in -width:width
+    @unroll_full for Δk in -width:width
         val, cnt = z_stencil_call(policy, f, i, j, k + Δk, Nz, grid, fargs...)
         s += val; n += cnt
     end
@@ -90,8 +97,13 @@ filter stencil — *not* the size of the grid.)
 
 A multi-directional filter is assembled as a single `KernelFunctionOperation`
 whose kernel function is a 1D `BoxFilterKernel{d₁}`, with the next dimension's
-`BoxFilterKernel{d₂}` (and so on) threaded into the argument list. The nested
-1D kernels inline into a single fused read pass at compile time.
+`BoxFilterKernel{d₂}` (and so on) threaded into the argument list. The box
+average is separable, so when the operation is the operand of a `Field` (the
+standard `Field(BoxFilter(...))` / `compute!` path) it is evaluated as `d`
+sequential 1D passes through intermediate fields — `d × N` reads per output
+cell instead of `Nᵈ`. If the filter is composed into another
+`AbstractOperation` (e.g. `2 * BoxFilter(c; dims=(1,2,3))`) the original
+fused single-kernel evaluation runs instead.
 
 ## Boundary handling
 
@@ -153,4 +165,26 @@ function BoxFilter(ψ; dims, N, boundary=:shrink)
     validate_periodic_widths(grid, sorted_dims, policies, widths)
     return build_filter_kfo((d, _) -> BoxFilterKernel{d}(), grid, loc, sorted_dims, widths, policies, ψ)
 end
+#---
+
+#+++ Staged multi-direction evaluation
+# Multi-direction BoxFilters dispatch into the shared
+# `_compute_staged_filter!` machinery defined in `Filters.jl`. 1D filters
+# (`length(args) == 3`) fall through to the default `compute!` and use the
+# unrolled single-direction kernel above.
+const _BoxFilter2D = KernelFunctionOperation{LX, LY, LZ, G, T,
+                                             <:BoxFilterKernel,
+                                             <:Tuple{Val, AbstractBoundaryPolicy,
+                                                     BoxFilterKernel, Val, AbstractBoundaryPolicy,
+                                                     Any}} where {LX, LY, LZ, G, T}
+
+const _BoxFilter3D = KernelFunctionOperation{LX, LY, LZ, G, T,
+                                             <:BoxFilterKernel,
+                                             <:Tuple{Val, AbstractBoundaryPolicy,
+                                                     BoxFilterKernel, Val, AbstractBoundaryPolicy,
+                                                     BoxFilterKernel, Val, AbstractBoundaryPolicy,
+                                                     Any}} where {LX, LY, LZ, G, T}
+
+compute!(comp::Field{<:Any, <:Any, <:Any, <:_BoxFilter2D}, time=nothing) = _compute_staged_filter!(comp, time)
+compute!(comp::Field{<:Any, <:Any, <:Any, <:_BoxFilter3D}, time=nothing) = _compute_staged_filter!(comp, time)
 #---

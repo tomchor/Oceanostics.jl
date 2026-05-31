@@ -14,13 +14,21 @@ const GaussianFilter = CustomKFO{<:GaussianFilterKernel}
 
 GaussianFilterKernel{D}(weights::W) where {D, W} = GaussianFilterKernel{D, W}(weights)
 
+# `@unroll_full` (LLVM `llvm.loop.unroll.full` hint, defined in Filters.jl)
+# is essential here: the weights tuple is captured by-value in each thread's
+# register file, and tuple indexing by a non-constant `idx` would force
+# spilling the tuple to per-thread local memory. Forcing a full unroll keeps
+# every tuple access at a constant index, so the weights live in registers
+# (or are folded into the IR as constants), avoiding a ~20× cliff at
+# width ≳ 8.
+
 #+++ Terminal methods (indexable input).
 @inline function (kern::GaussianFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Nx = size(grid, 1)
     s = zero(grid); w_sum = zero(grid)
-    @inbounds for idx in 1:(2*width+1)
+    @unroll_full for idx in 1:(2*width+1)
         Δi = idx - width - 1
-        w = kern.weights[idx]
+        @inbounds w = kern.weights[idx]
         val, cnt = x_stencil_fetch(policy, ψ, i + Δi, j, k, Nx)
         s += w * val
         w_sum += w * cnt
@@ -31,9 +39,9 @@ end
 @inline function (kern::GaussianFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Ny = size(grid, 2)
     s = zero(grid); w_sum = zero(grid)
-    @inbounds for idx in 1:(2*width+1)
+    @unroll_full for idx in 1:(2*width+1)
         Δj = idx - width - 1
-        w = kern.weights[idx]
+        @inbounds w = kern.weights[idx]
         val, cnt = y_stencil_fetch(policy, ψ, i, j + Δj, k, Ny)
         s += w * val
         w_sum += w * cnt
@@ -44,9 +52,9 @@ end
 @inline function (kern::GaussianFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
     Nz = size(grid, 3)
     s = zero(grid); w_sum = zero(grid)
-    @inbounds for idx in 1:(2*width+1)
+    @unroll_full for idx in 1:(2*width+1)
         Δk = idx - width - 1
-        w = kern.weights[idx]
+        @inbounds w = kern.weights[idx]
         val, cnt = z_stencil_fetch(policy, ψ, i, j, k + Δk, Nz)
         s += w * val
         w_sum += w * cnt
@@ -59,9 +67,9 @@ end
 @inline function (kern::GaussianFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Nx = size(grid, 1)
     s = zero(grid); w_sum = zero(grid)
-    @inbounds for idx in 1:(2*width+1)
+    @unroll_full for idx in 1:(2*width+1)
         Δi = idx - width - 1
-        w = kern.weights[idx]
+        @inbounds w = kern.weights[idx]
         val, cnt = x_stencil_call(policy, f, i + Δi, j, k, Nx, grid, fargs...)
         s += w * val
         w_sum += w * cnt
@@ -72,9 +80,9 @@ end
 @inline function (kern::GaussianFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Ny = size(grid, 2)
     s = zero(grid); w_sum = zero(grid)
-    @inbounds for idx in 1:(2*width+1)
+    @unroll_full for idx in 1:(2*width+1)
         Δj = idx - width - 1
-        w = kern.weights[idx]
+        @inbounds w = kern.weights[idx]
         val, cnt = y_stencil_call(policy, f, i, j + Δj, k, Ny, grid, fargs...)
         s += w * val
         w_sum += w * cnt
@@ -85,9 +93,9 @@ end
 @inline function (kern::GaussianFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
     Nz = size(grid, 3)
     s = zero(grid); w_sum = zero(grid)
-    @inbounds for idx in 1:(2*width+1)
+    @unroll_full for idx in 1:(2*width+1)
         Δk = idx - width - 1
-        w = kern.weights[idx]
+        @inbounds w = kern.weights[idx]
         val, cnt = z_stencil_call(policy, f, i, j, k + Δk, Nz, grid, fargs...)
         s += w * val
         w_sum += w * cnt
@@ -157,6 +165,16 @@ number of cells along that direction); this is enforced at construction time.
 
 See `BoxFilter` for the `dims` and `boundary` keyword documentation.
 
+## Performance notes
+
+A multi-direction Gaussian filter is mathematically separable. The constructor still returns a
+single composable `KernelFunctionOperation`, but when that operation is the operand of a `Field`
+(the standard `Field(GaussianFilter(...))` / `compute!` path), the implementation evaluates the
+filter as a sequence of 1D passes through intermediate fields. This reduces the per-output read
+count from `N^d` to `d × N`, which is the main reason multi-direction filters with wide stencils
+are competitive on GPUs. If the filter is composed into another `AbstractOperation` (e.g.
+`2 * GaussianFilter(c; dims=(1,2,3))`) it falls back to the fused, single-kernel evaluation.
+
 ## Examples
 
 ```jldoctest
@@ -203,4 +221,27 @@ function resolve_gaussian_widths(N, σ, grid, dims, sorted_dims)
         return ntuple(_ -> (N - 1) ÷ 2, length(sorted_dims))
     end
 end
+#---
+
+#+++ Staged multi-direction evaluation
+#
+# Multi-direction GaussianFilters are evaluated via the shared
+# `_compute_staged_filter!` machinery defined in `Filters.jl`. The aliases
+# below pin the dispatch — 1D filters (`length(args) == 3`) fall through to
+# the default `compute!` and use the unrolled single-direction kernel.
+const _GaussianFilter2D = KernelFunctionOperation{LX, LY, LZ, G, T,
+                                                  <:GaussianFilterKernel,
+                                                  <:Tuple{Val, AbstractBoundaryPolicy,
+                                                          GaussianFilterKernel, Val, AbstractBoundaryPolicy,
+                                                          Any}} where {LX, LY, LZ, G, T}
+
+const _GaussianFilter3D = KernelFunctionOperation{LX, LY, LZ, G, T,
+                                                  <:GaussianFilterKernel,
+                                                  <:Tuple{Val, AbstractBoundaryPolicy,
+                                                          GaussianFilterKernel, Val, AbstractBoundaryPolicy,
+                                                          GaussianFilterKernel, Val, AbstractBoundaryPolicy,
+                                                          Any}} where {LX, LY, LZ, G, T}
+
+compute!(comp::Field{<:Any, <:Any, <:Any, <:_GaussianFilter2D}, time=nothing) = _compute_staged_filter!(comp, time)
+compute!(comp::Field{<:Any, <:Any, <:Any, <:_GaussianFilter3D}, time=nothing) = _compute_staged_filter!(comp, time)
 #---
