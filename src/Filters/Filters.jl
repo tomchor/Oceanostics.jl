@@ -213,6 +213,113 @@ parse_boundary_spec(p::AbstractBoundaryPolicy) = p
 parse_boundary_spec(x) = throw(ArgumentError("`boundary` must be :shrink, :edge, or (left=a, right=b); got $(repr(x))"))
 #---
 
+#+++ Shared staged-compute infrastructure
+#
+# Both `BoxFilter` and `GaussianFilter` are separable: a multi-direction
+# filter equals a sequence of 1D passes. The single fused
+# `KernelFunctionOperation` built by `build_filter_kfo` evaluates `Nᵈ`
+# stencil points per output cell; staging through `d` intermediate fields
+# evaluates `d × N`. For each filter we override
+# `Oceananigans.Fields.compute!` on `Field{<:Any,<:Any,<:Any,<:_FilterND}`
+# so the standard `Field(filter)` path picks up the staged evaluation. When
+# the filter is *nested* inside another `AbstractOperation` (e.g.
+# `2 * BoxFilter(c; dims=(1,2))`) the override doesn't match and the original
+# inlined-fused kernel runs.
+#
+# The machinery in this section is filter-agnostic — it walks the KFO's
+# `arguments` tuple by length (3 → 1D, 6 → 2D, 9 → 3D), which is the shape
+# produced by `build_filter_kfo` above. The kernel-specific files just
+# define type aliases and attach the dispatch.
+
+# A self-contained "fully unroll this loop" macro. This is the same pattern
+# as `KernelAbstractions.Extras.@unroll`: attach the LLVM
+# `llvm.loop.unroll.full` loopinfo node to the body so the optimizer is
+# required to unroll the loop. Done inline so the `Filters` submodule does
+# not need to add `KernelAbstractions` as a direct dependency.
+macro unroll_full(expr)
+    expr.head === :for || error("@unroll_full needs a `for` loop")
+    i, iter = expr.args[1].args
+    body = expr.args[2]
+    return esc(quote
+        for $i in $iter
+            $body
+            $(Expr(:loopinfo, (Symbol("llvm.loop.unroll.full"), 1)))
+        end
+    end)
+end
+
+import Oceananigans.Fields: compute!
+using Oceananigans.Fields: Field, offset_index, set_status!
+using Oceananigans.AbstractOperations: compute_at!, _compute!
+using Oceananigans.BoundaryConditions: fill_halo_regions!
+using Oceananigans.Architectures: architecture
+using Oceananigans.Utils: KernelParameters, launch!
+
+# Build a single-direction KFO for one stage of the chain at the filter's
+# `loc`. `kern` is the 1D filter kernel (`BoxFilterKernel{D}` or
+# `GaussianFilterKernel{D}`).
+@inline _single_dim_kfo(loc, grid, kern, valw, pol, input) =
+    KernelFunctionOperation{loc...}(kern, grid, valw, pol, input)
+
+# Run `kfo` over its iteration space and write the result into `data`.
+# Reuses Oceananigans' trivial copy kernel `_compute!`
+# (`data[i,j,k] = operand[i,j,k]`).
+function _launch_compute_into!(data, indices, grid, kfo)
+    arch = architecture(grid)
+    params = KernelParameters(size(kfo), map(offset_index, indices))
+    launch!(arch, grid, params, _compute!, data, kfo)
+    return nothing
+end
+
+# Allocate an intermediate Field and compute the 1D pass into it *without*
+# filling halo regions. The next pass reads only the interior of the
+# intermediate (every `*_stencil_fetch` / `*_stencil_call` clamps or wraps
+# offsets into `1:N`), so halo data is irrelevant. Skipping the halo fill
+# saves several small kernel launches per intermediate.
+function _stage_into_temp(loc, grid, kern, valw, pol, input)
+    kfo = _single_dim_kfo(loc, grid, kern, valw, pol, input)
+    temp = Field(kfo, compute=false)
+    _launch_compute_into!(temp.data, temp.indices, grid, kfo)
+    return temp
+end
+
+# Generic staged compute for a 2D or 3D separable filter. Both `BoxFilter`
+# and `GaussianFilter` share this body — the only filter-specific things are
+# the type aliases that pin the dispatch, defined in each filter's file.
+function _compute_staged_filter!(comp, time)
+    op    = comp.operand
+    grid  = op.grid
+    loc   = location(op)
+    args  = op.arguments
+    kern1 = op.kernel_function
+
+    # If ψ is itself a computed field that needs refreshing, do that first.
+    ψ = args[end]
+    compute_at!(ψ, time)
+
+    if length(args) == 6        # 2D filter
+        valw1, pol1        = args[1], args[2]
+        kern2, valw2, pol2 = args[3], args[4], args[5]
+
+        temp1 = _stage_into_temp(loc, grid, kern1, valw1, pol1, ψ)
+        final = _single_dim_kfo(loc, grid, kern2, valw2, pol2, temp1)
+    else                        # 3D filter, length(args) == 9
+        valw1, pol1        = args[1], args[2]
+        kern2, valw2, pol2 = args[3], args[4], args[5]
+        kern3, valw3, pol3 = args[6], args[7], args[8]
+
+        temp1 = _stage_into_temp(loc, grid, kern1, valw1, pol1, ψ)
+        temp2 = _stage_into_temp(loc, grid, kern2, valw2, pol2, temp1)
+        final = _single_dim_kfo(loc, grid, kern3, valw3, pol3, temp2)
+    end
+
+    _launch_compute_into!(comp.data, comp.indices, grid, final)
+    fill_halo_regions!(comp)
+    set_status!(comp.status, time)
+    return comp
+end
+#---
+
 include("box_filter.jl")
 include("gaussian_filter.jl")
 
