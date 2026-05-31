@@ -1,6 +1,0 @@
-[deps]
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
-Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
-Oceanostics = "d0ccf422-c8fb-49b5-a76d-74acdde946ac"
-Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
