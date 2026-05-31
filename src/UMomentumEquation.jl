@@ -451,19 +451,19 @@ Forcing(model; kwargs...) = Forcing(model, model.forcing.u, model.clock, fields(
 """
     $(SIGNATURES)
 
-Calculate the total tendency of the u-momentum equation as computed by Oceananigans.
+Calculate the u-momentum tendency `Gᵘ` as computed by Oceananigans, where Oceananigans
+writes the momentum equation as `∂_t u = Gᵘ - ∂ₓ p_n`. `Gᵘ` is the sum of every term in
+`u_velocity_tendency` (NH) or `hydrostatic_free_surface_u_velocity_tendency` (HFS):
+advection, buoyancy (NH only — absorbed into the hydrostatic pressure for HFS), Coriolis,
+hydrostatic pressure gradient, viscous and immersed-viscous stress divergence, Stokes
+shear and tendency (NH only), and forcing. The terms exposed by `UMomentumEquation`
+reconstruct `Gᵘ` to machine precision.
 
-For NonhydrostaticModel, this includes:
-- Advection: -∇⋅(𝐯u)
-- Background advection terms
-- Buoyancy: ĝₓ b
-- Coriolis: -f × u
-- Pressure gradient: -∂p/∂x
-- Viscous dissipation: -∇⋅τ₁
-- Immersed viscous dissipation
-- Stokes shear: (∇ × uˢ) × u
-- Stokes tendency: ∂uˢ/∂t
-- Forcing: Fᵘ
+`Gᵘ` is *not* the full time derivative `∂_t u`. The remaining piece `-∂ₓ p_n` — the
+nonhydrostatic pressure gradient for `NonhydrostaticModel`, or the implicit barotropic
+free-surface correction for `HydrostaticFreeSurfaceModel` with `ImplicitFreeSurface` — is
+applied separately by the pressure-projection / barotropic-correction step of the
+time-stepper and is not part of `Gᵘ` or of any diagnostic in this module.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics

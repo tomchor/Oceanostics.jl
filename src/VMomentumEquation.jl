@@ -455,19 +455,19 @@ Forcing(model, ::Val{:v}; kwargs...) = Forcing(model, model.forcing.v, model.clo
 """
     $(SIGNATURES)
 
-Calculate the total tendency of the v-momentum equation as computed by Oceananigans.
+Calculate the v-momentum tendency `Gᵛ` as computed by Oceananigans, where Oceananigans
+writes the momentum equation as `∂_t v = Gᵛ - ∂ᵧ p_n`. `Gᵛ` is the sum of every term in
+`v_velocity_tendency` (NH) or `hydrostatic_free_surface_v_velocity_tendency` (HFS):
+advection, buoyancy (NH only — absorbed into the hydrostatic pressure for HFS), Coriolis,
+hydrostatic pressure gradient, viscous and immersed-viscous stress divergence, Stokes
+shear and tendency (NH only), and forcing. The terms exposed by `VMomentumEquation`
+reconstruct `Gᵛ` to machine precision.
 
-For NonhydrostaticModel, this includes:
-- Advection: -∇⋅(𝐯v)
-- Background advection terms
-- Buoyancy: ĝᵧ b
-- Coriolis: -(f × u)ᵧ
-- Pressure gradient: -∂p/∂y
-- Viscous dissipation: -∇⋅τ₂
-- Immersed viscous dissipation
-- Stokes shear: ((∇ × uˢ) × u)ᵧ
-- Stokes tendency: ∂vˢ/∂t
-- Forcing: Fᵛ
+`Gᵛ` is *not* the full time derivative `∂_t v`. The remaining piece `-∂ᵧ p_n` — the
+nonhydrostatic pressure gradient for `NonhydrostaticModel`, or the implicit barotropic
+free-surface correction for `HydrostaticFreeSurfaceModel` with `ImplicitFreeSurface` — is
+applied separately by the pressure-projection / barotropic-correction step of the
+time-stepper and is not part of `Gᵛ` or of any diagnostic in this module.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
