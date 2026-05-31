@@ -111,6 +111,23 @@ For `ImplicitFreeSurface` (the default) and `SplitExplicitFreeSurface`,
 solve), so the budget closes without it. For `ExplicitFreeSurface` it returns `g ∂_i η`
 and must be included for closure.
 
+Two caveats worth noting:
+
+- `Tendency(model)` wraps Oceananigans' `hydrostatic_free_surface_{u,v}_velocity_tendency`,
+  which returns `G_u` in the decomposition `∂_t u = G_u - ∂_x p_n`. The implicit barotropic
+  pressure correction `p_n` (relevant for `ImplicitFreeSurface`) is applied separately
+  during time-stepping — not in `G_u`, and not surfaced as a diagnostic. The budget
+  closure above is therefore against `G_u`, which is the physical balance of forces;
+  reconstructing the full `∂_t u` would additionally require the implicit correction
+  applied by `correct_barotropic_mode!`.
+- On horizontally-curvilinear grids (`LatitudeLongitudeGrid`, `OrthogonalSphericalShellGrid`)
+  with flux-form advection, `hydrostatic_free_surface_*_velocity_tendency` includes an
+  extra `U_dot_∇*_hydrostatic_metric` term that is *not* surfaced as a diagnostic.
+  This term is identically zero on `RectilinearGrid` (the configuration the tests use),
+  on any grid with `VectorInvariant` advection (where the metric is already included in
+  the vorticity/Bernoulli decomposition), and on `Nothing` advection — so budget closure
+  holds for those configurations.
+
 ## `HydrostaticFreeSurfaceModel` caveats
 
 - `WMomentumEquation.Tendency`, `WMomentumEquation.Forcing(model, Val(:w))`, and the
