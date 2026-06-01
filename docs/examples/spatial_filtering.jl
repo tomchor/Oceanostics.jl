@@ -79,38 +79,79 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
 
 run!(simulation)
 
+# ## Plotting setup
+#
+# We plot each diagnostic as soon as it is computed, so the panels appear next to the code that
+# produces them rather than all at the end. We first set a common theme and a set of axis options
+# shared by every panel.
+
+using CairoMakie
+
+set_theme!(Theme(fontsize = 18))
+
+axis_kwargs = (aspect = DataAspect(),
+               height = 200, width = 200,
+               xticksvisible = false, yticksvisible = false,
+               xticklabelsvisible = false, yticklabelsvisible = false)
+
+ω_range = (-10, 10)
+
 # ## Scale separation
 #
-# We now filter the snapshot at the end of the run. We pick a filter width ``\sigma`` of a few grid
-# cells and split the vorticity into resolved and subfilter parts. Vorticity lives at
+# We now filter the snapshot at the end of the run. We pick a filter width ``\sigma = 4\Delta`` (a
+# few grid cells) and split the vorticity into resolved and subfilter parts. Vorticity lives at
 # ``(f, f, c)``, so we interpolate it to cell centers before filtering (and for plotting).
 
 using Oceananigans.AbstractOperations: @at
 using Oceanostics
 
-Δ   = minimum_xspacing(grid)
-σ_f = 6Δ
+Δ = minimum_xspacing(grid)
+σ = 4Δ
 
 ω  = Field(@at (Center, Center, Center) (∂x(v) - ∂y(u)))   # vorticity at (Center, Center, Center)
-ω̄  = Field(GaussianFilter(ω; dims=(1, 2), σ=σ_f))          # resolved (large-scale) vorticity
+ω̄  = Field(GaussianFilter(ω; dims=(1, 2), σ=σ))            # resolved (large-scale) vorticity
 ω′ = Field(ω - ω̄)                                           # subfilter fluctuation
 
 # A normalized Gaussian filter removes small-scale variance while (on a periodic domain) preserving
-# the field mean, so the filtered field is necessarily smoother than the original:
+# the field mean, so the filtered field is necessarily smoother than the original. We plot the three
+# fields side by side:
 
-using Test                                              #hide
-@test var(interior(ω̄)) < var(interior(ω))              #hide
+fig_ω = Figure()
+ax_ω  = Axis(fig_ω[1, 1]; title = "Vorticity ω",        axis_kwargs...)
+ax_ω̄  = Axis(fig_ω[1, 2]; title = "Filtered ω̄",          axis_kwargs...)
+ax_ω′ = Axis(fig_ω[1, 3]; title = "Residual ω′ = ω − ω̄", axis_kwargs...)
+
+heatmap!(ax_ω,  ω;  colormap = :balance, colorrange = ω_range)
+heatmap!(ax_ω̄,  ω̄;  colormap = :balance, colorrange = ω_range)
+hm_ω = heatmap!(ax_ω′, ω′; colormap = :balance, colorrange = ω_range)
+Colorbar(fig_ω[1, 4], hm_ω)
+
+resize_to_layout!(fig_ω)
+fig_ω
+
+# The Gaussian filter splits the vorticity into a smooth resolved field ``\bar{\omega}`` and the
+# fine-scale residual ``\omega'`` it removes.
 
 # ## Filter-width sweep
 #
-# The amount of structure that survives depends on ``\sigma``: the wider the kernel, the more
-# scales are averaged away. We filter the vorticity at three increasing widths to make this
-# explicit.
+# The amount of structure that survives depends on ``\sigma``: the wider the kernel, the more scales
+# are averaged away. We filter the vorticity at three increasing widths — ``2\Delta``, ``4\Delta``
+# and ``8\Delta`` — and plot each result as it is computed.
 
 σ_sweep = (2Δ, 4Δ, 8Δ)
 ω̄_sweep = [Field(GaussianFilter(ω; dims=(1, 2), σ=s)) for s in σ_sweep]
 
-@test var(interior(ω̄_sweep[1])) > var(interior(ω̄_sweep[2])) > var(interior(ω̄_sweep[3]))   #hide
+fig_sweep = Figure()
+for (i, s) in enumerate(σ_sweep)
+    ax = Axis(fig_sweep[1, i]; title = "ω̄, σ = $(round(Int, s / Δ))Δ", axis_kwargs...)
+    hm = heatmap!(ax, ω̄_sweep[i]; colormap = :balance, colorrange = ω_range)
+    i == length(σ_sweep) && Colorbar(fig_sweep[1, i + 1], hm)
+end
+
+resize_to_layout!(fig_sweep)
+fig_sweep
+
+# Wider kernels (``\sigma = 2\Delta \to 8\Delta``) progressively erase smaller scales.
 
 # ## Subfilter tracer flux
 #
@@ -122,66 +163,32 @@ using Test                                              #hide
 uᶜ = Field(@at (Center, Center, Center) u)
 vᶜ = Field(@at (Center, Center, Center) v)
 
-ū  = Field(GaussianFilter(uᶜ; dims=(1, 2), σ=σ_f))
-v̄  = Field(GaussianFilter(vᶜ; dims=(1, 2), σ=σ_f))
-c̄  = Field(GaussianFilter(c;  dims=(1, 2), σ=σ_f))
+ū  = Field(GaussianFilter(uᶜ; dims=(1, 2), σ=σ))
+v̄  = Field(GaussianFilter(vᶜ; dims=(1, 2), σ=σ))
+c̄  = Field(GaussianFilter(c;  dims=(1, 2), σ=σ))
 
-ūc̄ = Field(GaussianFilter(Field(uᶜ * c); dims=(1, 2), σ=σ_f))   # = overline(u c)
-v̄c̄ = Field(GaussianFilter(Field(vᶜ * c); dims=(1, 2), σ=σ_f))   # = overline(v c)
+ūc̄ = Field(GaussianFilter(Field(uᶜ * c); dims=(1, 2), σ=σ))   # = overline(u c)
+v̄c̄ = Field(GaussianFilter(Field(vᶜ * c); dims=(1, 2), σ=σ))   # = overline(v c)
 
 τx = Field(ūc̄ - ū * c̄)
 τy = Field(v̄c̄ - v̄ * c̄)
 τ  = Field(sqrt(τx^2 + τy^2))   # subfilter flux magnitude
 
-# ## Plotting
-#
-# We assemble a static figure. The top row shows the scale separation of vorticity, the middle row
-# the filter-width sweep, and the bottom row the tracer together with its filtered version and the
-# subfilter flux magnitude.
+# Finally we plot the tracer, its filtered version, and the magnitude of the subfilter flux:
 
-using CairoMakie
-
-set_theme!(Theme(fontsize = 18))
-fig = Figure()
-
-axis_kwargs = (aspect = DataAspect(),
-               height = 200, width = 200,
-               xticksvisible = false, yticksvisible = false,
-               xticklabelsvisible = false, yticklabelsvisible = false)
-
-## Row 1: scale separation of vorticity
-ax_ω  = Axis(fig[1, 1]; title = "Vorticity ω",        axis_kwargs...)
-ax_ω̄  = Axis(fig[1, 2]; title = "Filtered ω̄",          axis_kwargs...)
-ax_ω′ = Axis(fig[1, 3]; title = "Residual ω′ = ω − ω̄", axis_kwargs...)
-
-ω_range = (-10, 10)
-heatmap!(ax_ω,  ω;  colormap = :balance, colorrange = ω_range)
-heatmap!(ax_ω̄,  ω̄;  colormap = :balance, colorrange = ω_range)
-hm_ω = heatmap!(ax_ω′, ω′; colormap = :balance, colorrange = ω_range)
-Colorbar(fig[1, 4], hm_ω)
-
-## Row 2: filter-width sweep of the filtered vorticity
-for (i, s) in enumerate(σ_sweep)
-    ax = Axis(fig[2, i]; title = "ω̄, σ = $(round(s / Δ, digits=1))Δ", axis_kwargs...)
-    heatmap!(ax, ω̄_sweep[i]; colormap = :balance, colorrange = ω_range)
-end
-
-## Row 3: tracer, filtered tracer, and subfilter flux magnitude
-ax_c  = Axis(fig[3, 1]; title = "Tracer c",      axis_kwargs...)
-ax_c̄  = Axis(fig[3, 2]; title = "Filtered c̄",     axis_kwargs...)
-ax_τ  = Axis(fig[3, 3]; title = "Subfilter |τ|", axis_kwargs...)
+fig_τ = Figure()
+ax_c  = Axis(fig_τ[1, 1]; title = "Tracer c",      axis_kwargs...)
+ax_c̄  = Axis(fig_τ[1, 2]; title = "Filtered c̄",     axis_kwargs...)
+ax_τ  = Axis(fig_τ[1, 3]; title = "Subfilter |τ|", axis_kwargs...)
 
 heatmap!(ax_c, c;  colormap = :balance, colorrange = (-1, 1))
 heatmap!(ax_c̄, c̄;  colormap = :balance, colorrange = (-1, 1))
 hm_τ = heatmap!(ax_τ, τ; colormap = :magma)
-Colorbar(fig[3, 4], hm_τ)
+Colorbar(fig_τ[1, 4], hm_τ)
 
-resize_to_layout!(fig)
-fig
+resize_to_layout!(fig_τ)
+fig_τ
 
-# The top row shows how the Gaussian filter splits the vorticity into a smooth resolved field
-# ``\bar{\omega}`` and the fine-scale residual ``\omega'`` it removes. The middle row shows that
-# wider kernels (`σ = 2Δ → 8Δ`) progressively erase smaller scales. The bottom row shows the
-# tracer ``c``, its filtered version ``\bar{c}``, and the magnitude of the subfilter flux
-# ``\tau``, which is largest precisely along the thin tracer filaments — the small-scale structure
-# that the filtered fields ``\bar{u}_i\,\bar{c}`` cannot represent on their own.
+# The magnitude of the subfilter flux ``\tau`` is largest precisely along the thin tracer filaments —
+# the small-scale structure that the filtered fields ``\bar{u}_i\,\bar{c}`` cannot represent on their
+# own.
