@@ -89,15 +89,14 @@ subfilter tracer flux — see the [Spatial filtering example](@ref spatial_filte
 
 ### Variably spaced (stretched) grids
 
-`GaussianFilter` works on stretched grids — for example a grid with a refined
-boundary layer in the vertical. It decides per direction at construction time
-how to evaluate the weights, so a regular grid keeps the original fast path:
+`GaussianFilter` works on stretched grids, but it is around 4 times slower than
+on regular grids:
 
 - Along a **uniformly spaced** direction the weights are identical for every
   cell, so they are precomputed once and looked up.
 - Along a **variably spaced** direction the weights depend on the local node
-  coordinates, so each is evaluated on the fly. The cell-width factor `Δ` above
-  is the quadrature weight that keeps the average from being biased toward
+  coordinates, so each is evaluated on the fly. We use the cell-width factor `Δ`,
+  which is the quadrature weight that keeps the average from being biased toward
   finely resolved regions; it makes the filter preserve constants exactly (and
   linear fields to quadrature accuracy), and it reduces to the uniform weighting
   when the spacing is constant.
@@ -120,16 +119,6 @@ julia> c̄z isa Field
 true
 ```
 
-!!! note "Performance on stretched directions"
-    Filtering *along* a stretched direction is several times slower per
-    direction than along a uniform one: instead of looking up a precomputed
-    weight, the kernel reads the node coordinate and cell width and evaluates an
-    `exp` at every stencil point. Because multi-direction filters run as
-    independent 1D passes, only the stretched directions pay this cost — so a
-    filter over a grid stretched in `z` only (e.g. `dims=(1, 2, 3)`) is far
-    closer to the uniform cost than the per-direction factor suggests, since the
-    `x` and `y` passes still use the fast precomputed-weight path. The
-    regular-grid path itself is unchanged.
 
 ```jldoctest filters
 julia> c̄_gauss = Field(GaussianFilter(c; dims=(1, 3), σ=0.05));
