@@ -68,15 +68,17 @@ BoxFilter
 ## Gaussian filter
 
 The [`GaussianFilter`](@ref) computes a Gaussian-weighted local average of a
-field over one or more grid directions. Each stencil point at offset `Δ` from
-the current cell receives weight `exp(-Δ²/(2σ²))`, where `σ` is the standard
-deviation of the kernel in **physical units** (the same units as the grid
-spacing). The filter is always normalized: the weighted sum is divided by the
-sum of the surviving weights, so all boundary policies behave consistently.
+field over one or more grid directions. A stencil cell of width `Δ` whose centre
+is a physical distance `r` from the current cell contributes weight
+`Δ · exp(-r²/(2σ²))`, where `σ` is the standard deviation of the kernel in
+**physical units** (the same units as the grid spacing). This is the discrete
+form of the continuous Gaussian convolution; the filter is always normalized
+(the weighted sum is divided by the sum of the surviving weights), so all
+boundary policies behave consistently.
 
 `σ` is the only required parameter beyond `dims` — `N` is inferred
 per-direction from `σ` and the minimum cell spacing in that direction so the
-stencil extends roughly `2σ` on each side of the current cell. To override,
+stencil extends at least `2σ` on each side of the current cell. To override,
 pass `N` explicitly: a single odd integer (≥ 3) applies to every filtered
 dim, or a tuple of odd integers sets one count per dim.
 
@@ -85,7 +87,49 @@ dim, or a tuple of odd integers sets one count per dim.
 For a worked end-to-end example — coarse-graining a turbulent flow, a filter-width sweep, and a
 subfilter tracer flux — see the [Spatial filtering example](@ref spatial_filtering_example).
 
-### Basic usage
+### Variably spaced (stretched) grids
+
+`GaussianFilter` works on stretched grids — for example a grid with a refined
+boundary layer in the vertical. It decides per direction at construction time
+how to evaluate the weights, so a regular grid keeps the original fast path:
+
+- Along a **uniformly spaced** direction the weights are identical for every
+  cell, so they are precomputed once and looked up.
+- Along a **variably spaced** direction the weights depend on the local node
+  coordinates, so each is evaluated on the fly. The cell-width factor `Δ` above
+  is the quadrature weight that keeps the average from being biased toward
+  finely resolved regions; it makes the filter preserve constants exactly (and
+  linear fields to quadrature accuracy), and it reduces to the uniform weighting
+  when the spacing is constant.
+
+Directions are handled independently, so a grid that is uniform in `x` and `y`
+but stretched in `z` uses the fast path for the horizontal directions and the
+node-distance path for the vertical:
+
+```jldoctest filters
+julia> stretched_grid = RectilinearGrid(size=(16, 16),
+                                        x=(0, 1),
+                                        z=k -> -1 + (k-1)/16 + 0.05sin(2π*(k-1)/16),
+                                        topology=(Periodic, Flat, Bounded));
+
+julia> cz = CenterField(stretched_grid); set!(cz, (x, z) -> sin(2π*x) * z);
+
+julia> c̄z = Field(GaussianFilter(cz; dims=(1, 3), σ=0.1));
+
+julia> c̄z isa Field
+true
+```
+
+!!! note "Performance on stretched directions"
+    Filtering *along* a stretched direction is several times slower per
+    direction than along a uniform one: instead of looking up a precomputed
+    weight, the kernel reads the node coordinate and cell width and evaluates an
+    `exp` at every stencil point. Because multi-direction filters run as
+    independent 1D passes, only the stretched directions pay this cost — so a
+    filter over a grid stretched in `z` only (e.g. `dims=(1, 2, 3)`) is far
+    closer to the uniform cost than the per-direction factor suggests, since the
+    `x` and `y` passes still use the fast precomputed-weight path. The
+    regular-grid path itself is unchanged.
 
 ```jldoctest filters
 julia> c̄_gauss = Field(GaussianFilter(c; dims=(1, 3), σ=0.05));
