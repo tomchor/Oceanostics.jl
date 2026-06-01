@@ -23,11 +23,13 @@
 
 # ## Model and simulation setup
 #
-# We generate a turbulent field with a quick doubly-periodic 2D turbulence simulation — the same
-# setup as the [Two-dimensional turbulence example](@ref two_d_turbulence_example), but on a
-# smaller grid and run for a shorter time, since here we only need a developed multi-scale field to
-# filter. A `GaussianFilter` requires **uniform spacing** along each filtered direction, which a
-# doubly-periodic `RectilinearGrid` satisfies in both ``x`` and ``y``.
+# To get a turbulent field to filter, we follow the
+# [Two-dimensional turbulence example](@ref two_d_turbulence_example): we run the same quick
+# doubly-periodic 2D turbulence simulation, initialized with a smooth, well-resolved sum of Gaussian
+# velocity blobs and a sine/cosine tracer that the flow stirs into thin filaments. See that example
+# for a detailed walk-through of the setup — here we only summarize it, with two differences: we use
+# a smaller grid and a shorter run time, since we just need a developed, multi-scale field. Note that,
+# for now, a `GaussianFilter` requires **uniform spacing** along each filtered direction.
 
 using Oceananigans
 
@@ -38,9 +40,7 @@ model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             tracers = :c,
                             closure = ScalarDiffusivity(ν=1e-4, κ=1e-3))
 
-# We initialize the velocities as a smooth, well-resolved sum of Gaussian blobs (so the flow is
-# resolved rather than grid-scale noise) and the tracer with a smooth sine/cosine pattern that
-# turbulence will stir into thin filaments.
+# Initial conditions:
 
 using Random, Statistics
 
@@ -79,23 +79,6 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
 
 run!(simulation)
 
-# ## Plotting setup
-#
-# We plot each diagnostic as soon as it is computed, so the panels appear next to the code that
-# produces them rather than all at the end. We first set a common theme and a set of axis options
-# shared by every panel.
-
-using CairoMakie
-
-set_theme!(Theme(fontsize = 18))
-
-axis_kwargs = (aspect = DataAspect(),
-               height = 200, width = 200,
-               xticksvisible = false, yticksvisible = false,
-               xticklabelsvisible = false, yticklabelsvisible = false)
-
-ω_range = (-10, 10)
-
 # ## Scale separation
 #
 # We now filter the snapshot at the end of the run. We pick a filter width ``\sigma = 4\Delta`` (a
@@ -110,17 +93,26 @@ using Oceanostics
 
 ω  = Field(@at (Center, Center, Center) (∂x(v) - ∂y(u)))   # vorticity at (Center, Center, Center)
 ω̄  = Field(GaussianFilter(ω; dims=(1, 2), σ=σ))            # resolved (large-scale) vorticity
-ω′ = Field(ω - ω̄)                                           # subfilter fluctuation
+ω′ = Field(ω - ω̄)                                          # subfilter fluctuation
 
 # A normalized Gaussian filter removes small-scale variance while (on a periodic domain) preserving
 # the field mean, so the filtered field is necessarily smoother than the original. We plot the three
 # fields side by side:
 
+using CairoMakie
+set_theme!(Theme(fontsize = 18))
+
+axis_kwargs = (aspect = DataAspect(),
+               height = 200, width = 200,
+               xticksvisible = false, yticksvisible = false,
+               xticklabelsvisible = false, yticklabelsvisible = false)
+
 fig_ω = Figure()
-ax_ω  = Axis(fig_ω[1, 1]; title = "Vorticity ω",        axis_kwargs...)
+ax_ω  = Axis(fig_ω[1, 1]; title = "Vorticity ω",         axis_kwargs...)
 ax_ω̄  = Axis(fig_ω[1, 2]; title = "Filtered ω̄",          axis_kwargs...)
 ax_ω′ = Axis(fig_ω[1, 3]; title = "Residual ω′ = ω − ω̄", axis_kwargs...)
 
+ω_range = (-10, 10)
 heatmap!(ax_ω,  ω;  colormap = :balance, colorrange = ω_range)
 heatmap!(ax_ω̄,  ω̄;  colormap = :balance, colorrange = ω_range)
 hm_ω = heatmap!(ax_ω′, ω′; colormap = :balance, colorrange = ω_range)
@@ -178,7 +170,7 @@ v̄c̄ = Field(GaussianFilter(Field(vᶜ * c); dims=(1, 2), σ=σ))   # = overli
 
 fig_τ = Figure()
 ax_c  = Axis(fig_τ[1, 1]; title = "Tracer c",      axis_kwargs...)
-ax_c̄  = Axis(fig_τ[1, 2]; title = "Filtered c̄",     axis_kwargs...)
+ax_c̄  = Axis(fig_τ[1, 2]; title = "Filtered c̄",    axis_kwargs...)
 ax_τ  = Axis(fig_τ[1, 3]; title = "Subfilter |τ|", axis_kwargs...)
 
 heatmap!(ax_c, c;  colormap = :balance, colorrange = (-1, 1))
