@@ -6,7 +6,9 @@ export BoxFilter, GaussianFilter
 using Oceananigans: location
 using Oceananigans.Grids: topology, Periodic,
                           minimum_xspacing, minimum_yspacing, minimum_zspacing,
-                          xspacings, yspacings, zspacings
+                          xspacings, yspacings, zspacings,
+                          xnode, ynode, znode
+using Oceananigans.Operators: xspacing, yspacing, zspacing
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 
 using Oceanostics: CustomKFO

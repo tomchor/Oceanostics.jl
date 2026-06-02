@@ -121,6 +121,25 @@ end
             test_kfo_invariants("BoxFilter dims=$dims",      BoxFilter(c; dims=dims, N=3))
             test_kfo_invariants("GaussianFilter dims=$dims", GaussianFilter(c; dims=dims, σ=2/N))
         end
+
+        # Stretched (variably spaced) directions take the StretchedGaussianFilterKernel,
+        # which reads node coordinates/spacings and evaluates `exp` per offset instead
+        # of looking up a precomputed weight. That extra machinery (including the
+        # location-tuple splat) must still be allocation-free and type-stable per cell —
+        # an accidental boxing of the location tuple or a non-concrete spacing lookup
+        # would show up here immediately. The grid is stretched in z (the canonical
+        # case) and uniform in the periodic x and y.
+        zfaces(k) = -1 + (k-1)/N + 0.08 * sin(2π*(k-1)/N)
+        stretched_grid = RectilinearGrid(CPU(), size=(N, N, N), x=(0, 1), y=(0, 1), z=zfaces,
+                                         halo=(3, 3, 3), topology=(Periodic, Periodic, Bounded))
+        cs = CenterField(stretched_grid)
+        set!(cs, (x, y, z) -> sin(2π*x) + z^2)
+        # Pass an explicit (small) N: the alloc/type-stability invariant is
+        # independent of stencil width, and a fixed N keeps the fused 3D probe's
+        # compile time bounded regardless of the grid's minimum spacing.
+        for dims in ((3,), (1, 3), (1, 2, 3))
+            test_kfo_invariants("GaussianFilter stretched dims=$dims", GaussianFilter(cs; dims=dims, σ=2/N, N=5))
+        end
     end
 
     @testset "TracerEquation" begin
@@ -181,12 +200,27 @@ end
         set!(c, (x, y, z) -> sin(2π*x) * cos(2π*y))
         fill_halo_regions!(c)
 
+        # Same grid size but stretched in z, to track the variably spaced
+        # GaussianFilter: its 1D passes do more per-cell work (node/spacing reads
+        # plus `exp`) than the uniform path, but the staged evaluation must still
+        # beat the fused `N³` path by the same wide margin at a wide 3D stencil.
+        stretched_bench_grid = RectilinearGrid(CPU(), size=(16, 16, 16),
+                                               x=(0, 1), y=(0, 1),
+                                               z=k -> -1 + (k-1)/16 + 0.08*sin(2π*(k-1)/16),
+                                               halo=(5, 5, 5),
+                                               topology=(Periodic, Periodic, Bounded))
+        cs = CenterField(stretched_bench_grid)
+        set!(cs, (x, y, z) -> sin(2π*x) * cos(2π*y))
+        fill_halo_regions!(cs)
+
         # Each `(filter_name, build)` pair returns a fresh KFO for given
         # `(dims, width)`.
         configs = (("BoxFilter",
                     (dims, w) -> BoxFilter(c; dims=dims, N=2*w+1)),
                    ("GaussianFilter",
-                    (dims, w) -> GaussianFilter(c; dims=dims, σ=(w/2)/16, N=2*w+1)))
+                    (dims, w) -> GaussianFilter(c; dims=dims, σ=(w/2)/16, N=2*w+1)),
+                   ("GaussianFilter (stretched z)",
+                    (dims, w) -> GaussianFilter(cs; dims=dims, σ=(w/2)/16, N=2*w+1)))
 
         # Sanity: at a wide stencil width, the fused 3D path should be
         # *substantially* slower than the staged path. The threshold (2×)
