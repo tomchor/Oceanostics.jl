@@ -2,10 +2,13 @@ using Test
 using CUDA: has_cuda_gpu, @allowscalar
 using Oceananigans
 using Oceananigans: fill_halo_regions!, location
+using Oceananigans.Grids: topology, xnode, ynode, znode
+using Oceananigans.Operators: xspacing, yspacing, zspacing
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 
 using Oceanostics
 using Oceanostics: BoxFilter, GaussianFilter
+using Oceanostics.Filters: GaussianFilterKernel, StretchedGaussianFilterKernel
 
 arch = has_cuda_gpu() ? GPU() : CPU()
 
@@ -454,27 +457,187 @@ function test_gaussian_N_tuple_order()
     @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=σ, N=(5, 3.5))  # non-integer
 end
 
-# GaussianFilter precomputes its weights using one Δ per direction, so it
-# only supports uniform spacing along every filtered direction. Non-uniform
-# directions must error at construction time with a clear message. Other
-# directions on the same grid may be non-uniform, as long as they aren't
-# being filtered.
-function test_gaussian_uniform_spacing_required()
+# GaussianFilter now supports variably spaced (stretched) directions: it picks
+# the implementation per direction at construction time, using the fast
+# precomputed-weights kernel where spacing is uniform and the on-the-fly
+# node-distance kernel where it is not. These tests check that the right kernel
+# is selected and that filtering a stretched direction no longer errors.
+function test_gaussian_stretched_supported()
     zfaces(k) = -1 + (k-1)/8 + 0.05 * sin(2π*(k-1)/8)
     grid = RectilinearGrid(arch, size=(8, 8, 8), x=(0, 1), y=(0, 1), z=zfaces,
                            topology=(Periodic, Periodic, Bounded))
     c = CenterField(grid)
 
-    # Filtering the stretched z direction must error — alone or alongside other dims.
-    @test_throws ArgumentError GaussianFilter(c; dims=(3,),   σ=0.1)
-    @test_throws ArgumentError GaussianFilter(c; dims=(1, 3), σ=0.1)
+    # Filtering the stretched z direction now succeeds and selects the stretched kernel.
+    @test GaussianFilter(c; dims=(3,),   σ=0.1) isa KernelFunctionOperation
+    @test GaussianFilter(c; dims=(3,),   σ=0.1).kernel_function isa StretchedGaussianFilterKernel
+    @test GaussianFilter(c; dims=(1, 3), σ=0.1) isa KernelFunctionOperation
 
-    # Filtering only the uniform x and y directions must still succeed.
-    @test GaussianFilter(c; dims=(1,),   σ=0.1) isa KernelFunctionOperation
+    # Uniform directions keep the fast precomputed-weights kernel.
+    @test GaussianFilter(c; dims=(1,),   σ=0.1).kernel_function isa GaussianFilterKernel
     @test GaussianFilter(c; dims=(1, 2), σ=0.1) isa KernelFunctionOperation
 
-    # BoxFilter is unaffected: its weights don't depend on Δ.
+    # BoxFilter is unaffected: its weights never depended on Δ.
     @test BoxFilter(c; dims=(3,), N=3) isa KernelFunctionOperation
+end
+
+# A stretched bounded grid for z (the canonical use case: a stretched vertical),
+# uniform in the periodic x and y. The z faces are monotonically increasing with
+# variable spacing.
+function make_stretched_z_grid(; Nx=6, Ny=6, Nz=8, halo=(3, 3, 3))
+    zfaces(k) = -1 + (k-1)/Nz + 0.08 * sin(2π*(k-1)/Nz)
+    return RectilinearGrid(arch, size=(Nx, Ny, Nz), x=(0, 1), y=(0, 1), z=zfaces,
+                           halo=halo, topology=(Periodic, Periodic, Bounded))
+end
+
+# Node coordinates and cell widths along direction `d` at the field location, for
+# the interior cells `1:Nd`. Uses Oceananigans' own accessors, so the reference
+# is independent of the filter's internals.
+function direction_coords_and_spacings(grid, d, loc)
+    N = size(grid, d)
+    ℓ = map(L -> L(), loc)
+    d == 1 && return ([xnode(m, 1, 1, grid, ℓ...) for m in 1:N], [xspacing(m, 1, 1, grid, ℓ...) for m in 1:N])
+    d == 2 && return ([ynode(1, m, 1, grid, ℓ...) for m in 1:N], [yspacing(1, m, 1, grid, ℓ...) for m in 1:N])
+    return ([znode(1, 1, m, grid, ℓ...) for m in 1:N], [zspacing(1, 1, m, grid, ℓ...) for m in 1:N])
+end
+
+# Independent reference for a 1D stretched Gaussian filter: the discrete quadrature
+# `Σₘ Δₘ G(xₘ-x₀) ψₘ / Σₘ Δₘ G(xₘ-x₀)` with the same boundary geometry as the
+# kernel — periodic offsets use the unwrapped image coordinate; bounded offsets
+# clamp to the boundary (and `:shrink` drops out-of-range offsets from sum and
+# count). `boundary` is ignored for periodic directions.
+function reference_gaussian_stretched(c, grid, d, σ, width; boundary=:shrink)
+    N = size(grid, d)
+    coords, spac = direction_coords_and_spacings(grid, d, location(c))
+    L = (grid.Lx, grid.Ly, grid.Lz)[d]
+    periodic = topology(grid, d) === Periodic
+    ic = Array(interior(c))
+    ref = similar(ic)
+    for I in CartesianIndices(ic)
+        idx = Tuple(I)
+        center = idx[d]
+        x₀ = coords[center]
+        s = zero(eltype(ic)); wsum = zero(eltype(ic))
+        for Δ in -width:width
+            m = center + Δ
+            if periodic
+                mr = mod1(m, N)
+                pos, sp = coords[mr] - L*(m < 1) + L*(m > N), spac[mr]
+                val, cnt = ic[Base.setindex(idx, mr, d)...], 1
+            elseif boundary === :shrink
+                inb = 1 <= m <= N
+                mr = clamp(m, 1, N)
+                pos, sp = coords[mr], spac[mr]
+                val, cnt = (inb ? ic[Base.setindex(idx, mr, d)...] : zero(eltype(ic))), Int(inb)
+            else # :edge
+                mr = clamp(m, 1, N)
+                pos, sp = coords[mr], spac[mr]
+                val, cnt = ic[Base.setindex(idx, mr, d)...], 1
+            end
+            w = sp * exp(-(pos - x₀)^2 / (2σ^2))
+            s += w * val; wsum += w * cnt
+        end
+        ref[I] = s / wsum
+    end
+    return ref
+end
+
+# The stretched filter must reproduce the discrete-quadrature reference exactly,
+# for a bounded direction (shrink + edge) and a periodic stretched direction.
+function test_gaussian_stretched_numerical()
+    σ = 0.15
+    for width in (2, 3)
+        # Bounded stretched z, :shrink and :edge
+        gz = make_stretched_z_grid()
+        cz = center_field_from(gz, (x, y, z) -> sin(2π*x) * cos(2π*y) + z^2 + 0.3z)
+        for boundary in (:shrink, :edge)
+            cf = compute_filter(cz, GaussianFilter, (3,), width; σ=σ, boundary=boundary)
+            ref = reference_gaussian_stretched(cz, gz, 3, σ, width; boundary=boundary)
+            @test Array(interior(cf)) ≈ ref
+        end
+
+        # Periodic stretched x (node positions tile with the domain period)
+        xfaces(i) = (i-1)/8 + 0.1 * sin(2π*(i-1)/8)
+        gx = RectilinearGrid(arch, size=(8, 4, 4), x=xfaces, y=(0, 1), z=(0, 1),
+                             halo=(3, 1, 1), topology=(Periodic, Periodic, Bounded))
+        cx = center_field_from(gx, (x, y, z) -> sin(2π*x))
+        cf = compute_filter(cx, GaussianFilter, (1,), width; σ=0.12)
+        ref = reference_gaussian_stretched(cx, gx, 1, 0.12, width)
+        @test Array(interior(cf)) ≈ ref
+    end
+end
+
+# A constant field is preserved exactly on a stretched grid (Σ w·const / Σ w =
+# const), and a linear field is preserved to quadrature accuracy in the interior
+# (where the stencil is fully covered) — the cell-width quadrature factor is what
+# makes this hold; a sample-average without it would bias toward finely resolved
+# cells. The linear check uses a smoothly (monotonically) stretched grid with a
+# well-resolved σ, so the residual midpoint-quadrature error is well under 1%.
+function test_gaussian_stretched_constant_and_linear()
+    Nz = 32
+    zsmooth(k) = 2 * ((k-1)/Nz + 0.5*((k-1)/Nz)^2) / 1.5     # monotonic, cells grow with k
+    gz = RectilinearGrid(arch, size=(4, 4, Nz), x=(0, 1), y=(0, 1), z=zsmooth,
+                         halo=(2, 2, 2), topology=(Periodic, Periodic, Bounded))
+
+    cc = center_field_from(gz, (x, y, z) -> 2.71)
+    fc = compute_filter(cc, GaussianFilter, (3,), 9; σ=0.18)
+    @test all(Array(interior(fc)) .≈ 2.71)
+
+    cl = center_field_from(gz, (x, y, z) -> 2z + 0.5)
+    fl = compute_filter(cl, GaussianFilter, (3,), 9; σ=0.18)
+    zc, _ = direction_coords_and_spacings(gz, 3, location(cl))
+    interiorᵏ = 11:Nz-10                            # cells whose full stencil stays in-domain
+    exact = [2*zc[k] + 0.5 for k in interiorᵏ]      # 2z+0.5 is independent of x, y, so check one column
+    @test Array(interior(fl))[1, 1, interiorᵏ] ≈ exact rtol=1e-2
+end
+
+# Multi-direction filters with at least one stretched direction must give the
+# same answer through the staged `compute!` path (the default `Field(filter)`)
+# as through the fused single-kernel path (`Field(1.0 * filter)`).
+function test_gaussian_stretched_staged_matches_fused()
+    gz = make_stretched_z_grid()
+    c = center_field_from(gz, (x, y, z) -> sin(2π*x) * cos(2π*y) + z^2)
+    for dims in [(1, 3), (3, 1), (1, 2, 3)]
+        staged = Field(GaussianFilter(c; dims=dims, σ=0.15))
+        fused  = Field(1.0 * GaussianFilter(c; dims=dims, σ=0.15))
+        compute!(staged); compute!(fused)
+        @test Array(interior(staged)) ≈ Array(interior(fused))
+    end
+end
+
+# On a Dirac delta the stretched filter's impulse response equals the normalized,
+# cell-width-weighted Gaussian sampled at the node coordinates.
+function test_gaussian_stretched_dirac_delta()
+    N = 21
+    zfaces(k) = (k-1)/N + 0.06 * sin(2π*(k-1)/N)
+    grid_1d = RectilinearGrid(arch, size=(1, 1, N), x=(0, 1), y=(0, 1), z=zfaces,
+                              halo=(1, 1, 4), topology=(Periodic, Periodic, Bounded))
+    zc, Δz = direction_coords_and_spacings(grid_1d, 3, (Center, Center, Center))
+    i₀ = N ÷ 2 + 1
+
+    for (width, σ) in [(3, 0.05), (4, 0.07)]
+        c = CenterField(grid_1d)
+        parent(c) .= 0
+        @allowscalar interior(c)[1, 1, i₀] = 1
+        fill_halo_regions!(c)
+
+        cf = compute_filter(c, GaussianFilter, (3,), width; σ=σ)
+
+        expected = zeros(N)
+        for k in 1:N
+            wsum = 0.0; w_i₀ = 0.0
+            for Δk in -width:width
+                m = k + Δk
+                if 1 <= m <= N
+                    w = Δz[m] * exp(-(zc[m] - zc[k])^2 / (2σ^2))
+                    wsum += w
+                    m == i₀ && (w_i₀ = w)
+                end
+            end
+            expected[k] = w_i₀ / wsum
+        end
+        @test Array(interior(cf))[1, 1, :] ≈ expected
+    end
 end
 
 # Apply the GaussianFilter to a discrete Dirac delta (a 1D field that is zero
@@ -580,7 +743,14 @@ filter_configs = [
         test_gaussian_N_inferred()
         test_gaussian_N_inferred_anisotropic()
         test_gaussian_N_tuple_order()
-        test_gaussian_uniform_spacing_required()
+    end
+
+    @testset "GaussianFilter on stretched grids" begin
+        test_gaussian_stretched_supported()
+        test_gaussian_stretched_numerical()
+        test_gaussian_stretched_constant_and_linear()
+        test_gaussian_stretched_staged_matches_fused()
+        test_gaussian_stretched_dirac_delta()
     end
 end
 #---

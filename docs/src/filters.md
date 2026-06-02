@@ -68,15 +68,31 @@ BoxFilter
 ## Gaussian filter
 
 The [`GaussianFilter`](@ref) computes a Gaussian-weighted local average of a
-field over one or more grid directions. Each stencil point at offset `Δ` from
-the current cell receives weight `exp(-Δ²/(2σ²))`, where `σ` is the standard
-deviation of the kernel in **physical units** (the same units as the grid
-spacing). The filter is always normalized: the weighted sum is divided by the
-sum of the surviving weights, so all boundary policies behave consistently.
+field over one or more grid directions. Along a single filtered direction the
+filtered value at cell ``i`` is
+
+```math
+\bar{\psi}_i = \frac{\sum_m \Delta_m \, e^{-(x_m - x_i)^2 / (2\sigma^2)} \, \psi_m}
+                    {\sum_m \Delta_m \, e^{-(x_m - x_i)^2 / (2\sigma^2)}} ,
+```
+
+where ``m`` runs over the cells of the stencil centred on ``i``; ``x_m`` and
+``\Delta_m`` are the coordinate and width of cell ``m`` along the filtered
+direction, ``x_i`` is the current cell's coordinate, and ``\sigma`` is the
+kernel's standard deviation in **physical units** (the same as the grid
+spacing). In words: each cell's Gaussian weight
+``e^{-(x_m - x_i)^2 / (2\sigma^2)}`` is multiplied by that cell's own width
+``\Delta_m``, and the **same** ``\Delta_m``-weighted sum appears in the
+normalizing denominator. The normalization returns a constant field unchanged
+and keeps every boundary policy consistent, while the ``\Delta_m`` factor is the
+quadrature weight (the ``dx'`` of ``\int G_\sigma(x-x')\,\psi(x')\,dx' \big/
+\int G_\sigma(x-x')\,dx'``) that makes the discrete sum approximate the
+continuous Gaussian convolution. Multi-direction filters apply this to each
+filtered direction in turn.
 
 `σ` is the only required parameter beyond `dims` — `N` is inferred
 per-direction from `σ` and the minimum cell spacing in that direction so the
-stencil extends roughly `2σ` on each side of the current cell. To override,
+stencil extends at least `2σ` on each side of the current cell. To override,
 pass `N` explicitly: a single odd integer (≥ 3) applies to every filtered
 dim, or a tuple of odd integers sets one count per dim.
 
@@ -85,7 +101,40 @@ dim, or a tuple of odd integers sets one count per dim.
 For a worked end-to-end example — coarse-graining a turbulent flow, a filter-width sweep, and a
 subfilter tracer flux — see the [Spatial filtering example](@ref spatial_filtering_example).
 
-### Basic usage
+### Variably spaced (stretched) grids
+
+`GaussianFilter` works on stretched grids, but it is around 4 times slower than
+on regular grids:
+
+- Along a **uniformly spaced** direction every ``\Delta_m`` is equal, so it
+  factors out of the sum and cancels between numerator and denominator. The
+  weights then reduce to a plain ``e^{-(x_m - x_i)^2 / (2\sigma^2)}`` that is
+  identical for every cell, so they are precomputed once and looked up — the
+  fast path used on regular grids.
+- Along a **variably spaced** direction ``x_m`` and ``\Delta_m`` differ from cell
+  to cell, so the weights cannot be precomputed and are evaluated on the fly.
+  Keeping the per-cell ``\Delta_m`` factor is what stops the average from being
+  biased toward finely resolved regions; it makes the filter preserve constants
+  exactly and linear fields to quadrature accuracy.
+
+Directions are handled independently, so a grid that is uniform in `x` and `y`
+but stretched in `z` uses the fast path for the horizontal directions and the
+node-distance path for the vertical:
+
+```jldoctest filters
+julia> stretched_grid = RectilinearGrid(size=(16, 16),
+                                        x=(0, 1),
+                                        z=k -> -1 + (k-1)/16 + 0.05sin(2π*(k-1)/16),
+                                        topology=(Periodic, Flat, Bounded));
+
+julia> cz = CenterField(stretched_grid); set!(cz, (x, z) -> sin(2π*x) * z);
+
+julia> c̄z = Field(GaussianFilter(cz; dims=(1, 3), σ=0.1));
+
+julia> c̄z isa Field
+true
+```
+
 
 ```jldoctest filters
 julia> c̄_gauss = Field(GaussianFilter(c; dims=(1, 3), σ=0.05));
