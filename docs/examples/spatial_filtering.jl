@@ -28,8 +28,10 @@
 # doubly-periodic 2D turbulence simulation, initialized with a smooth, well-resolved sum of Gaussian
 # velocity blobs and a sine/cosine tracer that the flow stirs into thin filaments. See that example
 # for a detailed walk-through of the setup — here we only summarize it, with two differences: we use
-# a smaller grid and a shorter run time, since we just need a developed, multi-scale field. Note that,
-# for now, a `GaussianFilter` requires **uniform spacing** along each filtered direction.
+# a smaller grid and a shorter run time, since we just need a developed, multi-scale field. (The
+# grid here is uniform, but [`GaussianFilter`](@ref) also supports stretched directions, choosing a
+# fast precomputed-weight path on uniform directions and a node-distance path on variably spaced
+# ones.)
 
 using Oceananigans
 
