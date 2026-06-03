@@ -275,19 +275,6 @@ nothing #hide
 # ``-\int \chi\, dV``), the only term that survives volume-integration for a periodic
 # incompressible flow with a centered advection scheme. The residual shows the gap between them.
 #
-# Outputting with `ConsecutiveIterations(TimeInterval(...))` is the trick that makes this
-# diagnosis possible: the writer emits two snapshots one model step apart at every output time,
-# so the finite-difference time derivative is a single-step approximation rather than a coarse
-# difference between widely spaced outputs. We can therefore read both ``\int \mathrm{KE}\, dV``
-# and the source terms straight off disk and close the budget without any in-simulation
-# time-integration callback.
-#
-# Because we use a centered advection scheme, the volume-integrated advection contributions
-# vanish exactly and the residual collapses to the timestepping discretization error — a clean
-# closure of the budget against the explicit dissipation alone.
-#
 # Note that `KineticEnergyDissipationRate` (`ε`) and `TracerVarianceDissipationRate` (`χ`) are
-# implemented in an energy/variance-conserving form (i.e., they use the exact same
-# discretizations and interpolations as Oceananigans), so the explicit-dissipation pieces of the
-# budgets are exact and any residual we see is dominated by the one-step finite-difference
-# truncation in ``d/dt``.
+# implemented using the same kernels as Oceananigans (and therefore use the same interpolations and
+# discretizations).
