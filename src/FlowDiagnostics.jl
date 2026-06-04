@@ -3,7 +3,7 @@ using DocStringExtensions
 
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
-export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
+export StrainRateTensor, StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 
@@ -395,6 +395,53 @@ Its modulus is then defined (using Einstein summation notation) as
 function StrainRateTensorModulus(model; loc = (Center, Center, Center))
     validate_location(loc, "StrainRateTensorModulus", (Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(strain_rate_tensor_modulus_ccc, model.grid, model.velocities...)
+end
+
+# Off-diagonal strain rate components, each evaluated at its natural staggered location.
+@inline strain_rate_tensor_xy_ffc(i, j, k, grid, u, v) = (∂yᶠᶠᶜ(i, j, k, grid, u) + ∂xᶠᶠᶜ(i, j, k, grid, v)) / 2
+@inline strain_rate_tensor_xz_fcf(i, j, k, grid, u, w) = (∂zᶠᶜᶠ(i, j, k, grid, u) + ∂xᶠᶜᶠ(i, j, k, grid, w)) / 2
+@inline strain_rate_tensor_yz_cff(i, j, k, grid, v, w) = (∂zᶜᶠᶠ(i, j, k, grid, v) + ∂yᶜᶠᶠ(i, j, k, grid, w)) / 2
+
+"""
+    $(SIGNATURES)
+
+Return the components of the strain rate tensor `S`, defined as the symmetric part of the velocity
+gradient tensor:
+
+```
+    Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)
+```
+
+The result is a `NamedTuple` with the 6 independent components, each a `KernelFunctionOperation`
+living at its natural location on the staggered grid:
+
+| Component | Definition         | Location |
+|:---------:|:------------------:|:--------:|
+| `S₁₁`     | `∂u/∂x`            | `ccc`    |
+| `S₂₂`     | `∂v/∂y`            | `ccc`    |
+| `S₃₃`     | `∂w/∂z`            | `ccc`    |
+| `S₁₂`     | `½(∂u/∂y + ∂v/∂x)` | `ffc`    |
+| `S₁₃`     | `½(∂u/∂z + ∂w/∂x)` | `fcf`    |
+| `S₂₃`     | `½(∂v/∂z + ∂w/∂y)` | `cff`    |
+
+The tensor is symmetric, so the remaining components follow from `Sⱼᵢ = Sᵢⱼ` (i.e. `S₂₁ = S₁₂`,
+`S₃₁ = S₁₃`, `S₃₂ = S₂₃`). Each component can be wrapped in a `Field` and used with output writers,
+time-averaging, etc. Can also be called as `StrainRateTensor(grid, u, v, w)` to build the components
+from individual velocity fields. See also [`StrainRateTensorModulus`](@ref) for the scalar modulus
+`√(SᵢⱼSᵢⱼ)`.
+"""
+StrainRateTensor(model) = StrainRateTensor(model.grid, model.velocities...)
+
+function StrainRateTensor(grid::AbstractGrid, u, v, w)
+    S₁₁ = KernelFunctionOperation{Center, Center, Center}(∂xᶜᶜᶜ, grid, u)
+    S₂₂ = KernelFunctionOperation{Center, Center, Center}(∂yᶜᶜᶜ, grid, v)
+    S₃₃ = KernelFunctionOperation{Center, Center, Center}(∂zᶜᶜᶜ, grid, w)
+
+    S₁₂ = KernelFunctionOperation{Face, Face, Center}(strain_rate_tensor_xy_ffc, grid, u, v)
+    S₁₃ = KernelFunctionOperation{Face, Center, Face}(strain_rate_tensor_xz_fcf, grid, u, w)
+    S₂₃ = KernelFunctionOperation{Center, Face, Face}(strain_rate_tensor_yz_cff, grid, v, w)
+
+    return (; S₁₁, S₂₂, S₃₃, S₁₂, S₁₃, S₂₃)
 end
 
 @inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2

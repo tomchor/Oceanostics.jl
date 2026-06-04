@@ -173,6 +173,13 @@ end
         test_kfo_invariants("RossbyNumber",            RossbyNumber(model))
         test_kfo_invariants("ErtelPotentialVorticity", ErtelPotentialVorticity(model))
         test_kfo_invariants("StrainRateTensorModulus", StrainRateTensorModulus(model))
+
+        # Off-diagonal strain components live at edge locations (ffc/fcf/cff) and exercise the
+        # new per-component kernels; the diagonals reuse Oceananigans' ∂ᵢᶜᶜᶜ operators.
+        Sij = StrainRateTensor(model)
+        test_kfo_invariants("StrainRateTensor.S₁₂", Sij.S₁₂)
+        test_kfo_invariants("StrainRateTensor.S₁₃", Sij.S₁₃)
+        test_kfo_invariants("StrainRateTensor.S₂₃", Sij.S₂₃)
     end
     #---
 

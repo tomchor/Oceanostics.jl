@@ -16,9 +16,9 @@ The module includes:
   a materially conserved quantity under adiabatic, inviscid conditions that is
   fundamental for understanding large-scale ocean dynamics. A thermal-wind-balance
   approximation and a directional decomposition are also provided.
-- **Velocity gradient tensor invariants**: the strain rate tensor modulus
-  (``\|S_{ij}\|``), vorticity tensor modulus (``\|\Omega_{ij}\|``), and the
-  ``Q``-criterion for vortex identification.
+- **Velocity gradient tensor diagnostics**: the full strain rate tensor ``S_{ij}``
+  and its modulus (``\|S_{ij}\|``), the vorticity tensor modulus (``\|\Omega_{ij}\|``),
+  and the ``Q``-criterion for vortex identification.
 - **Mixed layer depth**: computed by scanning downward from the surface to find
   where buoyancy or density departs from the surface value by more than a
   user-specified threshold.
@@ -127,6 +127,21 @@ Oceanostics.FlowDiagnostics.DirectionalErtelPotentialVorticity
 ```
 
 ## Velocity gradient tensor invariants
+
+### Strain rate tensor
+
+The full (symmetric) strain rate tensor, returned as a `NamedTuple` of its 6 independent components.
+Each component is a `KernelFunctionOperation` evaluated at its natural location on the staggered grid
+(the diagonal components at `(Center, Center, Center)`; the off-diagonals at the edge locations
+`(Face, Face, Center)`, `(Face, Center, Face)`, and `(Center, Face, Face)`).
+
+```math
+S_{ij} = \tfrac{1}{2}(\partial_j u_i + \partial_i u_j)
+```
+
+```@docs
+Oceanostics.FlowDiagnostics.StrainRateTensor
+```
 
 ### Strain rate tensor modulus
 

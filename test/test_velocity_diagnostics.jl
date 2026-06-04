@@ -2,6 +2,7 @@ using Test
 using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
+using Oceananigans.Fields: location
 
 using Oceanostics
 using Oceanostics: perturbation_fields
@@ -57,6 +58,17 @@ function test_velocity_only_flow_diagnostics(model)
     @test op isa StrainRateTensorModulus
     S = Field(op)
     @test all(interior(S) .≈ 0)
+
+    Sij = StrainRateTensor(model)
+    @test keys(Sij) == (:S₁₁, :S₂₂, :S₃₃, :S₁₂, :S₁₃, :S₂₃)
+    @test location(Sij.S₁₁) == (Center, Center, Center)
+    @test location(Sij.S₁₂) == (Face, Face, Center)
+    @test location(Sij.S₁₃) == (Face, Center, Face)
+    @test location(Sij.S₂₃) == (Center, Face, Face)
+    @test Sij == StrainRateTensor(model.grid, model.velocities...) # field-based constructor agrees
+    for Sᵢⱼ in Sij
+        @test all(interior(Field(Sᵢⱼ)) .≈ 0)
+    end
 
     op = VorticityTensorModulus(model)
     @test op isa VorticityTensorModulus
