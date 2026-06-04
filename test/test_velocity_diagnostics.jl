@@ -70,6 +70,14 @@ function test_velocity_only_flow_diagnostics(model)
         @test all(interior(Field(Sᵢⱼ)) .≈ 0)
     end
 
+    Λ = PrincipalStrainRates(model)
+    @test keys(Λ) == (:λ₁, :λ₂, :λ₃)
+    @test all(location(λ) == (Center, Center, Center) for λ in Λ)
+    @test Λ == PrincipalStrainRates(model.grid, model.velocities...) # field-based constructor agrees
+    for λ in Λ
+        @test all(interior(Field(λ)) .≈ 0)
+    end
+
     op = VorticityTensorModulus(model)
     @test op isa VorticityTensorModulus
     Ω = Field(op)

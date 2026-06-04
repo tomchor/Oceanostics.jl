@@ -153,6 +153,24 @@ Oceanostics.FlowDiagnostics.StrainRateTensor
 Oceanostics.FlowDiagnostics.StrainRateTensorModulus
 ```
 
+### Principal strain rates
+
+The principal strain rates are the eigenvalues ``\lambda_1 \ge \lambda_2 \ge \lambda_3`` of the strain
+rate tensor, returned as a `NamedTuple` at `(Center, Center, Center)`. They quantify stretching
+(``\lambda > 0``) and compression (``\lambda < 0``) along the principal axes and are rotation
+invariants of the tensor:
+
+```math
+\lambda_1 + \lambda_2 + \lambda_3 = \nabla\cdot\mathbf{u}, \qquad
+\lambda_1^2 + \lambda_2^2 + \lambda_3^2 = S_{ij} S_{ij}
+```
+
+so for incompressible flow they sum to zero and their root-sum-of-squares equals ``\|S_{ij}\|``.
+
+```@docs
+Oceanostics.FlowDiagnostics.PrincipalStrainRates
+```
+
 ### Vorticity tensor modulus
 
 ```math
