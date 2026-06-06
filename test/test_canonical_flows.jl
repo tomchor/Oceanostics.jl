@@ -62,9 +62,6 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
     S₁₁ = Field(Sij.S₁₁); S₂₂ = Field(Sij.S₂₂); S₃₃ = Field(Sij.S₃₃)
     S₁₂ = Field(Sij.S₁₂); S₁₃ = Field(Sij.S₁₃); S₂₃ = Field(Sij.S₂₃)
 
-    Λ = PrincipalStrainRates(model)
-    λ₁ = Field(Λ.λ₁); λ₂ = Field(Λ.λ₂); λ₃ = Field(Λ.λ₃)
-
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
     if model.closure isa Tuple
@@ -93,17 +90,6 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
         SᵢⱼSᵢⱼ = getindex(S₁₁, idxs...)^2 + getindex(S₂₂, idxs...)^2 + getindex(S₃₃, idxs...)^2 +
                  2 * (getindex(S₁₂, idxs...)^2 + getindex(S₁₃, idxs...)^2 + getindex(S₂₃, idxs...)^2)
         @test √(SᵢⱼSᵢⱼ) ≈ getindex(S, idxs...)
-
-        # Principal strain rates are the sorted eigenvalues of S = diag(α, -α, 0): (α, 0, -α)
-        l₁, l₂, l₃ = getindex(λ₁, idxs...), getindex(λ₂, idxs...), getindex(λ₃, idxs...)
-        @test l₁ ≈ +α
-        @test ≈(l₂, 0, atol=10eps())
-        @test l₃ ≈ -α
-        @test l₁ ≥ l₂ ≥ l₃ # ordering convention λ₁ ≥ λ₂ ≥ λ₃
-
-        # Eigenvalue invariants: Σλ = ∇·u (≈ 0 here) and √(Σλ²) = ‖S‖
-        @test ≈(l₁ + l₂ + l₃, 0, atol=10eps())
-        @test √(l₁^2 + l₂^2 + l₃^2) ≈ getindex(S, idxs...)
     end
 
     return nothing

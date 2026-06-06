@@ -91,14 +91,6 @@ function test_velocity_only_flow_diagnostics(model)
     @test_throws ArgumentError StrainRateTensor(model; dims=())
     @test_throws ArgumentError StrainRateTensor(model; dims=1)
 
-    Λ = PrincipalStrainRates(model)
-    @test keys(Λ) == (:λ₁, :λ₂, :λ₃)
-    @test all(location(λ) == (Center, Center, Center) for λ in Λ)
-    @test Λ == PrincipalStrainRates(model.grid, model.velocities...) # field-based constructor agrees
-    for λ in Λ
-        @test all(interior(Field(λ)) .≈ 0)
-    end
-
     op = VorticityTensorModulus(model)
     @test op isa VorticityTensorModulus
     Ω = Field(op)

@@ -3,7 +3,7 @@ using DocStringExtensions
 
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
-export StrainRateTensor, PrincipalStrainRates, StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
+export StrainRateTensor, StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 
@@ -458,67 +458,6 @@ function StrainRateTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3))
     )
 
     return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
-end
-
-# Analytical eigenvalues of the symmetric 3×3 matrix [a d e; d b f; e f c], returned sorted as
-# λ₁ ≥ λ₂ ≥ λ₃ (Smith's trigonometric method). Operates entirely on scalars, so it stays
-# allocation-free and GPU-safe inside a kernel without pulling in an external tensor package.
-@inline function eigvals_symmetric_3x3(a, b, c, d, e, f)
-    p1 = d^2 + e^2 + f^2
-    q  = (a + b + c) / 3
-    p2 = (a - q)^2 + (b - q)^2 + (c - q)^2 + 2p1
-    p  = sqrt(p2 / 6)
-    p == 0 && return (q, q, q) # A is isotropic (A = qI), e.g. a quiescent flow
-
-    a′ = a - q; b′ = b - q; c′ = c - q
-    detB = (a′ * (b′*c′ - f^2) - d * (d*c′ - e*f) + e * (d*f - e*b′)) / p^3
-    r = clamp(detB / 2, -one(p), one(p)) # clamp absorbs roundoff so acos stays in range
-    φ = acos(r) / 3
-
-    λ₁ = q + 2p * cos(φ)
-    λ₃ = q + 2p * cos(φ + oftype(φ, 2π/3))
-    λ₂ = 3q - λ₁ - λ₃ # the eigenvalues sum to the trace
-    return (λ₁, λ₂, λ₃)
-end
-
-# Strain rate components co-located at ccc (off-diagonals interpolated from their natural edges),
-# fed to the symmetric eigensolver.
-@inline function strain_rate_eigenvalues_ccc(i, j, k, grid, u, v, w)
-    S₁₁ = ∂xᶜᶜᶜ(i, j, k, grid, u)
-    S₂₂ = ∂yᶜᶜᶜ(i, j, k, grid, v)
-    S₃₃ = ∂zᶜᶜᶜ(i, j, k, grid, w)
-    S₁₂ = ℑxyᶜᶜᵃ(i, j, k, grid, strain_rate_tensor_xy_ffc, u, v)
-    S₁₃ = ℑxzᶜᵃᶜ(i, j, k, grid, strain_rate_tensor_xz_fcf, u, w)
-    S₂₃ = ℑyzᵃᶜᶜ(i, j, k, grid, strain_rate_tensor_yz_cff, v, w)
-    return eigvals_symmetric_3x3(S₁₁, S₂₂, S₃₃, S₁₂, S₁₃, S₂₃)
-end
-
-@inline strain_rate_eigenvalue_1_ccc(i, j, k, grid, u, v, w) = strain_rate_eigenvalues_ccc(i, j, k, grid, u, v, w)[1]
-@inline strain_rate_eigenvalue_2_ccc(i, j, k, grid, u, v, w) = strain_rate_eigenvalues_ccc(i, j, k, grid, u, v, w)[2]
-@inline strain_rate_eigenvalue_3_ccc(i, j, k, grid, u, v, w) = strain_rate_eigenvalues_ccc(i, j, k, grid, u, v, w)[3]
-
-"""
-    $(SIGNATURES)
-
-Return the principal strain rates — the eigenvalues of the strain rate tensor
-`Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)` — as a `NamedTuple` `(; λ₁, λ₂, λ₃)` ordered so that `λ₁ ≥ λ₂ ≥ λ₃`. Each is a
-`KernelFunctionOperation` at `(Center, Center, Center)`: the full tensor is assembled there (the
-off-diagonal components are interpolated from their natural edge locations) and its eigenvalues are
-computed analytically with a symmetric-3×3 eigensolver.
-
-The principal strain rates describe stretching (`λ > 0`) and compression (`λ < 0`) along the
-principal axes. They are rotation invariants of the tensor: `λ₁ + λ₂ + λ₃ = ∇·u` and
-`λ₁² + λ₂² + λ₃² = SᵢⱼSᵢⱼ`, so for incompressible flow they sum to zero and their root-sum-of-squares
-equals [`StrainRateTensorModulus`](@ref). Can also be called as
-`PrincipalStrainRates(grid, u, v, w)`. See also [`StrainRateTensor`](@ref) for the tensor components.
-"""
-PrincipalStrainRates(model) = PrincipalStrainRates(model.grid, model.velocities...)
-
-function PrincipalStrainRates(grid::AbstractGrid, u, v, w)
-    λ₁ = KernelFunctionOperation{Center, Center, Center}(strain_rate_eigenvalue_1_ccc, grid, u, v, w)
-    λ₂ = KernelFunctionOperation{Center, Center, Center}(strain_rate_eigenvalue_2_ccc, grid, u, v, w)
-    λ₃ = KernelFunctionOperation{Center, Center, Center}(strain_rate_eigenvalue_3_ccc, grid, u, v, w)
-    return (; λ₁, λ₂, λ₃)
 end
 
 @inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2

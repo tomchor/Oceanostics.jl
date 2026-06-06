@@ -180,13 +180,6 @@ end
         test_kfo_invariants("StrainRateTensor.S₁₂", Sij.S₁₂)
         test_kfo_invariants("StrainRateTensor.S₁₃", Sij.S₁₃)
         test_kfo_invariants("StrainRateTensor.S₂₃", Sij.S₂₃)
-
-        # The principal strain rates run an analytical eigensolver (acos/cos) and return a tuple
-        # that must stay stack-allocated — a regression here would show up as a per-cell allocation.
-        Λ = PrincipalStrainRates(model)
-        test_kfo_invariants("PrincipalStrainRates.λ₁", Λ.λ₁)
-        test_kfo_invariants("PrincipalStrainRates.λ₂", Λ.λ₂)
-        test_kfo_invariants("PrincipalStrainRates.λ₃", Λ.λ₃)
     end
     #---
 
