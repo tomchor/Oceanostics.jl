@@ -461,6 +461,54 @@ function StrainRateTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3))
     return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
 end
 
+@inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2
+
+function vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)
+    Ωˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_minus_gφ², ∂yᶠᶠᶜ, u, ∂xᶠᶠᶜ, v) / 4
+    Ωˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_minus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4
+    Ωʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_minus_gφ², ∂zᶜᶠᶠ, v, ∂yᶜᶠᶠ, w) / 4
+
+    Ωʸˣ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_minus_gφ², ∂xᶠᶠᶜ, v, ∂yᶠᶠᶜ, u) / 4
+    Ωᶻˣ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_minus_gφ², ∂xᶠᶜᶠ, w, ∂zᶠᶜᶠ, u) / 4
+    Ωᶻʸ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_minus_gφ², ∂yᶜᶠᶠ, w, ∂zᶜᶠᶠ, v) / 4
+
+    return √(Ωˣʸ² + Ωˣᶻ² + Ωʸᶻ² + Ωʸˣ² + Ωᶻˣ² + Ωᶻʸ²)
+end
+
+const VorticityTensorModulus = CustomKFO{<:typeof(vorticity_tensor_modulus_ccc)}
+
+"""
+    $(SIGNATURES)
+
+Calculate the modulus (absolute value) of the vorticity tensor `Ω`, which is defined as the
+antisymmetric part of the velocity gradient tensor:
+
+```
+    Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)
+```
+Its modulus is then defined (using Einstein summation notation) as
+
+```
+    || Ωᵢⱼ || = √(Ωᵢⱼ Ωᵢⱼ)
+```
+"""
+function VorticityTensorModulus(model; loc = (Center, Center, Center))
+    validate_location(loc, "VorticityTensorModulus", (Center, Center, Center))
+    return KernelFunctionOperation{Center, Center, Center}(vorticity_tensor_modulus_ccc, model.grid, model.velocities...)
+end
+
+
+# From doi:10.1063/1.5124245
+@inline function Q_velocity_gradient_tensor_invariant_ccc(i, j, k, grid, u, v, w)
+    S² = strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
+    Ω² = vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
+    return (Ω² - S²) / 2
+end
+
+const QVelocityGradientTensorInvariant = CustomKFO{<:typeof(Q_velocity_gradient_tensor_invariant_ccc)}
+#---
+
+#+++ Stress tensor
 # Stress tensor τᵢⱼ = uᵢuⱼ components, each evaluated at its natural staggered location: the
 # velocities are interpolated to the target location and then multiplied.
 @inline stress_tensor_xx_ccc(i, j, k, grid, u)    = ℑxᶜᵃᵃ(i, j, k, grid, u)^2
@@ -524,52 +572,6 @@ function StressTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3))
 
     return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
 end
-
-@inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2
-
-function vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)
-    Ωˣʸ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_minus_gφ², ∂yᶠᶠᶜ, u, ∂xᶠᶠᶜ, v) / 4
-    Ωˣᶻ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_minus_gφ², ∂zᶠᶜᶠ, u, ∂xᶠᶜᶠ, w) / 4
-    Ωʸᶻ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_minus_gφ², ∂zᶜᶠᶠ, v, ∂yᶜᶠᶠ, w) / 4
-
-    Ωʸˣ² = ℑxyᶜᶜᵃ(i, j, k, grid, fψ_minus_gφ², ∂xᶠᶠᶜ, v, ∂yᶠᶠᶜ, u) / 4
-    Ωᶻˣ² = ℑxzᶜᵃᶜ(i, j, k, grid, fψ_minus_gφ², ∂xᶠᶜᶠ, w, ∂zᶠᶜᶠ, u) / 4
-    Ωᶻʸ² = ℑyzᵃᶜᶜ(i, j, k, grid, fψ_minus_gφ², ∂yᶜᶠᶠ, w, ∂zᶜᶠᶠ, v) / 4
-
-    return √(Ωˣʸ² + Ωˣᶻ² + Ωʸᶻ² + Ωʸˣ² + Ωᶻˣ² + Ωᶻʸ²)
-end
-
-const VorticityTensorModulus = CustomKFO{<:typeof(vorticity_tensor_modulus_ccc)}
-
-"""
-    $(SIGNATURES)
-
-Calculate the modulus (absolute value) of the vorticity tensor `Ω`, which is defined as the
-antisymmetric part of the velocity gradient tensor:
-
-```
-    Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)
-```
-Its modulus is then defined (using Einstein summation notation) as
-
-```
-    || Ωᵢⱼ || = √(Ωᵢⱼ Ωᵢⱼ)
-```
-"""
-function VorticityTensorModulus(model; loc = (Center, Center, Center))
-    validate_location(loc, "VorticityTensorModulus", (Center, Center, Center))
-    return KernelFunctionOperation{Center, Center, Center}(vorticity_tensor_modulus_ccc, model.grid, model.velocities...)
-end
-
-
-# From doi:10.1063/1.5124245
-@inline function Q_velocity_gradient_tensor_invariant_ccc(i, j, k, grid, u, v, w)
-    S² = strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
-    Ω² = vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)^2
-    return (Ω² - S²) / 2
-end
-
-const QVelocityGradientTensorInvariant = CustomKFO{<:typeof(Q_velocity_gradient_tensor_invariant_ccc)}
 #---
 
 #+++ Mixed layer depth
