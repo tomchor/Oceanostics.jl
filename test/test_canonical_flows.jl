@@ -58,6 +58,10 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
     Ω = Field(VorticityTensorModulus(model))
     q = Field(QVelocityGradientTensorInvariant(model))
 
+    Sij = StrainRateTensor(model)
+    S₁₁ = Field(Sij.S₁₁); S₂₂ = Field(Sij.S₂₂); S₃₃ = Field(Sij.S₃₃)
+    S₁₂ = Field(Sij.S₁₂); S₁₃ = Field(Sij.S₁₃); S₂₃ = Field(Sij.S₂₃)
+
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
     if model.closure isa Tuple
@@ -73,6 +77,19 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
         @test ≈(getindex(Ω, idxs...), 0, atol=10eps())
         @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ -α^2
         @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
+
+        # Strain rate tensor for uⱼ = (αx, -αy, 0) is S = diag(α, -α, 0), off-diagonals zero
+        @test getindex(S₁₁, idxs...) ≈ +α
+        @test getindex(S₂₂, idxs...) ≈ -α
+        @test ≈(getindex(S₃₃, idxs...), 0, atol=10eps())
+        @test ≈(getindex(S₁₂, idxs...), 0, atol=10eps())
+        @test ≈(getindex(S₁₃, idxs...), 0, atol=10eps())
+        @test ≈(getindex(S₂₃, idxs...), 0, atol=10eps())
+
+        # The modulus is recovered from the components: ‖S‖ = √(Sᵢⱼ Sᵢⱼ)
+        SᵢⱼSᵢⱼ = getindex(S₁₁, idxs...)^2 + getindex(S₂₂, idxs...)^2 + getindex(S₃₃, idxs...)^2 +
+                 2 * (getindex(S₁₂, idxs...)^2 + getindex(S₁₃, idxs...)^2 + getindex(S₂₃, idxs...)^2)
+        @test √(SᵢⱼSᵢⱼ) ≈ getindex(S, idxs...)
     end
 
     return nothing
