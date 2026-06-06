@@ -70,6 +70,27 @@ function test_velocity_only_flow_diagnostics(model)
         @test all(interior(Field(Sᵢⱼ)) .≈ 0)
     end
 
+    # `dims` selects sub-dimensional strain tensors: Sᵢⱼ is kept only if both i and j are in `dims`
+    @test keys(StrainRateTensor(model; dims=(1, 2, 3))) == keys(Sij)
+    @test keys(StrainRateTensor(model; dims=(1, 2))) == (:S₁₁, :S₂₂, :S₁₂)
+    @test keys(StrainRateTensor(model; dims=(1, 3))) == (:S₁₁, :S₃₃, :S₁₃)
+    @test keys(StrainRateTensor(model; dims=(2, 3))) == (:S₂₂, :S₃₃, :S₂₃)
+    @test keys(StrainRateTensor(model; dims=(1,)))   == (:S₁₁,)
+    @test keys(StrainRateTensor(model; dims=(2,)))   == (:S₂₂,)
+    @test keys(StrainRateTensor(model; dims=(3,)))   == (:S₃₃,)
+    @test keys(StrainRateTensor(model; dims=(3, 1))) == (:S₁₁, :S₃₃, :S₁₃) # order of `dims` doesn't matter
+
+    # selected components are the very same KFOs as in the full tensor, and `dims` is forwarded
+    Sxz = StrainRateTensor(model; dims=(1, 3))
+    @test (Sxz.S₁₁, Sxz.S₃₃, Sxz.S₁₃) == (Sij.S₁₁, Sij.S₃₃, Sij.S₁₃)
+    @test Sxz == StrainRateTensor(model.grid, model.velocities...; dims=(1, 3))
+
+    # invalid `dims` are rejected
+    @test_throws ArgumentError StrainRateTensor(model; dims=(1, 4))
+    @test_throws ArgumentError StrainRateTensor(model; dims=(1, 1))
+    @test_throws ArgumentError StrainRateTensor(model; dims=())
+    @test_throws ArgumentError StrainRateTensor(model; dims=1)
+
     Λ = PrincipalStrainRates(model)
     @test keys(Λ) == (:λ₁, :λ₂, :λ₃)
     @test all(location(λ) == (Center, Center, Center) for λ in Λ)
