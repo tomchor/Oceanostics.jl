@@ -180,6 +180,15 @@ end
         test_kfo_invariants("StrainRateTensor.S₁₂", Sij.S₁₂)
         test_kfo_invariants("StrainRateTensor.S₁₃", Sij.S₁₃)
         test_kfo_invariants("StrainRateTensor.S₂₃", Sij.S₂₃)
+
+        # Stress-tensor components interpolate the velocities to a common location before
+        # multiplying; the off-diagonals live at the edge locations (ffc/fcf/cff), the diagonals
+        # at ccc.
+        τij = StressTensor(model)
+        test_kfo_invariants("StressTensor.τ₁₁", τij.τ₁₁)
+        test_kfo_invariants("StressTensor.τ₁₂", τij.τ₁₂)
+        test_kfo_invariants("StressTensor.τ₁₃", τij.τ₁₃)
+        test_kfo_invariants("StressTensor.τ₂₃", τij.τ₂₃)
     end
     #---
 

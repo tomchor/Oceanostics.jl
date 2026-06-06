@@ -19,6 +19,8 @@ The module includes:
 - **Velocity gradient tensor diagnostics**: the full strain rate tensor ``S_{ij}``
   and its modulus (``\|S_{ij}\|``), the vorticity tensor modulus (``\|\Omega_{ij}\|``),
   and the ``Q``-criterion for vortex identification.
+- **Stress tensor**: the (kinematic) stress tensor ``\tau_{ij} = u_i u_j``, which gives
+  the kinematic Reynolds stress when built from perturbation velocities.
 - **Mixed layer depth**: computed by scanning downward from the surface to find
   where buoyancy or density departs from the surface value by more than a
   user-specified threshold.
@@ -176,6 +178,26 @@ Used to identify vortices in fluid flow; positive values indicate vortex-dominat
 
 ```@docs
 Oceanostics.FlowDiagnostics.QVelocityGradientTensorInvariant
+```
+
+## Stress tensor
+
+The (symmetric, kinematic) stress tensor, returned as a `NamedTuple` of its independent components.
+Each component is a `KernelFunctionOperation` evaluated at its natural location on the staggered grid
+(the diagonal components at `(Center, Center, Center)`; the off-diagonals at the edge locations
+`(Face, Face, Center)`, `(Face, Center, Face)`, and `(Center, Face, Face)`). The velocities are
+interpolated to the target location before being multiplied. The `dims` keyword selects a
+sub-dimensional tensor — component ``\tau_{ij}`` is included only when both ``i`` and ``j`` are in
+`dims` — so `dims=(1, 3)` returns the 2D stress tensor in the ``x``–``z`` plane (``\tau_{11}``,
+``\tau_{33}``, ``\tau_{13}``). Building it from perturbation velocities yields the kinematic
+Reynolds stress tensor.
+
+```math
+\tau_{ij} = u_i u_j
+```
+
+```@docs
+Oceanostics.FlowDiagnostics.StressTensor
 ```
 
 ## Mixed layer depth
