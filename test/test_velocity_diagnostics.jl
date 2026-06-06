@@ -130,6 +130,38 @@ function test_velocity_only_flow_diagnostics(model)
     Ω = Field(op)
     @test all(interior(Ω) .≈ 0)
 
+    Ωij = VorticityTensor(model)
+    @test keys(Ωij) == (:Ω₁₂, :Ω₁₃, :Ω₂₃) # antisymmetric tensor: only off-diagonals, no diagonals
+    @test location(Ωij.Ω₁₂) == (Face, Face, Center)
+    @test location(Ωij.Ω₁₃) == (Face, Center, Face)
+    @test location(Ωij.Ω₂₃) == (Center, Face, Face)
+    @test Ωij == VorticityTensor(model.grid, model.velocities...) # field-based constructor agrees
+    for Ωᵢⱼ in Ωij
+        @test all(interior(Field(Ωᵢⱼ)) .≈ 0)
+    end
+
+    # `dims` selects sub-dimensional vorticity tensors: Ωᵢⱼ is kept only if both i and j are in `dims`
+    @test keys(VorticityTensor(model; dims=(1, 2, 3))) == keys(Ωij)
+    @test keys(VorticityTensor(model; dims=(1, 2))) == (:Ω₁₂,)
+    @test keys(VorticityTensor(model; dims=(1, 3))) == (:Ω₁₃,)
+    @test keys(VorticityTensor(model; dims=(2, 3))) == (:Ω₂₃,)
+    @test keys(VorticityTensor(model; dims=(3, 1))) == (:Ω₁₃,) # order of `dims` doesn't matter
+    # every component couples two distinct directions, so a single-direction `dims` is empty
+    @test keys(VorticityTensor(model; dims=(1,))) == ()
+    @test keys(VorticityTensor(model; dims=(2,))) == ()
+    @test keys(VorticityTensor(model; dims=(3,))) == ()
+
+    # selected components are the very same KFOs as in the full tensor, and `dims` is forwarded
+    Ωxz = VorticityTensor(model; dims=(1, 3))
+    @test Ωxz.Ω₁₃ == Ωij.Ω₁₃
+    @test Ωxz == VorticityTensor(model.grid, model.velocities...; dims=(1, 3))
+
+    # invalid `dims` are rejected
+    @test_throws ArgumentError VorticityTensor(model; dims=(1, 4))
+    @test_throws ArgumentError VorticityTensor(model; dims=(1, 1))
+    @test_throws ArgumentError VorticityTensor(model; dims=())
+    @test_throws ArgumentError VorticityTensor(model; dims=1)
+
     op = QVelocityGradientTensorInvariant(model)
     @allowscalar @test op == Oceanostics.Q(model)
     @test op isa QVelocityGradientTensorInvariant

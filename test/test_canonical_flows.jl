@@ -116,6 +116,9 @@ function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, clo
     Ω = Field(VorticityTensorModulus(model))
     q = Field(QVelocityGradientTensorInvariant(model))
 
+    Ωij = VorticityTensor(model)
+    Ω₁₂ = Field(Ωij.Ω₁₂); Ω₁₃ = Field(Ωij.Ω₁₃); Ω₂₃ = Field(Ωij.Ω₂₃)
+
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
     if model.closure isa Tuple
@@ -131,6 +134,15 @@ function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, clo
         @test getindex(Ω, idxs...) ≈ ζ/√2
         @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ ζ^2/4
         @test getindex(ε, idxs...) ≈ 0
+
+        # Vorticity tensor for uⱼ = (ζy/2, -ζx/2, 0) has only Ω₁₂ = ½(∂u/∂y - ∂v/∂x) = ζ/2 nonzero
+        @test getindex(Ω₁₂, idxs...) ≈ +ζ/2
+        @test ≈(getindex(Ω₁₃, idxs...), 0, atol=10eps())
+        @test ≈(getindex(Ω₂₃, idxs...), 0, atol=10eps())
+
+        # The modulus is recovered from the components: ‖Ω‖ = √(Ωᵢⱼ Ωᵢⱼ) = √(2(Ω₁₂² + Ω₁₃² + Ω₂₃²))
+        ΩᵢⱼΩᵢⱼ = 2 * (getindex(Ω₁₂, idxs...)^2 + getindex(Ω₁₃, idxs...)^2 + getindex(Ω₂₃, idxs...)^2)
+        @test √(ΩᵢⱼΩᵢⱼ) ≈ getindex(Ω, idxs...)
     end
 end
 """

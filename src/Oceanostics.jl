@@ -53,7 +53,7 @@ export TurbulentKineticEnergy,
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity
 export DirectionalErtelPotentialVorticity
-export StrainRateTensor, StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
+export StrainRateTensor, StrainRateTensorModulus, VorticityTensor, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export StressTensor
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue

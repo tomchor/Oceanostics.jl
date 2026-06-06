@@ -181,6 +181,13 @@ end
         test_kfo_invariants("StrainRateTensor.S₁₃", Sij.S₁₃)
         test_kfo_invariants("StrainRateTensor.S₂₃", Sij.S₂₃)
 
+        # The vorticity tensor is antisymmetric, so all its components are off-diagonal edge kernels
+        # (ffc/fcf/cff); there are no diagonal components to check.
+        Ωij = VorticityTensor(model)
+        test_kfo_invariants("VorticityTensor.Ω₁₂", Ωij.Ω₁₂)
+        test_kfo_invariants("VorticityTensor.Ω₁₃", Ωij.Ω₁₃)
+        test_kfo_invariants("VorticityTensor.Ω₂₃", Ωij.Ω₂₃)
+
         # Stress-tensor components interpolate the velocities to a common location before
         # multiplying; the off-diagonals live at the edge locations (ffc/fcf/cff), the diagonals
         # at ccc.
