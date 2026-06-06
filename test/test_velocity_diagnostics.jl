@@ -91,6 +91,40 @@ function test_velocity_only_flow_diagnostics(model)
     @test_throws ArgumentError StrainRateTensor(model; dims=())
     @test_throws ArgumentError StrainRateTensor(model; dims=1)
 
+    τij = StressTensor(model)
+    @test keys(τij) == (:τ₁₁, :τ₂₂, :τ₃₃, :τ₁₂, :τ₁₃, :τ₂₃)
+    @test location(τij.τ₁₁) == (Center, Center, Center)
+    @test location(τij.τ₂₂) == (Center, Center, Center)
+    @test location(τij.τ₃₃) == (Center, Center, Center)
+    @test location(τij.τ₁₂) == (Face, Face, Center)
+    @test location(τij.τ₁₃) == (Face, Center, Face)
+    @test location(τij.τ₂₃) == (Center, Face, Face)
+    @test τij == StressTensor(model.grid, model.velocities...) # field-based constructor agrees
+    for τᵢⱼ in τij
+        @test Field(τᵢⱼ) isa Field # every component is computable
+    end
+
+    # `dims` selects sub-dimensional stress tensors: τᵢⱼ is kept only if both i and j are in `dims`
+    @test keys(StressTensor(model; dims=(1, 2, 3))) == keys(τij)
+    @test keys(StressTensor(model; dims=(1, 2))) == (:τ₁₁, :τ₂₂, :τ₁₂)
+    @test keys(StressTensor(model; dims=(1, 3))) == (:τ₁₁, :τ₃₃, :τ₁₃)
+    @test keys(StressTensor(model; dims=(2, 3))) == (:τ₂₂, :τ₃₃, :τ₂₃)
+    @test keys(StressTensor(model; dims=(1,)))   == (:τ₁₁,)
+    @test keys(StressTensor(model; dims=(2,)))   == (:τ₂₂,)
+    @test keys(StressTensor(model; dims=(3,)))   == (:τ₃₃,)
+    @test keys(StressTensor(model; dims=(3, 1))) == (:τ₁₁, :τ₃₃, :τ₁₃) # order of `dims` doesn't matter
+
+    # selected components are the very same KFOs as in the full tensor, and `dims` is forwarded
+    τxz = StressTensor(model; dims=(1, 3))
+    @test (τxz.τ₁₁, τxz.τ₃₃, τxz.τ₁₃) == (τij.τ₁₁, τij.τ₃₃, τij.τ₁₃)
+    @test τxz == StressTensor(model.grid, model.velocities...; dims=(1, 3))
+
+    # invalid `dims` are rejected
+    @test_throws ArgumentError StressTensor(model; dims=(1, 4))
+    @test_throws ArgumentError StressTensor(model; dims=(1, 1))
+    @test_throws ArgumentError StressTensor(model; dims=())
+    @test_throws ArgumentError StressTensor(model; dims=1)
+
     op = VorticityTensorModulus(model)
     @test op isa VorticityTensorModulus
     Ω = Field(op)

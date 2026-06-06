@@ -4,6 +4,7 @@ using DocStringExtensions
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
 export StrainRateTensor, StrainRateTensorModulus, VorticityTensor, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
+export StressTensor
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 
@@ -360,7 +361,7 @@ function DirectionalErtelPotentialVorticity(model, direction, u, v, w, tracer, c
 end
 #---
 
-#+++ Velocity gradient and vorticity tensors
+#+++ Strain rate tensor
 @inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
 function strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)
@@ -459,7 +460,9 @@ function StrainRateTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3))
 
     return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
 end
+#---
 
+#+++ Vorticity tensor
 @inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2
 
 function vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)
@@ -559,6 +562,72 @@ end
 end
 
 const QVelocityGradientTensorInvariant = CustomKFO{<:typeof(Q_velocity_gradient_tensor_invariant_ccc)}
+#---
+
+#+++ Stress tensor
+# Stress tensor τᵢⱼ = uᵢuⱼ components, each evaluated at its natural staggered location: the
+# velocities are interpolated to the target location and then multiplied.
+@inline stress_tensor_xx_ccc(i, j, k, grid, u)    = ℑxᶜᵃᵃ(i, j, k, grid, u)^2
+@inline stress_tensor_yy_ccc(i, j, k, grid, v)    = ℑyᵃᶜᵃ(i, j, k, grid, v)^2
+@inline stress_tensor_zz_ccc(i, j, k, grid, w)    = ℑzᵃᵃᶜ(i, j, k, grid, w)^2
+@inline stress_tensor_xy_ffc(i, j, k, grid, u, v) = ℑyᵃᶠᵃ(i, j, k, grid, u) * ℑxᶠᵃᵃ(i, j, k, grid, v)
+@inline stress_tensor_xz_fcf(i, j, k, grid, u, w) = ℑzᵃᵃᶠ(i, j, k, grid, u) * ℑxᶠᵃᵃ(i, j, k, grid, w)
+@inline stress_tensor_yz_cff(i, j, k, grid, v, w) = ℑzᵃᵃᶠ(i, j, k, grid, v) * ℑyᵃᶠᵃ(i, j, k, grid, w)
+
+"""
+    $(SIGNATURES)
+
+Return the components of the (kinematic) stress tensor `τ`, defined as the outer product of the
+velocity field with itself:
+
+```
+    τᵢⱼ = uᵢ uⱼ
+```
+
+The result is a `NamedTuple` with the independent components, each a `KernelFunctionOperation`
+living at its natural location on the staggered grid. The velocities are interpolated to that
+location before being multiplied:
+
+| Component | Definition | Location |
+|:---------:|:----------:|:--------:|
+| `τ₁₁`     | `u u`      | `ccc`    |
+| `τ₂₂`     | `v v`      | `ccc`    |
+| `τ₃₃`     | `w w`      | `ccc`    |
+| `τ₁₂`     | `u v`      | `ffc`    |
+| `τ₁₃`     | `u w`      | `fcf`    |
+| `τ₂₃`     | `v w`      | `cff`    |
+
+The tensor is symmetric, so the remaining components follow from `τⱼᵢ = τᵢⱼ` (i.e. `τ₂₁ = τ₁₂`,
+`τ₃₁ = τ₁₃`, `τ₃₂ = τ₂₃`).
+
+`dims` selects which spatial directions (`1 → x`, `2 → y`, `3 → z`) enter the tensor: component
+`τᵢⱼ` is included only when both `i` and `j` are in `dims`. The default `dims = (1, 2, 3)` returns
+the full tensor, while e.g. `dims = (1, 3)` returns the 2D stress tensor in the `x`–`z` plane
+(`τ₁₁`, `τ₃₃`, `τ₁₃`). Components are always ordered diagonals-first, independently of the order of
+`dims`.
+
+Each component can be wrapped in a `Field` and used with output writers, time-averaging, etc. Can
+also be called as `StressTensor(grid, u, v, w; dims)` to build the components from individual
+velocity fields. Building the tensor from perturbation velocities (e.g. via `perturbation_fields`)
+yields the kinematic Reynolds stress tensor.
+"""
+StressTensor(model; dims = (1, 2, 3)) = StressTensor(model.grid, model.velocities...; dims)
+
+function StressTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3))
+    validate_dims(dims)
+    want(ij...) = all(in(dims), ij) # keep component τᵢⱼ only if every index it needs is in `dims`
+
+    components = (
+        τ₁₁ = want(1)    ? KernelFunctionOperation{Center, Center, Center}(stress_tensor_xx_ccc, grid, u) : nothing,
+        τ₂₂ = want(2)    ? KernelFunctionOperation{Center, Center, Center}(stress_tensor_yy_ccc, grid, v) : nothing,
+        τ₃₃ = want(3)    ? KernelFunctionOperation{Center, Center, Center}(stress_tensor_zz_ccc, grid, w) : nothing,
+        τ₁₂ = want(1, 2) ? KernelFunctionOperation{Face, Face, Center}(stress_tensor_xy_ffc, grid, u, v) : nothing,
+        τ₁₃ = want(1, 3) ? KernelFunctionOperation{Face, Center, Face}(stress_tensor_xz_fcf, grid, u, w) : nothing,
+        τ₂₃ = want(2, 3) ? KernelFunctionOperation{Center, Face, Face}(stress_tensor_yz_cff, grid, v, w) : nothing,
+    )
+
+    return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
+end
 #---
 
 #+++ Mixed layer depth
