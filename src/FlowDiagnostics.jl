@@ -361,7 +361,7 @@ function DirectionalErtelPotentialVorticity(model, direction, u, v, w, tracer, c
 end
 #---
 
-#+++ Velocity gradient and vorticity tensors
+#+++ Strain rate tensor
 @inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
 function strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)
@@ -460,7 +460,9 @@ function StrainRateTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3))
 
     return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
 end
+#---
 
+#+++ Vorticity tensor
 @inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2
 
 function vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)
