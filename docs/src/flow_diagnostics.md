@@ -17,8 +17,8 @@ The module includes:
   fundamental for understanding large-scale ocean dynamics. A thermal-wind-balance
   approximation and a directional decomposition are also provided.
 - **Velocity gradient tensor diagnostics**: the full strain rate tensor ``S_{ij}``
-  and its modulus (``\|S_{ij}\|``), the vorticity tensor modulus (``\|\Omega_{ij}\|``),
-  and the ``Q``-criterion for vortex identification.
+  and its modulus (``\|S_{ij}\|``), the full vorticity tensor ``\Omega_{ij}`` and its
+  modulus (``\|\Omega_{ij}\|``), and the ``Q``-criterion for vortex identification.
 - **Mixed layer depth**: computed by scanning downward from the surface to find
   where buoyancy or density departs from the surface value by more than a
   user-specified threshold.
@@ -154,6 +154,24 @@ Oceanostics.FlowDiagnostics.StrainRateTensor
 
 ```@docs
 Oceanostics.FlowDiagnostics.StrainRateTensorModulus
+```
+
+### Vorticity tensor
+
+The (antisymmetric) vorticity tensor, returned as a `NamedTuple` of its independent off-diagonal
+components. Each component is a `KernelFunctionOperation` evaluated at its natural location on the
+staggered grid — the edge locations `(Face, Face, Center)`, `(Face, Center, Face)`, and
+`(Center, Face, Face)`. The diagonal vanishes (``\Omega_{ii} = 0``) and the lower triangle follows
+from antisymmetry (``\Omega_{ji} = -\Omega_{ij}``). The `dims` keyword selects a sub-dimensional
+tensor — component ``\Omega_{ij}`` is included only when both ``i`` and ``j`` are in `dims` — so
+`dims=(1, 3)` returns just the ``x``–``z`` component ``\Omega_{13}``.
+
+```math
+\Omega_{ij} = \tfrac{1}{2}(\partial_j u_i - \partial_i u_j)
+```
+
+```@docs
+Oceanostics.FlowDiagnostics.VorticityTensor
 ```
 
 ### Vorticity tensor modulus
