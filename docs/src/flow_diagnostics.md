@@ -126,7 +126,7 @@ The contribution to the Ertel PV from a single user-specified direction.
 Oceanostics.FlowDiagnostics.DirectionalErtelPotentialVorticity
 ```
 
-## Velocity gradient tensor invariants
+## Velocity gradient tensor diagnostics
 
 ### Strain rate tensor
 
