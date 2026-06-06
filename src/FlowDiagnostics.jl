@@ -3,7 +3,7 @@ using DocStringExtensions
 
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
-export StrainRateTensor, StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
+export StrainRateTensor, StrainRateTensorModulus, VorticityTensor, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 
@@ -496,6 +496,60 @@ function VorticityTensorModulus(model; loc = (Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(vorticity_tensor_modulus_ccc, model.grid, model.velocities...)
 end
 
+# Off-diagonal vorticity components, each evaluated at its natural staggered location. The diagonal
+# components vanish identically (Ωᵢᵢ = 0), so they are not built.
+@inline vorticity_tensor_xy_ffc(i, j, k, grid, u, v) = (∂yᶠᶠᶜ(i, j, k, grid, u) - ∂xᶠᶠᶜ(i, j, k, grid, v)) / 2
+@inline vorticity_tensor_xz_fcf(i, j, k, grid, u, w) = (∂zᶠᶜᶠ(i, j, k, grid, u) - ∂xᶠᶜᶠ(i, j, k, grid, w)) / 2
+@inline vorticity_tensor_yz_cff(i, j, k, grid, v, w) = (∂zᶜᶠᶠ(i, j, k, grid, v) - ∂yᶜᶠᶠ(i, j, k, grid, w)) / 2
+
+"""
+    $(SIGNATURES)
+
+Return the components of the vorticity tensor `Ω`, defined as the antisymmetric part of the velocity
+gradient tensor:
+
+```
+    Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)
+```
+
+The tensor is antisymmetric, so its diagonal vanishes (`Ω₁₁ = Ω₂₂ = Ω₃₃ = 0`) and only the
+independent off-diagonal components are returned, as a `NamedTuple` of `KernelFunctionOperation`s,
+each living at its natural location on the staggered grid:
+
+| Component | Definition         | Location |
+|:---------:|:------------------:|:--------:|
+| `Ω₁₂`     | `½(∂u/∂y - ∂v/∂x)` | `ffc`    |
+| `Ω₁₃`     | `½(∂u/∂z - ∂w/∂x)` | `fcf`    |
+| `Ω₂₃`     | `½(∂v/∂z - ∂w/∂y)` | `cff`    |
+
+The remaining off-diagonal components follow from antisymmetry, `Ωⱼᵢ = -Ωᵢⱼ` (i.e. `Ω₂₁ = -Ω₁₂`,
+`Ω₃₁ = -Ω₁₃`, `Ω₃₂ = -Ω₂₃`).
+
+`dims` selects which spatial directions (`1 → x`, `2 → y`, `3 → z`) enter the tensor: component
+`Ωᵢⱼ` is included only when both `i` and `j` are in `dims`. The default `dims = (1, 2, 3)` returns
+all three off-diagonal components, while e.g. `dims = (1, 3)` returns the single component in the
+`x`–`z` plane (`Ω₁₃`). Because every component couples two distinct directions, a single-direction
+`dims` (e.g. `dims = (1,)`) yields an empty tensor. Components are always ordered `Ω₁₂`, `Ω₁₃`,
+`Ω₂₃`, independently of the order of `dims`.
+
+Each component can be wrapped in a `Field` and used with output writers, time-averaging, etc. Can
+also be called as `VorticityTensor(grid, u, v, w; dims)` to build the components from individual
+velocity fields. See also [`VorticityTensorModulus`](@ref) for the scalar modulus `√(ΩᵢⱼΩᵢⱼ)`.
+"""
+VorticityTensor(model; dims = (1, 2, 3)) = VorticityTensor(model.grid, model.velocities...; dims)
+
+function VorticityTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3))
+    validate_dims(dims)
+    want(ij...) = all(in(dims), ij) # keep component Ωᵢⱼ only if every index it needs is in `dims`
+
+    components = (
+        Ω₁₂ = want(1, 2) ? KernelFunctionOperation{Face, Face, Center}(vorticity_tensor_xy_ffc, grid, u, v) : nothing,
+        Ω₁₃ = want(1, 3) ? KernelFunctionOperation{Face, Center, Face}(vorticity_tensor_xz_fcf, grid, u, w) : nothing,
+        Ω₂₃ = want(2, 3) ? KernelFunctionOperation{Center, Face, Face}(vorticity_tensor_yz_cff, grid, v, w) : nothing,
+    )
+
+    return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
+end
 
 # From doi:10.1063/1.5124245
 @inline function Q_velocity_gradient_tensor_invariant_ccc(i, j, k, grid, u, v, w)
