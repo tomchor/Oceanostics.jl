@@ -130,10 +130,13 @@ Oceanostics.FlowDiagnostics.DirectionalErtelPotentialVorticity
 
 ### Strain rate tensor
 
-The full (symmetric) strain rate tensor, returned as a `NamedTuple` of its 6 independent components.
-Each component is a `KernelFunctionOperation` evaluated at its natural location on the staggered grid
+The (symmetric) strain rate tensor, returned as a `NamedTuple` of its independent components. Each
+component is a `KernelFunctionOperation` evaluated at its natural location on the staggered grid
 (the diagonal components at `(Center, Center, Center)`; the off-diagonals at the edge locations
-`(Face, Face, Center)`, `(Face, Center, Face)`, and `(Center, Face, Face)`).
+`(Face, Face, Center)`, `(Face, Center, Face)`, and `(Center, Face, Face)`). The `dims` keyword
+selects a sub-dimensional tensor — component ``S_{ij}`` is included only when both ``i`` and ``j``
+are in `dims` — so `dims=(1, 3)` returns the 2D strain rate tensor in the ``x``–``z`` plane
+(``S_{11}``, ``S_{33}``, ``S_{13}``).
 
 ```math
 S_{ij} = \tfrac{1}{2}(\partial_j u_i + \partial_i u_j)

@@ -402,6 +402,11 @@ end
 @inline strain_rate_tensor_xz_fcf(i, j, k, grid, u, w) = (∂zᶠᶜᶠ(i, j, k, grid, u) + ∂xᶠᶜᶠ(i, j, k, grid, w)) / 2
 @inline strain_rate_tensor_yz_cff(i, j, k, grid, v, w) = (∂zᶜᶠᶠ(i, j, k, grid, v) + ∂yᶜᶠᶠ(i, j, k, grid, w)) / 2
 
+validate_dims(dims::Tuple{Vararg{Int}}) =
+    (!isempty(dims) & all(d -> d in (1, 2, 3), dims) & allunique(dims)) ||
+        throw(ArgumentError("`dims` must be a non-empty tuple of distinct integers drawn from (1, 2, 3); got $dims"))
+validate_dims(dims) = throw(ArgumentError("`dims` must be a tuple of integers; got $(typeof(dims))"))
+
 """
     $(SIGNATURES)
 
@@ -412,7 +417,7 @@ gradient tensor:
     Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)
 ```
 
-The result is a `NamedTuple` with the 6 independent components, each a `KernelFunctionOperation`
+The result is a `NamedTuple` with the independent components, each a `KernelFunctionOperation`
 living at its natural location on the staggered grid:
 
 | Component | Definition         | Location |
@@ -425,23 +430,34 @@ living at its natural location on the staggered grid:
 | `S₂₃`     | `½(∂v/∂z + ∂w/∂y)` | `cff`    |
 
 The tensor is symmetric, so the remaining components follow from `Sⱼᵢ = Sᵢⱼ` (i.e. `S₂₁ = S₁₂`,
-`S₃₁ = S₁₃`, `S₃₂ = S₂₃`). Each component can be wrapped in a `Field` and used with output writers,
-time-averaging, etc. Can also be called as `StrainRateTensor(grid, u, v, w)` to build the components
-from individual velocity fields. See also [`StrainRateTensorModulus`](@ref) for the scalar modulus
-`√(SᵢⱼSᵢⱼ)`.
+`S₃₁ = S₁₃`, `S₃₂ = S₂₃`).
+
+`dims` selects which spatial directions (`1 → x`, `2 → y`, `3 → z`) enter the tensor: component
+`Sᵢⱼ` is included only when both `i` and `j` are in `dims`. The default `dims = (1, 2, 3)` returns
+the full tensor, while e.g. `dims = (1, 3)` returns the 2D strain rate tensor in the `x`–`z` plane
+(`S₁₁`, `S₃₃`, `S₁₃`). Components are always ordered diagonals-first, independently of the order of
+`dims`.
+
+Each component can be wrapped in a `Field` and used with output writers, time-averaging, etc. Can
+also be called as `StrainRateTensor(grid, u, v, w; dims)` to build the components from individual
+velocity fields. See also [`StrainRateTensorModulus`](@ref) for the scalar modulus `√(SᵢⱼSᵢⱼ)`.
 """
-StrainRateTensor(model) = StrainRateTensor(model.grid, model.velocities...)
+StrainRateTensor(model; dims = (1, 2, 3)) = StrainRateTensor(model.grid, model.velocities...; dims)
 
-function StrainRateTensor(grid::AbstractGrid, u, v, w)
-    S₁₁ = KernelFunctionOperation{Center, Center, Center}(∂xᶜᶜᶜ, grid, u)
-    S₂₂ = KernelFunctionOperation{Center, Center, Center}(∂yᶜᶜᶜ, grid, v)
-    S₃₃ = KernelFunctionOperation{Center, Center, Center}(∂zᶜᶜᶜ, grid, w)
+function StrainRateTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3))
+    validate_dims(dims)
+    want(ij...) = all(in(dims), ij) # keep component Sᵢⱼ only if every index it needs is in `dims`
 
-    S₁₂ = KernelFunctionOperation{Face, Face, Center}(strain_rate_tensor_xy_ffc, grid, u, v)
-    S₁₃ = KernelFunctionOperation{Face, Center, Face}(strain_rate_tensor_xz_fcf, grid, u, w)
-    S₂₃ = KernelFunctionOperation{Center, Face, Face}(strain_rate_tensor_yz_cff, grid, v, w)
+    components = (
+        S₁₁ = want(1)    ? KernelFunctionOperation{Center, Center, Center}(∂xᶜᶜᶜ, grid, u) : nothing,
+        S₂₂ = want(2)    ? KernelFunctionOperation{Center, Center, Center}(∂yᶜᶜᶜ, grid, v) : nothing,
+        S₃₃ = want(3)    ? KernelFunctionOperation{Center, Center, Center}(∂zᶜᶜᶜ, grid, w) : nothing,
+        S₁₂ = want(1, 2) ? KernelFunctionOperation{Face, Face, Center}(strain_rate_tensor_xy_ffc, grid, u, v) : nothing,
+        S₁₃ = want(1, 3) ? KernelFunctionOperation{Face, Center, Face}(strain_rate_tensor_xz_fcf, grid, u, w) : nothing,
+        S₂₃ = want(2, 3) ? KernelFunctionOperation{Center, Face, Face}(strain_rate_tensor_yz_cff, grid, v, w) : nothing,
+    )
 
-    return (; S₁₁, S₂₂, S₃₃, S₁₂, S₁₃, S₂₃)
+    return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
 end
 
 # Analytical eigenvalues of the symmetric 3×3 matrix [a d e; d b f; e f c], returned sorted as
