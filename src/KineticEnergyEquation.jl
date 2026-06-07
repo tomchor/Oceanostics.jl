@@ -53,10 +53,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> KE = KineticEnergyEquation.KineticEnergy(model, model.velocities...)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergy (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
+└── computes: kinetic energy  ½uᵢuᵢ
 ```
 """
 function KineticEnergy(model, u, v, w; location = (Center, Center, Center))
@@ -77,10 +78,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> KE = KineticEnergyEquation.KineticEnergy(model)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergy (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
+└── computes: kinetic energy  ½uᵢuᵢ
 ```
 """
 KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwargs...)
@@ -132,10 +134,11 @@ julia> model = NonhydrostaticModel(grid);
 julia> using Oceanostics.KineticEnergyEquation: KineticEnergyTendency
 
 julia> ke_tendency = KineticEnergyTendency(model)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyTendency (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢGᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "NamedTuple")
+└── computes: kinetic energy tendency  uᵢGᵢ (excl. nonhydrostatic pressure)
 ```
 """
 function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
@@ -191,10 +194,11 @@ julia> model = NonhydrostaticModel(grid);
 julia> using Oceanostics.KineticEnergyEquation: KineticEnergyAdvection
 
 julia> ADV = KineticEnergyAdvection(model)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyAdvection (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ⱼuⱼuᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "Centered")
+└── computes: kinetic energy advection  uᵢ∂ⱼ(uᵢuⱼ)
 ```
 """
 function KineticEnergyAdvection(model::NonhydrostaticModel; velocities = model.velocities, location = (Center, Center, Center))
@@ -240,10 +244,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
 
 julia> DIFF = KineticEnergyEquation.KineticEnergyStress(model)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyStress (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("ScalarDiffusivity", "Nothing", "Clock", "NamedTuple", "Nothing")
+└── computes: kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ
 ```
 """
 function KineticEnergyStress(model; location = (Center, Center, Center))
@@ -297,10 +302,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> FORC = KineticEnergyEquation.KineticEnergyForcing(model)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyForcing (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: uᵢFᵤᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "Clock", "NamedTuple")
+└── computes: kinetic energy forcing  uᵢFᵤᵢ
 ```
 """
 function KineticEnergyForcing(model::NonhydrostaticModel; location = (Center, Center, Center))
@@ -344,10 +350,11 @@ julia> model = NonhydrostaticModel(grid);
 julia> using Oceanostics.KineticEnergyEquation: KineticEnergyPressureRedistribution
 
 julia> ∇u⃗p = KineticEnergyPressureRedistribution(model)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyPressureRedistribution (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "Field")
+└── computes: kinetic energy pressure redistribution  uᵢ∂ᵢp
 ```
 
 We can also pass `velocities` and `pressure` keywords to perform more specific calculations. The
@@ -356,10 +363,11 @@ redistrubution term:
 
 ```jldoctest ∇u⃗p_example
 julia> ∇u⃗pNHS = KineticEnergyPressureRedistribution(model, pressure=model.pressures.pNHS)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyPressureRedistribution (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "Field")
+└── computes: kinetic energy pressure redistribution  uᵢ∂ᵢp
 ```
 """
 function KineticEnergyPressureRedistribution(model::NonhydrostaticModel; velocities = model.velocities,
@@ -405,10 +413,11 @@ julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
 julia> using Oceanostics.KineticEnergyEquation: BuoyancyProduction
 
 julia> wb = BuoyancyProduction(model)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyBuoyancyProduction (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "BuoyancyForce", "NamedTuple")
+└── computes: kinetic energy buoyancy production  uᵢbᵢ
 ```
 
 If we want to calculate only the _turbulent_ buoyancy production rate, we can do so by passing
@@ -420,10 +429,11 @@ julia> w′ = Field(model.velocities.w - Field(Average(model.velocities.w)));
 julia> b′ = Field(model.tracers.b - Field(Average(model.tracers.b)));
 
 julia> w′b′ = BuoyancyProduction(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyBuoyancyProduction (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "BuoyancyForce", "NamedTuple")
+└── computes: kinetic energy buoyancy production  uᵢbᵢ
 ```
 """
 function BuoyancyProduction(model::NonhydrostaticModel; velocities = model.velocities, tracers = model.tracers, location = (Center, Center, Center))
@@ -482,10 +492,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
 
 julia> ε = KineticEnergyEquation.DissipationRate(model)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyDissipationRate (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Nothing", "NamedTuple", "NamedTuple")
+└── computes: kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ
 ```
 """
 function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
@@ -539,10 +550,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
 
 julia> ε = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(model)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyIsotropicDissipationRate (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
+└── computes: isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ
 ```
 """
 function KineticEnergyIsotropicDissipationRate(u, v, w, closure, closure_fields, model_fields, clock; location = (Center, Center, Center))

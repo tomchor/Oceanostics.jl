@@ -46,10 +46,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> ADV = TracerEquation.Advection(model, :a)
-KernelFunctionOperation at (Center, Center, Center)
+TracerAdvection (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: div_Uc (generic function with 10 methods)
+├── kernel_function: div_Uc (generic function with 12 methods)
 └── arguments: ("Centered", "NamedTuple", "Field")
+└── computes: tracer advection  ∂ⱼ(uⱼc)
 ```
 """
 function Advection(model, u, v, w, c, advection; location = (Center, Center, Center))
@@ -87,10 +88,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> DIFF = TracerEquation.Diffusion(model, :a)
-KernelFunctionOperation at (Center, Center, Center)
+TracerDiffusion (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ∇_dot_qᶜ (generic function with 10 methods)
 └── arguments: ("Nothing", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+└── computes: tracer diffusion (interior)  ∂ⱼqᶜⱼ
 ```
 """
 function Diffusion(model, val_tracer_index, c, closure, closure_fields, clock, model_fields, buoyancy; location = (Center, Center, Center))
@@ -123,10 +125,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> DIFF = TracerEquation.ImmersedDiffusion(model, :a)
-KernelFunctionOperation at (Center, Center, Center)
+TracerImmersedDiffusion (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: immersed_∇_dot_qᶜ (generic function with 2 methods)
 └── arguments: ("Field", "Nothing", "Nothing", "Nothing", "Val", "Clock", "NamedTuple")
+└── computes: tracer diffusion through immersed boundaries  ∂ⱼ𝓆ᶜⱼ
 ```
 """
 function ImmersedDiffusion(model, c, c_immersed_bc, closure, closure_fields, val_tracer_index, clock, model_fields; location = (Center, Center, Center))
@@ -159,10 +162,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> DIFF = TracerEquation.TotalDiffusion(model, :a)
-KernelFunctionOperation at (Center, Center, Center)
+TracerTotalDiffusion (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: total_∇_dot_qᶜ (generic function with 1 method)
 └── arguments: ("Field", "Nothing", "Nothing", "Nothing", "Val", "Clock", "NamedTuple", "Nothing")
+└── computes: total tracer diffusion (interior + immersed)  ∂ⱼqᶜⱼ + ∂ⱼ𝓆ᶜⱼ
 ```
 """
 function TotalDiffusion(model, c, c_immersed_bc, closure, closure_fields, val_tracer_index, clock, model_fields, buoyancy; location = (Center, Center, Center))

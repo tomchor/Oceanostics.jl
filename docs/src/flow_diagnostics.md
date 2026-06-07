@@ -39,28 +39,32 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, coriolis=FPlane(f=1e-4));
 
 julia> Ri = FlowDiagnostics.RichardsonNumber(model)
-KernelFunctionOperation at (Center, Center, Face)
+RichardsonNumber (KernelFunctionOperation) at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: richardson_number_ccf (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Tuple")
+└── computes: Richardson number  Ri = (∂b/∂z) / |∂u⃗ₕ/∂z|²
 
 julia> Ro = FlowDiagnostics.RossbyNumber(model)
-KernelFunctionOperation at (Face, Face, Face)
+RossbyNumber (KernelFunctionOperation) at (Face, Face, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: rossby_number_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
+└── computes: Rossby number  Ro = ωᶻ/f
 
 julia> EPV = FlowDiagnostics.ErtelPotentialVorticity(model)
-KernelFunctionOperation at (Face, Face, Face)
+ErtelPotentialVorticity (KernelFunctionOperation) at (Face, Face, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ertel_potential_vorticity_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Int64", "Int64", "Float64")
+└── computes: Ertel potential vorticity  q = ω⃗ₜₒₜ · ∇b
 
 julia> S = FlowDiagnostics.StrainRateTensorModulus(model)
-KernelFunctionOperation at (Center, Center, Center)
+StrainRateTensorModulus (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: strain_rate_tensor_modulus_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
+└── computes: strain-rate tensor modulus  √(SᵢⱼSᵢⱼ)
 ```
 
 ## Richardson number

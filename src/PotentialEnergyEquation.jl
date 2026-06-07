@@ -74,10 +74,11 @@ NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 └── coriolis: Nothing
 
 julia> PotentialEnergyEquation.PotentialEnergy(model)
-KernelFunctionOperation at (Center, Center, Center)
+PotentialEnergy (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("Field",)
+└── computes: potential energy per unit volume  Eₚ = -bz
 ```
 
 The default behaviour of `PotentialEnergy` uses the *in-situ density* in the calculation
@@ -115,10 +116,11 @@ NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 └── coriolis: Nothing
 
 julia> PotentialEnergyEquation.PotentialEnergy(model)
-KernelFunctionOperation at (Center, Center, Center)
+PotentialEnergy (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation", "NamedTuple")
+└── computes: potential energy per unit volume  Eₚ = -bz
 ```
 
 To use a reference density set a constant value for the keyword argument `geopotential_height`
@@ -139,10 +141,11 @@ julia> model = NonhydrostaticModel(grid; buoyancy, tracers);
 julia> geopotential_height = 0; # density variable will be σ₀
 
 julia> PotentialEnergyEquation.PotentialEnergy(model)
-KernelFunctionOperation at (Center, Center, Center)
+PotentialEnergy (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation", "NamedTuple")
+└── computes: potential energy per unit volume  Eₚ = -bz
 ```
 """
 @inline function PotentialEnergy(model; location = (Center, Center, Center),

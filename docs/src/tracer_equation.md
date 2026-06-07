@@ -32,16 +32,18 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; tracers=:b, closure=ScalarDiffusivity(ν=1e-4, κ=1e-4));
 
 julia> adv  = TracerEquation.Advection(model, :b)
-KernelFunctionOperation at (Center, Center, Center)
+TracerAdvection (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: div_Uc (generic function with 10 methods)
+├── kernel_function: div_Uc (generic function with 12 methods)
 └── arguments: ("Centered", "NamedTuple", "Field")
+└── computes: tracer advection  ∂ⱼ(uⱼc)
 
 julia> diff = TracerEquation.Diffusion(model, :b)
-KernelFunctionOperation at (Center, Center, Center)
+TracerDiffusion (KernelFunctionOperation) at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ∇_dot_qᶜ (generic function with 10 methods)
 └── arguments: ("ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+└── computes: tracer diffusion (interior)  ∂ⱼqᶜⱼ
 
 julia> forc = TracerEquation.Forcing(model, :b)
 KernelFunctionOperation at (Center, Center, Center)
