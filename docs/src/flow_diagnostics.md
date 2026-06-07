@@ -16,9 +16,11 @@ The module includes:
   a materially conserved quantity under adiabatic, inviscid conditions that is
   fundamental for understanding large-scale ocean dynamics. A thermal-wind-balance
   approximation and a directional decomposition are also provided.
-- **Velocity gradient tensor invariants**: the strain rate tensor modulus
-  (``\|S_{ij}\|``), vorticity tensor modulus (``\|\Omega_{ij}\|``), and the
-  ``Q``-criterion for vortex identification.
+- **Velocity gradient tensor diagnostics**: the full strain rate tensor ``S_{ij}``
+  and its modulus (``\|S_{ij}\|``), the full vorticity tensor ``\Omega_{ij}`` and its
+  modulus (``\|\Omega_{ij}\|``), and the ``Q``-criterion for vortex identification.
+- **Stress tensor**: the (kinematic) stress tensor ``\tau_{ij} = u_i u_j``, which gives
+  the kinematic Reynolds stress when built from perturbation velocities.
 - **Mixed layer depth**: computed by scanning downward from the surface to find
   where buoyancy or density departs from the surface value by more than a
   user-specified threshold.
@@ -126,7 +128,25 @@ The contribution to the Ertel PV from a single user-specified direction.
 Oceanostics.FlowDiagnostics.DirectionalErtelPotentialVorticity
 ```
 
-## Velocity gradient tensor invariants
+## Velocity gradient tensor diagnostics
+
+### Strain rate tensor
+
+The (symmetric) strain rate tensor, returned as a `NamedTuple` of its independent components. Each
+component is a `KernelFunctionOperation` evaluated at its natural location on the staggered grid
+(the diagonal components at `(Center, Center, Center)`; the off-diagonals at the edge locations
+`(Face, Face, Center)`, `(Face, Center, Face)`, and `(Center, Face, Face)`). The `dims` keyword
+selects a sub-dimensional tensor — component ``S_{ij}`` is included only when both ``i`` and ``j``
+are in `dims` — so `dims=(1, 3)` returns the 2D strain rate tensor in the ``x``–``z`` plane
+(``S_{11}``, ``S_{33}``, ``S_{13}``).
+
+```math
+S_{ij} = \tfrac{1}{2}(\partial_j u_i + \partial_i u_j)
+```
+
+```@docs
+Oceanostics.FlowDiagnostics.StrainRateTensor
+```
 
 ### Strain rate tensor modulus
 
@@ -136,6 +156,24 @@ Oceanostics.FlowDiagnostics.DirectionalErtelPotentialVorticity
 
 ```@docs
 Oceanostics.FlowDiagnostics.StrainRateTensorModulus
+```
+
+### Vorticity tensor
+
+The (antisymmetric) vorticity tensor, returned as a `NamedTuple` of its independent off-diagonal
+components. Each component is a `KernelFunctionOperation` evaluated at its natural location on the
+staggered grid — the edge locations `(Face, Face, Center)`, `(Face, Center, Face)`, and
+`(Center, Face, Face)`. The diagonal vanishes (``\Omega_{ii} = 0``) and the lower triangle follows
+from antisymmetry (``\Omega_{ji} = -\Omega_{ij}``). The `dims` keyword selects a sub-dimensional
+tensor — component ``\Omega_{ij}`` is included only when both ``i`` and ``j`` are in `dims` — so
+`dims=(1, 3)` returns just the ``x``–``z`` component ``\Omega_{13}``.
+
+```math
+\Omega_{ij} = \tfrac{1}{2}(\partial_j u_i - \partial_i u_j)
+```
+
+```@docs
+Oceanostics.FlowDiagnostics.VorticityTensor
 ```
 
 ### Vorticity tensor modulus
@@ -158,6 +196,26 @@ Used to identify vortices in fluid flow; positive values indicate vortex-dominat
 
 ```@docs
 Oceanostics.FlowDiagnostics.QVelocityGradientTensorInvariant
+```
+
+## Stress tensor
+
+The (symmetric, kinematic) stress tensor, returned as a `NamedTuple` of its independent components.
+Each component is a `KernelFunctionOperation` evaluated at its natural location on the staggered grid
+(the diagonal components at `(Center, Center, Center)`; the off-diagonals at the edge locations
+`(Face, Face, Center)`, `(Face, Center, Face)`, and `(Center, Face, Face)`). The velocities are
+interpolated to the target location before being multiplied. The `dims` keyword selects a
+sub-dimensional tensor — component ``\tau_{ij}`` is included only when both ``i`` and ``j`` are in
+`dims` — so `dims=(1, 3)` returns the 2D stress tensor in the ``x``–``z`` plane (``\tau_{11}``,
+``\tau_{33}``, ``\tau_{13}``). Building it from perturbation velocities yields the kinematic
+Reynolds stress tensor.
+
+```math
+\tau_{ij} = u_i u_j
+```
+
+```@docs
+Oceanostics.FlowDiagnostics.StressTensor
 ```
 
 ## Mixed layer depth

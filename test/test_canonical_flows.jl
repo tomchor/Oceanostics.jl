@@ -58,6 +58,10 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
     Ω = Field(VorticityTensorModulus(model))
     q = Field(QVelocityGradientTensorInvariant(model))
 
+    Sij = StrainRateTensor(model)
+    S₁₁ = Field(Sij.S₁₁); S₂₂ = Field(Sij.S₂₂); S₃₃ = Field(Sij.S₃₃)
+    S₁₂ = Field(Sij.S₁₂); S₁₃ = Field(Sij.S₁₃); S₂₃ = Field(Sij.S₂₃)
+
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
     if model.closure isa Tuple
@@ -73,6 +77,19 @@ function test_uniform_strain_flow(grid; model_type=NonhydrostaticModel, closure=
         @test ≈(getindex(Ω, idxs...), 0, atol=10eps())
         @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ -α^2
         @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
+
+        # Strain rate tensor for uⱼ = (αx, -αy, 0) is S = diag(α, -α, 0), off-diagonals zero
+        @test getindex(S₁₁, idxs...) ≈ +α
+        @test getindex(S₂₂, idxs...) ≈ -α
+        @test ≈(getindex(S₃₃, idxs...), 0, atol=10eps())
+        @test ≈(getindex(S₁₂, idxs...), 0, atol=10eps())
+        @test ≈(getindex(S₁₃, idxs...), 0, atol=10eps())
+        @test ≈(getindex(S₂₃, idxs...), 0, atol=10eps())
+
+        # The modulus is recovered from the components: ‖S‖ = √(Sᵢⱼ Sᵢⱼ)
+        SᵢⱼSᵢⱼ = getindex(S₁₁, idxs...)^2 + getindex(S₂₂, idxs...)^2 + getindex(S₃₃, idxs...)^2 +
+                 2 * (getindex(S₁₂, idxs...)^2 + getindex(S₁₃, idxs...)^2 + getindex(S₂₃, idxs...)^2)
+        @test √(SᵢⱼSᵢⱼ) ≈ getindex(S, idxs...)
     end
 
     return nothing
@@ -99,6 +116,9 @@ function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, clo
     Ω = Field(VorticityTensorModulus(model))
     q = Field(QVelocityGradientTensorInvariant(model))
 
+    Ωij = VorticityTensor(model)
+    Ω₁₂ = Field(Ωij.Ω₁₂); Ω₁₃ = Field(Ωij.Ω₁₃); Ω₂₃ = Field(Ωij.Ω₂₃)
+
     idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
 
     if model.closure isa Tuple
@@ -114,6 +134,15 @@ function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, clo
         @test getindex(Ω, idxs...) ≈ ζ/√2
         @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ ζ^2/4
         @test getindex(ε, idxs...) ≈ 0
+
+        # Vorticity tensor for uⱼ = (ζy/2, -ζx/2, 0) has only Ω₁₂ = ½(∂u/∂y - ∂v/∂x) = ζ/2 nonzero
+        @test getindex(Ω₁₂, idxs...) ≈ +ζ/2
+        @test ≈(getindex(Ω₁₃, idxs...), 0, atol=10eps())
+        @test ≈(getindex(Ω₂₃, idxs...), 0, atol=10eps())
+
+        # The modulus is recovered from the components: ‖Ω‖ = √(Ωᵢⱼ Ωᵢⱼ) = √(2(Ω₁₂² + Ω₁₃² + Ω₂₃²))
+        ΩᵢⱼΩᵢⱼ = 2 * (getindex(Ω₁₂, idxs...)^2 + getindex(Ω₁₃, idxs...)^2 + getindex(Ω₂₃, idxs...)^2)
+        @test √(ΩᵢⱼΩᵢⱼ) ≈ getindex(Ω, idxs...)
     end
 end
 """
@@ -155,6 +184,42 @@ function test_uniform_shear_flow(grid; model_type=NonhydrostaticModel, closure=S
         @test getindex(ε, idxs...) ≈ 2 * ν * getindex(S, idxs...)^2
     end
 end
+
+"""
+Test that StressTensor (τᵢⱼ = uᵢuⱼ) has the right values for a uniform (constant-velocity) flow,
+for which τᵢⱼ = uᵢuⱼ is itself spatially uniform.
+"""
+function test_uniform_flow(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1), U=2, V=-3)
+    model = model_type(grid; closure)
+    if model isa NonhydrostaticModel
+        set!(model, u=U, v=V, w=0, enforce_incompressibility=false)
+    else
+        set!(model, u=U, v=V)
+    end
+
+    τij = StressTensor(model)
+    τ₁₁ = Field(τij.τ₁₁); τ₂₂ = Field(τij.τ₂₂); τ₃₃ = Field(τij.τ₃₃)
+    τ₁₂ = Field(τij.τ₁₂); τ₁₃ = Field(τij.τ₁₃); τ₂₃ = Field(τij.τ₂₃)
+
+    idxs = (model.grid.Nx÷2, model.grid.Ny÷2, model.grid.Nz÷2) # Get a value far from boundaries
+
+    @allowscalar begin
+        # τᵢⱼ = uᵢuⱼ for the constant flow uⱼ = (U, V, 0)
+        @test getindex(τ₁₁, idxs...) ≈ U^2
+        @test getindex(τ₂₂, idxs...) ≈ V^2
+        @test ≈(getindex(τ₃₃, idxs...), 0, atol=10eps())
+        @test getindex(τ₁₂, idxs...) ≈ U*V
+        @test ≈(getindex(τ₁₃, idxs...), 0, atol=10eps())
+        @test ≈(getindex(τ₂₃, idxs...), 0, atol=10eps())
+
+        # The full contraction τᵢⱼτᵢⱼ = (uₖuₖ)² recovers |u|⁴
+        τᵢⱼτᵢⱼ = getindex(τ₁₁, idxs...)^2 + getindex(τ₂₂, idxs...)^2 + getindex(τ₃₃, idxs...)^2 +
+                 2 * (getindex(τ₁₂, idxs...)^2 + getindex(τ₁₃, idxs...)^2 + getindex(τ₂₃, idxs...)^2)
+        @test τᵢⱼτᵢⱼ ≈ (U^2 + V^2)^2
+    end
+
+    return nothing
+end
 #---
 
 @testset "Known flows" begin
@@ -173,6 +238,9 @@ end
 
                 @info "          Testing uniform shear flow"
                 test_uniform_shear_flow(grid; model_type, closure, σ=3)
+
+                @info "          Testing uniform flow stress tensor"
+                test_uniform_flow(grid; model_type, closure, U=2, V=-3)
             end
         end
     end

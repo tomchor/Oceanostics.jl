@@ -2,6 +2,7 @@ using Test
 using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
+using Oceananigans.Fields: location
 
 using Oceanostics
 using Oceanostics: perturbation_fields
@@ -58,10 +59,133 @@ function test_velocity_only_flow_diagnostics(model)
     S = Field(op)
     @test all(interior(S) .≈ 0)
 
+    Sij = StrainRateTensor(model)
+    @test keys(Sij) == (:S₁₁, :S₂₂, :S₃₃, :S₁₂, :S₁₃, :S₂₃)
+    @test location(Sij.S₁₁) == (Center, Center, Center)
+    @test location(Sij.S₁₂) == (Face, Face, Center)
+    @test location(Sij.S₁₃) == (Face, Center, Face)
+    @test location(Sij.S₂₃) == (Center, Face, Face)
+    @test Sij == StrainRateTensor(model.grid, model.velocities...) # field-based constructor agrees
+    for Sᵢⱼ in Sij
+        @test all(interior(Field(Sᵢⱼ)) .≈ 0)
+    end
+
+    # `dims` selects sub-dimensional strain tensors: Sᵢⱼ is kept only if both i and j are in `dims`
+    @test keys(StrainRateTensor(model; dims=(1, 2, 3))) == keys(Sij)
+    @test keys(StrainRateTensor(model; dims=(1, 2))) == (:S₁₁, :S₂₂, :S₁₂)
+    @test keys(StrainRateTensor(model; dims=(1, 3))) == (:S₁₁, :S₃₃, :S₁₃)
+    @test keys(StrainRateTensor(model; dims=(2, 3))) == (:S₂₂, :S₃₃, :S₂₃)
+    @test keys(StrainRateTensor(model; dims=(1,)))   == (:S₁₁,)
+    @test keys(StrainRateTensor(model; dims=(2,)))   == (:S₂₂,)
+    @test keys(StrainRateTensor(model; dims=(3,)))   == (:S₃₃,)
+    @test keys(StrainRateTensor(model; dims=(3, 1))) == (:S₁₁, :S₃₃, :S₁₃) # order of `dims` doesn't matter
+
+    # selected components are the very same KFOs as in the full tensor, and `dims` is forwarded
+    Sxz = StrainRateTensor(model; dims=(1, 3))
+    @test (Sxz.S₁₁, Sxz.S₃₃, Sxz.S₁₃) == (Sij.S₁₁, Sij.S₃₃, Sij.S₁₃)
+    @test Sxz == StrainRateTensor(model.grid, model.velocities...; dims=(1, 3))
+
+    # invalid `dims` are rejected
+    @test_throws ArgumentError StrainRateTensor(model; dims=(1, 4))
+    @test_throws ArgumentError StrainRateTensor(model; dims=(1, 1))
+    @test_throws ArgumentError StrainRateTensor(model; dims=())
+    @test_throws ArgumentError StrainRateTensor(model; dims=1)
+
+    τij = StressTensor(model)
+    @test keys(τij) == (:τ₁₁, :τ₂₂, :τ₃₃, :τ₁₂, :τ₁₃, :τ₂₃)
+    # default `collocate_diagonals = false`: diagonals are interpolation-free, at each velocity's location
+    @test location(τij.τ₁₁) == (Face, Center, Center)
+    @test location(τij.τ₂₂) == (Center, Face, Center)
+    @test location(τij.τ₃₃) == (Center, Center, Face)
+    @test location(τij.τ₁₂) == (Face, Face, Center)
+    @test location(τij.τ₁₃) == (Face, Center, Face)
+    @test location(τij.τ₂₃) == (Center, Face, Face)
+    @test τij == StressTensor(model.grid, model.velocities...) # field-based constructor agrees
+    @test τij == StressTensor(model; collocate_diagonals=false) # the default
+    for τᵢⱼ in τij
+        @test Field(τᵢⱼ) isa Field # every component is computable
+    end
+
+    # `collocate_diagonals = true`: diagonals are interpolated to a shared ccc location instead
+    τij_c = StressTensor(model; collocate_diagonals=true)
+    @test keys(τij_c) == keys(τij)
+    @test location(τij_c.τ₁₁) == (Center, Center, Center)
+    @test location(τij_c.τ₂₂) == (Center, Center, Center)
+    @test location(τij_c.τ₃₃) == (Center, Center, Center)
+    # off-diagonals are unaffected by `collocate_diagonals`
+    @test (location(τij_c.τ₁₂), location(τij_c.τ₁₃), location(τij_c.τ₂₃)) ==
+          (location(τij.τ₁₂),   location(τij.τ₁₃),   location(τij.τ₂₃))
+    @test τij_c == StressTensor(model.grid, model.velocities...; collocate_diagonals=true) # field-based agrees
+    for τᵢⱼ in τij_c
+        @test Field(τᵢⱼ) isa Field # every component is computable
+    end
+    # (ℑu)² ≠ ℑ(u²): collocating a diagonal is a genuinely different computation, not a relocation.
+    # The model's velocities here are zero, so verify on a noise-filled field instead.
+    uₙ = XFaceField(model.grid); set!(uₙ, grid_noise)
+    vₙ = YFaceField(model.grid); set!(vₙ, grid_noise)
+    wₙ = ZFaceField(model.grid); set!(wₙ, grid_noise)
+    τ_min = StressTensor(model.grid, uₙ, vₙ, wₙ; collocate_diagonals=false) # τ₁₁ = u²    at fcc
+    τ_col = StressTensor(model.grid, uₙ, vₙ, wₙ; collocate_diagonals=true)  # τ₁₁ = (ℑu)² at ccc
+    τ₁₁_min_at_ccc = Field(@at (Center, Center, Center) τ_min.τ₁₁)          # ℑ(u²)      at ccc
+    @test interior(Field(τ_col.τ₁₁)) != interior(τ₁₁_min_at_ccc)
+
+    # `dims` selects sub-dimensional stress tensors: τᵢⱼ is kept only if both i and j are in `dims`
+    @test keys(StressTensor(model; dims=(1, 2, 3))) == keys(τij)
+    @test keys(StressTensor(model; dims=(1, 2))) == (:τ₁₁, :τ₂₂, :τ₁₂)
+    @test keys(StressTensor(model; dims=(1, 3))) == (:τ₁₁, :τ₃₃, :τ₁₃)
+    @test keys(StressTensor(model; dims=(2, 3))) == (:τ₂₂, :τ₃₃, :τ₂₃)
+    @test keys(StressTensor(model; dims=(1,)))   == (:τ₁₁,)
+    @test keys(StressTensor(model; dims=(2,)))   == (:τ₂₂,)
+    @test keys(StressTensor(model; dims=(3,)))   == (:τ₃₃,)
+    @test keys(StressTensor(model; dims=(3, 1))) == (:τ₁₁, :τ₃₃, :τ₁₃) # order of `dims` doesn't matter
+
+    # selected components are the very same KFOs as in the full tensor, and `dims` is forwarded
+    τxz = StressTensor(model; dims=(1, 3))
+    @test (τxz.τ₁₁, τxz.τ₃₃, τxz.τ₁₃) == (τij.τ₁₁, τij.τ₃₃, τij.τ₁₃)
+    @test τxz == StressTensor(model.grid, model.velocities...; dims=(1, 3))
+
+    # invalid `dims` are rejected
+    @test_throws ArgumentError StressTensor(model; dims=(1, 4))
+    @test_throws ArgumentError StressTensor(model; dims=(1, 1))
+    @test_throws ArgumentError StressTensor(model; dims=())
+    @test_throws ArgumentError StressTensor(model; dims=1)
+
     op = VorticityTensorModulus(model)
     @test op isa VorticityTensorModulus
     Ω = Field(op)
     @test all(interior(Ω) .≈ 0)
+
+    Ωij = VorticityTensor(model)
+    @test keys(Ωij) == (:Ω₁₂, :Ω₁₃, :Ω₂₃) # antisymmetric tensor: only off-diagonals, no diagonals
+    @test location(Ωij.Ω₁₂) == (Face, Face, Center)
+    @test location(Ωij.Ω₁₃) == (Face, Center, Face)
+    @test location(Ωij.Ω₂₃) == (Center, Face, Face)
+    @test Ωij == VorticityTensor(model.grid, model.velocities...) # field-based constructor agrees
+    for Ωᵢⱼ in Ωij
+        @test all(interior(Field(Ωᵢⱼ)) .≈ 0)
+    end
+
+    # `dims` selects sub-dimensional vorticity tensors: Ωᵢⱼ is kept only if both i and j are in `dims`
+    @test keys(VorticityTensor(model; dims=(1, 2, 3))) == keys(Ωij)
+    @test keys(VorticityTensor(model; dims=(1, 2))) == (:Ω₁₂,)
+    @test keys(VorticityTensor(model; dims=(1, 3))) == (:Ω₁₃,)
+    @test keys(VorticityTensor(model; dims=(2, 3))) == (:Ω₂₃,)
+    @test keys(VorticityTensor(model; dims=(3, 1))) == (:Ω₁₃,) # order of `dims` doesn't matter
+    # every component couples two distinct directions, so a single-direction `dims` is empty
+    @test keys(VorticityTensor(model; dims=(1,))) == ()
+    @test keys(VorticityTensor(model; dims=(2,))) == ()
+    @test keys(VorticityTensor(model; dims=(3,))) == ()
+
+    # selected components are the very same KFOs as in the full tensor, and `dims` is forwarded
+    Ωxz = VorticityTensor(model; dims=(1, 3))
+    @test Ωxz.Ω₁₃ == Ωij.Ω₁₃
+    @test Ωxz == VorticityTensor(model.grid, model.velocities...; dims=(1, 3))
+
+    # invalid `dims` are rejected
+    @test_throws ArgumentError VorticityTensor(model; dims=(1, 4))
+    @test_throws ArgumentError VorticityTensor(model; dims=(1, 1))
+    @test_throws ArgumentError VorticityTensor(model; dims=())
+    @test_throws ArgumentError VorticityTensor(model; dims=1)
 
     op = QVelocityGradientTensorInvariant(model)
     @allowscalar @test op == Oceanostics.Q(model)

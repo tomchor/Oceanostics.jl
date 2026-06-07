@@ -3,7 +3,8 @@ using DocStringExtensions
 
 export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
-export StrainRateTensorModulus, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
+export StrainRateTensor, StrainRateTensorModulus, VorticityTensor, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
+export StressTensor
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 
@@ -360,7 +361,7 @@ function DirectionalErtelPotentialVorticity(model, direction, u, v, w, tracer, c
 end
 #---
 
-#+++ Velocity gradient and vorticity tensors
+#+++ Strain rate tensor
 @inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
 function strain_rate_tensor_modulus_ccc(i, j, k, grid, u, v, w)
@@ -397,6 +398,71 @@ function StrainRateTensorModulus(model; loc = (Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(strain_rate_tensor_modulus_ccc, model.grid, model.velocities...)
 end
 
+# Off-diagonal strain rate components, each evaluated at its natural staggered location.
+@inline strain_rate_tensor_xy_ffc(i, j, k, grid, u, v) = (∂yᶠᶠᶜ(i, j, k, grid, u) + ∂xᶠᶠᶜ(i, j, k, grid, v)) / 2
+@inline strain_rate_tensor_xz_fcf(i, j, k, grid, u, w) = (∂zᶠᶜᶠ(i, j, k, grid, u) + ∂xᶠᶜᶠ(i, j, k, grid, w)) / 2
+@inline strain_rate_tensor_yz_cff(i, j, k, grid, v, w) = (∂zᶜᶠᶠ(i, j, k, grid, v) + ∂yᶜᶠᶠ(i, j, k, grid, w)) / 2
+
+validate_dims(dims::Tuple{Vararg{Int}}) =
+    (!isempty(dims) & all(d -> d in (1, 2, 3), dims) & allunique(dims)) ||
+        throw(ArgumentError("`dims` must be a non-empty tuple of distinct integers drawn from (1, 2, 3); got $dims"))
+validate_dims(dims) = throw(ArgumentError("`dims` must be a tuple of integers; got $(typeof(dims))"))
+
+"""
+    $(SIGNATURES)
+
+Return the components of the strain rate tensor `S`, defined as the symmetric part of the velocity
+gradient tensor:
+
+```
+    Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)
+```
+
+The result is a `NamedTuple` with the independent components, each a `KernelFunctionOperation`
+living at its natural location on the staggered grid:
+
+| Component | Definition         | Location |
+|:---------:|:------------------:|:--------:|
+| `S₁₁`     | `∂u/∂x`            | `ccc`    |
+| `S₂₂`     | `∂v/∂y`            | `ccc`    |
+| `S₃₃`     | `∂w/∂z`            | `ccc`    |
+| `S₁₂`     | `½(∂u/∂y + ∂v/∂x)` | `ffc`    |
+| `S₁₃`     | `½(∂u/∂z + ∂w/∂x)` | `fcf`    |
+| `S₂₃`     | `½(∂v/∂z + ∂w/∂y)` | `cff`    |
+
+The tensor is symmetric, so the remaining components follow from `Sⱼᵢ = Sᵢⱼ` (i.e. `S₂₁ = S₁₂`,
+`S₃₁ = S₁₃`, `S₃₂ = S₂₃`).
+
+`dims` selects which spatial directions (`1 → x`, `2 → y`, `3 → z`) enter the tensor: component
+`Sᵢⱼ` is included only when both `i` and `j` are in `dims`. The default `dims = (1, 2, 3)` returns
+the full tensor, while e.g. `dims = (1, 3)` returns the 2D strain rate tensor in the `x`–`z` plane
+(`S₁₁`, `S₃₃`, `S₁₃`). Components are always ordered diagonals-first, independently of the order of
+`dims`.
+
+Each component can be wrapped in a `Field` and used with output writers, time-averaging, etc. Can
+also be called as `StrainRateTensor(grid, u, v, w; dims)` to build the components from individual
+velocity fields. See also [`StrainRateTensorModulus`](@ref) for the scalar modulus `√(SᵢⱼSᵢⱼ)`.
+"""
+StrainRateTensor(model; dims = (1, 2, 3)) = StrainRateTensor(model.grid, model.velocities...; dims)
+
+function StrainRateTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3))
+    validate_dims(dims)
+    want(ij...) = all(in(dims), ij) # keep component Sᵢⱼ only if every index it needs is in `dims`
+
+    components = (
+        S₁₁ = want(1)    ? KernelFunctionOperation{Center, Center, Center}(∂xᶜᶜᶜ, grid, u) : nothing,
+        S₂₂ = want(2)    ? KernelFunctionOperation{Center, Center, Center}(∂yᶜᶜᶜ, grid, v) : nothing,
+        S₃₃ = want(3)    ? KernelFunctionOperation{Center, Center, Center}(∂zᶜᶜᶜ, grid, w) : nothing,
+        S₁₂ = want(1, 2) ? KernelFunctionOperation{Face, Face, Center}(strain_rate_tensor_xy_ffc, grid, u, v) : nothing,
+        S₁₃ = want(1, 3) ? KernelFunctionOperation{Face, Center, Face}(strain_rate_tensor_xz_fcf, grid, u, w) : nothing,
+        S₂₃ = want(2, 3) ? KernelFunctionOperation{Center, Face, Face}(strain_rate_tensor_yz_cff, grid, v, w) : nothing,
+    )
+
+    return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
+end
+#---
+
+#+++ Vorticity tensor
 @inline fψ_minus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) - g(i, j, k, grid, φ))^2
 
 function vorticity_tensor_modulus_ccc(i, j, k, grid, u, v, w)
@@ -433,6 +499,60 @@ function VorticityTensorModulus(model; loc = (Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(vorticity_tensor_modulus_ccc, model.grid, model.velocities...)
 end
 
+# Off-diagonal vorticity components, each evaluated at its natural staggered location. The diagonal
+# components vanish identically (Ωᵢᵢ = 0), so they are not built.
+@inline vorticity_tensor_xy_ffc(i, j, k, grid, u, v) = (∂yᶠᶠᶜ(i, j, k, grid, u) - ∂xᶠᶠᶜ(i, j, k, grid, v)) / 2
+@inline vorticity_tensor_xz_fcf(i, j, k, grid, u, w) = (∂zᶠᶜᶠ(i, j, k, grid, u) - ∂xᶠᶜᶠ(i, j, k, grid, w)) / 2
+@inline vorticity_tensor_yz_cff(i, j, k, grid, v, w) = (∂zᶜᶠᶠ(i, j, k, grid, v) - ∂yᶜᶠᶠ(i, j, k, grid, w)) / 2
+
+"""
+    $(SIGNATURES)
+
+Return the components of the vorticity tensor `Ω`, defined as the antisymmetric part of the velocity
+gradient tensor:
+
+```
+    Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)
+```
+
+The tensor is antisymmetric, so its diagonal vanishes (`Ω₁₁ = Ω₂₂ = Ω₃₃ = 0`) and only the
+independent off-diagonal components are returned, as a `NamedTuple` of `KernelFunctionOperation`s,
+each living at its natural location on the staggered grid:
+
+| Component | Definition         | Location |
+|:---------:|:------------------:|:--------:|
+| `Ω₁₂`     | `½(∂u/∂y - ∂v/∂x)` | `ffc`    |
+| `Ω₁₃`     | `½(∂u/∂z - ∂w/∂x)` | `fcf`    |
+| `Ω₂₃`     | `½(∂v/∂z - ∂w/∂y)` | `cff`    |
+
+The remaining off-diagonal components follow from antisymmetry, `Ωⱼᵢ = -Ωᵢⱼ` (i.e. `Ω₂₁ = -Ω₁₂`,
+`Ω₃₁ = -Ω₁₃`, `Ω₃₂ = -Ω₂₃`).
+
+`dims` selects which spatial directions (`1 → x`, `2 → y`, `3 → z`) enter the tensor: component
+`Ωᵢⱼ` is included only when both `i` and `j` are in `dims`. The default `dims = (1, 2, 3)` returns
+all three off-diagonal components, while e.g. `dims = (1, 3)` returns the single component in the
+`x`–`z` plane (`Ω₁₃`). Because every component couples two distinct directions, a single-direction
+`dims` (e.g. `dims = (1,)`) yields an empty tensor. Components are always ordered `Ω₁₂`, `Ω₁₃`,
+`Ω₂₃`, independently of the order of `dims`.
+
+Each component can be wrapped in a `Field` and used with output writers, time-averaging, etc. Can
+also be called as `VorticityTensor(grid, u, v, w; dims)` to build the components from individual
+velocity fields. See also [`VorticityTensorModulus`](@ref) for the scalar modulus `√(ΩᵢⱼΩᵢⱼ)`.
+"""
+VorticityTensor(model; dims = (1, 2, 3)) = VorticityTensor(model.grid, model.velocities...; dims)
+
+function VorticityTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3))
+    validate_dims(dims)
+    want(ij...) = all(in(dims), ij) # keep component Ωᵢⱼ only if every index it needs is in `dims`
+
+    components = (
+        Ω₁₂ = want(1, 2) ? KernelFunctionOperation{Face, Face, Center}(vorticity_tensor_xy_ffc, grid, u, v) : nothing,
+        Ω₁₃ = want(1, 3) ? KernelFunctionOperation{Face, Center, Face}(vorticity_tensor_xz_fcf, grid, u, w) : nothing,
+        Ω₂₃ = want(2, 3) ? KernelFunctionOperation{Center, Face, Face}(vorticity_tensor_yz_cff, grid, v, w) : nothing,
+    )
+
+    return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
+end
 
 # From doi:10.1063/1.5124245
 @inline function Q_velocity_gradient_tensor_invariant_ccc(i, j, k, grid, u, v, w)
@@ -442,6 +562,116 @@ end
 end
 
 const QVelocityGradientTensorInvariant = CustomKFO{<:typeof(Q_velocity_gradient_tensor_invariant_ccc)}
+#---
+
+#+++ Stress tensor
+# Stress tensor τᵢⱼ = uᵢuⱼ kernels. Diagonals come in two flavors (see `collocate_diagonals` in
+# `StressTensor`): collocated `_ccc` = (ℑ uᵢ)² at ccc, or interpolation-free at uᵢ's own location.
+@inline stress_tensor_xx_ccc(i, j, k, grid, u)    = ℑxᶜᵃᵃ(i, j, k, grid, u)^2
+@inline stress_tensor_yy_ccc(i, j, k, grid, v)    = ℑyᵃᶜᵃ(i, j, k, grid, v)^2
+@inline stress_tensor_zz_ccc(i, j, k, grid, w)    = ℑzᵃᵃᶜ(i, j, k, grid, w)^2
+@inline stress_tensor_xx_fcc(i, j, k, grid, u)    = @inbounds u[i, j, k]^2
+@inline stress_tensor_yy_cfc(i, j, k, grid, v)    = @inbounds v[i, j, k]^2
+@inline stress_tensor_zz_ccf(i, j, k, grid, w)    = @inbounds w[i, j, k]^2
+@inline stress_tensor_xy_ffc(i, j, k, grid, u, v) = ℑyᵃᶠᵃ(i, j, k, grid, u) * ℑxᶠᵃᵃ(i, j, k, grid, v)
+@inline stress_tensor_xz_fcf(i, j, k, grid, u, w) = ℑzᵃᵃᶠ(i, j, k, grid, u) * ℑxᶠᵃᵃ(i, j, k, grid, w)
+@inline stress_tensor_yz_cff(i, j, k, grid, v, w) = ℑzᵃᵃᶠ(i, j, k, grid, v) * ℑyᵃᶠᵃ(i, j, k, grid, w)
+
+"""
+    $(SIGNATURES)
+
+Return the components of the (kinematic) stress tensor `τ`, defined as the outer product of the
+velocity field with itself:
+
+```
+    τᵢⱼ = uᵢ uⱼ
+```
+
+The result is a `NamedTuple` of the independent components, each a `KernelFunctionOperation` living
+at a location on the staggered grid.
+
+The **off-diagonal** components are always evaluated at their natural edge location. Because each
+couples two *different*, mutually-staggered velocities, the two factors must be interpolated to a
+common point before multiplying — this is unavoidable, and the edge locations below are the
+interpolation-minimal choice (one interpolation per factor):
+
+| Component | Definition | Location |
+|:---------:|:----------:|:--------:|
+| `τ₁₂`     | `u v`      | `ffc`    |
+| `τ₁₃`     | `u w`      | `fcf`    |
+| `τ₂₃`     | `v w`      | `cff`    |
+
+The **`collocate_diagonals`** keyword controls *only* where the diagonal components `τ₁₁, τ₂₂, τ₃₃`
+live. It trades interpolation against collocation, and **defaults to `false`** (minimal
+interpolation):
+
+- `collocate_diagonals = false` (**default**): each diagonal is computed as `τᵢᵢ = uᵢ²` read
+  *directly at `uᵢ`'s own location*, performing **no interpolation at all**. This is the cheapest
+  and most accurate option. The trade-off is that the three diagonals end up at three *different*
+  locations, so they are not collocated with each other or with the off-diagonals:
+
+  | Component | Definition | Location |
+  |:---------:|:----------:|:--------:|
+  | `τ₁₁`     | `u u`      | `fcc`    |
+  | `τ₂₂`     | `v v`      | `cfc`    |
+  | `τ₃₃`     | `w w`      | `ccf`    |
+
+- `collocate_diagonals = true`: each velocity is first interpolated to `ccc` and *then* squared,
+  `τᵢᵢ = (ℑ uᵢ)²`, so all three diagonals share the single location `ccc`. Choose this when you need
+  the diagonals collocated — e.g. to form the trace `τ₁₁ + τ₂₂ + τ₃₃` (twice the kinetic energy) or
+  to treat `τ` as a single collocated tensor. The cost is one interpolation per diagonal:
+
+  | Component | Definition | Location |
+  |:---------:|:----------:|:--------:|
+  | `τ₁₁`     | `u u`      | `ccc`    |
+  | `τ₂₂`     | `v v`      | `ccc`    |
+  | `τ₃₃`     | `w w`      | `ccc`    |
+
+!!! warning "The two diagonal modes return different numbers"
+    Interpolation and squaring do not commute, `(ℑ uᵢ)² ≠ ℑ(uᵢ²)`. The diagonals obtained with
+    `collocate_diagonals = true` are therefore *not* the `false` values resampled at another point —
+    they differ by an interpolation error. Pick the mode deliberately.
+
+The tensor is symmetric, so the remaining components follow from `τⱼᵢ = τᵢⱼ` (i.e. `τ₂₁ = τ₁₂`,
+`τ₃₁ = τ₁₃`, `τ₃₂ = τ₂₃`).
+
+`dims` selects which spatial directions (`1 → x`, `2 → y`, `3 → z`) enter the tensor: component
+`τᵢⱼ` is included only when both `i` and `j` are in `dims`. The default `dims = (1, 2, 3)` returns
+the full tensor, while e.g. `dims = (1, 3)` returns the 2D stress tensor in the `x`–`z` plane
+(`τ₁₁`, `τ₃₃`, `τ₁₃`). Components are always ordered diagonals-first, independently of the order of
+`dims`.
+
+Each component can be wrapped in a `Field` and used with output writers, time-averaging, etc. Can
+also be called as `StressTensor(grid, u, v, w; dims, collocate_diagonals)` to build the components
+from individual velocity fields. Building the tensor from perturbation velocities (e.g. via
+`perturbation_fields`) yields the kinematic Reynolds stress tensor.
+"""
+StressTensor(model; dims = (1, 2, 3), collocate_diagonals = false) =
+    StressTensor(model.grid, model.velocities...; dims, collocate_diagonals)
+
+function StressTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3), collocate_diagonals = false)
+    validate_dims(dims)
+    want(ij...) = all(in(dims), ij) # keep component τᵢⱼ only if every index it needs is in `dims`
+
+    if collocate_diagonals # τᵢᵢ = (ℑ uᵢ)² interpolated to a shared ccc location (one interpolation each)
+        τ₁₁ = want(1) ? KernelFunctionOperation{Center, Center, Center}(stress_tensor_xx_ccc, grid, u) : nothing
+        τ₂₂ = want(2) ? KernelFunctionOperation{Center, Center, Center}(stress_tensor_yy_ccc, grid, v) : nothing
+        τ₃₃ = want(3) ? KernelFunctionOperation{Center, Center, Center}(stress_tensor_zz_ccc, grid, w) : nothing
+    else # τᵢᵢ = uᵢ² read at each velocity's own location (no interpolation)
+        τ₁₁ = want(1) ? KernelFunctionOperation{Face, Center, Center}(stress_tensor_xx_fcc, grid, u) : nothing
+        τ₂₂ = want(2) ? KernelFunctionOperation{Center, Face, Center}(stress_tensor_yy_cfc, grid, v) : nothing
+        τ₃₃ = want(3) ? KernelFunctionOperation{Center, Center, Face}(stress_tensor_zz_ccf, grid, w) : nothing
+    end
+
+    components = (;
+        τ₁₁, τ₂₂, τ₃₃,
+        τ₁₂ = want(1, 2) ? KernelFunctionOperation{Face, Face, Center}(stress_tensor_xy_ffc, grid, u, v) : nothing,
+        τ₁₃ = want(1, 3) ? KernelFunctionOperation{Face, Center, Face}(stress_tensor_xz_fcf, grid, u, w) : nothing,
+        τ₂₃ = want(2, 3) ? KernelFunctionOperation{Center, Face, Face}(stress_tensor_yz_cff, grid, v, w) : nothing,
+    )
+
+    return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
+end
 #---
 
 #+++ Mixed layer depth

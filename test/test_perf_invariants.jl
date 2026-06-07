@@ -173,6 +173,34 @@ end
         test_kfo_invariants("RossbyNumber",            RossbyNumber(model))
         test_kfo_invariants("ErtelPotentialVorticity", ErtelPotentialVorticity(model))
         test_kfo_invariants("StrainRateTensorModulus", StrainRateTensorModulus(model))
+
+        # Off-diagonal strain components live at edge locations (ffc/fcf/cff) and exercise the
+        # new per-component kernels; the diagonals reuse Oceananigans' ∂ᵢᶜᶜᶜ operators.
+        Sij = StrainRateTensor(model)
+        test_kfo_invariants("StrainRateTensor.S₁₂", Sij.S₁₂)
+        test_kfo_invariants("StrainRateTensor.S₁₃", Sij.S₁₃)
+        test_kfo_invariants("StrainRateTensor.S₂₃", Sij.S₂₃)
+
+        # The vorticity tensor is antisymmetric, so all its components are off-diagonal edge kernels
+        # (ffc/fcf/cff); there are no diagonal components to check.
+        Ωij = VorticityTensor(model)
+        test_kfo_invariants("VorticityTensor.Ω₁₂", Ωij.Ω₁₂)
+        test_kfo_invariants("VorticityTensor.Ω₁₃", Ωij.Ω₁₃)
+        test_kfo_invariants("VorticityTensor.Ω₂₃", Ωij.Ω₂₃)
+
+        # Off-diagonal stress components interpolate the two velocities to a common edge location
+        # (ffc/fcf/cff) before multiplying. The default diagonals (collocate_diagonals = false) read
+        # the velocity at its own location and square it — no interpolation.
+        τij = StressTensor(model)
+        test_kfo_invariants("StressTensor.τ₁₁", τij.τ₁₁)
+        test_kfo_invariants("StressTensor.τ₁₂", τij.τ₁₂)
+        test_kfo_invariants("StressTensor.τ₁₃", τij.τ₁₃)
+        test_kfo_invariants("StressTensor.τ₂₃", τij.τ₂₃)
+
+        # The collocated diagonal (collocate_diagonals = true) interpolates to ccc and squares; it
+        # must remain allocation-free and type-stable too.
+        τij_c = StressTensor(model; collocate_diagonals=true)
+        test_kfo_invariants("StressTensor.τ₁₁ (collocated)", τij_c.τ₁₁)
     end
     #---
 
