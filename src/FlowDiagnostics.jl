@@ -565,11 +565,8 @@ const QVelocityGradientTensorInvariant = CustomKFO{<:typeof(Q_velocity_gradient_
 #---
 
 #+++ Stress tensor
-# Stress tensor τᵢⱼ = uᵢuⱼ components. Off-diagonals live at their natural edge location (ffc/fcf/cff):
-# the two velocities are interpolated there and then multiplied. The diagonals come in two flavors,
-# selected by the `collocate_diagonals` keyword of `StressTensor`:
-#   • interpolation-free (default): τᵢᵢ = uᵢ² read at uᵢ's own location (fcc/cfc/ccf), no interpolation
-#   • collocated: τᵢᵢ = (ℑ uᵢ)² interpolated to ccc, so all three diagonals share one location
+# Stress tensor τᵢⱼ = uᵢuⱼ kernels. Diagonals come in two flavors (see `collocate_diagonals` in
+# `StressTensor`): collocated `_ccc` = (ℑ uᵢ)² at ccc, or interpolation-free at uᵢ's own location.
 @inline stress_tensor_xx_ccc(i, j, k, grid, u)    = ℑxᶜᵃᵃ(i, j, k, grid, u)^2
 @inline stress_tensor_yy_ccc(i, j, k, grid, v)    = ℑyᵃᶜᵃ(i, j, k, grid, v)^2
 @inline stress_tensor_zz_ccc(i, j, k, grid, w)    = ℑzᵃᵃᶜ(i, j, k, grid, w)^2
