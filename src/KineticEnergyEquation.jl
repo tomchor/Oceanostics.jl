@@ -44,6 +44,20 @@ const KineticEnergy = CustomKFO{<:typeof(kinetic_energy_ccc)}
     $(SIGNATURES)
 
 Calculate the kinetic energy of `model` manually specifying `u`, `v` and `w`.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> KE = KineticEnergyEquation.KineticEnergy(model, model.velocities...)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field")
+```
 """
 function KineticEnergy(model, u, v, w; location = (Center, Center, Center))
     validate_location(location, "KineticEnergy")
