@@ -88,24 +88,18 @@ KernelFunctionOperation at (Center, Face, Center)
 └── arguments: ("Centered", "NamedTuple", "Field")
 ```
 """
-function Advection(model, u, v, w, advection_scheme; location = (Center, Face, Center))
+function Advection(model, velocities, advection_scheme; location = (Center, Face, Center))
     validate_location(location, "Advection", (Center, Face, Center))
-    total_velocities = (; u, v, w)
-    return KernelFunctionOperation{Center, Face, Center}(div_𝐯v, model.grid, advection_scheme, total_velocities, v)
+    return KernelFunctionOperation{Center, Face, Center}(div_𝐯v, model.grid, advection_scheme, velocities, velocities.v)
 end
 
-function Advection(model::HydrostaticFreeSurfaceModel, advection_scheme, velocities; location = (Center, Face, Center))
+function Advection(model::HydrostaticFreeSurfaceModel, velocities, advection_scheme; location = (Center, Face, Center))
     validate_location(location, "Advection", (Center, Face, Center))
     return KernelFunctionOperation{Center, Face, Center}(U_dot_∇v, model.grid, advection_scheme, velocities)
 end
 
-# HFS-typed 5-arg overload so that explicit calls `Advection(hfs_model, u, v, w, scheme)` also use
-# `U_dot_∇v` rather than dispatching to the generic NH `div_𝐯v` form.
-Advection(model::HydrostaticFreeSurfaceModel, u, v, w, advection_scheme; kwargs...) =
-    Advection(model, advection_scheme, (; u, v, w); kwargs...)
-
-Advection(model; kwargs...)                              = Advection(model, model.velocities..., model.advection; kwargs...)
-Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.advection.momentum, model.velocities; kwargs...)
+Advection(model; kwargs...)                              = Advection(model, model.velocities, model.advection; kwargs...)
+Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.velocities, model.advection.momentum; kwargs...)
 #---
 
 #+++ Buoyancy acceleration

@@ -76,14 +76,13 @@ KernelFunctionOperation at (Center, Center, Face)
 └── arguments: ("Centered", "NamedTuple", "Field")
 ```
 """
-function Advection(model, u, v, w, advection_scheme; location = (Center, Center, Face))
+function Advection(model, velocities, advection_scheme; location = (Center, Center, Face))
     validate_location(location, "Advection", (Center, Center, Face))
-    total_velocities = (; u, v, w)
-    return KernelFunctionOperation{Center, Center, Face}(div_𝐯w, model.grid, advection_scheme, total_velocities, w)
+    return KernelFunctionOperation{Center, Center, Face}(div_𝐯w, model.grid, advection_scheme, velocities, velocities.w)
 end
 
-Advection(model; kwargs...)                              = Advection(model, model.velocities..., model.advection; kwargs...)
-Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.velocities..., model.advection.momentum; kwargs...)
+Advection(model; kwargs...)                              = Advection(model, model.velocities, model.advection; kwargs...)
+Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.velocities, model.advection.momentum; kwargs...)
 #---
 
 #+++ Buoyancy acceleration

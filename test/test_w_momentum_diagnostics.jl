@@ -57,7 +57,7 @@ model_types = (NonhydrostaticModel,)
 #+++ Test functions
 function test_w_momentum_terms(model)
     # Test Advection
-    ADV = WMomentumEquation.Advection(model, model.velocities..., model.advection)
+    ADV = WMomentumEquation.Advection(model, model.velocities, model.advection)
     ADV_field = Field(ADV)
     @test ADV isa WMomentumEquation.Advection
     @test ADV isa WAdvection

@@ -58,7 +58,7 @@ model_types = (NonhydrostaticModel,
 function test_v_momentum_terms(model)
     # Test Advection
     advection_scheme = model isa HydrostaticFreeSurfaceModel ? model.advection.momentum : model.advection
-    ADV = VMomentumEquation.Advection(model, model.velocities..., advection_scheme)
+    ADV = VMomentumEquation.Advection(model, model.velocities, advection_scheme)
     ADV_field = Field(ADV)
     @test ADV isa VMomentumEquation.Advection
     @test ADV isa VAdvection
