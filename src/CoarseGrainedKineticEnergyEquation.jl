@@ -10,7 +10,7 @@ using Oceananigans.AbstractOperations: @at
 
 using ..FlowDiagnostics: StressTensor, StrainRateTensor
 import ..FlowDiagnostics            # for the (unexported) `validate_dims`
-using ..Filters: GaussianFilter
+using ..Filters: GaussianFilter, BoxFilter   # BoxFilter is imported so its docstring `@ref` resolves in-module
 
 #+++ Shared helpers
 # Filter only the velocities that the requested `dims` actually use: component τᵢⱼ / S̄ᵢⱼ needs uᵢ and
@@ -56,9 +56,22 @@ quantity contracted with the resolved strain rate to form the cross-scale kineti
 `filter` is a function that maps a field to its low-pass-filtered counterpart, e.g. a closure over
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref):
 
-```julia
-filter = ψ -> GaussianFilter(ψ; dims = (1, 2, 3), σ = 0.1, boundary = :edge)
-τ = SubfilterStressTensor(model, filter)
+```jldoctest subfilter
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1);
+
+julia> τ = SubfilterStressTensor(model, filt);
+
+julia> keys(τ)
+(:τ₁₁, :τ₂₂, :τ₃₃, :τ₁₂, :τ₁₃, :τ₂₃)
+
+julia> Field(τ.τ₁₃) isa Field
+true
 ```
 
 The result is a `NamedTuple` with the independent components, each living at the same staggered
@@ -126,10 +139,21 @@ density `ρ₀` for a volumetric power.
 `filter` is a function mapping a field to its filtered counterpart, e.g. a closure over
 [`GaussianFilter`](@ref):
 
-```julia
-ℓ = 0.2                                                            # filter scale (FWHM)
-filter = ψ -> GaussianFilter(ψ; dims = (1, 2, 3), σ = ℓ / (2√(2log(2))), boundary = :edge)
-Πₖ = CrossScaleKineticEnergyFlux(model, filter)
+```jldoctest cross_scale
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> ℓ = 0.2; # filter scale (FWHM)
+
+julia> filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))));
+
+julia> Πₖ = CrossScaleKineticEnergyFlux(model, filt);
+
+julia> Field(Πₖ) isa Field
+true
 ```
 
 The returned object is a lazy operation over internally materialized filtered `Field`s, so it is

@@ -5,7 +5,7 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, F}
 
 #+++ Module export
-export TracerEquation, KineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
+export TracerEquation, KineticEnergyEquation, CoarseGrainedKineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
        UMomentumEquation, VMomentumEquation, WMomentumEquation
 #---
 
@@ -38,6 +38,10 @@ export TracerVarianceTendency, TracerVarianceDissipationRate, TracerVarianceDiff
 #+++ KineticEnergyEquation exports
 export KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyBuoyancyProduction,
        KineticEnergyDissipationRate, KineticEnergyIsotropicDissipationRate
+#---
+
+#+++ CoarseGrainedKineticEnergyEquation exports
+export SubfilterStressTensor, CrossScaleKineticEnergyFlux
 #---
 
 #+++ TurbulentKineticEnergyEquation exports
