@@ -185,11 +185,13 @@ include("TurbulentKineticEnergyEquation.jl")
 include("PotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
 include("Filters/Filters.jl")
+include("CoarseGrainedKineticEnergyEquation.jl") # depends on FlowDiagnostics (tensors) and Filters
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
 using .FlowDiagnostics
 using .Filters
+using .CoarseGrainedKineticEnergyEquation
 using .ProgressMessengers
 
 end # module
