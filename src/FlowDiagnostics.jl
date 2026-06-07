@@ -14,6 +14,7 @@ using Oceanostics: validate_location,
                    get_coriolis_frequency_components,
                    CustomKFO
 
+import Oceananigans # so `Oceananigans.defaults.gravitational_acceleration` resolves in default kwargs/fields below
 using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyTracer, location
 using Oceananigans.BuoyancyFormulations: get_temperature_and_salinity, SeawaterBuoyancy, buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Operators
@@ -77,6 +78,20 @@ Calculate the Richardson Number as
 ```
 
 where `z` is the true vertical direction (ie anti-parallel to gravity).
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
+
+julia> Ri = RichardsonNumber(model)
+KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: richardson_number_ccf (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "Field", "Tuple")
+```
 """
 function RichardsonNumber(model; loc = (Center, Center, Face))
     validate_location(loc, "RichardsonNumber", (Center, Center, Face))
@@ -132,6 +147,20 @@ to `model.coriolis`. Rossby number is defined as
     Ro = ωᶻ / f
 ```
 where ωᶻ is the vorticity in the Coriolis axis of rotation and `f` is the Coriolis rotation frequency.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4));
+
+julia> Ro = RossbyNumber(model)
+KernelFunctionOperation at (Face, Face, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: rossby_number_fff (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "NamedTuple")
+```
 """
 function RossbyNumber(model; loc = (Face, Face, Face), add_background = true,
                       dWdy_bg=0, dVdz_bg=0,
@@ -207,6 +236,22 @@ Narrower type alias matching only the thermal-wind variant of
 [`ErtelPotentialVorticity`](@ref). Useful for identifying or dispatching on the
 thermal-wind variant via `isa`. Construct via
 `ErtelPotentialVorticity(model; thermal_wind = true)`.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4), buoyancy=BuoyancyTracer(), tracers=:b);
+
+julia> PV = ErtelPotentialVorticity(model; thermal_wind = true);
+
+julia> PV isa ThermalWindPotentialVorticity
+true
+
+julia> PV isa ErtelPotentialVorticity
+true
+```
 """
 const ThermalWindPotentialVorticity = CustomKFO{<:typeof(potential_vorticity_in_thermal_wind_fff)}
 
@@ -342,6 +387,20 @@ basde on a `model` and a `direction`. The Ertel Potential Vorticity is defined a
 
 where ωₜₒₜ is the total (relative + planetary) vorticity vector, `b` is the buoyancy and ∇ is the gradient
 operator.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4), buoyancy=BuoyancyTracer(), tracers=:b);
+
+julia> DEPV = DirectionalErtelPotentialVorticity(model, (0, 0, 1))
+KernelFunctionOperation at (Face, Face, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: directional_ertel_potential_vorticity_fff (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field", "Field", "NamedTuple")
+```
 """
 function DirectionalErtelPotentialVorticity(model, direction; tracer_name = :b, loc = (Face, Face, Face))
     validate_location(loc, "DirectionalErtelPotentialVorticity", (Face, Face, Face))
@@ -391,6 +450,20 @@ Its modulus is then defined (using Einstein summation notation) as
 
 ```
     || Sᵢⱼ || = √(Sᵢⱼ Sᵢⱼ)
+```
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> S = StrainRateTensorModulus(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: strain_rate_tensor_modulus_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field")
 ```
 """
 function StrainRateTensorModulus(model; loc = (Center, Center, Center))
@@ -442,6 +515,25 @@ the full tensor, while e.g. `dims = (1, 3)` returns the 2D strain rate tensor in
 Each component can be wrapped in a `Field` and used with output writers, time-averaging, etc. Can
 also be called as `StrainRateTensor(grid, u, v, w; dims)` to build the components from individual
 velocity fields. See also [`StrainRateTensorModulus`](@ref) for the scalar modulus `√(SᵢⱼSᵢⱼ)`.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> S = StrainRateTensor(model);
+
+julia> keys(S)
+(:S₁₁, :S₂₂, :S₃₃, :S₁₂, :S₁₃, :S₂₃)
+
+julia> S.S₁₃
+KernelFunctionOperation at (Face, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: strain_rate_tensor_xz_fcf (generic function with 1 method)
+└── arguments: ("Field", "Field")
+```
 """
 StrainRateTensor(model; dims = (1, 2, 3)) = StrainRateTensor(model.grid, model.velocities...; dims)
 
@@ -493,6 +585,20 @@ Its modulus is then defined (using Einstein summation notation) as
 ```
     || Ωᵢⱼ || = √(Ωᵢⱼ Ωᵢⱼ)
 ```
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> Ω = VorticityTensorModulus(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: vorticity_tensor_modulus_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field")
+```
 """
 function VorticityTensorModulus(model; loc = (Center, Center, Center))
     validate_location(loc, "VorticityTensorModulus", (Center, Center, Center))
@@ -538,6 +644,25 @@ all three off-diagonal components, while e.g. `dims = (1, 3)` returns the single
 Each component can be wrapped in a `Field` and used with output writers, time-averaging, etc. Can
 also be called as `VorticityTensor(grid, u, v, w; dims)` to build the components from individual
 velocity fields. See also [`VorticityTensorModulus`](@ref) for the scalar modulus `√(ΩᵢⱼΩᵢⱼ)`.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> Ω = VorticityTensor(model);
+
+julia> keys(Ω)
+(:Ω₁₂, :Ω₁₃, :Ω₂₃)
+
+julia> Ω.Ω₁₃
+KernelFunctionOperation at (Face, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: vorticity_tensor_xz_fcf (generic function with 1 method)
+└── arguments: ("Field", "Field")
+```
 """
 VorticityTensor(model; dims = (1, 2, 3)) = VorticityTensor(model.grid, model.velocities...; dims)
 
@@ -645,6 +770,25 @@ Each component can be wrapped in a `Field` and used with output writers, time-av
 also be called as `StressTensor(grid, u, v, w; dims, collocate_diagonals)` to build the components
 from individual velocity fields. Building the tensor from perturbation velocities (e.g. via
 `perturbation_fields`) yields the kinematic Reynolds stress tensor.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> τ = StressTensor(model);
+
+julia> keys(τ)
+(:τ₁₁, :τ₂₂, :τ₃₃, :τ₁₂, :τ₁₃, :τ₂₃)
+
+julia> τ.τ₁₁
+KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: stress_tensor_xx_fcc (generic function with 1 method)
+└── arguments: ("Field",)
+```
 """
 StressTensor(model; dims = (1, 2, 3), collocate_diagonals = false) =
     StressTensor(model.grid, model.velocities...; dims, collocate_diagonals)
@@ -694,6 +838,20 @@ from where `Q` is defined as
 ```
 and where `Sᵢⱼ= ½(∂ⱼuᵢ + ∂ᵢuⱼ)` and `Ωᵢⱼ= ½(∂ⱼuᵢ - ∂ᵢuⱼ)`. More info about it can be found in
 doi:10.1063/1.5124245.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = NonhydrostaticModel(grid);
+
+julia> Qcrit = QVelocityGradientTensorInvariant(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: Q_velocity_gradient_tensor_invariant_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field")
+```
 """
 function QVelocityGradientTensorInvariant(model; loc = (Center, Center, Center))
     validate_location(loc, "QVelocityGradientTensorInvariant", (Center, Center, Center))
@@ -721,6 +879,19 @@ When `DensityAnomalyCriterion` is used, the arguments `buoyancy_formulation` and
 supplied where `buoyancy_formulation` should be the buoyancy model, and `C` should be a named
 tuple of `(; T, S)`, `(; T)` or `(; S)` (the latter two if the buoyancy model
 specifies a constant salinity or temperature).
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> C = (; b = CenterField(grid));
+
+julia> h = MixedLayerDepth(grid, BuoyancyTracer(), C);
+
+julia> h isa KernelFunctionOperation
+true
+```
 """
 function MixedLayerDepth(grid::AbstractGrid, args...; criterion = BuoyancyAnomalyCriterion(convert(eltype(grid), -1e-4 * Oceananigans.defaults.gravitational_acceleration)))
     validate_criterion_model(criterion, args...)
@@ -782,6 +953,13 @@ the surface buoyancy (but the pertubaton is usually negative).
 
 When this model is used, the arguments `buoyancy_formulation` and `C` should be supplied where `C`
 should be the named tuple `(; b)`, with `b` the buoyancy tracer.
+
+```jldoctest
+julia> using Oceanostics
+
+julia> BuoyancyAnomalyCriterion(threshold = -1e-4)
+BuoyancyAnomalyCriterion{Float64}(-0.0001)
+```
 """
 @kwdef struct BuoyancyAnomalyCriterion{FT} <: AbstractAnomalyCriterion
     threshold :: FT = -1e-4 * Oceananigans.defaults.gravitational_acceleration
@@ -804,6 +982,13 @@ When this model is used, the arguments `buoyancy_formulation` and `C` should be 
 `buoyancy_formulation` should be the buoyancy model, and `C` should be a named tuple of `(; T, S)`,
 `(; T)` or `(; S)` (the latter two if the buoyancy model specifies a constant salinity or
 temperature).
+
+```jldoctest
+julia> using Oceanostics
+
+julia> DensityAnomalyCriterion()
+DensityAnomalyCriterion{Float64}(1020.0, 9.80665, 0.125)
+```
 """
 @kwdef struct DensityAnomalyCriterion{FT} <: AbstractAnomalyCriterion
              reference_density :: FT = 1020.0
@@ -838,6 +1023,21 @@ end
 
 Returns the value of the given `diagnostic` at the bottom, which can be either the bottom of the
 domain (lowest vertical level) or an immersed bottom.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> c = CenterField(grid);
+
+julia> set!(c, (x, y, z) -> z);
+
+julia> cᵇ = BottomCellValue(c);
+
+julia> Field(cᵇ) isa Field
+true
+```
 """
 function BottomCellValue(diagnostic)
     loc = location(diagnostic)
