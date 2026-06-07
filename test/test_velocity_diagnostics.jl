@@ -93,16 +93,41 @@ function test_velocity_only_flow_diagnostics(model)
 
     τij = StressTensor(model)
     @test keys(τij) == (:τ₁₁, :τ₂₂, :τ₃₃, :τ₁₂, :τ₁₃, :τ₂₃)
-    @test location(τij.τ₁₁) == (Center, Center, Center)
-    @test location(τij.τ₂₂) == (Center, Center, Center)
-    @test location(τij.τ₃₃) == (Center, Center, Center)
+    # default `collocate_diagonals = false`: diagonals are interpolation-free, at each velocity's location
+    @test location(τij.τ₁₁) == (Face, Center, Center)
+    @test location(τij.τ₂₂) == (Center, Face, Center)
+    @test location(τij.τ₃₃) == (Center, Center, Face)
     @test location(τij.τ₁₂) == (Face, Face, Center)
     @test location(τij.τ₁₃) == (Face, Center, Face)
     @test location(τij.τ₂₃) == (Center, Face, Face)
     @test τij == StressTensor(model.grid, model.velocities...) # field-based constructor agrees
+    @test τij == StressTensor(model; collocate_diagonals=false) # the default
     for τᵢⱼ in τij
         @test Field(τᵢⱼ) isa Field # every component is computable
     end
+
+    # `collocate_diagonals = true`: diagonals are interpolated to a shared ccc location instead
+    τij_c = StressTensor(model; collocate_diagonals=true)
+    @test keys(τij_c) == keys(τij)
+    @test location(τij_c.τ₁₁) == (Center, Center, Center)
+    @test location(τij_c.τ₂₂) == (Center, Center, Center)
+    @test location(τij_c.τ₃₃) == (Center, Center, Center)
+    # off-diagonals are unaffected by `collocate_diagonals`
+    @test (location(τij_c.τ₁₂), location(τij_c.τ₁₃), location(τij_c.τ₂₃)) ==
+          (location(τij.τ₁₂),   location(τij.τ₁₃),   location(τij.τ₂₃))
+    @test τij_c == StressTensor(model.grid, model.velocities...; collocate_diagonals=true) # field-based agrees
+    for τᵢⱼ in τij_c
+        @test Field(τᵢⱼ) isa Field # every component is computable
+    end
+    # (ℑu)² ≠ ℑ(u²): collocating a diagonal is a genuinely different computation, not a relocation.
+    # The model's velocities here are zero, so verify on a noise-filled field instead.
+    uₙ = XFaceField(model.grid); set!(uₙ, grid_noise)
+    vₙ = YFaceField(model.grid); set!(vₙ, grid_noise)
+    wₙ = ZFaceField(model.grid); set!(wₙ, grid_noise)
+    τ_min = StressTensor(model.grid, uₙ, vₙ, wₙ; collocate_diagonals=false) # τ₁₁ = u²    at fcc
+    τ_col = StressTensor(model.grid, uₙ, vₙ, wₙ; collocate_diagonals=true)  # τ₁₁ = (ℑu)² at ccc
+    τ₁₁_min_at_ccc = Field(@at (Center, Center, Center) τ_min.τ₁₁)          # ℑ(u²)      at ccc
+    @test interior(Field(τ_col.τ₁₁)) != interior(τ₁₁_min_at_ccc)
 
     # `dims` selects sub-dimensional stress tensors: τᵢⱼ is kept only if both i and j are in `dims`
     @test keys(StressTensor(model; dims=(1, 2, 3))) == keys(τij)
