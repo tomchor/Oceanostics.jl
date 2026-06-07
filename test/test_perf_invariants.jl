@@ -188,14 +188,19 @@ end
         test_kfo_invariants("VorticityTensor.Ω₁₃", Ωij.Ω₁₃)
         test_kfo_invariants("VorticityTensor.Ω₂₃", Ωij.Ω₂₃)
 
-        # Stress-tensor components interpolate the velocities to a common location before
-        # multiplying; the off-diagonals live at the edge locations (ffc/fcf/cff), the diagonals
-        # at ccc.
+        # Off-diagonal stress components interpolate the two velocities to a common edge location
+        # (ffc/fcf/cff) before multiplying. The default diagonals (collocate_diagonals = false) read
+        # the velocity at its own location and square it — no interpolation.
         τij = StressTensor(model)
         test_kfo_invariants("StressTensor.τ₁₁", τij.τ₁₁)
         test_kfo_invariants("StressTensor.τ₁₂", τij.τ₁₂)
         test_kfo_invariants("StressTensor.τ₁₃", τij.τ₁₃)
         test_kfo_invariants("StressTensor.τ₂₃", τij.τ₂₃)
+
+        # The collocated diagonal (collocate_diagonals = true) interpolates to ccc and squares; it
+        # must remain allocation-free and type-stable too.
+        τij_c = StressTensor(model; collocate_diagonals=true)
+        test_kfo_invariants("StressTensor.τ₁₁ (collocated)", τij_c.τ₁₁)
     end
     #---
 
