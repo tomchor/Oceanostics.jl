@@ -29,6 +29,13 @@ indented_newline = "\n      "
 Process-global `Crayon` used to color numeric values in progress messenger
 output. Reassign with `set_number_color!` (or `NUMBER_CRAYON[] = ...`) to
 change the color at runtime.
+
+```jldoctest
+julia> using Oceanostics.ProgressMessengers
+
+julia> NUMBER_CRAYON[] isa Crayon
+true
+```
 """
 const NUMBER_CRAYON = Ref(crayon"light_yellow")
 
@@ -37,6 +44,15 @@ const NUMBER_CRAYON = Ref(crayon"light_yellow")
 
 Configure the `Crayon` used for numeric values in progress messenger output.
 Takes effect immediately for subsequent messenger calls.
+
+```jldoctest
+julia> using Oceanostics.ProgressMessengers
+
+julia> set_number_color!(crayon"red");
+
+julia> NUMBER_CRAYON[] == crayon"red"
+true
+```
 """
 set_number_color!(c::Crayon) = (NUMBER_CRAYON[] = c)
 
