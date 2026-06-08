@@ -38,7 +38,7 @@ julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Boun
 julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
 
 julia> Ep = PotentialEnergyEquation.PotentialEnergy(model)
-PotentialEnergy (KernelFunctionOperation) at (Center, Center, Center)
+PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("Field",)

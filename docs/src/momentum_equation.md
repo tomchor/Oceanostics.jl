@@ -44,21 +44,21 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, coriolis=FPlane(f=1e-4));
 
 julia> ADV = UMomentumEquation.Advection(model)
-UAdvection (KernelFunctionOperation) at (Face, Center, Center)
+UAdvection KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: div_𝐯u (generic function with 4 methods)
 └── arguments: ("Centered", "NamedTuple", "Field")
 └── computes: advection of u-momentum  ∂ⱼ(uⱼu)
 
 julia> BUOY = UMomentumEquation.BuoyancyAcceleration(model)
-UBuoyancyAcceleration (KernelFunctionOperation) at (Face, Center, Center)
+UBuoyancyAcceleration KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: x_dot_g_bᶠᶜᶜ (generic function with 3 methods)
 └── arguments: ("BuoyancyForce", "NamedTuple")
 └── computes: buoyancy acceleration (x)  ĝₓ b
 
 julia> COR = VMomentumEquation.CoriolisAcceleration(model)
-VCoriolisAcceleration (KernelFunctionOperation) at (Center, Face, Center)
+VCoriolisAcceleration KernelFunctionOperation at (Center, Face, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: y_f_cross_U (generic function with 11 methods)
 └── arguments: ("FPlane", "NamedTuple")

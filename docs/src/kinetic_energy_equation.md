@@ -41,21 +41,21 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(ν=1e-4));
 
 julia> KE = KineticEnergyEquation.KineticEnergy(model)
-KineticEnergy (KernelFunctionOperation) at (Center, Center, Center)
+KineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
 └── computes: kinetic energy  ½uᵢuᵢ
 
 julia> ε = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(model)
-KineticEnergyIsotropicDissipationRate (KernelFunctionOperation) at (Center, Center, Center)
+KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
 └── computes: isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ
 
 julia> wb = KineticEnergyEquation.BuoyancyProduction(model)
-KineticEnergyBuoyancyProduction (KernelFunctionOperation) at (Center, Center, Center)
+KineticEnergyBuoyancyProduction KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "BuoyancyForce", "NamedTuple")
