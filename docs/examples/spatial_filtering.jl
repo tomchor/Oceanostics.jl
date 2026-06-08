@@ -11,7 +11,8 @@
 # where the overbar denotes a Gaussian-weighted local average with standard deviation ``\sigma``.
 # Beyond visualization, filtering lets us build *subfilter* (subgrid-scale) diagnostics such as the
 # subfilter tracer flux ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``, which represents the
-# transport carried by scales smaller than ``\sigma``.
+# transport carried by scales smaller than ``\sigma``. We close the example with the *cross-scale
+# kinetic energy flux*, which measures the energy exchanged between the resolved and subfilter scales.
 #
 # Before starting, make sure you have the required packages installed for this example, which can
 # be done with
@@ -186,3 +187,51 @@ fig_τ
 # The magnitude of the subfilter flux ``\tau`` is largest precisely along the thin tracer filaments —
 # the small-scale structure that the filtered fields ``\bar{u}_i\,\bar{c}`` cannot represent on their
 # own.
+
+# ## Cross-scale kinetic energy flux
+#
+# The same coarse-graining gives the kinetic energy budget *across scales*. Filtering the momentum
+# equation and contracting with the filtered velocity produces a term that exchanges kinetic energy
+# between the resolved and subfilter scales — the cross-scale flux
+#
+# ```math
+# \Pi_K = -\tau_{ij}\,\bar{S}_{ij}, \qquad
+# \tau_{ij} = \overline{u_i u_j} - \bar{u}_i \bar{u}_j, \qquad
+# \bar{S}_{ij} = \tfrac{1}{2}\left(\partial_j \bar{u}_i + \partial_i \bar{u}_j\right),
+# ```
+#
+# where ``\tau_{ij}`` is the subfilter (momentum) stress tensor — the tensor analogue of the subfilter
+# tracer flux above — and ``\bar{S}_{ij}`` is the strain rate of the filtered velocity. ``\Pi_K > 0``
+# is a forward (downscale) transfer from resolved to subfilter scales, while ``\Pi_K < 0`` is
+# backscatter from small to large scales, which is prominent in two-dimensional turbulence and its
+# inverse energy cascade (see [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1)).
+#
+# Rather than assembling ``\tau_{ij}`` and ``\bar{S}_{ij}`` by hand as we did for the tracer flux,
+# Oceanostics packages them as [`SubfilterStressTensor`](@ref) and [`CrossScaleKineticEnergyFlux`](@ref).
+# The latter takes the same Gaussian filter — here built internally from ``\sigma``, equivalently the
+# closure `ψ -> GaussianFilter(ψ; dims=(1, 2), σ=σ)` — and returns ``\Pi_K`` at cell centers:
+
+Πₖ = Field(CrossScaleKineticEnergyFlux(model; σ=σ, dims=(1, 2)))
+
+# We show it next to the resolved kinetic energy ``\tfrac{1}{2}(\bar{u}^2 + \bar{v}^2)``, reusing the
+# filtered velocities ``\bar{u}``, ``\bar{v}`` from the previous section:
+
+K̄ = Field((ū^2 + v̄^2) / 2)
+
+fig_Π = Figure()
+ax_K = Axis(fig_Π[1, 1]; title = "Resolved KE ½(ū² + v̄²)", axis_kwargs...)
+ax_Π = Axis(fig_Π[1, 3]; title = "Cross-scale flux Πₖ",     axis_kwargs...)
+
+hm_K = heatmap!(ax_K, K̄; colormap = :magma)
+Colorbar(fig_Π[1, 2], hm_K)
+
+Πlim = maximum(abs, interior(Πₖ))
+hm_Π = heatmap!(ax_Π, Πₖ; colormap = :balance, colorrange = (-Πlim, Πlim))
+Colorbar(fig_Π[1, 4], hm_Π)
+
+resize_to_layout!(fig_Π)
+fig_Π
+
+# Red (``\Pi_K > 0``) marks forward transfer to subfilter scales and blue (``\Pi_K < 0``) marks
+# backscatter to larger scales. Both concentrate in the strained regions between vortices, where the
+# resolved strain ``\bar{S}_{ij}`` — and hence the scale-to-scale energy exchange — is largest.
