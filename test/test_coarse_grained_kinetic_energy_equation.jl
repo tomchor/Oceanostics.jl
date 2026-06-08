@@ -66,6 +66,11 @@ function test_cross_scale_ke_flux_matches_manual(model, filt)
     @test location(Π) == (Center, Center, Center)
     @test interior(Field(Π)) ≈ interior(Field(Π_manual))
 
+    # the flux is a single KernelFunctionOperation with a custom display (cf. PR #250)
+    @test Π isa CrossScaleKineticEnergyFlux
+    @test occursin("CrossScaleKineticEnergyFlux", sprint(show, Π))
+    @test occursin("computes:", sprint(show, Π))
+
     # invalid `dims` are rejected here too
     @test_throws ArgumentError CrossScaleKineticEnergyFlux(model, filt; dims=(1, 1))
     return nothing

@@ -338,6 +338,12 @@ end
 @diagnostic_show KineticEnergyEquation.KineticEnergyIsotropicDissipationRate "KineticEnergyIsotropicDissipationRate" "isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ"
 #---
 
+#+++ CoarseGrainedKineticEnergyEquation
+# Only the (single-`KernelFunctionOperation`) flux gets a custom display; `SubfilterStressTensor`
+# returns a `NamedTuple` of components, like `StressTensor`/`StrainRateTensor`, so it has none.
+@diagnostic_show CoarseGrainedKineticEnergyEquation.CrossScaleKineticEnergyFlux "CrossScaleKineticEnergyFlux" "cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ"
+#---
+
 #+++ TurbulentKineticEnergyEquation
 @diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergy                     "TurbulentKineticEnergy"                     "turbulent kinetic energy  ½uᵢ′uᵢ′"
 @diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate "TurbulentKineticEnergyXShearProductionRate" "TKE shear production (x)  -uᵢ′u′ ∂ₓUᵢ"

@@ -6,8 +6,9 @@ export SubfilterStressTensor, CrossScaleKineticEnergyFlux
 
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: Field
-using Oceananigans.AbstractOperations: @at
+using Oceananigans.AbstractOperations: @at, KernelFunctionOperation
 
+using Oceanostics: CustomKFO
 using ..FlowDiagnostics: StressTensor, StrainRateTensor
 import ..FlowDiagnostics            # for the (unexported) `validate_dims`
 using ..Filters: GaussianFilter, BoxFilter   # BoxFilter is imported so its docstring `@ref` resolves in-module
@@ -118,6 +119,14 @@ function _cross_scale_ke_flux(τ, S̄)
     return -reduce(+, terms)
 end
 
+# Expose the flux as a single `KernelFunctionOperation` so it displays like the other diagnostics (via
+# `@diagnostic_show` in `Oceanostics`) and composes inside larger operation trees. The kernel just
+# evaluates the contraction operation `Πᵏ` built above; `Πᵏ`'s leaves are the materialized filtered
+# `Field`s, so this per-cell evaluation only reads those fields and does arithmetic — it never re-filters.
+@inline cross_scale_ke_flux_ccc(i, j, k, grid, Πᵏ) = @inbounds Πᵏ[i, j, k]
+
+const CrossScaleKineticEnergyFlux = CustomKFO{<:typeof(cross_scale_ke_flux_ccc)}
+
 """
     $(SIGNATURES)
 
@@ -150,10 +159,12 @@ julia> ℓ = 0.2; # filter scale (FWHM)
 
 julia> filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))));
 
-julia> Πₖ = CrossScaleKineticEnergyFlux(model, filt);
-
-julia> Field(Πₖ) isa Field
-true
+julia> CrossScaleKineticEnergyFlux(model, filt)
+CrossScaleKineticEnergyFlux KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: cross_scale_ke_flux_ccc (generic function with 1 method)
+└── arguments: ("Oceananigans.AbstractOperations.UnaryOperation",)
+└── computes: cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ
 ```
 
 The returned object is a lazy operation over internally materialized filtered `Field`s, so it is
@@ -175,11 +186,11 @@ function CrossScaleKineticEnergyFlux(model, filter; dims = (1, 2, 3))
     ū, v̄, w̄ = _filtered_velocities(filter, dims, u, v, w)
 
     # Resolved-scale strain S̄ⁱʲ from the filtered velocities, and the subfilter stress τⁱʲ. The
-    # contraction below interpolates every component to cell centers, so the components can stay at
-    # their natural staggered locations here.
+    # contraction interpolates every component to cell centers, so the components can stay at their
+    # natural staggered locations here; the result is wrapped in a `KernelFunctionOperation`.
     S̄ = StrainRateTensor(grid, ū, v̄, w̄; dims)
     τ = _subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims)
-    return _cross_scale_ke_flux(τ, S̄)
+    return KernelFunctionOperation{Center, Center, Center}(cross_scale_ke_flux_ccc, grid, _cross_scale_ke_flux(τ, S̄))
 end
 
 CrossScaleKineticEnergyFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
