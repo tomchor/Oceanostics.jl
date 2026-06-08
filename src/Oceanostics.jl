@@ -203,7 +203,7 @@ import Oceananigans.AbstractOperations: operation_name
 using Crayons
 export DESCRIPTION_CRAYON, set_description_color!, Crayon, @crayon_str
 
-const DESCRIPTION_CRAYON = Ref(crayon"#00FF7F")
+const DESCRIPTION_CRAYON = Ref(crayon"#00BFFF")
 
 """
     set_description_color!(c::Crayon)
