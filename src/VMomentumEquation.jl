@@ -234,10 +234,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> BARO = VMomentumEquation.BarotropicPressureGradient(model)
-KernelFunctionOperation at (Center, Face, Center)
+VBarotropicPressureGradient KernelFunctionOperation at (Center, Face, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: explicit_barotropic_pressure_y_gradient (generic function with 4 methods)
 └── arguments: ("Nothing",)
+└── computes: barotropic pressure gradient (y)  g ∂η/∂y
 ```
 """
 function BarotropicPressureGradient(model, free_surface; location = (Center, Face, Center))
