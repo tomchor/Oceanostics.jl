@@ -203,23 +203,7 @@ import Oceananigans.AbstractOperations: operation_name
 using Crayons
 export DESCRIPTION_CRAYON, set_description_color!, Crayon, @crayon_str
 
-"""
-    DESCRIPTION_CRAYON :: Ref{Crayon}
-
-Process-global `Crayon` used to color a diagnostic's `show` output — both the leading diagnostic name
-in the header (e.g. `KineticEnergy`) and the `└── computes: …` description line. It is only applied
-when the output stream supports color (`get(io, :color, false)`), so doctests and color-less streams
-still print plain text. Reassign with [`set_description_color!`](@ref) (or `DESCRIPTION_CRAYON[] = ...`)
-to change the color at runtime.
-
-```jldoctest
-julia> using Oceanostics
-
-julia> DESCRIPTION_CRAYON[] isa Crayon
-true
-```
-"""
-const DESCRIPTION_CRAYON = Ref(crayon"cyan")
+const DESCRIPTION_CRAYON = Ref(crayon"#00FF7F")
 
 """
     set_description_color!(c::Crayon)
