@@ -87,7 +87,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
 
 julia> Ri = RichardsonNumber(model)
-RichardsonNumber (KernelFunctionOperation) at (Center, Center, Face)
+RichardsonNumber KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: richardson_number_ccf (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Tuple")
@@ -157,7 +157,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4));
 
 julia> Ro = RossbyNumber(model)
-RossbyNumber (KernelFunctionOperation) at (Face, Face, Face)
+RossbyNumber KernelFunctionOperation at (Face, Face, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: rossby_number_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
@@ -301,7 +301,7 @@ julia> set!(model, b=stratification)
 julia> using Oceanostics: ErtelPotentialVorticity
 
 julia> EPV = ErtelPotentialVorticity(model)
-ErtelPotentialVorticity (KernelFunctionOperation) at (Face, Face, Face)
+ErtelPotentialVorticity KernelFunctionOperation at (Face, Face, Face)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: ertel_potential_vorticity_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Int64", "Int64", "Float64")
@@ -399,7 +399,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4), buoyancy=BuoyancyTracer(), tracers=:b);
 
 julia> DEPV = DirectionalErtelPotentialVorticity(model, (0, 0, 1))
-DirectionalErtelPotentialVorticity (KernelFunctionOperation) at (Face, Face, Face)
+DirectionalErtelPotentialVorticity KernelFunctionOperation at (Face, Face, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: directional_ertel_potential_vorticity_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "NamedTuple")
@@ -464,7 +464,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> S = StrainRateTensorModulus(model)
-StrainRateTensorModulus (KernelFunctionOperation) at (Center, Center, Center)
+StrainRateTensorModulus KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: strain_rate_tensor_modulus_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
@@ -599,7 +599,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> Ω = VorticityTensorModulus(model)
-VorticityTensorModulus (KernelFunctionOperation) at (Center, Center, Center)
+VorticityTensorModulus KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: vorticity_tensor_modulus_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
@@ -853,7 +853,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> Qcrit = QVelocityGradientTensorInvariant(model)
-QVelocityGradientTensorInvariant (KernelFunctionOperation) at (Center, Center, Center)
+QVelocityGradientTensorInvariant KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: Q_velocity_gradient_tensor_invariant_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")

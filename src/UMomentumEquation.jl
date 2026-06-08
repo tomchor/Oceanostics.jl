@@ -74,7 +74,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> ADV = UMomentumEquation.Advection(model)
-UAdvection (KernelFunctionOperation) at (Face, Center, Center)
+UAdvection KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: div_𝐯u (generic function with 4 methods)
 └── arguments: ("Centered", "NamedTuple", "Field")
@@ -109,7 +109,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
 
 julia> BUOY = UMomentumEquation.BuoyancyAcceleration(model)
-UBuoyancyAcceleration (KernelFunctionOperation) at (Face, Center, Center)
+UBuoyancyAcceleration KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: x_dot_g_bᶠᶜᶜ (generic function with 3 methods)
 └── arguments: ("BuoyancyForce", "NamedTuple")
@@ -142,7 +142,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4));
 
 julia> COR = UMomentumEquation.CoriolisAcceleration(model)
-UCoriolisAcceleration (KernelFunctionOperation) at (Face, Center, Center)
+UCoriolisAcceleration KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: x_f_cross_U (generic function with 11 methods)
 └── arguments: ("FPlane", "NamedTuple")
@@ -175,7 +175,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> PRES = UMomentumEquation.PressureGradient(model)
-UPressureGradient (KernelFunctionOperation) at (Face, Center, Center)
+UPressureGradient KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: hydrostatic_pressure_gradient_x (generic function with 2 methods)
 └── arguments: ("Nothing",)
@@ -220,7 +220,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> VISC = UMomentumEquation.ViscousDissipation(model)
-UViscousDissipation (KernelFunctionOperation) at (Face, Center, Center)
+UViscousDissipation KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ∂ⱼ_τ₁ⱼ (generic function with 10 methods)
 └── arguments: ("Nothing", "Nothing", "Clock", "NamedTuple", "Nothing")
@@ -251,7 +251,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> VISC = UMomentumEquation.ImmersedViscousDissipation(model)
-UImmersedViscousDissipation (KernelFunctionOperation) at (Face, Center, Center)
+UImmersedViscousDissipation KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: immersed_∂ⱼ_τ₁ⱼ (generic function with 2 methods)
 └── arguments: ("NamedTuple", "Nothing", "Nothing", "Nothing", "Clock", "NamedTuple")
@@ -286,7 +286,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> VISC = UMomentumEquation.TotalViscousDissipation(model)
-UTotalViscousDissipation (KernelFunctionOperation) at (Face, Center, Center)
+UTotalViscousDissipation KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: total_∂ⱼ_τ₁ⱼ (generic function with 1 method)
 └── arguments: ("NamedTuple", "Nothing", "Nothing", "Nothing", "Clock", "NamedTuple", "Nothing")
@@ -322,7 +322,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> STOKES = UMomentumEquation.StokesShear(model)
-UStokesShear (KernelFunctionOperation) at (Face, Center, Center)
+UStokesShear KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: x_curl_Uˢ_cross_U (generic function with 3 methods)
 └── arguments: ("Nothing", "NamedTuple", "Float64")
@@ -356,7 +356,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> STOKES = UMomentumEquation.StokesTendency(model)
-UStokesTendency (KernelFunctionOperation) at (Face, Center, Center)
+UStokesTendency KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ∂t_uˢ (generic function with 4 methods)
 └── arguments: ("Nothing", "Float64")
@@ -428,7 +428,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> TEND = UMomentumEquation.Tendency(model)
-UTendency (KernelFunctionOperation) at (Face, Center, Center)
+UTendency KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: u_velocity_tendency (generic function with 1 method)
 └── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")

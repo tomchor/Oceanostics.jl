@@ -194,16 +194,73 @@ using .ProgressMessengers
 
 #+++ Custom `show` for diagnostics
 # Every diagnostic is a `KernelFunctionOperation` (KFO) under the hood, so by default it prints as the
-# generic `KernelFunctionOperation at (…)`. Here we give each diagnostic alias its own header — keeping
-# the `(KernelFunctionOperation)` tag so it stays clear that the object *is* still a KFO — plus a one-line
-# description of what it computes. Everything else (grid, kernel_function, arguments) is delegated to
-# Oceananigans' KFO `show` via `invoke`, so we don't duplicate (or drift from) its tree layout.
+# generic `KernelFunctionOperation at (…)`. Here we give each diagnostic alias its own header
+# (`<Name> KernelFunctionOperation at (…)`, so it stays clear the object *is* still a KFO) plus a
+# one-line description of what it computes. On color-capable streams the leading `<Name>` and the
+# description are tinted with `DESCRIPTION_CRAYON`; everything else (grid, kernel_function, arguments)
+# is delegated to Oceananigans' KFO `show`, so we don't duplicate (or drift from) its tree layout.
 import Oceananigans.AbstractOperations: operation_name
+using Crayons
+export DESCRIPTION_CRAYON, set_description_color!, Crayon, @crayon_str
 
-"Print Oceananigans' KFO tree for `op`, then a `└── computes: …` line with the diagnostic's `description`."
-function _show_diagnostic(io::IO, op, description)
-    invoke(show, Tuple{IO, KernelFunctionOperation}, io, op)
-    isempty(description) || print(io, "\n└── computes: ", description)
+"""
+    DESCRIPTION_CRAYON :: Ref{Crayon}
+
+Process-global `Crayon` used to color a diagnostic's `show` output — both the leading diagnostic name
+in the header (e.g. `KineticEnergy`) and the `└── computes: …` description line. It is only applied
+when the output stream supports color (`get(io, :color, false)`), so doctests and color-less streams
+still print plain text. Reassign with [`set_description_color!`](@ref) (or `DESCRIPTION_CRAYON[] = ...`)
+to change the color at runtime.
+
+```jldoctest
+julia> using Oceanostics
+
+julia> DESCRIPTION_CRAYON[] isa Crayon
+true
+```
+"""
+const DESCRIPTION_CRAYON = Ref(crayon"cyan")
+
+"""
+    set_description_color!(c::Crayon)
+
+Configure the [`Crayon`](https://github.com/KristofferC/Crayons.jl) used to color a diagnostic's
+`show` output (the header's diagnostic name and the `└── computes: …` description line).
+
+```jldoctest
+julia> using Oceanostics
+
+julia> set_description_color!(crayon"magenta");
+
+julia> DESCRIPTION_CRAYON[] == crayon"magenta"
+true
+```
+"""
+set_description_color!(c::Crayon) = (DESCRIPTION_CRAYON[] = c)
+
+"""
+Print Oceananigans' KFO tree for `op`, then a `└── computes: …` line with the diagnostic's
+`description`. On color-capable streams the leading `name` in the header and the description are tinted
+with `DESCRIPTION_CRAYON`. The tree is rendered through Oceananigans' own KFO `show` (into a buffer) so
+its layout is reused verbatim; we only recolor the diagnostic name, which is the header's prefix.
+"""
+function _show_diagnostic(io::IO, op, name, description)
+    buf = IOBuffer()
+    invoke(show, Tuple{IO, KernelFunctionOperation}, IOContext(buf, :color => false), op)
+    body = String(take!(buf))
+    colored = get(io, :color, false)
+    if colored
+        c = DESCRIPTION_CRAYON[]
+        body = replace(body, name => string(c, name, inv(c)); count = 1) # header starts with `name`
+    end
+    print(io, body)
+    isempty(description) && return nothing
+    if colored
+        c = DESCRIPTION_CRAYON[]
+        print(io, "\n└── ", c, "computes: ", description, inv(c))
+    else
+        print(io, "\n└── computes: ", description)
+    end
     return nothing
 end
 
@@ -211,18 +268,19 @@ end
     @diagnostic_show T name [description]
 
 Give the `CustomKFO` type alias `T` a custom display: rename its `show`/`summary` header to
-`"<name> (KernelFunctionOperation)"`, and (when `description` is non-empty) append a
-`└── computes: <description>` line to its multi-line `show`. The header rename goes through
-Oceananigans' `operation_name`, so it also propagates to `summary(op)` and to `op`'s appearance
-inside larger operation trees and `Field` operand lines.
+`"<name> KernelFunctionOperation"`, and (when `description` is non-empty) append a
+`└── computes: <description>` line to its multi-line `show`. On color-capable streams the leading
+`<name>` and the description are tinted with [`DESCRIPTION_CRAYON`](@ref). The header rename goes
+through Oceananigans' `operation_name`, so it also propagates (uncolored) to `summary(op)` and to
+`op`'s appearance inside larger operation trees and `Field` operand lines.
 """
 macro diagnostic_show(T, name, description="")
     T = esc(T)
     quote
         # `operation_name` is escaped so the method extends the function imported from Oceananigans
         # (hygiene would otherwise treat the unqualified name as a fresh, separate binding).
-        $(esc(:operation_name))(::$T) = $name * " (KernelFunctionOperation)"
-        Base.show(io::IO, op::$T) = _show_diagnostic(io, op, $description)
+        $(esc(:operation_name))(::$T) = $name * " KernelFunctionOperation"
+        Base.show(io::IO, op::$T) = _show_diagnostic(io, op, $name, $description)
     end
 end
 

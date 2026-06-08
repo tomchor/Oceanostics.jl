@@ -46,7 +46,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> ADV = TracerEquation.Advection(model, :a)
-TracerAdvection (KernelFunctionOperation) at (Center, Center, Center)
+TracerAdvection KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: div_Uc (generic function with 12 methods)
 └── arguments: ("Centered", "NamedTuple", "Field")
@@ -88,7 +88,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> DIFF = TracerEquation.Diffusion(model, :a)
-TracerDiffusion (KernelFunctionOperation) at (Center, Center, Center)
+TracerDiffusion KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ∇_dot_qᶜ (generic function with 10 methods)
 └── arguments: ("Nothing", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
@@ -125,7 +125,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> DIFF = TracerEquation.ImmersedDiffusion(model, :a)
-TracerImmersedDiffusion (KernelFunctionOperation) at (Center, Center, Center)
+TracerImmersedDiffusion KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: immersed_∇_dot_qᶜ (generic function with 2 methods)
 └── arguments: ("Field", "Nothing", "Nothing", "Nothing", "Val", "Clock", "NamedTuple")
@@ -162,7 +162,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> DIFF = TracerEquation.TotalDiffusion(model, :a)
-TracerTotalDiffusion (KernelFunctionOperation) at (Center, Center, Center)
+TracerTotalDiffusion KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: total_∇_dot_qᶜ (generic function with 1 method)
 └── arguments: ("Field", "Nothing", "Nothing", "Nothing", "Val", "Clock", "NamedTuple", "Nothing")

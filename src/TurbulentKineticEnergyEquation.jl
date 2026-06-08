@@ -44,7 +44,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> TKE = TurbulentKineticEnergyEquation.TurbulentKineticEnergy(model)
-TurbulentKineticEnergy (KernelFunctionOperation) at (Center, Center, Center)
+TurbulentKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
@@ -79,7 +79,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
 
 julia> TurbulentKineticEnergyEquation.IsotropicDissipationRate(model)
-KineticEnergyIsotropicDissipationRate (KernelFunctionOperation) at (Center, Center, Center)
+KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
@@ -137,7 +137,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> XSHEAR = TurbulentKineticEnergyEquation.XShearProductionRate(model)
-TurbulentKineticEnergyXShearProductionRate (KernelFunctionOperation) at (Center, Center, Center)
+TurbulentKineticEnergyXShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_x_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
@@ -199,7 +199,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> YSHEAR = TurbulentKineticEnergyEquation.YShearProductionRate(model)
-TurbulentKineticEnergyYShearProductionRate (KernelFunctionOperation) at (Center, Center, Center)
+TurbulentKineticEnergyYShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_y_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
@@ -260,7 +260,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> ZSHEAR = TurbulentKineticEnergyEquation.ZShearProductionRate(model)
-TurbulentKineticEnergyZShearProductionRate (KernelFunctionOperation) at (Center, Center, Center)
+TurbulentKineticEnergyZShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_z_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
@@ -309,7 +309,7 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> SHEAR = TurbulentKineticEnergyEquation.ShearProductionRate(model)
-TurbulentKineticEnergyShearProductionRate (KernelFunctionOperation) at (Center, Center, Center)
+TurbulentKineticEnergyShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
