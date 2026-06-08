@@ -192,4 +192,174 @@ using .FlowDiagnostics
 using .Filters
 using .ProgressMessengers
 
+#+++ Custom `show` for diagnostics
+# Every diagnostic is a `KernelFunctionOperation` (KFO) under the hood, so by default it prints as the
+# generic `KernelFunctionOperation at (…)`. Here we give each diagnostic alias its own header
+# (`<Name> KernelFunctionOperation at (…)`, so it stays clear the object *is* still a KFO) plus a
+# one-line description of what it computes. On color-capable streams the leading `<Name>` and the
+# description are tinted with `DESCRIPTION_CRAYON`; everything else (grid, kernel_function, arguments)
+# is delegated to Oceananigans' KFO `show`, so we don't duplicate (or drift from) its tree layout.
+import Oceananigans.AbstractOperations: operation_name
+using Crayons
+export DESCRIPTION_CRAYON, set_description_color!
+
+const DESCRIPTION_CRAYON = Ref(crayon"#00BFFF")
+
+"""
+    set_description_color!(c::Crayon)
+
+Configure the [`Crayon`](https://github.com/KristofferC/Crayons.jl) used to color a diagnostic's
+`show` output (the header's diagnostic name and the `└── computes: …` description line). Build a
+`Crayon` with `Crayons.jl` (`using Crayons`), e.g. `crayon"red"` or `Crayon(foreground = :red)`.
+
+```jldoctest
+julia> using Oceanostics, Crayons
+
+julia> set_description_color!(crayon"magenta");
+
+julia> DESCRIPTION_CRAYON[] == crayon"magenta"
+true
+```
+"""
+set_description_color!(c::Crayon) = (DESCRIPTION_CRAYON[] = c)
+
+"""
+Print Oceananigans' KFO tree for `op`, then a `└── computes: …` line with the diagnostic's
+`description`. On color-capable streams the leading `name` in the header and the description are tinted
+with `DESCRIPTION_CRAYON`. The tree is rendered through Oceananigans' own KFO `show` (into a buffer) so
+its layout is reused verbatim; we only recolor the diagnostic name, which is the header's prefix.
+"""
+function _show_diagnostic(io::IO, op, name, description)
+    buf = IOBuffer()
+    invoke(show, Tuple{IO, KernelFunctionOperation}, IOContext(buf, :color => false), op)
+    body = String(take!(buf))
+    colored = get(io, :color, false)
+    if colored
+        c = DESCRIPTION_CRAYON[]
+        body = replace(body, name => string(c, name, inv(c)); count = 1) # header starts with `name`
+    end
+    print(io, body)
+    isempty(description) && return nothing
+    if colored
+        c = DESCRIPTION_CRAYON[]
+        print(io, "\n└── ", c, "computes: ", description, inv(c))
+    else
+        print(io, "\n└── computes: ", description)
+    end
+    return nothing
+end
+
+"""
+    @diagnostic_show T name [description]
+
+Give the `CustomKFO` type alias `T` a custom display: rename its `show`/`summary` header to
+`"<name> KernelFunctionOperation"`, and (when `description` is non-empty) append a
+`└── computes: <description>` line to its multi-line `show`. On color-capable streams the leading
+`<name>` and the description are tinted with `DESCRIPTION_CRAYON`. The header rename goes
+through Oceananigans' `operation_name`, so it also propagates (uncolored) to `summary(op)` and to
+`op`'s appearance inside larger operation trees and `Field` operand lines.
+"""
+macro diagnostic_show(T, name, description="")
+    T = esc(T)
+    quote
+        # `operation_name` is escaped so the method extends the function imported from Oceananigans
+        # (hygiene would otherwise treat the unqualified name as a fresh, separate binding).
+        $(esc(:operation_name))(::$T) = $name * " KernelFunctionOperation"
+        Base.show(io::IO, op::$T) = _show_diagnostic(io, op, $name, $description)
+    end
+end
+
+#+++ TracerEquation
+@diagnostic_show TracerEquation.Advection         "TracerAdvection"          "tracer advection  ∂ⱼ(uⱼc)"
+@diagnostic_show TracerEquation.Diffusion         "TracerDiffusion"          "tracer diffusion (interior)  ∂ⱼqᶜⱼ"
+@diagnostic_show TracerEquation.ImmersedDiffusion "TracerImmersedDiffusion"  "tracer diffusion through immersed boundaries  ∂ⱼ𝓆ᶜⱼ"
+@diagnostic_show TracerEquation.TotalDiffusion    "TracerTotalDiffusion"     "total tracer diffusion (interior + immersed)  ∂ⱼqᶜⱼ + ∂ⱼ𝓆ᶜⱼ"
+#---
+
+#+++ UMomentumEquation
+@diagnostic_show UMomentumEquation.Advection                  "UAdvection"                  "advection of u-momentum  ∂ⱼ(uⱼu)"
+@diagnostic_show UMomentumEquation.BuoyancyAcceleration       "UBuoyancyAcceleration"       "buoyancy acceleration (x)  ĝₓ b"
+@diagnostic_show UMomentumEquation.CoriolisAcceleration       "UCoriolisAcceleration"       "Coriolis acceleration (x)  (f⃗ × u⃗)ₓ"
+@diagnostic_show UMomentumEquation.PressureGradient           "UPressureGradient"           "hydrostatic pressure gradient (x)  ∂p/∂x"
+@diagnostic_show UMomentumEquation.ViscousDissipation         "UViscousDissipation"         "viscous term (interior, x)  ∂ⱼτ₁ⱼ"
+@diagnostic_show UMomentumEquation.ImmersedViscousDissipation "UImmersedViscousDissipation" "viscous term through immersed boundaries (x)  ∂ⱼτ₁ⱼ"
+@diagnostic_show UMomentumEquation.TotalViscousDissipation    "UTotalViscousDissipation"    "total viscous term (interior + immersed, x)  ∂ⱼτ₁ⱼ"
+@diagnostic_show UMomentumEquation.StokesShear                "UStokesShear"                "Stokes shear forcing (x)  ((∇ × u⃗ˢ) × u⃗)ₓ"
+@diagnostic_show UMomentumEquation.StokesTendency             "UStokesTendency"             "Stokes drift tendency (x)  ∂uˢ/∂t"
+@diagnostic_show UMomentumEquation.Tendency                   "UTendency"                   "total tendency of the u-momentum equation"
+#---
+
+#+++ VMomentumEquation
+@diagnostic_show VMomentumEquation.Advection                  "VAdvection"                  "advection of v-momentum  ∂ⱼ(uⱼv)"
+@diagnostic_show VMomentumEquation.BuoyancyAcceleration       "VBuoyancyAcceleration"       "buoyancy acceleration (y)  ĝ_y b"
+@diagnostic_show VMomentumEquation.CoriolisAcceleration       "VCoriolisAcceleration"       "Coriolis acceleration (y)  (f⃗ × u⃗)_y"
+@diagnostic_show VMomentumEquation.PressureGradient           "VPressureGradient"           "hydrostatic pressure gradient (y)  ∂p/∂y"
+@diagnostic_show VMomentumEquation.ViscousDissipation         "VViscousDissipation"         "viscous term (interior, y)  ∂ⱼτ₂ⱼ"
+@diagnostic_show VMomentumEquation.ImmersedViscousDissipation "VImmersedViscousDissipation" "viscous term through immersed boundaries (y)  ∂ⱼτ₂ⱼ"
+@diagnostic_show VMomentumEquation.TotalViscousDissipation    "VTotalViscousDissipation"    "total viscous term (interior + immersed, y)  ∂ⱼτ₂ⱼ"
+@diagnostic_show VMomentumEquation.StokesShear                "VStokesShear"                "Stokes shear forcing (y)  ((∇ × u⃗ˢ) × u⃗)_y"
+@diagnostic_show VMomentumEquation.StokesTendency             "VStokesTendency"             "Stokes drift tendency (y)  ∂vˢ/∂t"
+@diagnostic_show VMomentumEquation.Tendency                   "VTendency"                   "total tendency of the v-momentum equation"
+#---
+
+#+++ WMomentumEquation
+@diagnostic_show WMomentumEquation.Advection                  "WAdvection"                  "advection of w-momentum  ∂ⱼ(uⱼw)"
+@diagnostic_show WMomentumEquation.BuoyancyAcceleration       "WBuoyancyAcceleration"       "buoyancy acceleration (z)  ĝ_z b"
+@diagnostic_show WMomentumEquation.CoriolisAcceleration       "WCoriolisAcceleration"       "Coriolis acceleration (z)  (f⃗ × u⃗)_z"
+@diagnostic_show WMomentumEquation.ViscousDissipation         "WViscousDissipation"         "viscous term (interior, z)  ∂ⱼτ₃ⱼ"
+@diagnostic_show WMomentumEquation.ImmersedViscousDissipation "WImmersedViscousDissipation" "viscous term through immersed boundaries (z)  ∂ⱼτ₃ⱼ"
+@diagnostic_show WMomentumEquation.TotalViscousDissipation    "WTotalViscousDissipation"    "total viscous term (interior + immersed, z)  ∂ⱼτ₃ⱼ"
+@diagnostic_show WMomentumEquation.StokesShear                "WStokesShear"                "Stokes shear forcing (z)  ((∇ × u⃗ˢ) × u⃗)_z"
+@diagnostic_show WMomentumEquation.StokesTendency             "WStokesTendency"             "Stokes drift tendency (z)  ∂wˢ/∂t"
+@diagnostic_show WMomentumEquation.Tendency                   "WTendency"                   "total tendency of the w-momentum equation"
+#---
+
+#+++ TracerVarianceEquation
+@diagnostic_show TracerVarianceEquation.Tendency        "TracerVarianceTendency"        "tracer variance tendency  2c ∂ₜc"
+@diagnostic_show TracerVarianceEquation.Diffusion       "TracerVarianceDiffusion"       "tracer variance diffusion  2c ∂ⱼFⱼ"
+@diagnostic_show TracerVarianceEquation.DissipationRate "TracerVarianceDissipationRate" "tracer variance dissipation rate  χ = 2 ∂ⱼc·Fⱼ"
+#---
+
+#+++ KineticEnergyEquation
+@diagnostic_show KineticEnergyEquation.KineticEnergy                         "KineticEnergy"                       "kinetic energy  ½uᵢuᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyTendency                 "KineticEnergyTendency"               "kinetic energy tendency  uᵢGᵢ (excl. nonhydrostatic pressure)"
+@diagnostic_show KineticEnergyEquation.KineticEnergyAdvection                "KineticEnergyAdvection"              "kinetic energy advection  uᵢ∂ⱼ(uᵢuⱼ)"
+@diagnostic_show KineticEnergyEquation.KineticEnergyStress                   "KineticEnergyStress"                 "kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyForcing                  "KineticEnergyForcing"                "kinetic energy forcing  uᵢFᵤᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyPressureRedistribution   "KineticEnergyPressureRedistribution" "kinetic energy pressure redistribution  uᵢ∂ᵢp"
+@diagnostic_show KineticEnergyEquation.KineticEnergyBuoyancyProduction       "KineticEnergyBuoyancyProduction"     "kinetic energy buoyancy production  uᵢbᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"        "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyIsotropicDissipationRate "KineticEnergyIsotropicDissipationRate" "isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ"
+#---
+
+#+++ TurbulentKineticEnergyEquation
+@diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergy                     "TurbulentKineticEnergy"                     "turbulent kinetic energy  ½uᵢ′uᵢ′"
+@diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate "TurbulentKineticEnergyXShearProductionRate" "TKE shear production (x)  -uᵢ′u′ ∂ₓUᵢ"
+@diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate "TurbulentKineticEnergyYShearProductionRate" "TKE shear production (y)  -uᵢ′v′ ∂_yUᵢ"
+@diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate "TurbulentKineticEnergyZShearProductionRate" "TKE shear production (z)  -uᵢ′w′ ∂_zUᵢ"
+@diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergyShearProductionRate  "TurbulentKineticEnergyShearProductionRate"  "total TKE shear production  -uᵢ′uⱼ′ ∂ⱼUᵢ"
+#---
+
+#+++ PotentialEnergyEquation
+@diagnostic_show PotentialEnergyEquation.PotentialEnergy "PotentialEnergy" "potential energy per unit volume  Eₚ = -bz"
+#---
+
+#+++ FlowDiagnostics
+@diagnostic_show FlowDiagnostics.RichardsonNumber                   "RichardsonNumber"                   "Richardson number  Ri = (∂b/∂z) / |∂u⃗ₕ/∂z|²"
+@diagnostic_show FlowDiagnostics.RossbyNumber                       "RossbyNumber"                       "Rossby number  Ro = ωᶻ/f"
+@diagnostic_show FlowDiagnostics.ErtelPotentialVorticity            "ErtelPotentialVorticity"            "Ertel potential vorticity  q = ω⃗ₜₒₜ · ∇b"
+@diagnostic_show FlowDiagnostics.ThermalWindPotentialVorticity      "ThermalWindPotentialVorticity"      "Ertel PV, thermal-wind form  q = (f + ωᶻ)∂b/∂z - f((∂U/∂z)² + (∂V/∂z)²)"
+@diagnostic_show FlowDiagnostics.DirectionalErtelPotentialVorticity "DirectionalErtelPotentialVorticity" "directional contribution to Ertel PV  (f̂ + ω̂)·∇b along a direction"
+@diagnostic_show FlowDiagnostics.StrainRateTensorModulus            "StrainRateTensorModulus"            "strain-rate tensor modulus  √(SᵢⱼSᵢⱼ)"
+@diagnostic_show FlowDiagnostics.VorticityTensorModulus             "VorticityTensorModulus"             "vorticity tensor modulus  √(ΩᵢⱼΩᵢⱼ)"
+@diagnostic_show FlowDiagnostics.QVelocityGradientTensorInvariant   "QVelocityGradientTensorInvariant"   "Q velocity-gradient invariant  Q = ½(ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)"
+@diagnostic_show CustomKFO{<:FlowDiagnostics.MixedLayerDepthKernel} "MixedLayerDepth"                    "mixed layer depth (shallowest depth where the criterion is met)"
+#---
+
+#+++ Filters
+@diagnostic_show Filters.BoxFilter      "BoxFilter"      "local box-average (running mean) of the operand"
+@diagnostic_show Filters.GaussianFilter "GaussianFilter" "local Gaussian-weighted average of the operand"
+#---
+#---
+
 end # module

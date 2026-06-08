@@ -70,10 +70,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> ADV = WMomentumEquation.Advection(model)
-KernelFunctionOperation at (Center, Center, Face)
+WAdvection KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: div_𝐯w (generic function with 10 methods)
+├── kernel_function: div_𝐯w (generic function with 4 methods)
 └── arguments: ("Centered", "NamedTuple", "Field")
+└── computes: advection of w-momentum  ∂ⱼ(uⱼw)
 ```
 """
 function Advection(model, velocities, advection_scheme; location = (Center, Center, Face))
@@ -103,10 +104,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
 
 julia> BUOY = WMomentumEquation.BuoyancyAcceleration(model)
-KernelFunctionOperation at (Center, Center, Face)
+WBuoyancyAcceleration KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: z_dot_g_bᶜᶜᶠ (generic function with 10 methods)
+├── kernel_function: z_dot_g_bᶜᶜᶠ (generic function with 3 methods)
 └── arguments: ("BuoyancyForce", "NamedTuple")
+└── computes: buoyancy acceleration (z)  ĝ_z b
 ```
 """
 function BuoyancyAcceleration(model, buoyancy, tracers; location = (Center, Center, Face))
@@ -135,10 +137,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; coriolis=FPlane(f=1e-4));
 
 julia> COR = WMomentumEquation.CoriolisAcceleration(model)
-KernelFunctionOperation at (Center, Center, Face)
+WCoriolisAcceleration KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: z_f_cross_U (generic function with 10 methods)
+├── kernel_function: z_f_cross_U (generic function with 6 methods)
 └── arguments: ("FPlane", "NamedTuple")
+└── computes: Coriolis acceleration (z)  (f⃗ × u⃗)_z
 ```
 """
 function CoriolisAcceleration(model, coriolis, velocities; location = (Center, Center, Face))
@@ -167,10 +170,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> VISC = WMomentumEquation.ViscousDissipation(model)
-KernelFunctionOperation at (Center, Center, Face)
+WViscousDissipation KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: ∂ⱼ_τ₃ⱼ (generic function with 10 methods)
+├── kernel_function: ∂ⱼ_τ₃ⱼ (generic function with 8 methods)
 └── arguments: ("Nothing", "Nothing", "Clock", "NamedTuple", "Nothing")
+└── computes: viscous term (interior, z)  ∂ⱼτ₃ⱼ
 ```
 """
 function ViscousDissipation(model, closure, diffusivities, clock, model_fields, buoyancy; location = (Center, Center, Face))
@@ -197,10 +201,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> VISC = WMomentumEquation.ImmersedViscousDissipation(model)
-KernelFunctionOperation at (Center, Center, Face)
+WImmersedViscousDissipation KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: immersed_∂ⱼ_τ₃ⱼ (generic function with 2 methods)
 └── arguments: ("NamedTuple", "Nothing", "Nothing", "Nothing", "Clock", "NamedTuple")
+└── computes: viscous term through immersed boundaries (z)  ∂ⱼτ₃ⱼ
 ```
 """
 function ImmersedViscousDissipation(model, velocities, w_immersed_bc, closure, diffusivities, clock, model_fields; location = (Center, Center, Face))
@@ -231,10 +236,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> VISC = WMomentumEquation.TotalViscousDissipation(model)
-KernelFunctionOperation at (Center, Center, Face)
+WTotalViscousDissipation KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: total_∂ⱼ_τ₃ⱼ (generic function with 1 method)
 └── arguments: ("NamedTuple", "Nothing", "Nothing", "Nothing", "Clock", "NamedTuple", "Nothing")
+└── computes: total viscous term (interior + immersed, z)  ∂ⱼτ₃ⱼ
 ```
 """
 function TotalViscousDissipation(model, velocities, w_immersed_bc, closure, diffusivities, clock, model_fields, buoyancy; location = (Center, Center, Face))
@@ -266,10 +272,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> STOKES = WMomentumEquation.StokesShear(model)
-KernelFunctionOperation at (Center, Center, Face)
+WStokesShear KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: z_curl_Uˢ_cross_U (generic function with 10 methods)
+├── kernel_function: z_curl_Uˢ_cross_U (generic function with 3 methods)
 └── arguments: ("Nothing", "NamedTuple", "Float64")
+└── computes: Stokes shear forcing (z)  ((∇ × u⃗ˢ) × u⃗)_z
 ```
 """
 function StokesShear(model, stokes_drift, velocities, time; location = (Center, Center, Face))
@@ -299,10 +306,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> STOKES = WMomentumEquation.StokesTendency(model)
-KernelFunctionOperation at (Center, Center, Face)
+WStokesTendency KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: ∂t_wˢ (generic function with 10 methods)
+├── kernel_function: ∂t_wˢ (generic function with 4 methods)
 └── arguments: ("Nothing", "Float64")
+└── computes: Stokes drift tendency (z)  ∂wˢ/∂t
 ```
 """
 function StokesTendency(model, stokes_drift, time; location = (Center, Center, Face))
@@ -379,10 +387,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> TEND = WMomentumEquation.Tendency(model)
-KernelFunctionOperation at (Center, Center, Face)
+WTendency KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: w_velocity_tendency (generic function with 1 method)
 └── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
+└── computes: total tendency of the w-momentum equation
 ```
 """
 function Tendency(model, advection_scheme, coriolis, stokes_drift, closure, w_immersed_bc, buoyancy, background_fields, velocities, tracers, auxiliary_fields, diffusivities, hydrostatic_pressure, clock, forcing_func; location = (Center, Center, Face))

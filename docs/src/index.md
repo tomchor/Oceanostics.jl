@@ -22,16 +22,18 @@ julia> simulation = Simulation(model, Δt=1, stop_time=10);
 julia> simulation.callbacks[:progress] = Callback(ProgressMessengers.TimedMessenger(), IterationInterval(5));
 
 julia> ke = KineticEnergyEquation.KineticEnergy(model)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×5×6 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
+└── computes: kinetic energy  ½uᵢuᵢ
 
 julia> ε = KineticEnergyEquation.KineticEnergyDissipationRate(model)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×5×6 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple", "NamedTuple")
+└── computes: kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ
 
 julia> run!(simulation)
 [ Info: Initializing simulation...
