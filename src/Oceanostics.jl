@@ -201,7 +201,7 @@ using .ProgressMessengers
 # is delegated to Oceananigans' KFO `show`, so we don't duplicate (or drift from) its tree layout.
 import Oceananigans.AbstractOperations: operation_name
 using Crayons
-export DESCRIPTION_CRAYON, set_description_color!, Crayon, @crayon_str
+export DESCRIPTION_CRAYON, set_description_color!
 
 const DESCRIPTION_CRAYON = Ref(crayon"#00BFFF")
 
@@ -209,10 +209,11 @@ const DESCRIPTION_CRAYON = Ref(crayon"#00BFFF")
     set_description_color!(c::Crayon)
 
 Configure the [`Crayon`](https://github.com/KristofferC/Crayons.jl) used to color a diagnostic's
-`show` output (the header's diagnostic name and the `└── computes: …` description line).
+`show` output (the header's diagnostic name and the `└── computes: …` description line). Build a
+`Crayon` with `Crayons.jl` (`using Crayons`), e.g. `crayon"red"` or `Crayon(foreground = :red)`.
 
 ```jldoctest
-julia> using Oceanostics
+julia> using Oceanostics, Crayons
 
 julia> set_description_color!(crayon"magenta");
 
