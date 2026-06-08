@@ -254,7 +254,7 @@ end
 Give the `CustomKFO` type alias `T` a custom display: rename its `show`/`summary` header to
 `"<name> KernelFunctionOperation"`, and (when `description` is non-empty) append a
 `└── computes: <description>` line to its multi-line `show`. On color-capable streams the leading
-`<name>` and the description are tinted with [`DESCRIPTION_CRAYON`](@ref). The header rename goes
+`<name>` and the description are tinted with `DESCRIPTION_CRAYON`. The header rename goes
 through Oceananigans' `operation_name`, so it also propagates (uncolored) to `summary(op)` and to
 `op`'s appearance inside larger operation trees and `Field` operand lines.
 """
