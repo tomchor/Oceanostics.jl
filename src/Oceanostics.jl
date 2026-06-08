@@ -320,19 +320,19 @@ end
 #---
 
 #+++ KineticEnergyEquation
-@diagnostic_show KineticEnergyEquation.KineticEnergy                      "KineticEnergy"                       "kinetic energy  ½uᵢuᵢ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyTendency               "KineticEnergyTendency"               "kinetic energy tendency  uᵢGᵢ (excl. nonhydrostatic pressure)"
-@diagnostic_show KineticEnergyEquation.KineticEnergyAdvection              "KineticEnergyAdvection"              "kinetic energy advection  uᵢ∂ⱼ(uᵢuⱼ)"
-@diagnostic_show KineticEnergyEquation.KineticEnergyStress                 "KineticEnergyStress"                 "kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyForcing                "KineticEnergyForcing"                "kinetic energy forcing  uᵢFᵤᵢ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyPressureRedistribution "KineticEnergyPressureRedistribution" "kinetic energy pressure redistribution  uᵢ∂ᵢp"
-@diagnostic_show KineticEnergyEquation.KineticEnergyBuoyancyProduction     "KineticEnergyBuoyancyProduction"     "kinetic energy buoyancy production  uᵢbᵢ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate        "KineticEnergyDissipationRate"        "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ"
+@diagnostic_show KineticEnergyEquation.KineticEnergy                         "KineticEnergy"                       "kinetic energy  ½uᵢuᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyTendency                 "KineticEnergyTendency"               "kinetic energy tendency  uᵢGᵢ (excl. nonhydrostatic pressure)"
+@diagnostic_show KineticEnergyEquation.KineticEnergyAdvection                "KineticEnergyAdvection"              "kinetic energy advection  uᵢ∂ⱼ(uᵢuⱼ)"
+@diagnostic_show KineticEnergyEquation.KineticEnergyStress                   "KineticEnergyStress"                 "kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyForcing                  "KineticEnergyForcing"                "kinetic energy forcing  uᵢFᵤᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyPressureRedistribution   "KineticEnergyPressureRedistribution" "kinetic energy pressure redistribution  uᵢ∂ᵢp"
+@diagnostic_show KineticEnergyEquation.KineticEnergyBuoyancyProduction       "KineticEnergyBuoyancyProduction"     "kinetic energy buoyancy production  uᵢbᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"        "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyIsotropicDissipationRate "KineticEnergyIsotropicDissipationRate" "isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ"
 #---
 
 #+++ TurbulentKineticEnergyEquation
-@diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergy               "TurbulentKineticEnergy"                "turbulent kinetic energy  ½uᵢ′uᵢ′"
+@diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergy                     "TurbulentKineticEnergy"                     "turbulent kinetic energy  ½uᵢ′uᵢ′"
 @diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate "TurbulentKineticEnergyXShearProductionRate" "TKE shear production (x)  -uᵢ′u′ ∂ₓUᵢ"
 @diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate "TurbulentKineticEnergyYShearProductionRate" "TKE shear production (y)  -uᵢ′v′ ∂_yUᵢ"
 @diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate "TurbulentKineticEnergyZShearProductionRate" "TKE shear production (z)  -uᵢ′w′ ∂_zUᵢ"
@@ -344,15 +344,15 @@ end
 #---
 
 #+++ FlowDiagnostics
-@diagnostic_show FlowDiagnostics.RichardsonNumber                  "RichardsonNumber"                  "Richardson number  Ri = (∂b/∂z) / |∂u⃗ₕ/∂z|²"
-@diagnostic_show FlowDiagnostics.RossbyNumber                      "RossbyNumber"                      "Rossby number  Ro = ωᶻ/f"
-@diagnostic_show FlowDiagnostics.ErtelPotentialVorticity           "ErtelPotentialVorticity"           "Ertel potential vorticity  q = ω⃗ₜₒₜ · ∇b"
-@diagnostic_show FlowDiagnostics.ThermalWindPotentialVorticity     "ThermalWindPotentialVorticity"     "Ertel PV, thermal-wind form  q = (f + ωᶻ)∂b/∂z - f((∂U/∂z)² + (∂V/∂z)²)"
+@diagnostic_show FlowDiagnostics.RichardsonNumber                   "RichardsonNumber"                   "Richardson number  Ri = (∂b/∂z) / |∂u⃗ₕ/∂z|²"
+@diagnostic_show FlowDiagnostics.RossbyNumber                       "RossbyNumber"                       "Rossby number  Ro = ωᶻ/f"
+@diagnostic_show FlowDiagnostics.ErtelPotentialVorticity            "ErtelPotentialVorticity"            "Ertel potential vorticity  q = ω⃗ₜₒₜ · ∇b"
+@diagnostic_show FlowDiagnostics.ThermalWindPotentialVorticity      "ThermalWindPotentialVorticity"      "Ertel PV, thermal-wind form  q = (f + ωᶻ)∂b/∂z - f((∂U/∂z)² + (∂V/∂z)²)"
 @diagnostic_show FlowDiagnostics.DirectionalErtelPotentialVorticity "DirectionalErtelPotentialVorticity" "directional contribution to Ertel PV  (f̂ + ω̂)·∇b along a direction"
-@diagnostic_show FlowDiagnostics.StrainRateTensorModulus           "StrainRateTensorModulus"           "strain-rate tensor modulus  √(SᵢⱼSᵢⱼ)"
-@diagnostic_show FlowDiagnostics.VorticityTensorModulus            "VorticityTensorModulus"            "vorticity tensor modulus  √(ΩᵢⱼΩᵢⱼ)"
-@diagnostic_show FlowDiagnostics.QVelocityGradientTensorInvariant  "QVelocityGradientTensorInvariant"  "Q velocity-gradient invariant  Q = ½(ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)"
-@diagnostic_show CustomKFO{<:FlowDiagnostics.MixedLayerDepthKernel} "MixedLayerDepth"                  "mixed layer depth (shallowest depth where the criterion is met)"
+@diagnostic_show FlowDiagnostics.StrainRateTensorModulus            "StrainRateTensorModulus"            "strain-rate tensor modulus  √(SᵢⱼSᵢⱼ)"
+@diagnostic_show FlowDiagnostics.VorticityTensorModulus             "VorticityTensorModulus"             "vorticity tensor modulus  √(ΩᵢⱼΩᵢⱼ)"
+@diagnostic_show FlowDiagnostics.QVelocityGradientTensorInvariant   "QVelocityGradientTensorInvariant"   "Q velocity-gradient invariant  Q = ½(ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)"
+@diagnostic_show CustomKFO{<:FlowDiagnostics.MixedLayerDepthKernel} "MixedLayerDepth"                    "mixed layer depth (shallowest depth where the criterion is met)"
 #---
 
 #+++ Filters
