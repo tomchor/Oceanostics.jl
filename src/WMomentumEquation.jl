@@ -77,14 +77,13 @@ WAdvection KernelFunctionOperation at (Center, Center, Face)
 └── computes: advection of w-momentum  ∂ⱼ(uⱼw)
 ```
 """
-function Advection(model, u, v, w, advection_scheme; location = (Center, Center, Face))
+function Advection(model, velocities, advection_scheme; location = (Center, Center, Face))
     validate_location(location, "Advection", (Center, Center, Face))
-    total_velocities = (; u, v, w)
-    return KernelFunctionOperation{Center, Center, Face}(div_𝐯w, model.grid, advection_scheme, total_velocities, w)
+    return KernelFunctionOperation{Center, Center, Face}(div_𝐯w, model.grid, advection_scheme, velocities, velocities.w)
 end
 
-Advection(model; kwargs...)                              = Advection(model, model.velocities..., model.advection; kwargs...)
-Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.velocities..., model.advection.momentum; kwargs...)
+Advection(model; kwargs...)                              = Advection(model, model.velocities, model.advection; kwargs...)
+Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.velocities, model.advection.momentum; kwargs...)
 #---
 
 #+++ Buoyancy acceleration
@@ -365,23 +364,20 @@ Forcing(model, ::Val{:w}; kwargs...) = Forcing(model, model.forcing.w, model.clo
 """
     $(SIGNATURES)
 
-Calculate the total tendency of the w-momentum equation as computed by Oceananigans.
+Calculate the w-momentum tendency `Gʷ` as computed by Oceananigans, where Oceananigans
+writes the vertical momentum equation as `∂_t w = Gʷ - ∂_z p_NHS`. `Gʷ` is the sum of
+every term in `w_velocity_tendency`: advection, buoyancy (only when
+`hydrostatic_pressure_anomaly = nothing`; otherwise absorbed via the
+`maybe_z_dot_g_bᶜᶜᶠ` branch), Coriolis, viscous and immersed-viscous stress divergence,
+Stokes shear and tendency, and forcing. The terms exposed by `WMomentumEquation`
+reconstruct `Gʷ` to machine precision in either pressure-splitting mode.
 
-For NonhydrostaticModel, this includes:
-- Advection: -∇⋅(𝐯w)
-- Background advection terms
-- Buoyancy: ĝ_z b
-- Coriolis: -(f × u)_z
-- Pressure gradient: -∂p/∂z
-- Viscous dissipation: -∇⋅τ₃
-- Immersed viscous dissipation
-- Stokes shear: ((∇ × uˢ) × u)_z
-- Stokes tendency: ∂wˢ/∂t
-- Forcing: Fʷ
+`Gʷ` is *not* the full time derivative `∂_t w`. The remaining piece `-∂_z p_NHS` (the
+nonhydrostatic pressure gradient) is applied separately by the pressure-projection step
+of the time-stepper and is not part of `Gʷ` or of any diagnostic in this module.
 
-`HydrostaticFreeSurfaceModel` does not have a prognostic w-momentum equation
-(w is diagnosed from continuity), so `Tendency` is only defined for
-`NonhydrostaticModel`.
+`HydrostaticFreeSurfaceModel` does not have a prognostic w-momentum equation (w is
+diagnosed from continuity), so `Tendency` is only defined for `NonhydrostaticModel`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics

@@ -69,8 +69,9 @@ VCoriolisAcceleration KernelFunctionOperation at (Center, Face, Center)
 
 The combined RHS — `Tendency(model)` — wraps Oceananigans' internal `*_velocity_tendency`
 kernel directly. The sum of the individual term diagnostics, taken with the correct
-signs from Oceananigans' source, equals `Tendency` to machine precision. For
-`NonhydrostaticModel` the u/v formula is
+signs from Oceananigans' source, equals `Tendency` to machine precision.
+
+### `NonhydrostaticModel` u/v budget
 
 ```math
 \text{Tendency} = -\text{Advection} + \text{BuoyancyAcceleration}
@@ -80,15 +81,55 @@ signs from Oceananigans' source, equals `Tendency` to machine precision. For
                   +\text{StokesShear} + \text{StokesTendency} + \text{Forcing}
 ```
 
-The w-momentum equation is similar but with one subtlety: Oceananigans' `w_velocity_tendency`
-has no explicit `-\partial_z p` line. The vertical hydrostatic balance is treated as a
-property of the pressure-projection step, and whether the buoyancy term appears in the
-tendency depends on whether the model uses hydrostatic/nonhydrostatic pressure splitting:
+### `NonhydrostaticModel` w budget
+
+The w-momentum equation has one subtlety: Oceananigans' `w_velocity_tendency` has no
+explicit `-\partial_z p` line. The vertical hydrostatic balance is treated as a property
+of the pressure-projection step, and whether the buoyancy term appears in the tendency
+depends on whether the model uses hydrostatic/nonhydrostatic pressure splitting:
 
 | `hydrostatic_pressure_anomaly` | Buoyancy term in `Tendency` | Budget formula |
 | --- | --- | --- |
 | `Field` (default, splitting on) | absorbed by ``pHY'`` | `-ADV - COR - TVISC + SS + ST + FORC` |
 | `nothing` (splitting off) | included as ``+b`` | `-ADV + BUOY - COR - TVISC + SS + ST + FORC` |
+
+### `HydrostaticFreeSurfaceModel` u/v budget
+
+HFS uses `hydrostatic_free_surface_{u,v}_velocity_tendency`, which differs from the NH
+tendency: there are no Stokes terms, no buoyancy term (absorbed into the hydrostatic
+pressure anomaly `pHY′`), and the free-surface contribution to the horizontal pressure
+gradient appears as a separate `BarotropicPressureGradient` term:
+
+```math
+\text{Tendency} = -\text{Advection}
+                  -\text{BarotropicPressureGradient}
+                  -\text{CoriolisAcceleration}
+                  -\text{PressureGradient}
+                  -\text{TotalViscousDissipation}
+                  +\text{Forcing}
+```
+
+For `ImplicitFreeSurface` (the default) and `SplitExplicitFreeSurface`,
+`BarotropicPressureGradient` returns zero (the contribution is handled inside the pressure
+solve), so the budget closes without it. For `ExplicitFreeSurface` it returns `g ∂_i η`
+and must be included for closure.
+
+Two caveats worth noting:
+
+- `Tendency(model)` wraps Oceananigans' `hydrostatic_free_surface_{u,v}_velocity_tendency`,
+  which returns `G_u` in the decomposition `∂_t u = G_u - ∂_x p_n`. The implicit barotropic
+  pressure correction `p_n` (relevant for `ImplicitFreeSurface`) is applied separately
+  during time-stepping — not in `G_u`, and not surfaced as a diagnostic. The budget
+  closure above is therefore against `G_u`, which is the physical balance of forces;
+  reconstructing the full `∂_t u` would additionally require the implicit correction
+  applied by `correct_barotropic_mode!`.
+- On horizontally-curvilinear grids (`LatitudeLongitudeGrid`, `OrthogonalSphericalShellGrid`)
+  with flux-form advection, `hydrostatic_free_surface_*_velocity_tendency` includes an
+  extra `U_dot_∇*_hydrostatic_metric` term that is *not* surfaced as a diagnostic.
+  This term is identically zero on `RectilinearGrid` (the configuration the tests use),
+  on any grid with `VectorInvariant` advection (where the metric is already included in
+  the vorticity/Bernoulli decomposition), and on `Nothing` advection — so budget closure
+  holds for those configurations.
 
 ## `HydrostaticFreeSurfaceModel` caveats
 
@@ -96,14 +137,14 @@ tendency depends on whether the model uses hydrostatic/nonhydrostatic pressure s
   U/V/W `StokesShear` and `StokesTendency` throw an `ArgumentError` on
   `HydrostaticFreeSurfaceModel`: `w` is diagnosed from continuity rather than evolved by a
   prognostic equation, and HFS has no `stokes_drift` field.
-- `Advection(::HydrostaticFreeSurfaceModel)` wraps `div_𝐯u`/`div_𝐯v` (the flux-form
-  kernel). HFS's default `VectorInvariant` momentum advection uses `U_dot_∇u` instead, so
-  to use the `Advection` diagnostic with HFS you must build the model with a flux-form
-  scheme, e.g. `momentum_advection = Centered()`.
-- For HFS, `Tendency` wraps `hydrostatic_free_surface_*_velocity_tendency`, which differs
-  from the NH tendency: it has no Stokes terms, includes a barotropic free-surface
-  pressure gradient, and a grid-slope contribution. Budget closure for HFS is not yet
-  supported by this module — it would require additional diagnostics for those terms.
+- `Advection(::HydrostaticFreeSurfaceModel)` (and the explicit-args form
+  `Advection(::HydrostaticFreeSurfaceModel, u, v, w, scheme)`) both wrap
+  `U_dot_∇u`/`U_dot_∇v` — the vector-invariant kernel that HFS's tendency actually uses.
+  This works with HFS's default `VectorInvariant` momentum advection as well as any
+  flux-form scheme. The diagnostic returns a KFO whose kernel function is
+  `U_dot_∇u`/`U_dot_∇v`, whereas the NH `Advection` diagnostic returns a KFO whose kernel
+  function is `div_𝐯u`/`div_𝐯v` — both pass the `isa Advection` type check via the
+  `Advection` Union alias.
 
 ## `Forcing` dispatch quirk
 
@@ -128,6 +169,7 @@ Oceanostics.UMomentumEquation.Advection
 Oceanostics.UMomentumEquation.BuoyancyAcceleration
 Oceanostics.UMomentumEquation.CoriolisAcceleration
 Oceanostics.UMomentumEquation.PressureGradient
+Oceanostics.UMomentumEquation.BarotropicPressureGradient
 Oceanostics.UMomentumEquation.ViscousDissipation
 Oceanostics.UMomentumEquation.ImmersedViscousDissipation
 Oceanostics.UMomentumEquation.TotalViscousDissipation
@@ -144,6 +186,7 @@ Oceanostics.VMomentumEquation.Advection
 Oceanostics.VMomentumEquation.BuoyancyAcceleration
 Oceanostics.VMomentumEquation.CoriolisAcceleration
 Oceanostics.VMomentumEquation.PressureGradient
+Oceanostics.VMomentumEquation.BarotropicPressureGradient
 Oceanostics.VMomentumEquation.ViscousDissipation
 Oceanostics.VMomentumEquation.ImmersedViscousDissipation
 Oceanostics.VMomentumEquation.TotalViscousDissipation
