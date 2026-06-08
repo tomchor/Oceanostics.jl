@@ -44,10 +44,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> TKE = TurbulentKineticEnergyEquation.TurbulentKineticEnergy(model)
-KernelFunctionOperation at (Center, Center, Center)
+TurbulentKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── computes: turbulent kinetic energy  ½uᵢ′uᵢ′
 ```
 """
 function TurbulentKineticEnergy(model, u, v, w; U=ZeroField(), V=ZeroField(), W=ZeroField(), location = (Center, Center, Center))
@@ -78,10 +79,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
 
 julia> TurbulentKineticEnergyEquation.IsotropicDissipationRate(model)
-KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
+└── computes: isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ
 ```
 """
 @inline TurbulentKineticEnergyIsotropicDissipationRate(u, v, w, args...; U=ZeroField(), V=ZeroField(), W=ZeroField(), location = (Center, Center, Center)) =
@@ -135,10 +137,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> XSHEAR = TurbulentKineticEnergyEquation.XShearProductionRate(model)
-KernelFunctionOperation at (Center, Center, Center)
+TurbulentKineticEnergyXShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_x_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── computes: TKE shear production (x)  -uᵢ′u′ ∂ₓUᵢ
 ```
 """
 function TurbulentKineticEnergyXShearProductionRate(u′, v′, w′, U, V, W;
@@ -196,10 +199,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> YSHEAR = TurbulentKineticEnergyEquation.YShearProductionRate(model)
-KernelFunctionOperation at (Center, Center, Center)
+TurbulentKineticEnergyYShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_y_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── computes: TKE shear production (y)  -uᵢ′v′ ∂_yUᵢ
 ```
 """
 function TurbulentKineticEnergyYShearProductionRate(u′, v′, w′, U, V, W;
@@ -256,10 +260,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> ZSHEAR = TurbulentKineticEnergyEquation.ZShearProductionRate(model)
-KernelFunctionOperation at (Center, Center, Center)
+TurbulentKineticEnergyZShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_z_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── computes: TKE shear production (z)  -uᵢ′w′ ∂_zUᵢ
 ```
 """
 function TurbulentKineticEnergyZShearProductionRate(u′, v′, w′, U, V, W;
@@ -304,10 +309,11 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> SHEAR = TurbulentKineticEnergyEquation.ShearProductionRate(model)
-KernelFunctionOperation at (Center, Center, Center)
+TurbulentKineticEnergyShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── computes: total TKE shear production  -uᵢ′uⱼ′ ∂ⱼUᵢ
 ```
 """
 function TurbulentKineticEnergyShearProductionRate(u′, v′, w′, U, V, W;

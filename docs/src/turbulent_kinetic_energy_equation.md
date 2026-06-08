@@ -38,16 +38,18 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
 
 julia> tke = TurbulentKineticEnergyEquation.TurbulentKineticEnergy(model)
-KernelFunctionOperation at (Center, Center, Center)
+TurbulentKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── computes: turbulent kinetic energy  ½uᵢ′uᵢ′
 
 julia> SP = TurbulentKineticEnergyEquation.ShearProductionRate(model)
-KernelFunctionOperation at (Center, Center, Center)
+TurbulentKineticEnergyShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── computes: total TKE shear production  -uᵢ′uⱼ′ ∂ⱼUᵢ
 ```
 
 ## Turbulent kinetic energy
