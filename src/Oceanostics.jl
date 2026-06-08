@@ -14,13 +14,13 @@ export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDif
 #---
 
 #+++ UMomentumEquation exports
-export UAdvection, UBuoyancyAcceleration, UCoriolisAcceleration, UPressureGradient,
+export UAdvection, UBuoyancyAcceleration, UCoriolisAcceleration, UPressureGradient, UBarotropicPressureGradient,
        UViscousDissipation, UImmersedViscousDissipation, UTotalViscousDissipation,
        UStokesShear, UStokesTendency, UForcing, UTendency
 #---
 
 #+++ VMomentumEquation exports
-export VAdvection, VBuoyancyAcceleration, VCoriolisAcceleration, VPressureGradient,
+export VAdvection, VBuoyancyAcceleration, VCoriolisAcceleration, VPressureGradient, VBarotropicPressureGradient,
        VViscousDissipation, VImmersedViscousDissipation, VTotalViscousDissipation,
        VStokesShear, VStokesTendency, VForcing, VTendency
 #---
@@ -281,6 +281,7 @@ end
 @diagnostic_show UMomentumEquation.BuoyancyAcceleration       "UBuoyancyAcceleration"       "buoyancy acceleration (x)  ĝₓ b"
 @diagnostic_show UMomentumEquation.CoriolisAcceleration       "UCoriolisAcceleration"       "Coriolis acceleration (x)  (f⃗ × u⃗)ₓ"
 @diagnostic_show UMomentumEquation.PressureGradient           "UPressureGradient"           "hydrostatic pressure gradient (x)  ∂p/∂x"
+@diagnostic_show UMomentumEquation.BarotropicPressureGradient "UBarotropicPressureGradient" "barotropic pressure gradient (x)  g ∂η/∂x"
 @diagnostic_show UMomentumEquation.ViscousDissipation         "UViscousDissipation"         "viscous term (interior, x)  ∂ⱼτ₁ⱼ"
 @diagnostic_show UMomentumEquation.ImmersedViscousDissipation "UImmersedViscousDissipation" "viscous term through immersed boundaries (x)  ∂ⱼτ₁ⱼ"
 @diagnostic_show UMomentumEquation.TotalViscousDissipation    "UTotalViscousDissipation"    "total viscous term (interior + immersed, x)  ∂ⱼτ₁ⱼ"
@@ -294,6 +295,7 @@ end
 @diagnostic_show VMomentumEquation.BuoyancyAcceleration       "VBuoyancyAcceleration"       "buoyancy acceleration (y)  ĝ_y b"
 @diagnostic_show VMomentumEquation.CoriolisAcceleration       "VCoriolisAcceleration"       "Coriolis acceleration (y)  (f⃗ × u⃗)_y"
 @diagnostic_show VMomentumEquation.PressureGradient           "VPressureGradient"           "hydrostatic pressure gradient (y)  ∂p/∂y"
+@diagnostic_show VMomentumEquation.BarotropicPressureGradient "VBarotropicPressureGradient" "barotropic pressure gradient (y)  g ∂η/∂y"
 @diagnostic_show VMomentumEquation.ViscousDissipation         "VViscousDissipation"         "viscous term (interior, y)  ∂ⱼτ₂ⱼ"
 @diagnostic_show VMomentumEquation.ImmersedViscousDissipation "VImmersedViscousDissipation" "viscous term through immersed boundaries (y)  ∂ⱼτ₂ⱼ"
 @diagnostic_show VMomentumEquation.TotalViscousDissipation    "VTotalViscousDissipation"    "total viscous term (interior + immersed, y)  ∂ⱼτ₂ⱼ"

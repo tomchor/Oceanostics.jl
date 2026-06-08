@@ -58,7 +58,7 @@ model_types = (NonhydrostaticModel,
 function test_v_momentum_terms(model)
     # Test Advection
     advection_scheme = model isa HydrostaticFreeSurfaceModel ? model.advection.momentum : model.advection
-    ADV = VMomentumEquation.Advection(model, model.velocities..., advection_scheme)
+    ADV = VMomentumEquation.Advection(model, model.velocities, advection_scheme)
     ADV_field = Field(ADV)
     @test ADV isa VMomentumEquation.Advection
     @test ADV isa VAdvection
@@ -108,6 +108,20 @@ function test_v_momentum_terms(model)
     @test PRES isa VMomentumEquation.PressureGradient
     @test PRES isa VPressureGradient
     @test PRES_field isa Field
+
+    # Test BarotropicPressureGradient
+    free_surface = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
+    BARO = VMomentumEquation.BarotropicPressureGradient(model, free_surface)
+    BARO_field = Field(BARO)
+    @test BARO isa VMomentumEquation.BarotropicPressureGradient
+    @test BARO isa VBarotropicPressureGradient
+    @test BARO_field isa Field
+
+    BARO = VMomentumEquation.BarotropicPressureGradient(model)
+    BARO_field = Field(BARO)
+    @test BARO isa VMomentumEquation.BarotropicPressureGradient
+    @test BARO isa VBarotropicPressureGradient
+    @test BARO_field isa Field
 
     # Test ViscousDissipation
     VISC = VMomentumEquation.ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
@@ -228,6 +242,9 @@ function test_v_momentum_field_locations(model)
     PRES = VMomentumEquation.PressureGradient(model)
     @test location(PRES) == (Center, Face, Center)
 
+    BARO = VMomentumEquation.BarotropicPressureGradient(model)
+    @test location(BARO) == (Center, Face, Center)
+
     VISC = VMomentumEquation.ViscousDissipation(model)
     @test location(VISC) == (Center, Face, Center)
 
@@ -290,12 +307,48 @@ function test_v_momentum_budget_closure(grid)
     return nothing
 end
 
+function test_v_momentum_hfs_budget_closure(grid)
+    # Build an HFS model with every term active so the budget exercises the full RHS of
+    # hydrostatic_free_surface_v_velocity_tendency. The default `momentum_advection`
+    # (`VectorInvariant`) is used — the diagnostic `Advection` dispatches on the model type
+    # to wrap `U_dot_∇v` with whatever scheme the model carries.
+    model = HydrostaticFreeSurfaceModel(grid; tracers = :b,
+                                              buoyancy = BuoyancyTracer(),
+                                              coriolis = FPlane(f = 1e-4),
+                                              closure = ScalarDiffusivity(ν = 1e-4, κ = 1e-4),
+                                              forcing = (; v = Forcing((x, y, z, t) -> cos(t))))
+    set!(model, u = (x, y, z) -> sin(2π*x) * cos(2π*y) * exp(z),
+                v = (x, y, z) -> cos(2π*x) * sin(2π*y) * exp(z),
+                b = (x, y, z) -> sin(2π*z))
+    update_state!(model) # populates model.pressure.pHY′ from b
+
+    # Reconstruct G_v for HFS:
+    #   G_v = -ADV - BARO - COR - PRES - TVISC + FORCING
+    # HFS has no Stokes terms and no BuoyancyAcceleration term (buoyancy is absorbed into pHY′).
+    # BARO is the explicit barotropic free-surface gradient; on ImplicitFreeSurface it returns
+    # zero (the contribution is handled inside the pressure solve) so the budget closes
+    # without it, but including it keeps the formula correct for ExplicitFreeSurface too.
+    ADV   = VMomentumEquation.Advection(model)
+    COR   = VMomentumEquation.CoriolisAcceleration(model)
+    PRES  = VMomentumEquation.PressureGradient(model)
+    BARO  = VMomentumEquation.BarotropicPressureGradient(model)
+    TVISC = VMomentumEquation.TotalViscousDissipation(model)
+    FORC  = VMomentumEquation.Forcing(model, Val(:v))
+    TEND  = VMomentumEquation.Tendency(model)
+
+    budget = Field(-ADV - BARO - COR - PRES - TVISC + FORC)
+    tend   = Field(TEND)
+    @test interior(budget) ≈ interior(tend)
+    return nothing
+end
+
 function test_v_momentum_location_validation(model)
     # Test that invalid locations throw errors
     @test_throws ArgumentError VMomentumEquation.Advection(model; location = (Center, Center, Center))
     @test_throws ArgumentError VMomentumEquation.BuoyancyAcceleration(model; location = (Face, Center, Center))
     @test_throws ArgumentError VMomentumEquation.CoriolisAcceleration(model; location = (Center, Center, Face))
     @test_throws ArgumentError VMomentumEquation.PressureGradient(model; location = (Center, Center, Center))
+    @test_throws ArgumentError VMomentumEquation.BarotropicPressureGradient(model; location = (Center, Center, Center))
     @test_throws ArgumentError VMomentumEquation.ViscousDissipation(model; location = (Center, Center, Center))
     @test_throws ArgumentError VMomentumEquation.ImmersedViscousDissipation(model; location = (Center, Center, Center))
     @test_throws ArgumentError VMomentumEquation.TotalViscousDissipation(model; location = (Center, Center, Center))
@@ -313,12 +366,12 @@ end
         @info "    with $grid_class"
         for model_type in model_types
             @info "      with $model_type"
-            # HFS defaults to VectorInvariant momentum advection, which uses U_dot_∇u
-            # rather than div_𝐯v. Force the flux-form scheme so the Advection diagnostic
-            # (which wraps div_𝐯v) is well-defined. HFS has no stokes_drift field, so we
-            # pass the Stokes-drift only to the NH model.
+            # HFS uses the default `VectorInvariant` momentum advection. The diagnostic
+            # `Advection` dispatches on the model type to wrap `U_dot_∇v` with whatever
+            # scheme the model carries, so no override is needed. HFS has no
+            # `stokes_drift` field, so we pass the Stokes-drift only to the NH model.
             model = model_type === HydrostaticFreeSurfaceModel ?
-                model_type(grid; model_kwargs..., momentum_advection=Centered()) :
+                model_type(grid; model_kwargs...) :
                 model_type(grid; nh_model_kwargs...)
 
             @info "        Testing v-momentum terms"
@@ -334,4 +387,7 @@ end
 
     @info "    Testing v-momentum budget closure on NonhydrostaticModel"
     test_v_momentum_budget_closure(underlying_regular_grid)
+
+    @info "    Testing v-momentum budget closure on HydrostaticFreeSurfaceModel"
+    test_v_momentum_hfs_budget_closure(underlying_regular_grid)
 end

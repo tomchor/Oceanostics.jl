@@ -58,7 +58,7 @@ model_types = (NonhydrostaticModel,
 function test_u_momentum_terms(model)
     # Test Advection
     advection_scheme = model isa HydrostaticFreeSurfaceModel ? model.advection.momentum : model.advection
-    ADV = UMomentumEquation.Advection(model, model.velocities..., advection_scheme)
+    ADV = UMomentumEquation.Advection(model, model.velocities, advection_scheme)
     ADV_field = Field(ADV)
     @test ADV isa UMomentumEquation.Advection
     @test ADV isa UAdvection
@@ -108,6 +108,20 @@ function test_u_momentum_terms(model)
     @test PRES isa UMomentumEquation.PressureGradient
     @test PRES isa UPressureGradient
     @test PRES_field isa Field
+
+    # Test BarotropicPressureGradient
+    free_surface = hasfield(typeof(model), :free_surface) ? model.free_surface : nothing
+    BARO = UMomentumEquation.BarotropicPressureGradient(model, free_surface)
+    BARO_field = Field(BARO)
+    @test BARO isa UMomentumEquation.BarotropicPressureGradient
+    @test BARO isa UBarotropicPressureGradient
+    @test BARO_field isa Field
+
+    BARO = UMomentumEquation.BarotropicPressureGradient(model)
+    BARO_field = Field(BARO)
+    @test BARO isa UMomentumEquation.BarotropicPressureGradient
+    @test BARO isa UBarotropicPressureGradient
+    @test BARO_field isa Field
 
     # Test ViscousDissipation
     VISC = UMomentumEquation.ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
@@ -228,6 +242,9 @@ function test_u_momentum_field_locations(model)
     PRES = UMomentumEquation.PressureGradient(model)
     @test location(PRES) == (Face, Center, Center)
 
+    BARO = UMomentumEquation.BarotropicPressureGradient(model)
+    @test location(BARO) == (Face, Center, Center)
+
     VISC = UMomentumEquation.ViscousDissipation(model)
     @test location(VISC) == (Face, Center, Center)
 
@@ -290,12 +307,48 @@ function test_u_momentum_budget_closure(grid)
     return nothing
 end
 
+function test_u_momentum_hfs_budget_closure(grid)
+    # Build an HFS model with every term active so the budget exercises the full RHS of
+    # hydrostatic_free_surface_u_velocity_tendency. The default `momentum_advection`
+    # (`VectorInvariant`) is used — the diagnostic `Advection` dispatches on the model type
+    # to wrap `U_dot_∇u` with whatever scheme the model carries.
+    model = HydrostaticFreeSurfaceModel(grid; tracers = :b,
+                                              buoyancy = BuoyancyTracer(),
+                                              coriolis = FPlane(f = 1e-4),
+                                              closure = ScalarDiffusivity(ν = 1e-4, κ = 1e-4),
+                                              forcing = (; u = Forcing((x, y, z, t) -> cos(t))))
+    set!(model, u = (x, y, z) -> sin(2π*x) * cos(2π*y) * exp(z),
+                v = (x, y, z) -> cos(2π*x) * sin(2π*y) * exp(z),
+                b = (x, y, z) -> sin(2π*z))
+    update_state!(model) # populates model.pressure.pHY′ from b
+
+    # Reconstruct G_u for HFS:
+    #   G_u = -ADV - BARO - COR - PRES - TVISC + FORCING
+    # HFS has no Stokes terms and no BuoyancyAcceleration term (buoyancy is absorbed into pHY′).
+    # BARO is the explicit barotropic free-surface gradient; on ImplicitFreeSurface it returns
+    # zero (the contribution is handled inside the pressure solve) so the budget closes
+    # without it, but including it keeps the formula correct for ExplicitFreeSurface too.
+    ADV   = UMomentumEquation.Advection(model)
+    COR   = UMomentumEquation.CoriolisAcceleration(model)
+    PRES  = UMomentumEquation.PressureGradient(model)
+    BARO  = UMomentumEquation.BarotropicPressureGradient(model)
+    TVISC = UMomentumEquation.TotalViscousDissipation(model)
+    FORC  = UMomentumEquation.Forcing(model)
+    TEND  = UMomentumEquation.Tendency(model)
+
+    budget = Field(-ADV - BARO - COR - PRES - TVISC + FORC)
+    tend   = Field(TEND)
+    @test interior(budget) ≈ interior(tend)
+    return nothing
+end
+
 function test_u_momentum_location_validation(model)
     # Test that invalid locations throw errors
     @test_throws ArgumentError UMomentumEquation.Advection(model; location = (Center, Center, Center))
     @test_throws ArgumentError UMomentumEquation.BuoyancyAcceleration(model; location = (Center, Face, Center))
     @test_throws ArgumentError UMomentumEquation.CoriolisAcceleration(model; location = (Center, Center, Face))
     @test_throws ArgumentError UMomentumEquation.PressureGradient(model; location = (Center, Center, Center))
+    @test_throws ArgumentError UMomentumEquation.BarotropicPressureGradient(model; location = (Center, Center, Center))
     @test_throws ArgumentError UMomentumEquation.ViscousDissipation(model; location = (Center, Center, Center))
     @test_throws ArgumentError UMomentumEquation.ImmersedViscousDissipation(model; location = (Center, Center, Center))
     @test_throws ArgumentError UMomentumEquation.TotalViscousDissipation(model; location = (Center, Center, Center))
@@ -316,6 +369,7 @@ end
     @test UBuoyancyAcceleration !== VBuoyancyAcceleration && UBuoyancyAcceleration !== WBuoyancyAcceleration
     @test UCoriolisAcceleration !== VCoriolisAcceleration && UCoriolisAcceleration !== WCoriolisAcceleration
     @test UPressureGradient !== VPressureGradient # W has no PressureGradient
+    @test UBarotropicPressureGradient !== VBarotropicPressureGradient # W has no BarotropicPressureGradient
     @test UViscousDissipation !== VViscousDissipation && UViscousDissipation !== WViscousDissipation
     @test UImmersedViscousDissipation !== VImmersedViscousDissipation && UImmersedViscousDissipation !== WImmersedViscousDissipation
     @test UTotalViscousDissipation !== VTotalViscousDissipation && UTotalViscousDissipation !== WTotalViscousDissipation
@@ -334,12 +388,12 @@ end
         @info "    with $grid_class"
         for model_type in model_types
             @info "      with $model_type"
-            # HFS defaults to VectorInvariant momentum advection, which uses U_dot_∇u
-            # rather than div_𝐯u. Force the flux-form scheme so the Advection diagnostic
-            # (which wraps div_𝐯u) is well-defined. HFS has no stokes_drift field, so we
-            # pass the Stokes-drift only to the NH model.
+            # HFS uses the default `VectorInvariant` momentum advection. The diagnostic
+            # `Advection` dispatches on the model type to wrap `U_dot_∇u` with whatever
+            # scheme the model carries, so no override is needed. HFS has no
+            # `stokes_drift` field, so we pass the Stokes-drift only to the NH model.
             model = model_type === HydrostaticFreeSurfaceModel ?
-                model_type(grid; model_kwargs..., momentum_advection=Centered()) :
+                model_type(grid; model_kwargs...) :
                 model_type(grid; nh_model_kwargs...)
 
             @info "        Testing u-momentum terms"
@@ -355,4 +409,7 @@ end
 
     @info "    Testing u-momentum budget closure on NonhydrostaticModel"
     test_u_momentum_budget_closure(underlying_regular_grid)
+
+    @info "    Testing u-momentum budget closure on HydrostaticFreeSurfaceModel"
+    test_u_momentum_hfs_budget_closure(underlying_regular_grid)
 end
