@@ -76,5 +76,7 @@ The `perf_invariants` test group guards against performance regressions without 
 - Unicode identifiers are used extensively (ψ, ε, ν, ∂, ℑ, etc.) matching mathematical notation
 - One-line code expressions are preferred when they fit within 130 columns; only break them across lines when they exceed that width
 - Prose text (docstrings, comments, `.md` files) should wrap at around 100 columns
+- **Julia examples** in docstrings and docs use ```` ```jldoctest ```` fenced blocks (not ```` ```julia ````) unless explicitly stated otherwise, so the examples are validated as doctests
+- **`jldoctest` style**: prefer script style — the code lines followed by a `# output` marker and the expected output — over REPL style (`julia> ` prompts with interleaved results), unless explicitly stated otherwise
 - When adding a new leaf progress messenger, wrap its formatted-number string (the result of `@sprintf` / `prettytime`) in `ColoredNumber(...)` so the value participates in the configurable `NUMBER_CRAYON` coloring; prefix and unit text stay as plain `String`
 - **Code folding markers**: collapsible code sections are delimited by `#+++ <title>` to open (note the space after `#+++`) and `#---` to close — always exactly three `+`/`-`, never `#++`/`#--`. Nested sections use the same `#+++`/`#---` markers (each `#---` closes the most recent `#+++`)
