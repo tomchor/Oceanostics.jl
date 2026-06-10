@@ -5,6 +5,7 @@ export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
 export StrainRateTensor, StrainRateTensorModulus, VorticityTensor, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export StressTensor
+export SubfilterFlux
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 
@@ -15,7 +16,7 @@ using Oceanostics: validate_location,
                    CustomKFO
 
 import Oceananigans # so `Oceananigans.defaults.gravitational_acceleration` resolves in default kwargs/fields below
-using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyTracer, location
+using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyTracer, location, Field
 using Oceananigans.BuoyancyFormulations: get_temperature_and_salinity, SeawaterBuoyancy, buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
@@ -821,6 +822,48 @@ function StressTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3), collocate_d
     )
 
     return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
+end
+#---
+
+#+++ Subfilter flux (generalized subfilter covariance)
+"""
+    $(SIGNATURES)
+
+Return a lazy `AbstractOperation` for the generalized subfilter covariance (second moment) of two
+fields `a` and `b` under a low-pass spatial `filter` (overbar):
+
+```
+    τ(a, b) = filter(a b) - filter(a) filter(b)
+```
+
+co-located at `loc`. Here `filter(ψ)` is a normalized local average (e.g. an Oceanostics
+`GaussianFilter` or `BoxFilter`) that splits a field into a resolved part `ψ̄` and a subfilter
+fluctuation `ψ′ = ψ - ψ̄`. `τ(a, b)` is the part of the product `ab` that the filtered fields `ā b̄`
+cannot represent on their own — the transport/stress carried by scales smaller than the filter width
+(Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1).
+
+Two common special cases are:
+
+  - **Subfilter tracer flux** — `a = uᵢ` (a velocity component), `b = c` (a tracer):
+    `τ(uᵢ, c) = filter(uᵢ c) - ūᵢ c̄`, the flux of `c` carried by unresolved scales.
+  - **Subfilter momentum stress** — `a = uᵢ`, `b = uⱼ`: `τ(uᵢ, uⱼ) = filter(uᵢ uⱼ) - ūᵢ ūⱼ`, the
+    subfilter (subgrid-scale) Reynolds-type stress component.
+
+`a` and `b` (`Field`s or `AbstractOperation`s) are interpolated to the common location `loc` before
+being multiplied and filtered, so they may originally live at different staggered-grid locations
+(e.g. a `Face`-located velocity and a `Center`-located tracer). `filter` is a function mapping a
+field to its filtered counterpart, `ψ -> ψ̄`; build it as a closure over an Oceanostics filter, e.g.
+`filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1)`.
+
+The filtered pieces are materialized as `Field`s (so the separable filter's fast staged path fires);
+the returned object is a lazy `AbstractOperation` over those computed fields, ready for `Field`,
+`Integral`, and `OutputWriter`s.
+"""
+function SubfilterFlux(a, b, filter; loc = (Center, Center, Center))
+    a_loc = Field(@at loc a)                                  # co-locate operands at `loc`
+    b_loc = Field(@at loc b)
+    filtered_product = Field(filter(Field(a_loc * b_loc)))    # filter(a b)
+    return filtered_product - Field(filter(a_loc)) * Field(filter(b_loc))  # − ā b̄
 end
 #---
 

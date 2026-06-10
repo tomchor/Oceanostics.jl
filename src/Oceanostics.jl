@@ -57,16 +57,13 @@ export StrainRateTensor, StrainRateTensorModulus
 export VorticityTensor, VorticityTensorModulus
 export Q, QVelocityGradientTensorInvariant
 export StressTensor
+export SubfilterFlux
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 #---
 
 #+++ Filters exports
 export BoxFilter, GaussianFilter
-#---
-
-#+++ SubfilterFluxes exports
-export SubfilterFlux
 #---
 
 #+++ PotentialEnergyEquationTerms exports
@@ -189,13 +186,11 @@ include("TurbulentKineticEnergyEquation.jl")
 include("PotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
 include("Filters/Filters.jl")
-include("SubfilterFluxes.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
 using .FlowDiagnostics
 using .Filters
-using .SubfilterFluxes
 using .ProgressMessengers
 
 #+++ Custom `show` for diagnostics

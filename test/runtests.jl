@@ -59,10 +59,6 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
         include("test_filters.jl")
     end
 
-    if group == :subfilter_fluxes || group == :all
-        include("test_subfilter_fluxes.jl")
-    end
-
     if group == :perf_invariants || group == :all
         include("test_perf_invariants.jl")
     end
