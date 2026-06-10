@@ -40,14 +40,14 @@ model = NonhydrostaticModel(grid)
 filter(ψ) = GaussianFilter(ψ; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
 τ  = SubfilterStressTensor(model, filter)         # the subfilter stress tensor components
-Πₖ = CrossScaleKineticEnergyFlux(model, filter)   # the cross-scale KE flux, at (Center, Center, Center)
+Πₖ = KineticEnergyCrossScaleFlux(model, filter)   # the cross-scale KE flux, at (Center, Center, Center)
 
 # equivalently, the convenience method builds the Gaussian filter from σ for you:
-Πₖ = CrossScaleKineticEnergyFlux(model; σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
+Πₖ = KineticEnergyCrossScaleFlux(model; σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
 # output
 
-CrossScaleKineticEnergyFlux KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyCrossScaleFlux KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 16×16×16 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: cross_scale_ke_flux_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.UnaryOperation",)
@@ -63,5 +63,5 @@ Oceanostics.CoarseGrainedKineticEnergyEquation.SubfilterStressTensor
 ## Cross-scale kinetic energy flux
 
 ```@docs
-Oceanostics.CoarseGrainedKineticEnergyEquation.CrossScaleKineticEnergyFlux
+Oceanostics.CoarseGrainedKineticEnergyEquation.KineticEnergyCrossScaleFlux
 ```

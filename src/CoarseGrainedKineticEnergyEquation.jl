@@ -2,7 +2,7 @@ module CoarseGrainedKineticEnergyEquation
 
 using DocStringExtensions
 
-export SubfilterStressTensor, CrossScaleKineticEnergyFlux, CrossScaleFlux
+export SubfilterStressTensor, KineticEnergyCrossScaleFlux, CrossScaleFlux
 
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: Field
@@ -52,7 +52,7 @@ a low-pass `filter` removes from the resolved scales:
 (also called the sub-grid stress in LES, or the generalized central moment in the coarse-graining
 framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). It is the
 quantity contracted with the resolved strain rate to form the cross-scale kinetic-energy flux — see
-[`CrossScaleKineticEnergyFlux`](@ref).
+[`KineticEnergyCrossScaleFlux`](@ref).
 
 `filter` is a function that maps a field to its low-pass-filtered counterpart, e.g. a closure over
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref):
@@ -123,8 +123,8 @@ end
 # `Field`s, so this per-cell evaluation only reads those fields and does arithmetic — it never re-filters.
 @inline cross_scale_ke_flux_ccc(i, j, k, grid, Πᵏ) = @inbounds Πᵏ[i, j, k]
 
-const CrossScaleKineticEnergyFlux = CustomKFO{<:typeof(cross_scale_ke_flux_ccc)}
-const CrossScaleFlux = CrossScaleKineticEnergyFlux
+const KineticEnergyCrossScaleFlux = CustomKFO{<:typeof(cross_scale_ke_flux_ccc)}
+const CrossScaleFlux = KineticEnergyCrossScaleFlux
 
 """
     $(SIGNATURES)
@@ -156,11 +156,11 @@ model = NonhydrostaticModel(grid)
 ℓ = 0.2  # filter scale (full width at half maximum)
 filter(ψ) = GaussianFilter(ψ; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))))
 
-CrossScaleKineticEnergyFlux(model, filter)
+KineticEnergyCrossScaleFlux(model, filter)
 
 # output
 
-CrossScaleKineticEnergyFlux KernelFunctionOperation at (Center, Center, Center)
+KineticEnergyCrossScaleFlux KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: cross_scale_ke_flux_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.UnaryOperation",)
@@ -176,10 +176,10 @@ the velocities they use are filtered): the default `dims = (1, 2, 3)` gives the 
 directions are set independently inside `filter`, so you can filter horizontally yet contract the
 full tensor.
 
-A convenience method `CrossScaleKineticEnergyFlux(model; σ, dims, boundary, N)` builds the Gaussian
+A convenience method `KineticEnergyCrossScaleFlux(model; σ, dims, boundary, N)` builds the Gaussian
 `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
 """
-function CrossScaleKineticEnergyFlux(model, filter; dims = (1, 2, 3))
+function KineticEnergyCrossScaleFlux(model, filter; dims = (1, 2, 3))
     FlowDiagnostics.validate_dims(dims)
     grid = model.grid
     u, v, w = model.velocities
@@ -193,8 +193,8 @@ function CrossScaleKineticEnergyFlux(model, filter; dims = (1, 2, 3))
     return KernelFunctionOperation{Center, Center, Center}(cross_scale_ke_flux_ccc, grid, _cross_scale_ke_flux(τ, S̄))
 end
 
-CrossScaleKineticEnergyFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
-    CrossScaleKineticEnergyFlux(model, ψ -> GaussianFilter(ψ; dims, σ, boundary, N); dims)
+KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
+    KineticEnergyCrossScaleFlux(model, ψ -> GaussianFilter(ψ; dims, σ, boundary, N); dims)
 #---
 
 end # module

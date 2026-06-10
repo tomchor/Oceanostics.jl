@@ -4,7 +4,7 @@ using Oceananigans
 using Oceananigans.Fields: location
 
 using Oceanostics
-using Oceanostics: SubfilterStressTensor, CrossScaleKineticEnergyFlux, GaussianFilter
+using Oceanostics: SubfilterStressTensor, KineticEnergyCrossScaleFlux, GaussianFilter
 using Oceanostics: StressTensor, StrainRateTensor
 
 arch = has_cuda_gpu() ? GPU() : CPU()
@@ -62,17 +62,21 @@ function test_cross_scale_ke_flux_matches_manual(model, filt)
     Π_manual = -(center(τ₁₁) * center(S̄.S₁₁) + center(τ₂₂) * center(S̄.S₂₂) + center(τ₃₃) * center(S̄.S₃₃) +
                  2center(τ₁₂) * center(S̄.S₁₂) + 2center(τ₁₃) * center(S̄.S₁₃) + 2center(τ₂₃) * center(S̄.S₂₃))
 
-    Π = CrossScaleKineticEnergyFlux(model, filt)
+    Π = KineticEnergyCrossScaleFlux(model, filt)
     @test location(Π) == (Center, Center, Center)
     @test interior(Field(Π)) ≈ interior(Field(Π_manual))
 
     # the flux is a single KernelFunctionOperation with a custom display (cf. PR #250)
-    @test Π isa CrossScaleKineticEnergyFlux
-    @test occursin("CrossScaleKineticEnergyFlux", sprint(show, Π))
+    @test Π isa KineticEnergyCrossScaleFlux
+    @test occursin("KineticEnergyCrossScaleFlux", sprint(show, Π))
     @test occursin("computes:", sprint(show, Π))
 
+    # reachable by the short name CoarseGrainedKineticEnergyEquation.CrossScaleFlux too (same type alias)
+    @test CoarseGrainedKineticEnergyEquation.CrossScaleFlux === KineticEnergyCrossScaleFlux
+    @test CoarseGrainedKineticEnergyEquation.CrossScaleFlux(model, filt) isa KineticEnergyCrossScaleFlux
+
     # invalid `dims` are rejected here too
-    @test_throws ArgumentError CrossScaleKineticEnergyFlux(model, filt; dims=(1, 1))
+    @test_throws ArgumentError KineticEnergyCrossScaleFlux(model, filt; dims=(1, 1))
     return nothing
 end
 
@@ -81,8 +85,8 @@ function test_convenience_method(model)
     σ = 0.12
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
     @test keys(SubfilterStressTensor(model; σ)) == keys(SubfilterStressTensor(model, filt))
-    @test interior(Field(CrossScaleKineticEnergyFlux(model; σ))) ≈
-          interior(Field(CrossScaleKineticEnergyFlux(model, filt)))
+    @test interior(Field(KineticEnergyCrossScaleFlux(model; σ))) ≈
+          interior(Field(KineticEnergyCrossScaleFlux(model, filt)))
     return nothing
 end
 
@@ -96,7 +100,7 @@ function test_uniform_flow_vanishes(grid, filt; U=2, V=-3)
     for τᵢⱼ in τ
         @test all(abs.(interior(Field(τᵢⱼ))) .< 1e-10)
     end
-    @test all(abs.(interior(Field(CrossScaleKineticEnergyFlux(model, filt)))) .< 1e-10)
+    @test all(abs.(interior(Field(KineticEnergyCrossScaleFlux(model, filt)))) .< 1e-10)
     return nothing
 end
 #---
