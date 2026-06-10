@@ -2,7 +2,7 @@ module CoarseGrainedKineticEnergyEquation
 
 using DocStringExtensions
 
-export SubfilterStressTensor, CrossScaleKineticEnergyFlux
+export SubfilterStressTensor, CrossScaleKineticEnergyFlux, CrossScaleFlux
 
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: Field
@@ -124,6 +124,7 @@ end
 @inline cross_scale_ke_flux_ccc(i, j, k, grid, Πᵏ) = @inbounds Πᵏ[i, j, k]
 
 const CrossScaleKineticEnergyFlux = CustomKFO{<:typeof(cross_scale_ke_flux_ccc)}
+const CrossScaleFlux = CrossScaleKineticEnergyFlux
 
 """
     $(SIGNATURES)
