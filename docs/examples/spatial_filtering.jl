@@ -220,12 +220,12 @@ K̄ = Field((ū^2 + v̄^2) / 2)
 
 fig_Π = Figure()
 ax_K = Axis(fig_Π[1, 1]; title = "Resolved KE ½(ū² + v̄²)", axis_kwargs...)
-ax_Π = Axis(fig_Π[1, 3]; title = "Cross-scale flux Πₖ",     axis_kwargs...)
+ax_Π = Axis(fig_Π[1, 3]; title = "Cross-scale flux Πₖ",    axis_kwargs...)
 
 hm_K = heatmap!(ax_K, K̄; colormap = :magma)
 Colorbar(fig_Π[1, 2], hm_K)
 
-Πlim = maximum(abs, interior(Πₖ))
+Πlim = 0.95 * maximum(abs, interior(Πₖ))
 hm_Π = heatmap!(ax_Π, Πₖ; colormap = :balance, colorrange = (-Πlim, Πlim))
 Colorbar(fig_Π[1, 4], hm_Π)
 
