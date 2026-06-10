@@ -476,10 +476,20 @@ function StrainRateTensorModulus(model; loc = (Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(strain_rate_tensor_modulus_ccc, model.grid, model.velocities...)
 end
 
-# Off-diagonal strain rate components, each evaluated at its natural staggered location.
-@inline strain_rate_tensor_xy_ffc(i, j, k, grid, u, v) = (∂yᶠᶠᶜ(i, j, k, grid, u) + ∂xᶠᶠᶜ(i, j, k, grid, v)) / 2
-@inline strain_rate_tensor_xz_fcf(i, j, k, grid, u, w) = (∂zᶠᶜᶠ(i, j, k, grid, u) + ∂xᶠᶜᶠ(i, j, k, grid, w)) / 2
-@inline strain_rate_tensor_yz_cff(i, j, k, grid, v, w) = (∂zᶜᶠᶠ(i, j, k, grid, v) + ∂yᶜᶠᶠ(i, j, k, grid, w)) / 2
+# Strain-rate tensor components Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ) as a kernel-functor family parameterized by the
+# component indices (i, j), each evaluated at its natural staggered location. Bundling them under one
+# `StrainRateTensorKernel` type lets `const StrainRateTensor = CustomKFO{<:StrainRateTensorKernel}`
+# below recognize every component, mirroring the `MixedLayerDepthKernel`/`BoxFilterKernel` pattern.
+struct StrainRateTensorKernel{I, J} end
+
+@inline (::StrainRateTensorKernel{1, 1})(i, j, k, grid, u)    = ∂xᶜᶜᶜ(i, j, k, grid, u)
+@inline (::StrainRateTensorKernel{2, 2})(i, j, k, grid, v)    = ∂yᶜᶜᶜ(i, j, k, grid, v)
+@inline (::StrainRateTensorKernel{3, 3})(i, j, k, grid, w)    = ∂zᶜᶜᶜ(i, j, k, grid, w)
+@inline (::StrainRateTensorKernel{1, 2})(i, j, k, grid, u, v) = (∂yᶠᶠᶜ(i, j, k, grid, u) + ∂xᶠᶠᶜ(i, j, k, grid, v)) / 2
+@inline (::StrainRateTensorKernel{1, 3})(i, j, k, grid, u, w) = (∂zᶠᶜᶠ(i, j, k, grid, u) + ∂xᶠᶜᶠ(i, j, k, grid, w)) / 2
+@inline (::StrainRateTensorKernel{2, 3})(i, j, k, grid, v, w) = (∂zᶜᶠᶠ(i, j, k, grid, v) + ∂yᶜᶠᶠ(i, j, k, grid, w)) / 2
+
+const StrainRateTensor = CustomKFO{<:StrainRateTensorKernel}
 
 validate_dims(dims::Tuple{Vararg{Int}}) =
     (!isempty(dims) & all(d -> d in (1, 2, 3), dims) & allunique(dims)) ||
@@ -534,10 +544,11 @@ julia> keys(S)
 (:S₁₁, :S₂₂, :S₃₃, :S₁₂, :S₁₃, :S₂₃)
 
 julia> S.S₁₃
-KernelFunctionOperation at (Face, Center, Face)
+StrainRateTensor KernelFunctionOperation at (Face, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: strain_rate_tensor_xz_fcf (generic function with 1 method)
+├── kernel_function: Oceanostics.FlowDiagnostics.StrainRateTensorKernel{1, 3}
 └── arguments: ("Field", "Field")
+└── computes: strain-rate tensor component  Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)
 ```
 """
 StrainRateTensor(model; dims = (1, 2, 3)) = StrainRateTensor(model.grid, model.velocities...; dims)
@@ -547,12 +558,12 @@ function StrainRateTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3))
     want(ij...) = all(in(dims), ij) # keep component Sᵢⱼ only if every index it needs is in `dims`
 
     components = (
-        S₁₁ = want(1)    ? KernelFunctionOperation{Center, Center, Center}(∂xᶜᶜᶜ, grid, u) : nothing,
-        S₂₂ = want(2)    ? KernelFunctionOperation{Center, Center, Center}(∂yᶜᶜᶜ, grid, v) : nothing,
-        S₃₃ = want(3)    ? KernelFunctionOperation{Center, Center, Center}(∂zᶜᶜᶜ, grid, w) : nothing,
-        S₁₂ = want(1, 2) ? KernelFunctionOperation{Face, Face, Center}(strain_rate_tensor_xy_ffc, grid, u, v) : nothing,
-        S₁₃ = want(1, 3) ? KernelFunctionOperation{Face, Center, Face}(strain_rate_tensor_xz_fcf, grid, u, w) : nothing,
-        S₂₃ = want(2, 3) ? KernelFunctionOperation{Center, Face, Face}(strain_rate_tensor_yz_cff, grid, v, w) : nothing,
+        S₁₁ = want(1)    ? KernelFunctionOperation{Center, Center, Center}(StrainRateTensorKernel{1, 1}(), grid, u) : nothing,
+        S₂₂ = want(2)    ? KernelFunctionOperation{Center, Center, Center}(StrainRateTensorKernel{2, 2}(), grid, v) : nothing,
+        S₃₃ = want(3)    ? KernelFunctionOperation{Center, Center, Center}(StrainRateTensorKernel{3, 3}(), grid, w) : nothing,
+        S₁₂ = want(1, 2) ? KernelFunctionOperation{Face, Face, Center}(StrainRateTensorKernel{1, 2}(), grid, u, v) : nothing,
+        S₁₃ = want(1, 3) ? KernelFunctionOperation{Face, Center, Face}(StrainRateTensorKernel{1, 3}(), grid, u, w) : nothing,
+        S₂₃ = want(2, 3) ? KernelFunctionOperation{Center, Face, Face}(StrainRateTensorKernel{2, 3}(), grid, v, w) : nothing,
     )
 
     return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
@@ -611,11 +622,17 @@ function VorticityTensorModulus(model; loc = (Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(vorticity_tensor_modulus_ccc, model.grid, model.velocities...)
 end
 
-# Off-diagonal vorticity components, each evaluated at its natural staggered location. The diagonal
-# components vanish identically (Ωᵢᵢ = 0), so they are not built.
-@inline vorticity_tensor_xy_ffc(i, j, k, grid, u, v) = (∂yᶠᶠᶜ(i, j, k, grid, u) - ∂xᶠᶠᶜ(i, j, k, grid, v)) / 2
-@inline vorticity_tensor_xz_fcf(i, j, k, grid, u, w) = (∂zᶠᶜᶠ(i, j, k, grid, u) - ∂xᶠᶜᶠ(i, j, k, grid, w)) / 2
-@inline vorticity_tensor_yz_cff(i, j, k, grid, v, w) = (∂zᶜᶠᶠ(i, j, k, grid, v) - ∂yᶜᶠᶠ(i, j, k, grid, w)) / 2
+# Vorticity tensor components Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ) as a kernel-functor family parameterized by the
+# component indices (i, j), each evaluated at its natural staggered location. The diagonal components
+# vanish identically (Ωᵢᵢ = 0), so they are not built. Bundling them under one `VorticityTensorKernel`
+# type lets `const VorticityTensor = CustomKFO{<:VorticityTensorKernel}` below recognize every component.
+struct VorticityTensorKernel{I, J} end
+
+@inline (::VorticityTensorKernel{1, 2})(i, j, k, grid, u, v) = (∂yᶠᶠᶜ(i, j, k, grid, u) - ∂xᶠᶠᶜ(i, j, k, grid, v)) / 2
+@inline (::VorticityTensorKernel{1, 3})(i, j, k, grid, u, w) = (∂zᶠᶜᶠ(i, j, k, grid, u) - ∂xᶠᶜᶠ(i, j, k, grid, w)) / 2
+@inline (::VorticityTensorKernel{2, 3})(i, j, k, grid, v, w) = (∂zᶜᶠᶠ(i, j, k, grid, v) - ∂yᶜᶠᶠ(i, j, k, grid, w)) / 2
+
+const VorticityTensor = CustomKFO{<:VorticityTensorKernel}
 
 """
     $(SIGNATURES)
@@ -664,10 +681,11 @@ julia> keys(Ω)
 (:Ω₁₂, :Ω₁₃, :Ω₂₃)
 
 julia> Ω.Ω₁₃
-KernelFunctionOperation at (Face, Center, Face)
+VorticityTensor KernelFunctionOperation at (Face, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: vorticity_tensor_xz_fcf (generic function with 1 method)
+├── kernel_function: Oceanostics.FlowDiagnostics.VorticityTensorKernel{1, 3}
 └── arguments: ("Field", "Field")
+└── computes: vorticity tensor component  Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)
 ```
 """
 VorticityTensor(model; dims = (1, 2, 3)) = VorticityTensor(model.grid, model.velocities...; dims)
@@ -677,9 +695,9 @@ function VorticityTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3))
     want(ij...) = all(in(dims), ij) # keep component Ωᵢⱼ only if every index it needs is in `dims`
 
     components = (
-        Ω₁₂ = want(1, 2) ? KernelFunctionOperation{Face, Face, Center}(vorticity_tensor_xy_ffc, grid, u, v) : nothing,
-        Ω₁₃ = want(1, 3) ? KernelFunctionOperation{Face, Center, Face}(vorticity_tensor_xz_fcf, grid, u, w) : nothing,
-        Ω₂₃ = want(2, 3) ? KernelFunctionOperation{Center, Face, Face}(vorticity_tensor_yz_cff, grid, v, w) : nothing,
+        Ω₁₂ = want(1, 2) ? KernelFunctionOperation{Face, Face, Center}(VorticityTensorKernel{1, 2}(), grid, u, v) : nothing,
+        Ω₁₃ = want(1, 3) ? KernelFunctionOperation{Face, Center, Face}(VorticityTensorKernel{1, 3}(), grid, u, w) : nothing,
+        Ω₂₃ = want(2, 3) ? KernelFunctionOperation{Center, Face, Face}(VorticityTensorKernel{2, 3}(), grid, v, w) : nothing,
     )
 
     return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
@@ -696,17 +714,24 @@ const QVelocityGradientTensorInvariant = CustomKFO{<:typeof(Q_velocity_gradient_
 #---
 
 #+++ Stress tensor
-# Stress tensor τᵢⱼ = uᵢuⱼ kernels. Diagonals come in two flavors (see `collocate_diagonals` in
-# `StressTensor`): collocated `_ccc` = (ℑ uᵢ)² at ccc, or interpolation-free at uᵢ's own location.
-@inline stress_tensor_xx_ccc(i, j, k, grid, u)    = ℑxᶜᵃᵃ(i, j, k, grid, u)^2
-@inline stress_tensor_yy_ccc(i, j, k, grid, v)    = ℑyᵃᶜᵃ(i, j, k, grid, v)^2
-@inline stress_tensor_zz_ccc(i, j, k, grid, w)    = ℑzᵃᵃᶜ(i, j, k, grid, w)^2
-@inline stress_tensor_xx_fcc(i, j, k, grid, u)    = @inbounds u[i, j, k]^2
-@inline stress_tensor_yy_cfc(i, j, k, grid, v)    = @inbounds v[i, j, k]^2
-@inline stress_tensor_zz_ccf(i, j, k, grid, w)    = @inbounds w[i, j, k]^2
-@inline stress_tensor_xy_ffc(i, j, k, grid, u, v) = ℑyᵃᶠᵃ(i, j, k, grid, u) * ℑxᶠᵃᵃ(i, j, k, grid, v)
-@inline stress_tensor_xz_fcf(i, j, k, grid, u, w) = ℑzᵃᵃᶠ(i, j, k, grid, u) * ℑxᶠᵃᵃ(i, j, k, grid, w)
-@inline stress_tensor_yz_cff(i, j, k, grid, v, w) = ℑzᵃᵃᶠ(i, j, k, grid, v) * ℑyᵃᶠᵃ(i, j, k, grid, w)
+# Stress tensor τᵢⱼ = uᵢuⱼ as a kernel-functor family parameterized by the component indices (i, j) and,
+# for the diagonals, a `Collocated` flag (see `collocate_diagonals` in `StressTensor`): collocated
+# `(ℑ uᵢ)²` at ccc, or interpolation-free `uᵢ²` at uᵢ's own location. Off-diagonals carry the flag too
+# (always `false`) so the whole tensor shares one `StressTensorKernel` type, which lets
+# `const StressTensor = CustomKFO{<:StressTensorKernel}` below recognize every component.
+struct StressTensorKernel{I, J, Collocated} end
+
+@inline (::StressTensorKernel{1, 1, true})(i, j, k, grid, u)     = ℑxᶜᵃᵃ(i, j, k, grid, u)^2
+@inline (::StressTensorKernel{2, 2, true})(i, j, k, grid, v)     = ℑyᵃᶜᵃ(i, j, k, grid, v)^2
+@inline (::StressTensorKernel{3, 3, true})(i, j, k, grid, w)     = ℑzᵃᵃᶜ(i, j, k, grid, w)^2
+@inline (::StressTensorKernel{1, 1, false})(i, j, k, grid, u)    = @inbounds u[i, j, k]^2
+@inline (::StressTensorKernel{2, 2, false})(i, j, k, grid, v)    = @inbounds v[i, j, k]^2
+@inline (::StressTensorKernel{3, 3, false})(i, j, k, grid, w)    = @inbounds w[i, j, k]^2
+@inline (::StressTensorKernel{1, 2, false})(i, j, k, grid, u, v) = ℑyᵃᶠᵃ(i, j, k, grid, u) * ℑxᶠᵃᵃ(i, j, k, grid, v)
+@inline (::StressTensorKernel{1, 3, false})(i, j, k, grid, u, w) = ℑzᵃᵃᶠ(i, j, k, grid, u) * ℑxᶠᵃᵃ(i, j, k, grid, w)
+@inline (::StressTensorKernel{2, 3, false})(i, j, k, grid, v, w) = ℑzᵃᵃᶠ(i, j, k, grid, v) * ℑyᵃᶠᵃ(i, j, k, grid, w)
+
+const StressTensor = CustomKFO{<:StressTensorKernel}
 
 """
     $(SIGNATURES)
@@ -790,10 +815,11 @@ julia> keys(τ)
 (:τ₁₁, :τ₂₂, :τ₃₃, :τ₁₂, :τ₁₃, :τ₂₃)
 
 julia> τ.τ₁₁
-KernelFunctionOperation at (Face, Center, Center)
+StressTensor KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: stress_tensor_xx_fcc (generic function with 1 method)
+├── kernel_function: Oceanostics.FlowDiagnostics.StressTensorKernel{1, 1, false}
 └── arguments: ("Field",)
+└── computes: stress tensor component  τᵢⱼ = uᵢuⱼ
 ```
 """
 StressTensor(model; dims = (1, 2, 3), collocate_diagonals = false) =
@@ -804,20 +830,20 @@ function StressTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3), collocate_d
     want(ij...) = all(in(dims), ij) # keep component τᵢⱼ only if every index it needs is in `dims`
 
     if collocate_diagonals # τᵢᵢ = (ℑ uᵢ)² interpolated to a shared ccc location (one interpolation each)
-        τ₁₁ = want(1) ? KernelFunctionOperation{Center, Center, Center}(stress_tensor_xx_ccc, grid, u) : nothing
-        τ₂₂ = want(2) ? KernelFunctionOperation{Center, Center, Center}(stress_tensor_yy_ccc, grid, v) : nothing
-        τ₃₃ = want(3) ? KernelFunctionOperation{Center, Center, Center}(stress_tensor_zz_ccc, grid, w) : nothing
+        τ₁₁ = want(1) ? KernelFunctionOperation{Center, Center, Center}(StressTensorKernel{1, 1, true}(), grid, u) : nothing
+        τ₂₂ = want(2) ? KernelFunctionOperation{Center, Center, Center}(StressTensorKernel{2, 2, true}(), grid, v) : nothing
+        τ₃₃ = want(3) ? KernelFunctionOperation{Center, Center, Center}(StressTensorKernel{3, 3, true}(), grid, w) : nothing
     else # τᵢᵢ = uᵢ² read at each velocity's own location (no interpolation)
-        τ₁₁ = want(1) ? KernelFunctionOperation{Face, Center, Center}(stress_tensor_xx_fcc, grid, u) : nothing
-        τ₂₂ = want(2) ? KernelFunctionOperation{Center, Face, Center}(stress_tensor_yy_cfc, grid, v) : nothing
-        τ₃₃ = want(3) ? KernelFunctionOperation{Center, Center, Face}(stress_tensor_zz_ccf, grid, w) : nothing
+        τ₁₁ = want(1) ? KernelFunctionOperation{Face, Center, Center}(StressTensorKernel{1, 1, false}(), grid, u) : nothing
+        τ₂₂ = want(2) ? KernelFunctionOperation{Center, Face, Center}(StressTensorKernel{2, 2, false}(), grid, v) : nothing
+        τ₃₃ = want(3) ? KernelFunctionOperation{Center, Center, Face}(StressTensorKernel{3, 3, false}(), grid, w) : nothing
     end
 
     components = (;
         τ₁₁, τ₂₂, τ₃₃,
-        τ₁₂ = want(1, 2) ? KernelFunctionOperation{Face, Face, Center}(stress_tensor_xy_ffc, grid, u, v) : nothing,
-        τ₁₃ = want(1, 3) ? KernelFunctionOperation{Face, Center, Face}(stress_tensor_xz_fcf, grid, u, w) : nothing,
-        τ₂₃ = want(2, 3) ? KernelFunctionOperation{Center, Face, Face}(stress_tensor_yz_cff, grid, v, w) : nothing,
+        τ₁₂ = want(1, 2) ? KernelFunctionOperation{Face, Face, Center}(StressTensorKernel{1, 2, false}(), grid, u, v) : nothing,
+        τ₁₃ = want(1, 3) ? KernelFunctionOperation{Face, Center, Face}(StressTensorKernel{1, 3, false}(), grid, u, w) : nothing,
+        τ₂₃ = want(2, 3) ? KernelFunctionOperation{Center, Face, Face}(StressTensorKernel{2, 3, false}(), grid, v, w) : nothing,
     )
 
     return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
