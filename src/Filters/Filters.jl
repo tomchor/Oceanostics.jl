@@ -1,7 +1,7 @@
 module Filters
 using DocStringExtensions
 
-export BoxFilter, GaussianFilter
+export BoxFilter, GaussianFilter, BoxFilterOperator, GaussianFilterOperator
 
 using Oceananigans: location
 using Oceananigans.Grids: topology, Periodic,

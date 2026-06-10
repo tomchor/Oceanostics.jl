@@ -62,7 +62,7 @@ export BottomCellValue
 #---
 
 #+++ Filters exports
-export BoxFilter, GaussianFilter
+export BoxFilter, GaussianFilter, BoxFilterOperator, GaussianFilterOperator
 #---
 
 #+++ PotentialEnergyEquationTerms exports
