@@ -30,22 +30,29 @@ full 3D tensor.
 
 ## Example
 
-```julia
-using Oceananigans, Oceanostics
+```jldoctest
+julia> using Oceananigans, Oceanostics
 
-grid = RectilinearGrid(size=(16, 16, 16), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
-model = NonhydrostaticModel(grid)
-set!(model, u=(x, y, z) -> randn(), v=(x, y, z) -> randn(), w=(x, y, z) -> randn())
+julia> grid = RectilinearGrid(size=(16, 16, 16), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded));
 
-# A Gaussian filter of full width at half maximum ℓ in all three directions
-ℓ = 0.2
-filter = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=:edge)
+julia> model = NonhydrostaticModel(grid);
 
-Πₖ = CrossScaleKineticEnergyFlux(model, filter)   # the cross-scale KE flux, at (Center, Center, Center)
-τ  = SubfilterStressTensor(model, filter)         # the subfilter stress tensor components
+julia> ℓ = 0.2;  # Gaussian filter scale (full width at half maximum) in all three directions
 
-# the convenience methods build the Gaussian filter from σ for you:
-Πₖ = CrossScaleKineticEnergyFlux(model; σ=ℓ / (2√(2log(2))), boundary=:edge)
+julia> filter(ψ) = GaussianFilter(ψ; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
+
+julia> CrossScaleKineticEnergyFlux(model, filter)   # the cross-scale KE flux, at (Center, Center, Center)
+CrossScaleKineticEnergyFlux KernelFunctionOperation at (Center, Center, Center)
+├── grid: 16×16×16 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: cross_scale_ke_flux_ccc (generic function with 1 method)
+└── arguments: ("Oceananigans.AbstractOperations.UnaryOperation",)
+└── computes: cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ
+
+julia> keys(SubfilterStressTensor(model, filter))   # the subfilter stress tensor components
+(:τ₁₁, :τ₂₂, :τ₃₃, :τ₁₂, :τ₁₃, :τ₂₃)
+
+julia> CrossScaleKineticEnergyFlux(model; σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0)) isa CrossScaleKineticEnergyFlux  # convenience method
+true
 ```
 
 ## Subfilter-scale stress tensor
