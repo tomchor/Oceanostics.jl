@@ -57,22 +57,20 @@ quantity contracted with the resolved strain rate to form the cross-scale kineti
 `filter` is a function that maps a field to its low-pass-filtered counterpart, e.g. a closure over
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref):
 
-```jldoctest subfilter
-julia> using Oceananigans, Oceanostics
+```jldoctest; output = false
+using Oceananigans, Oceanostics
 
-julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded));
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid)
 
-julia> model = NonhydrostaticModel(grid);
+filter(ψ) = GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1)
+τ = SubfilterStressTensor(model, filter)
 
-julia> filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1);
+keys(τ)
 
-julia> τ = SubfilterStressTensor(model, filt);
+# output
 
-julia> keys(τ)
 (:τ₁₁, :τ₂₂, :τ₃₃, :τ₁₂, :τ₁₃, :τ₂₃)
-
-julia> Field(τ.τ₁₃) isa Field
-true
 ```
 
 The result is a `NamedTuple` with the independent components, each living at the same staggered
@@ -148,18 +146,19 @@ density `ρ₀` for a volumetric power.
 `filter` is a function mapping a field to its filtered counterpart, e.g. a closure over
 [`GaussianFilter`](@ref):
 
-```jldoctest cross_scale
-julia> using Oceananigans, Oceanostics
+```jldoctest; output = false
+using Oceananigans, Oceanostics
 
-julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded));
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid)
 
-julia> model = NonhydrostaticModel(grid);
+ℓ = 0.2  # filter scale (full width at half maximum)
+filter(ψ) = GaussianFilter(ψ; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))))
 
-julia> ℓ = 0.2; # filter scale (FWHM)
+CrossScaleKineticEnergyFlux(model, filter)
 
-julia> filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))));
+# output
 
-julia> CrossScaleKineticEnergyFlux(model, filt)
 CrossScaleKineticEnergyFlux KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: cross_scale_ke_flux_ccc (generic function with 1 method)

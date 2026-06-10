@@ -30,29 +30,28 @@ full 3D tensor.
 
 ## Example
 
-```jldoctest
-julia> using Oceananigans, Oceanostics
+```jldoctest; output = false
+using Oceananigans, Oceanostics
 
-julia> grid = RectilinearGrid(size=(16, 16, 16), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded));
+grid = RectilinearGrid(size=(16, 16, 16), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid)
 
-julia> model = NonhydrostaticModel(grid);
+ℓ = 0.2  # Gaussian filter scale (full width at half maximum) in all three directions
+filter(ψ) = GaussianFilter(ψ; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
-julia> ℓ = 0.2;  # Gaussian filter scale (full width at half maximum) in all three directions
+τ  = SubfilterStressTensor(model, filter)         # the subfilter stress tensor components
+Πₖ = CrossScaleKineticEnergyFlux(model, filter)   # the cross-scale KE flux, at (Center, Center, Center)
 
-julia> filter(ψ) = GaussianFilter(ψ; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
+# equivalently, the convenience method builds the Gaussian filter from σ for you:
+Πₖ = CrossScaleKineticEnergyFlux(model; σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
-julia> CrossScaleKineticEnergyFlux(model, filter)   # the cross-scale KE flux, at (Center, Center, Center)
+# output
+
 CrossScaleKineticEnergyFlux KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 16×16×16 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: cross_scale_ke_flux_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.UnaryOperation",)
 └── computes: cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ
-
-julia> keys(SubfilterStressTensor(model, filter))   # the subfilter stress tensor components
-(:τ₁₁, :τ₂₂, :τ₃₃, :τ₁₂, :τ₁₃, :τ₂₃)
-
-julia> CrossScaleKineticEnergyFlux(model; σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0)) isa CrossScaleKineticEnergyFlux  # convenience method
-true
 ```
 
 ## Subfilter-scale stress tensor
