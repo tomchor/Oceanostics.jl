@@ -5,7 +5,7 @@ export RichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
 export StrainRateTensor, StrainRateTensorModulus, VorticityTensor, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export StressTensor
-export SubfilterCovariance
+export subfilter_covariance
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 
@@ -885,7 +885,7 @@ The filtered pieces are materialized as `Field`s (so the separable filter's fast
 the returned object is a lazy `AbstractOperation` over those computed fields, ready for `Field`,
 `Integral`, and `OutputWriter`s.
 """
-function SubfilterCovariance(a, b, filter; loc = (Center, Center, Center))
+function subfilter_covariance(a, b, filter; loc = (Center, Center, Center))
     a_loc = Field(@at loc a)                                  # co-locate operands at `loc`
     b_loc = Field(@at loc b)
     filtered_product = Field(filter(Field(a_loc * b_loc)))    # filter(a b)
