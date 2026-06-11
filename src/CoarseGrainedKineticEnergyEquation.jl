@@ -18,7 +18,7 @@ using ..Filters: GaussianFilter, BoxFilter   # BoxFilter is imported so its docs
 # uⱼ, so velocity component d is filtered iff d ∈ dims; the others are passed through untouched (they
 # never enter the kept tensor components). Each filtered velocity is materialized as a `Field` so the
 # separable filter takes its fast staged path and is computed once and reused by both tensors.
-function _filtered_velocities(filter, dims, u, v, w)
+function filtered_velocities(filter, dims, u, v, w)
     ū = (1 in dims) ? Field(filter(u)) : u
     v̄ = (2 in dims) ? Field(filter(v)) : v
     w̄ = (3 in dims) ? Field(filter(w)) : w
@@ -29,7 +29,7 @@ end
 # `StressTensor` to build the momentum-flux tensor uⁱuʲ of both the full and the filtered velocity;
 # `filter` is applied to the (materialized) full flux and the filtered flux is subtracted. The result
 # is a `NamedTuple` with the same keys/locations as `StressTensor`.
-function _subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, collocate_diagonals=false)
+function subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, collocate_diagonals=false)
     flux_full = StressTensor(grid, u, v, w; dims, collocate_diagonals)   # uⁱuʲ
     flux_filt = StressTensor(grid, ū, v̄, w̄; dims, collocate_diagonals)   # ūⁱūʲ
     subfilter(full, coarse) = Field(filter(Field(full))) - coarse        # filter(uⁱuʲ) - ūⁱūʲ
@@ -94,8 +94,8 @@ function SubfilterStressTensor(model, filter; dims = (1, 2, 3), collocate_diagon
     FlowDiagnostics.validate_dims(dims)
     grid = model.grid
     u, v, w = model.velocities
-    ū, v̄, w̄ = _filtered_velocities(filter, dims, u, v, w)
-    return _subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, collocate_diagonals)
+    ū, v̄, w̄ = filtered_velocities(filter, dims, u, v, w)
+    return subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, collocate_diagonals)
 end
 
 SubfilterStressTensor(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing, collocate_diagonals = false) =
@@ -183,13 +183,13 @@ function KineticEnergyCrossScaleFlux(model, filter; dims = (1, 2, 3))
     FlowDiagnostics.validate_dims(dims)
     grid = model.grid
     u, v, w = model.velocities
-    ū, v̄, w̄ = _filtered_velocities(filter, dims, u, v, w)
+    ū, v̄, w̄ = filtered_velocities(filter, dims, u, v, w)
 
     # Resolved-scale strain S̄ⁱʲ from the filtered velocities, and the subfilter stress τⁱʲ. The
     # contraction interpolates every component to cell centers, so the components can stay at their
     # natural staggered locations here; the result is wrapped in a `KernelFunctionOperation`.
     S̄ = StrainRateTensor(grid, ū, v̄, w̄; dims)
-    τ = _subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims)
+    τ = subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims)
     return KernelFunctionOperation{Center, Center, Center}(cross_scale_ke_flux_ccc, grid, _cross_scale_ke_flux(τ, S̄))
 end
 
