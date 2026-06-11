@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Kinetic energy equation · Oceanostics.jl</title><meta name="title" content="Kinetic energy equation · Oceanostics.jl"/><meta property="og:title" content="Kinetic energy equation · Oceanostics.jl"/><meta property="twitter:title" content="Kinetic energy equation · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox" checked/><label class="tocitem" for="menuitem-2"><span class="docs-label">Budget equations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../tracer_equation/">Tracer equation</a></li><li><a class="tocitem" href="../momentum_equation/">Momentum equation</a></li><li class="is-active"><a class="tocitem" href>Kinetic energy equation</a><ul class="internal"><li><a class="tocitem" href="#Example"><span>Example</span></a></li><li><a class="tocitem" href="#Kinetic-energy"><span>Kinetic energy</span></a></li><li><a class="tocitem" href="#Tendency"><span>Tendency</span></a></li><li><a class="tocitem" href="#Advection"><span>Advection</span></a></li><li><a class="tocitem" href="#Stress-(diffusive)-term"><span>Stress (diffusive) term</span></a></li><li><a class="tocitem" href="#Forcing"><span>Forcing</span></a></li><li><a class="tocitem" href="#Pressure-redistribution"><span>Pressure redistribution</span></a></li><li><a class="tocitem" href="#Buoyancy-production"><span>Buoyancy production</span></a></li><li><a class="tocitem" href="#Dissipation-rate"><span>Dissipation rate</span></a></li></ul></li><li><a class="tocitem" href="../turbulent_kinetic_energy_equation/">Turbulent kinetic energy equation</a></li><li><a class="tocitem" href="../tracer_variance_equation/">Tracer variance equation</a></li><li><a class="tocitem" href="../potential_energy_equation/">Potential energy equation</a></li></ul></li><li><a class="tocitem" href="../flow_diagnostics/">Flow diagnostics</a></li><li><a class="tocitem" href="../progress_messengers/">Progress messengers</a></li><li><a class="tocitem" href="../filters/">Filters</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox"/><label class="tocitem" for="menuitem-6"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../generated/two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li><a class="tocitem" href="../generated/kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li><a class="tocitem" href="../generated/tilted_bottom_boundary_layer/">Tilted bottom boundary layer</a></li><li><a class="tocitem" href="../generated/spatial_filtering/">Spatial filtering</a></li></ul></li><li><a class="tocitem" href="../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Budget equations</a></li><li class="is-active"><a href>Kinetic energy equation</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Kinetic energy equation</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/src/kinetic_energy_equation.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Kinetic-energy-equation"><a class="docs-heading-anchor" href="#Kinetic-energy-equation">Kinetic energy equation</a><a id="Kinetic-energy-equation-1"></a><a class="docs-heading-anchor-permalink" href="#Kinetic-energy-equation" title="Permalink"></a></h1><p>The <code>KineticEnergyEquation</code> module provides diagnostics for every term in the resolved kinetic energy (KE) budget. The kinetic energy per unit mass is defined as</p><p class="math-container">\[K = \tfrac{1}{2} u_i u_i\]</p><p>and its prognostic equation is obtained by contracting the momentum equation with the velocity:</p><p class="math-container">\[\partial_t K = \underbrace{-u_i \partial_j(u_i u_j)}_{\text{advection}}
+             + \underbrace{u_i \partial_j \tau_{ij}}_{\text{stress}}
+             - \underbrace{u_i \partial_i p}_{\text{pressure}}
+             + \underbrace{u_i b_i}_{\text{buoyancy}}
+             + \underbrace{u_i F_{u_i}}_{\text{forcing}}\]</p><p>where <span>$\tau_{ij}$</span> is the viscous/subgrid stress tensor, <span>$p$</span> is pressure, <span>$b_i$</span> is the buoyancy acceleration component in the <span>$i$</span>-th direction, and <span>$F_{u_i}$</span> is the forcing on the <span>$i$</span>-th momentum equation.</p><p>This decomposition is essential for understanding how kinetic energy is generated (e.g. by buoyancy production or forcing), redistributed (by advection or pressure work), and removed (by viscous dissipation). The module also provides two formulations of the dissipation rate: a general one based on the full stress tensor (<span>$\varepsilon = \partial_j u_i \cdot F_{ij}$</span>), and an isotropic version (<span>$\varepsilon = 2\nu S_{ij} S_{ij}$</span>) valid when the turbulence closure uses a single scalar viscosity.</p><p>All diagnostics are computed at <code>(Center, Center, Center)</code>.</p><h2 id="Example"><a class="docs-heading-anchor" href="#Example">Example</a><a id="Example-1"></a><a class="docs-heading-anchor-permalink" href="#Example" title="Permalink"></a></h2><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(ν=1e-4));
+
+julia&gt; KE = KineticEnergyEquation.KineticEnergy(model)
+KineticEnergy KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;)
+└── computes: kinetic energy  ½uᵢuᵢ
+
+julia&gt; ε = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(model)
+KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;NamedTuple&quot;)
+└── computes: isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ
+
+julia&gt; wb = KineticEnergyEquation.BuoyancyProduction(model)
+KineticEnergyBuoyancyProduction KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;BuoyancyForce&quot;, &quot;NamedTuple&quot;)
+└── computes: kinetic energy buoyancy production  uᵢbᵢ</code></pre><h2 id="Kinetic-energy"><a class="docs-heading-anchor" href="#Kinetic-energy">Kinetic energy</a><a id="Kinetic-energy-1"></a><a class="docs-heading-anchor-permalink" href="#Kinetic-energy" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.KineticEnergyEquation.KineticEnergy"><a class="docstring-binding" href="#Oceanostics.KineticEnergyEquation.KineticEnergy"><code>Oceanostics.KineticEnergyEquation.KineticEnergy</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">KineticEnergy(model, u, v, w; location)
+</code></pre><p>Calculate the kinetic energy of <code>model</code> manually specifying <code>u</code>, <code>v</code> and <code>w</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; KE = KineticEnergyEquation.KineticEnergy(model, model.velocities...)
+KineticEnergy KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;)
+└── computes: kinetic energy  ½uᵢuᵢ</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/KineticEnergyEquation.jl#L43-L62">source</a></section><section><div><pre><code class="language-julia hljs">KineticEnergy(model; kwargs...)
+</code></pre><p>Calculate the kinetic energy of <code>model</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; KE = KineticEnergyEquation.KineticEnergy(model)
+KineticEnergy KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;)
+└── computes: kinetic energy  ½uᵢuᵢ</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/KineticEnergyEquation.jl#L68-L87">source</a></section></details></article><h2 id="Tendency"><a class="docs-heading-anchor" href="#Tendency">Tendency</a><a id="Tendency-1"></a><a class="docs-heading-anchor-permalink" href="#Tendency" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.KineticEnergyEquation.KineticEnergyTendency"><a class="docstring-binding" href="#Oceanostics.KineticEnergyEquation.KineticEnergyTendency"><code>Oceanostics.KineticEnergyEquation.KineticEnergyTendency</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">KineticEnergyTendency(model; location)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the tendency uᵢGᵢ of the KE, excluding the nonhydrostatic pressure contribution:</p><pre><code class="language-julia hljs">KET = ½∂ₜuᵢ² = uᵢGᵢ - uᵢ∂ᵢpₙₕₛ</code></pre><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans
+
+julia&gt; grid = RectilinearGrid(size = (1, 1, 4), extent = (1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; using Oceanostics.KineticEnergyEquation: KineticEnergyTendency
+
+julia&gt; ke_tendency = KineticEnergyTendency(model)
+KineticEnergyTendency KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢGᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;Centered&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Oceananigans.Models.NonhydrostaticModels.BackgroundFields&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;)
+└── computes: kinetic energy tendency  uᵢGᵢ (excl. nonhydrostatic pressure)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/KineticEnergyEquation.jl#L119-L143">source</a></section></details></article><h2 id="Advection"><a class="docs-heading-anchor" href="#Advection">Advection</a><a id="Advection-1"></a><a class="docs-heading-anchor-permalink" href="#Advection" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.KineticEnergyEquation.KineticEnergyAdvection"><a class="docstring-binding" href="#Oceanostics.KineticEnergyEquation.KineticEnergyAdvection"><code>Oceanostics.KineticEnergyEquation.KineticEnergyAdvection</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">KineticEnergyAdvection(model; velocities, location)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the advection term, defined as</p><pre><code class="language-julia hljs">ADV = uᵢ∂ⱼ(uᵢuⱼ)</code></pre><p>By default, the buoyancy production will be calculated using the resolved <code>velocities</code> and users cab use the keyword <code>velocities</code> to modify that behavior:</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans
+
+julia&gt; grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; using Oceanostics.KineticEnergyEquation: KineticEnergyAdvection
+
+julia&gt; ADV = KineticEnergyAdvection(model)
+KineticEnergyAdvection KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢ∂ⱼuⱼuᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Centered&quot;)
+└── computes: kinetic energy advection  uᵢ∂ⱼ(uᵢuⱼ)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/KineticEnergyEquation.jl#L177-L203">source</a></section></details></article><h2 id="Stress-(diffusive)-term"><a class="docs-heading-anchor" href="#Stress-(diffusive)-term">Stress (diffusive) term</a><a id="Stress-(diffusive)-term-1"></a><a class="docs-heading-anchor-permalink" href="#Stress-(diffusive)-term" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.KineticEnergyEquation.KineticEnergyStress"><a class="docstring-binding" href="#Oceanostics.KineticEnergyEquation.KineticEnergyStress"><code>Oceanostics.KineticEnergyEquation.KineticEnergyStress</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">KineticEnergyStress(model; location)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the diffusive term of the KE prognostic equation:</p><pre><code class="language-julia hljs">    DIFF = uᵢ∂ⱼτᵢⱼ</code></pre><p>where <code>uᵢ</code> are the velocity components and <code>τᵢⱼ</code> is the diffusive flux of <code>i</code> momentum in the <code>j</code>-th direction.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
+
+julia&gt; DIFF = KineticEnergyEquation.KineticEnergyStress(model)
+KineticEnergyStress KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;ScalarDiffusivity&quot;, &quot;Nothing&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)
+└── computes: kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/KineticEnergyEquation.jl#L227-L253">source</a></section></details></article><h2 id="Forcing"><a class="docs-heading-anchor" href="#Forcing">Forcing</a><a id="Forcing-1"></a><a class="docs-heading-anchor-permalink" href="#Forcing" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.KineticEnergyEquation.KineticEnergyForcing"><a class="docstring-binding" href="#Oceanostics.KineticEnergyEquation.KineticEnergyForcing"><code>Oceanostics.KineticEnergyEquation.KineticEnergyForcing</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">KineticEnergyForcing(model; location)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the forcing term of the KE prognostic equation:</p><pre><code class="language-julia hljs">    FORC = uᵢFᵤᵢ</code></pre><p>where <code>uᵢ</code> are the velocity components and <code>Fᵤᵢ</code> is the forcing term(s) in the <code>uᵢ</code> prognostic equation (i.e. the forcing for <code>uᵢ</code>).</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; FORC = KineticEnergyEquation.KineticEnergyForcing(model)
+KineticEnergyForcing KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: uᵢFᵤᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;)
+└── computes: kinetic energy forcing  uᵢFᵤᵢ</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/KineticEnergyEquation.jl#L285-L311">source</a></section></details></article><h2 id="Pressure-redistribution"><a class="docs-heading-anchor" href="#Pressure-redistribution">Pressure redistribution</a><a id="Pressure-redistribution-1"></a><a class="docs-heading-anchor-permalink" href="#Pressure-redistribution" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution"><a class="docstring-binding" href="#Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution"><code>Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">KineticEnergyPressureRedistribution(
+    model;
+    velocities,
+    pressure,
+    location
+)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the pressure redistribution term:</p><pre><code class="language-julia hljs">PR = uᵢ∂ᵢp</code></pre><p>where <code>p</code> is the pressure. By default <code>p</code> is taken to be the total pressure (nonhydrostatic + hydrostatic):</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans
+
+julia&gt; grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; using Oceanostics.KineticEnergyEquation: KineticEnergyPressureRedistribution
+
+julia&gt; ∇u⃗p = KineticEnergyPressureRedistribution(model)
+KineticEnergyPressureRedistribution KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Field&quot;)
+└── computes: kinetic energy pressure redistribution  uᵢ∂ᵢp</code></pre><p>We can also pass <code>velocities</code> and <code>pressure</code> keywords to perform more specific calculations. The example below illustrates calculation of the nonhydrostatic contribution to the pressure redistrubution term:</p><pre><code class="language-julia-repl hljs">julia&gt; ∇u⃗pNHS = KineticEnergyPressureRedistribution(model, pressure=model.pressures.pNHS)
+KineticEnergyPressureRedistribution KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢ∂ᵢpᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;Field&quot;)
+└── computes: kinetic energy pressure redistribution  uᵢ∂ᵢp</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/KineticEnergyEquation.jl#L334-L372">source</a></section></details></article><h2 id="Buoyancy-production"><a class="docs-heading-anchor" href="#Buoyancy-production">Buoyancy production</a><a id="Buoyancy-production-1"></a><a class="docs-heading-anchor-permalink" href="#Buoyancy-production" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.KineticEnergyEquation.BuoyancyProduction"><a class="docstring-binding" href="#Oceanostics.KineticEnergyEquation.BuoyancyProduction"><code>Oceanostics.KineticEnergyEquation.BuoyancyProduction</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">BuoyancyProduction(model; velocities, tracers, location)
+</code></pre><p>Return a <code>KernelFunctionOperation</code> that computes the buoyancy production term, defined as</p><pre><code class="language-julia hljs">BP = uᵢbᵢ</code></pre><p>where bᵢ is the component of the buoyancy acceleration in the <code>i</code>-th direction (which is zero for x and y, except when <code>gravity_unit_vector</code> isn&#39;t aligned with the grid&#39;s z-direction) and all three components of <code>i=1,2,3</code> are added up.</p><p>By default, the buoyancy production will be calculated using the resolved <code>velocities</code> and <code>tracers</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans
+
+julia&gt; grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
+
+julia&gt; model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
+
+julia&gt; using Oceanostics.KineticEnergyEquation: BuoyancyProduction
+
+julia&gt; wb = BuoyancyProduction(model)
+KineticEnergyBuoyancyProduction KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;BuoyancyForce&quot;, &quot;NamedTuple&quot;)
+└── computes: kinetic energy buoyancy production  uᵢbᵢ</code></pre><p>If we want to calculate only the <em>turbulent</em> buoyancy production rate, we can do so by passing turbulent perturbations to the <code>velocities</code> and/or <code>tracers</code> options):</p><pre><code class="language-julia-repl hljs">julia&gt; w′ = Field(model.velocities.w - Field(Average(model.velocities.w)));
+
+julia&gt; b′ = Field(model.tracers.b - Field(Average(model.tracers.b)));
+
+julia&gt; w′b′ = BuoyancyProduction(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
+KineticEnergyBuoyancyProduction KernelFunctionOperation at (Center, Center, Center)
+├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
+├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
+└── arguments: (&quot;NamedTuple&quot;, &quot;BuoyancyForce&quot;, &quot;NamedTuple&quot;)
+└── computes: kinetic energy buoyancy production  uᵢbᵢ</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/KineticEnergyEquation.jl#L392-L438">source</a></section></details></article><h2 id="Dissipation-rate"><a class="docs-heading-anchor" href="#Dissipation-rate">Dissipation rate</a><a id="Dissipation-rate-1"></a><a class="docs-heading-anchor-permalink" href="#Dissipation-rate" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.KineticEnergyEquation.DissipationRate"><a class="docstring-binding" href="#Oceanostics.KineticEnergyEquation.DissipationRate"><code>Oceanostics.KineticEnergyEquation.DissipationRate</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">DissipationRate(model; U, V, W, location)
+</code></pre><p>Calculate the Kinetic Energy Dissipation Rate, defined as</p><pre><code class="language-julia hljs">ε = ∂ⱼuᵢ ⋅ Fᵢⱼ</code></pre><p>where ∂ⱼuᵢ is the velocity gradient tensor and Fᵢⱼ is the stress tensor.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
+
+julia&gt; ε = KineticEnergyEquation.DissipationRate(model)
+KineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Nothing&quot;, &quot;NamedTuple&quot;, &quot;NamedTuple&quot;)
+└── computes: kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/KineticEnergyEquation.jl#L478-L501">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.KineticEnergyEquation.KineticEnergyIsotropicDissipationRate"><a class="docstring-binding" href="#Oceanostics.KineticEnergyEquation.KineticEnergyIsotropicDissipationRate"><code>Oceanostics.KineticEnergyEquation.KineticEnergyIsotropicDissipationRate</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">KineticEnergyIsotropicDissipationRate(
+    u,
+    v,
+    w,
+    closure,
+    closure_fields,
+    model_fields,
+    clock;
+    location
+)
+</code></pre><p>Calculate the Viscous Dissipation Rate as</p><pre><code class="language-julia hljs">ε = 2 ν SᵢⱼSᵢⱼ,</code></pre><p>where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a turbulence closure where ν (eddy or not) is the same for all directions).</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
+
+julia&gt; ε = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(model)
+KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;NamedTuple&quot;)
+└── computes: isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/KineticEnergyEquation.jl#L535-L559">source</a></section></details></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../momentum_equation/">« Momentum equation</a><a class="docs-footer-nextpage" href="../turbulent_kinetic_energy_equation/">Turbulent kinetic energy equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 11 June 2026 19:27">Thursday 11 June 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

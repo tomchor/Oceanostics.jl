@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tracer equation · Oceanostics.jl</title><meta name="title" content="Tracer equation · Oceanostics.jl"/><meta property="og:title" content="Tracer equation · Oceanostics.jl"/><meta property="twitter:title" content="Tracer equation · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox" checked/><label class="tocitem" for="menuitem-2"><span class="docs-label">Budget equations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>Tracer equation</a><ul class="internal"><li><a class="tocitem" href="#Example"><span>Example</span></a></li><li><a class="tocitem" href="#Advection"><span>Advection</span></a></li><li><a class="tocitem" href="#Diffusion"><span>Diffusion</span></a></li><li><a class="tocitem" href="#Forcing"><span>Forcing</span></a></li></ul></li><li><a class="tocitem" href="../momentum_equation/">Momentum equation</a></li><li><a class="tocitem" href="../kinetic_energy_equation/">Kinetic energy equation</a></li><li><a class="tocitem" href="../turbulent_kinetic_energy_equation/">Turbulent kinetic energy equation</a></li><li><a class="tocitem" href="../tracer_variance_equation/">Tracer variance equation</a></li><li><a class="tocitem" href="../potential_energy_equation/">Potential energy equation</a></li></ul></li><li><a class="tocitem" href="../flow_diagnostics/">Flow diagnostics</a></li><li><a class="tocitem" href="../progress_messengers/">Progress messengers</a></li><li><a class="tocitem" href="../filters/">Filters</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox"/><label class="tocitem" for="menuitem-6"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../generated/two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li><a class="tocitem" href="../generated/kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li><a class="tocitem" href="../generated/tilted_bottom_boundary_layer/">Tilted bottom boundary layer</a></li><li><a class="tocitem" href="../generated/spatial_filtering/">Spatial filtering</a></li></ul></li><li><a class="tocitem" href="../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Budget equations</a></li><li class="is-active"><a href>Tracer equation</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tracer equation</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/src/tracer_equation.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Tracer-equation"><a class="docs-heading-anchor" href="#Tracer-equation">Tracer equation</a><a id="Tracer-equation-1"></a><a class="docs-heading-anchor-permalink" href="#Tracer-equation" title="Permalink"></a></h1><p>The <code>TracerEquation</code> module provides diagnostics corresponding to individual terms in the tracer conservation equation. In Oceananigans, the prognostic equation for a tracer <span>$c$</span> (e.g. temperature, salinity, or a passive scalar) is</p><p class="math-container">\[\partial_t c = -\partial_j (u_j c) + \partial_j q^c_j + F^c\]</p><p>where <span>$u_j$</span> is the resolved velocity field, <span>$q^c_j$</span> is the subgrid diffusive flux of <span>$c$</span> in the <span>$j$</span>-th direction (parameterized by the turbulence closure), and <span>$F^c$</span> represents any external forcing applied to the tracer.</p><p>This module decomposes the right-hand side into its constituent terms so that each can be computed, output, and analyzed independently. This is useful for constructing tracer budgets, diagnosing the relative importance of advection versus diffusion, or verifying that the budget closes numerically (i.e., that the sum of all terms equals the tendency).</p><p>Each diagnostic is built on Oceananigans&#39; <code>KernelFunctionOperation</code> and is computed at <code>(Center, Center, Center)</code>. Constructors accept either a full Oceananigans <code>model</code> object (with a tracer name) or individual fields for maximum flexibility.</p><h2 id="Example"><a class="docs-heading-anchor" href="#Example">Example</a><a id="Example-1"></a><a class="docs-heading-anchor-permalink" href="#Example" title="Permalink"></a></h2><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; tracers=:b, closure=ScalarDiffusivity(ν=1e-4, κ=1e-4));
+
+julia&gt; adv  = TracerEquation.Advection(model, :b)
+TracerAdvection KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: div_Uc (generic function with 12 methods)
+└── arguments: (&quot;Centered&quot;, &quot;NamedTuple&quot;, &quot;Field&quot;)
+└── computes: tracer advection  ∂ⱼ(uⱼc)
+
+julia&gt; diff = TracerEquation.Diffusion(model, :b)
+TracerDiffusion KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ∇_dot_qᶜ (generic function with 10 methods)
+└── arguments: (&quot;ScalarDiffusivity&quot;, &quot;Nothing&quot;, &quot;Val&quot;, &quot;Field&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)
+└── computes: tracer diffusion (interior)  ∂ⱼqᶜⱼ
+
+julia&gt; forc = TracerEquation.Forcing(model, :b)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: Returns (generic function with 1 method)
+└── arguments: (&quot;Clock&quot;, &quot;NamedTuple&quot;)</code></pre><h2 id="Advection"><a class="docs-heading-anchor" href="#Advection">Advection</a><a id="Advection-1"></a><a class="docs-heading-anchor-permalink" href="#Advection" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.TracerEquation.Advection"><a class="docstring-binding" href="#Oceanostics.TracerEquation.Advection"><code>Oceanostics.TracerEquation.Advection</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Advection(model, u, v, w, c, advection; location)
+</code></pre><p>Calculates the advection of the tracer <code>c</code> as</p><pre><code class="language-julia hljs">ADV = ∂ⱼ (uⱼ c)</code></pre><p>using Oceananigans&#39; kernel <a href="https://clima.github.io/OceananigansDocumentation/stable/appendix/library/#Oceananigans.Advection.div_Uc-NTuple{7,%20Any}"><code>div_Uc</code>.</a></p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; tracers=:a);
+
+julia&gt; ADV = TracerEquation.Advection(model, :a)
+TracerAdvection KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: div_Uc (generic function with 12 methods)
+└── arguments: (&quot;Centered&quot;, &quot;NamedTuple&quot;, &quot;Field&quot;)
+└── computes: tracer advection  ∂ⱼ(uⱼc)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/TracerEquation.jl#L32-L55">source</a></section></details></article><h2 id="Diffusion"><a class="docs-heading-anchor" href="#Diffusion">Diffusion</a><a id="Diffusion-1"></a><a class="docs-heading-anchor-permalink" href="#Diffusion" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.TracerEquation.Diffusion"><a class="docstring-binding" href="#Oceanostics.TracerEquation.Diffusion"><code>Oceanostics.TracerEquation.Diffusion</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Diffusion(
+    model,
+    val_tracer_index,
+    c,
+    closure,
+    closure_fields,
+    clock,
+    model_fields,
+    buoyancy;
+    location
+)
+</code></pre><p>Calculates the diffusion term (excluding anything due to the bathymetry) as</p><pre><code class="language-julia hljs">DIFF = ∂ⱼ qᶜⱼ,</code></pre><p>where qᶜⱼ is the diffusion tensor for tracer <code>c</code>, using the Oceananigans&#39; kernel <code>∇_dot_qᶜ</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; tracers=:a);
+
+julia&gt; DIFF = TracerEquation.Diffusion(model, :a)
+TracerDiffusion KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ∇_dot_qᶜ (generic function with 10 methods)
+└── arguments: (&quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Val&quot;, &quot;Field&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)
+└── computes: tracer diffusion (interior)  ∂ⱼqᶜⱼ</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/TracerEquation.jl#L74-L97">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.TracerEquation.ImmersedDiffusion"><a class="docstring-binding" href="#Oceanostics.TracerEquation.ImmersedDiffusion"><code>Oceanostics.TracerEquation.ImmersedDiffusion</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">ImmersedDiffusion(
+    model,
+    c,
+    c_immersed_bc,
+    closure,
+    closure_fields,
+    val_tracer_index,
+    clock,
+    model_fields;
+    location
+)
+</code></pre><p>Calculates the diffusion term due to the bathymetry term as</p><pre><code class="language-julia hljs">DIFF = ∂ⱼ 𝓆ᶜⱼ,</code></pre><p>where 𝓆ᶜⱼ is the bathymetry-led diffusion tensor for tracer <code>c</code>, using the Oceananigans&#39; kernel <code>immersed_∇_dot_qᶜ</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; tracers=:a);
+
+julia&gt; DIFF = TracerEquation.ImmersedDiffusion(model, :a)
+TracerImmersedDiffusion KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: immersed_∇_dot_qᶜ (generic function with 2 methods)
+└── arguments: (&quot;Field&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Val&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;)
+└── computes: tracer diffusion through immersed boundaries  ∂ⱼ𝓆ᶜⱼ</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/TracerEquation.jl#L110-L134">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.TracerEquation.TotalDiffusion"><a class="docstring-binding" href="#Oceanostics.TracerEquation.TotalDiffusion"><code>Oceanostics.TracerEquation.TotalDiffusion</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">TotalDiffusion(
+    model,
+    c,
+    c_immersed_bc,
+    closure,
+    closure_fields,
+    val_tracer_index,
+    clock,
+    model_fields,
+    buoyancy;
+    location
+)
+</code></pre><p>Calculates the total diffusion term as</p><pre><code class="language-julia hljs">DIFF = ∂ⱼ qᶜⱼ + ∂ⱼ 𝓆ᶜⱼ,</code></pre><p><code>c</code>. The calculation is done using the Oceananigans&#39; kernels <code>∇_dot_qᶜ</code> and <code>immersed_∇_dot_qᶜ</code>. where qᶜⱼ is the interior diffusion tensor and 𝓆ᶜⱼ is the bathymetry-led diffusion tensor for tracer</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; tracers=:a);
+
+julia&gt; DIFF = TracerEquation.TotalDiffusion(model, :a)
+TracerTotalDiffusion KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: total_∇_dot_qᶜ (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Nothing&quot;, &quot;Val&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)
+└── computes: total tracer diffusion (interior + immersed)  ∂ⱼqᶜⱼ + ∂ⱼ𝓆ᶜⱼ</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/TracerEquation.jl#L147-L171">source</a></section></details></article><h2 id="Forcing"><a class="docs-heading-anchor" href="#Forcing">Forcing</a><a id="Forcing-1"></a><a class="docs-heading-anchor-permalink" href="#Forcing" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.TracerEquation.Forcing"><a class="docstring-binding" href="#Oceanostics.TracerEquation.Forcing"><code>Oceanostics.TracerEquation.Forcing</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">Forcing(model, forcing, clock, model_fields; location)
+</code></pre><p>Calculate the forcing term <code>Fᶜ</code> on the equation for tracer <code>c</code> for <code>model</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; tracers=:a);
+
+julia&gt; FORC = TracerEquation.Forcing(model, :a)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: Returns (generic function with 1 method)
+└── arguments: (&quot;Clock&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/2fb2fd5e3f6dee1485977cac14a0a00cca1d4f55/src/TracerEquation.jl#L186-L204">source</a></section></details></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../momentum_equation/">Momentum equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 11 June 2026 19:27">Thursday 11 June 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
