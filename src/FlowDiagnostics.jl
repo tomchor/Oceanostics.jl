@@ -886,10 +886,13 @@ the returned object is a lazy `AbstractOperation` over those computed fields, re
 `Integral`, and `OutputWriter`s.
 """
 function subfilter_covariance(a, b, filter; loc = (Center, Center, Center))
-    a_loc = Field(@at loc a)                                  # co-locate operands at `loc`
-    b_loc = Field(@at loc b)
-    filtered_product = Field(filter(Field(a_loc * b_loc)))    # filter(a b)
-    return filtered_product - Field(filter(a_loc)) * Field(filter(b_loc))  # − ā b̄
+    # co-locate operands at `loc`
+    a_loc = @at loc a
+    b_loc = @at loc b
+
+    # Wrap some computations in Field to make them compile more easily on GPUs
+    filtered_product = Field(filter(Field(a_loc * b_loc))) # ⟨a b⟩
+    return filtered_product - Field(filter(a_loc)) * Field(filter(b_loc))  # ⟨a b⟩ - ⟨a⟩ ⟨b⟩
 end
 #---
 
