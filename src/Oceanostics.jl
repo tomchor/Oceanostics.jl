@@ -250,6 +250,23 @@ function _show_diagnostic(io::IO, op, name, description)
 end
 
 """
+Print the compact `summary(op)` one-liner (used when a diagnostic appears nested in a container, e.g.
+the `NamedTuple` of components a tensor returns), tinting the leading `name` with `DESCRIPTION_CRAYON`
+on color-capable streams — so the name matches the colored header of the multi-line `show`. The
+summary starts with `name`, so we recolor only that prefix and leave the rest (` KernelFunctionOperation
+at …`) untinted, exactly as the tree does.
+"""
+function _show_diagnostic_summary(io::IO, op, name)
+    s = summary(op)
+    if get(io, :color, false)
+        c = DESCRIPTION_CRAYON[]
+        s = replace(s, name => string(c, name, inv(c)); count = 1)
+    end
+    print(io, s)
+    return nothing
+end
+
+"""
     @diagnostic_show T name [description]
 
 Give the `CustomKFO` type alias `T` a custom display: rename its `show`/`summary` header to
@@ -258,6 +275,12 @@ Give the `CustomKFO` type alias `T` a custom display: rename its `show`/`summary
 `<name>` and the description are tinted with `DESCRIPTION_CRAYON`. The header rename goes
 through Oceananigans' `operation_name`, so it also propagates (uncolored) to `summary(op)` and to
 `op`'s appearance inside larger operation trees and `Field` operand lines.
+
+Following the Julia convention, the full multi-line tree is the *three-arg* `show` (used by the
+REPL/`display` for a standalone object), while the *two-arg* `show` is the compact `summary(op)`
+one-liner with the leading `<name>` tinted the same `DESCRIPTION_CRAYON` as the tree's header. This
+keeps a diagnostic readable when it appears nested in a container — e.g. inside the `NamedTuple` of
+components a tensor diagnostic returns, which would otherwise print one full tree per component.
 """
 macro diagnostic_show(T, name, description="")
     T = esc(T)
@@ -265,7 +288,8 @@ macro diagnostic_show(T, name, description="")
         # `operation_name` is escaped so the method extends the function imported from Oceananigans
         # (hygiene would otherwise treat the unqualified name as a fresh, separate binding).
         $(esc(:operation_name))(::$T) = $name * " KernelFunctionOperation"
-        Base.show(io::IO, op::$T) = _show_diagnostic(io, op, $name, $description)
+        Base.show(io::IO, ::MIME"text/plain", op::$T) = _show_diagnostic(io, op, $name, $description)
+        Base.show(io::IO, op::$T) = _show_diagnostic_summary(io, op, $name)
     end
 end
 
@@ -355,6 +379,9 @@ end
 @diagnostic_show FlowDiagnostics.StrainRateTensorModulus            "StrainRateTensorModulus"            "strain-rate tensor modulus  √(SᵢⱼSᵢⱼ)"
 @diagnostic_show FlowDiagnostics.VorticityTensorModulus             "VorticityTensorModulus"             "vorticity tensor modulus  √(ΩᵢⱼΩᵢⱼ)"
 @diagnostic_show FlowDiagnostics.QVelocityGradientTensorInvariant   "QVelocityGradientTensorInvariant"   "Q velocity-gradient invariant  Q = ½(ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)"
+@diagnostic_show FlowDiagnostics.StrainRateTensor                   "StrainRateTensor"                   "strain-rate tensor component  Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)"
+@diagnostic_show FlowDiagnostics.VorticityTensor                    "VorticityTensor"                    "vorticity tensor component  Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)"
+@diagnostic_show FlowDiagnostics.StressTensor                       "StressTensor"                       "stress tensor component  τᵢⱼ = uᵢuⱼ"
 @diagnostic_show CustomKFO{<:FlowDiagnostics.MixedLayerDepthKernel} "MixedLayerDepth"                    "mixed layer depth (shallowest depth where the criterion is met)"
 #---
 
