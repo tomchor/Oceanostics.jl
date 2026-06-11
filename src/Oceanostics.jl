@@ -57,7 +57,7 @@ export StrainRateTensor, StrainRateTensorModulus
 export VorticityTensor, VorticityTensorModulus
 export Q, QVelocityGradientTensorInvariant
 export StressTensor
-export SubfilterFlux
+export SubfilterCovariance
 export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 #---
