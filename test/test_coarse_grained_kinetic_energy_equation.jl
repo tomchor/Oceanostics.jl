@@ -17,8 +17,6 @@ function test_subfilter_stress_tensor(model, filt)
     grid = model.grid
     τ = SubfilterStressTensor(model, filt)
     @test keys(τ) == (:τ₁₁, :τ₂₂, :τ₃₃, :τ₁₂, :τ₁₃, :τ₂₃)
-    @test all(τᵢⱼ -> τᵢⱼ isa SubfilterStressTensor, τ) # every component is recognized by the type alias
-    @test occursin("computes:", sprint(show, MIME"text/plain"(), τ.τ₁₃)) # and has the diagnostic display
 
     # each component lives at the same location as the corresponding `StressTensor` component
     ref = StressTensor(grid, model.velocities...)
@@ -68,10 +66,10 @@ function test_cross_scale_ke_flux_matches_manual(model, filt)
     @test location(Π) == (Center, Center, Center)
     @test interior(Field(Π)) ≈ interior(Field(Π_manual))
 
-    # the flux is a single KernelFunctionOperation with a custom display (cf. PR #250, #254)
+    # the flux is a single KernelFunctionOperation with a custom display (cf. PR #250)
     @test Π isa KineticEnergyCrossScaleFlux
-    @test occursin("KineticEnergyCrossScaleFlux", sprint(show, Π)) # two-arg show = compact summary
-    @test occursin("computes:", sprint(show, MIME"text/plain"(), Π)) # three-arg show = full tree + description
+    @test occursin("KineticEnergyCrossScaleFlux", sprint(show, Π))
+    @test occursin("computes:", sprint(show, Π))
 
     # reachable by the short name CoarseGrainedKineticEnergyEquation.CrossScaleFlux too (same type alias)
     @test CoarseGrainedKineticEnergyEquation.CrossScaleFlux === KineticEnergyCrossScaleFlux

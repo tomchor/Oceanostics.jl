@@ -5,7 +5,7 @@ using DocStringExtensions
 export SubfilterStressTensor, KineticEnergyCrossScaleFlux, CrossScaleFlux
 
 using Oceananigans.Grids: Center, Face
-using Oceananigans.Fields: Field, location
+using Oceananigans.Fields: Field
 using Oceananigans.AbstractOperations: @at, KernelFunctionOperation
 
 using Oceanostics: CustomKFO
@@ -39,24 +39,6 @@ end
 #---
 
 #+++ Subfilter (sub-grid) stress tensor
-# Each subfilter-stress component τᵢⱼ = filter(uᵢuⱼ) - ūᵢūⱼ is a composite operation over materialized
-# filtered `Field`s. To give the components a `CustomKFO` type (so they display like the other tensor
-# diagnostics and are recognized by `isa SubfilterStressTensor`), wrap each one in a
-# `KernelFunctionOperation` whose kernel just forwards the composite's per-cell value, parameterized by
-# the component indices (i, j). Bundling them under one `SubfilterStressTensorKernel` type lets
-# `const SubfilterStressTensor = CustomKFO{<:SubfilterStressTensorKernel}` recognize every component —
-# mirroring the `StressTensorKernel` family in `FlowDiagnostics`.
-struct SubfilterStressTensorKernel{I, J} end
-@inline (::SubfilterStressTensorKernel)(i, j, k, grid, τᵢⱼ) = @inbounds τᵢⱼ[i, j, k]
-
-const SubfilterStressTensor = CustomKFO{<:SubfilterStressTensorKernel}
-
-const _SUBFILTER_STRESS_INDICES = (τ₁₁=(1, 1), τ₂₂=(2, 2), τ₃₃=(3, 3), τ₁₂=(1, 2), τ₁₃=(1, 3), τ₂₃=(2, 3))
-
-# Wrap one raw composite component (at its natural staggered location) into a `SubfilterStressTensor` KFO.
-wrap_subfilter_component(grid, key, τᵢⱼ) =
-    KernelFunctionOperation{location(τᵢⱼ)...}(SubfilterStressTensorKernel{_SUBFILTER_STRESS_INDICES[key]...}(), grid, τᵢⱼ)
-
 """
     $(SIGNATURES)
 
@@ -96,9 +78,8 @@ location as the corresponding [`StressTensor`](@ref) component; `collocate_diago
 meaning as there and is forwarded to it (use `collocate_diagonals = true` to put the diagonals at
 `ccc`, e.g. to form the subfilter kinetic energy `½(τ₁₁ + τ₂₂ + τ₃₃)`). The filtered velocities `ūⁱ`
 and the filtered momentum fluxes `filter(uⁱuʲ)` are materialized as `Field`s internally (the filter's
-fast staged path only fires when wrapped directly in a `Field`), so each returned component is a
-`KernelFunctionOperation` over those computed fields and recomputes correctly when written by an
-`OutputWriter`.
+fast staged path only fires when wrapped directly in a `Field`), so each returned component is a lazy
+operation over those computed fields and recomputes correctly when written by an `OutputWriter`.
 
 `dims` selects which spatial directions enter the tensor, exactly as in [`StressTensor`](@ref):
 component `τⁱʲ` is kept only when both `i` and `j` are in `dims`, and only the velocities used by the
@@ -114,8 +95,7 @@ function SubfilterStressTensor(model, filter; dims = (1, 2, 3), collocate_diagon
     grid = model.grid
     u, v, w = model.velocities
     ū, v̄, w̄ = filtered_velocities(filter, dims, u, v, w)
-    τ = subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, collocate_diagonals) # raw composites
-    return NamedTuple{keys(τ)}(map(k -> wrap_subfilter_component(grid, k, τ[k]), keys(τ)))
+    return subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, collocate_diagonals)
 end
 
 SubfilterStressTensor(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing, collocate_diagonals = false) =
