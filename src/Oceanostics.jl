@@ -383,6 +383,7 @@ end
 @diagnostic_show FlowDiagnostics.StrainRateTensor                   "StrainRateTensor"                   "strain-rate tensor component  Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)"
 @diagnostic_show FlowDiagnostics.VorticityTensor                    "VorticityTensor"                    "vorticity tensor component  Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)"
 @diagnostic_show FlowDiagnostics.StressTensor                       "StressTensor"                       "stress tensor component  τᵢⱼ = uᵢuⱼ"
+@diagnostic_show FlowDiagnostics.SubfilterCovariance               "SubfilterCovariance"                "subfilter covariance  τ(a,b) = filter(a·b) - filter(a)filter(b)"
 @diagnostic_show CustomKFO{<:FlowDiagnostics.MixedLayerDepthKernel} "MixedLayerDepth"                    "mixed layer depth (shallowest depth where the criterion is met)"
 #---
 

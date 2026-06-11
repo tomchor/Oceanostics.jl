@@ -82,6 +82,12 @@ arch = has_cuda_gpu() ? GPU() : CPU()
         filt(ψ) = GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1)
         loc = (Center, Center, Center)
 
+        # it is a single KernelFunctionOperation with a custom display (cf. PR #254)
+        τ_op = SubfilterCovariance(c, Field(@at loc u), filt; loc)
+        @test τ_op isa SubfilterCovariance
+        @test occursin("SubfilterCovariance", sprint(show, τ_op))                       # two-arg = summary
+        @test occursin("computes:", sprint(show, MIME"text/plain"(), τ_op))             # three-arg = full tree
+
         # matches the by-hand covariance formula for co-located operands (guards wiring/sign)
         b = Field(@at loc u); fill_halo_regions!(b)
         a_loc = Field(@at loc c); b_loc = Field(@at loc b)

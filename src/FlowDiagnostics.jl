@@ -852,10 +852,18 @@ end
 #---
 
 #+++ Subfilter covariance (generalized second moment)
+# `SubfilterCovariance` is a single `KernelFunctionOperation` (so it displays like the other diagnostics
+# and composes in operation trees) whose kernel forwards the covariance operation `τ` built below; `τ`'s
+# leaves are materialized filtered `Field`s, so this per-cell evaluation only reads those fields and does
+# arithmetic — it never re-filters.
+@inline subfilter_covariance_kernel(i, j, k, grid, τ) = @inbounds τ[i, j, k]
+
+const SubfilterCovariance = CustomKFO{<:typeof(subfilter_covariance_kernel)}
+
 """
     $(SIGNATURES)
 
-Return a lazy `AbstractOperation` for the generalized subfilter covariance (second moment) of two
+Return a `KernelFunctionOperation` for the generalized subfilter covariance (second moment) of two
 fields `a` and `b` under a low-pass spatial `filter` (overbar):
 
 ```
@@ -882,14 +890,15 @@ field to its filtered counterpart, `ψ -> ψ̄`; build it as a closure over an O
 `filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1)`.
 
 The filtered pieces are materialized as `Field`s (so the separable filter's fast staged path fires);
-the returned object is a lazy `AbstractOperation` over those computed fields, ready for `Field`,
+the returned object is a `KernelFunctionOperation` over those computed fields, ready for `Field`,
 `Integral`, and `OutputWriter`s.
 """
 function SubfilterCovariance(a, b, filter; loc = (Center, Center, Center))
     a_loc = Field(@at loc a)                                  # co-locate operands at `loc`
     b_loc = Field(@at loc b)
     filtered_product = Field(filter(Field(a_loc * b_loc)))    # filter(a b)
-    return filtered_product - Field(filter(a_loc)) * Field(filter(b_loc))  # − ā b̄
+    τ = filtered_product - Field(filter(a_loc)) * Field(filter(b_loc))  # filter(ab) − ā b̄
+    return KernelFunctionOperation{loc...}(subfilter_covariance_kernel, a_loc.grid, τ)
 end
 #---
 
