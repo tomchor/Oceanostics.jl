@@ -61,6 +61,7 @@ function test_velocity_only_flow_diagnostics(model)
 
     Sij = StrainRateTensor(model)
     @test keys(Sij) == (:S₁₁, :S₂₂, :S₃₃, :S₁₂, :S₁₃, :S₂₃)
+    @test all(Sᵢⱼ -> Sᵢⱼ isa StrainRateTensor, Sij) # every component is recognized by the type alias
     @test location(Sij.S₁₁) == (Center, Center, Center)
     @test location(Sij.S₁₂) == (Face, Face, Center)
     @test location(Sij.S₁₃) == (Face, Center, Face)
@@ -93,6 +94,7 @@ function test_velocity_only_flow_diagnostics(model)
 
     τij = StressTensor(model)
     @test keys(τij) == (:τ₁₁, :τ₂₂, :τ₃₃, :τ₁₂, :τ₁₃, :τ₂₃)
+    @test all(τᵢⱼ -> τᵢⱼ isa StressTensor, τij) # every component is recognized by the type alias
     # default `collocate_diagonals = false`: diagonals are interpolation-free, at each velocity's location
     @test location(τij.τ₁₁) == (Face, Center, Center)
     @test location(τij.τ₂₂) == (Center, Face, Center)
@@ -109,6 +111,7 @@ function test_velocity_only_flow_diagnostics(model)
     # `collocate_diagonals = true`: diagonals are interpolated to a shared ccc location instead
     τij_c = StressTensor(model; collocate_diagonals=true)
     @test keys(τij_c) == keys(τij)
+    @test all(τᵢⱼ -> τᵢⱼ isa StressTensor, τij_c) # collocated diagonals are recognized too
     @test location(τij_c.τ₁₁) == (Center, Center, Center)
     @test location(τij_c.τ₂₂) == (Center, Center, Center)
     @test location(τij_c.τ₃₃) == (Center, Center, Center)
@@ -157,6 +160,7 @@ function test_velocity_only_flow_diagnostics(model)
 
     Ωij = VorticityTensor(model)
     @test keys(Ωij) == (:Ω₁₂, :Ω₁₃, :Ω₂₃) # antisymmetric tensor: only off-diagonals, no diagonals
+    @test all(Ωᵢⱼ -> Ωᵢⱼ isa VorticityTensor, Ωij) # every component is recognized by the type alias
     @test location(Ωij.Ω₁₂) == (Face, Face, Center)
     @test location(Ωij.Ω₁₃) == (Face, Center, Face)
     @test location(Ωij.Ω₂₃) == (Center, Face, Face)
