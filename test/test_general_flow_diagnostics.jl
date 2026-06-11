@@ -1,10 +1,9 @@
 using Test
 using CUDA: has_cuda_gpu, @allowscalar
-using Random
 using Oceananigans
 using Oceananigans: fill_halo_regions!
 using Oceananigans.AbstractOperations: volume, @at
-using Oceananigans.Grids: Center, Face
+using Oceananigans.Grids: Center
 using Oceanostics
 using Oceanostics: subfilter_covariance, GaussianFilter
 
@@ -68,7 +67,8 @@ arch = has_cuda_gpu() ? GPU() : CPU()
     end
 
     @testset "subfilter_covariance" begin
-        Random.seed!(1234)
+        # no RNG seeding: each assertion compares the diagnostic against a by-hand computation on the
+        # same fields, so it holds for any field regardless of the (unmanaged) global RNG state.
         sf_grid = RectilinearGrid(arch, size=(8, 8, 8), x=(0, 1), y=(0, 1), z=(0, 1),
                                   topology=(Periodic, Periodic, Periodic))
         model = NonhydrostaticModel(sf_grid; tracers=:c)

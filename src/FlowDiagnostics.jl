@@ -859,7 +859,7 @@ Return a lazy `AbstractOperation` for the generalized subfilter covariance (seco
 fields `a` and `b` under a low-pass spatial `filter` (overbar):
 
 ```
-    τ(a, b) = filter(a b) - filter(a) filter(b)
+    τ(a, b) = filter(a·b) - filter(a)·filter(b)
 ```
 
 co-located at `loc`. Here `filter(ψ)` is a normalized local average (e.g. an Oceanostics
