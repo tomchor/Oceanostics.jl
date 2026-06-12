@@ -8,7 +8,8 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 
 using Oceanostics
 using Oceanostics: BoxFilter, GaussianFilter
-using Oceanostics.Filters: GaussianFilterKernel, StretchedGaussianFilterKernel
+# operator types are internal (not exported) — reach them through the submodule for the `isa` checks
+using Oceanostics.Filters: GaussianFilterKernel, StretchedGaussianFilterKernel, BoxFilterOperator, GaussianFilterOperator
 
 arch = has_cuda_gpu() ? GPU() : CPU()
 

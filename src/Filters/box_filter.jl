@@ -188,8 +188,8 @@ end
 """
     BoxFilter(; dims, N, boundary=:shrink)
 
-Build a reusable [`BoxFilterOperator`](@ref) capturing the box-filter parameters
-without binding them to a field. The returned object is callable: `F(ψ)` returns
+Build a reusable, field-less box filter (a callable `BoxFilterOperator`) capturing the box-filter
+parameters without binding them to a field. The returned object is callable: `F(ψ)` returns
 `BoxFilter(ψ; dims, N, boundary)`. Useful for applying the same filter to many
 fields or for passing a preconfigured filter to other diagnostics.
 

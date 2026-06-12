@@ -63,7 +63,6 @@ true
 
 ```@docs
 BoxFilter
-BoxFilterOperator
 ```
 
 ## Gaussian filter
@@ -159,5 +158,4 @@ julia> (c̄_wide isa Field, c̄_perdim isa Field)
 
 ```@docs
 GaussianFilter
-GaussianFilterOperator
 ```

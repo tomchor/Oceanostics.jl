@@ -450,8 +450,8 @@ end
 """
     GaussianFilter(; dims, σ, N=nothing, boundary=:shrink)
 
-Build a reusable [`GaussianFilterOperator`](@ref) capturing the Gaussian-filter
-parameters without binding them to a field. The returned object is callable:
+Build a reusable, field-less Gaussian filter (a callable `GaussianFilterOperator`) capturing the
+Gaussian-filter parameters without binding them to a field. The returned object is callable:
 `F(ψ)` returns `GaussianFilter(ψ; dims, σ, N, boundary)`. Useful for applying the
 same filter to many fields or for passing a preconfigured filter to other
 diagnostics.
