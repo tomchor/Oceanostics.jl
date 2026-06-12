@@ -167,6 +167,41 @@ function BoxFilter(ψ; dims, N, boundary=:shrink)
 end
 #---
 
+#+++ Reusable (field-less) box filter
+"""
+    BoxFilterOperator{D, NN, B}
+
+A reusable, field-less box filter. Stores the `BoxFilter` parameters (`dims`,
+`N`, `boundary`) and, when called on a field `ψ`, returns
+`BoxFilter(ψ; dims, N, boundary)` — the very same `KernelFunctionOperation` that
+the field-first constructor would build. Construct one once with
+[`BoxFilter`](@ref)`(; …)` and apply it to many fields.
+"""
+struct BoxFilterOperator{D, NN, B}
+    dims::D
+    N::NN
+    boundary::B
+end
+
+(F::BoxFilterOperator)(ψ) = BoxFilter(ψ; dims=F.dims, N=F.N, boundary=F.boundary)
+
+"""
+    BoxFilter(; dims, N, boundary=:shrink)
+
+Build a reusable, field-less box filter (a callable `BoxFilterOperator`) capturing the box-filter
+parameters without binding them to a field. The returned object is callable: `F(ψ)` returns
+`BoxFilter(ψ; dims, N, boundary)`. Useful for applying the same filter to many
+fields or for passing a preconfigured filter to other diagnostics.
+
+See the field-first [`BoxFilter`](@ref)`(ψ; …)` method for the meaning of the
+keyword arguments.
+"""
+BoxFilter(; dims, N, boundary=:shrink) = BoxFilterOperator(dims, N, boundary)
+
+Base.show(io::IO, F::BoxFilterOperator) =
+    print(io, "BoxFilter(dims=", F.dims, ", N=", F.N, ", boundary=", repr(F.boundary), ")")
+#---
+
 #+++ Staged multi-direction evaluation
 # Multi-direction BoxFilters dispatch into the shared
 # `_compute_staged_filter!` machinery defined in `Filters.jl`. 1D filters

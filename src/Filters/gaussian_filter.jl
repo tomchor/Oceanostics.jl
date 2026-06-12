@@ -427,6 +427,44 @@ function GaussianFilter(ψ; dims, σ, N=nothing, boundary=:shrink)
                             grid, loc, sorted_dims, sorted_widths, policies, ψ)
 end
 
+#+++ Reusable (field-less) Gaussian filter
+"""
+    GaussianFilterOperator{D, S, NN, B}
+
+A reusable, field-less Gaussian filter. Stores the `GaussianFilter` parameters
+(`dims`, `σ`, `N`, `boundary`) and, when called on a field `ψ`, returns
+`GaussianFilter(ψ; dims, σ, N, boundary)` — the very same
+`KernelFunctionOperation` that the field-first constructor would build.
+Construct one once with [`GaussianFilter`](@ref)`(; …)` and apply it to many
+fields.
+"""
+struct GaussianFilterOperator{D, S, NN, B}
+    dims::D
+    σ::S
+    N::NN
+    boundary::B
+end
+
+(F::GaussianFilterOperator)(ψ) = GaussianFilter(ψ; dims=F.dims, σ=F.σ, N=F.N, boundary=F.boundary)
+
+"""
+    GaussianFilter(; dims, σ, N=nothing, boundary=:shrink)
+
+Build a reusable, field-less Gaussian filter (a callable `GaussianFilterOperator`) capturing the
+Gaussian-filter parameters without binding them to a field. The returned object is callable:
+`F(ψ)` returns `GaussianFilter(ψ; dims, σ, N, boundary)`. Useful for applying the
+same filter to many fields or for passing a preconfigured filter to other
+diagnostics.
+
+See the field-first [`GaussianFilter`](@ref)`(ψ; …)` method for the meaning of
+the keyword arguments.
+"""
+GaussianFilter(; dims, σ, N=nothing, boundary=:shrink) = GaussianFilterOperator(dims, σ, N, boundary)
+
+Base.show(io::IO, F::GaussianFilterOperator) =
+    print(io, "GaussianFilter(dims=", F.dims, ", σ=", F.σ, ", boundary=", repr(F.boundary), ")")
+#---
+
 infer_width(σ, grid, d) = ceil(Int, 2σ / direction_min_spacing(grid, d))
 
 function resolve_gaussian_widths(N, σ, grid, dims, sorted_dims)
