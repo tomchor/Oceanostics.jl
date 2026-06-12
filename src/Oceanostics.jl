@@ -5,7 +5,7 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, F}
 
 #+++ Module export
-export TracerEquation, KineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
+export TracerEquation, KineticEnergyEquation, CoarseGrainedKineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
        UMomentumEquation, VMomentumEquation, WMomentumEquation
 #---
 
@@ -38,6 +38,10 @@ export TracerVarianceTendency, TracerVarianceDissipationRate, TracerVarianceDiff
 #+++ KineticEnergyEquation exports
 export KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyBuoyancyProduction,
        KineticEnergyDissipationRate, KineticEnergyIsotropicDissipationRate
+#---
+
+#+++ CoarseGrainedKineticEnergyEquation exports
+export SubfilterStressTensor, KineticEnergyCrossScaleFlux
 #---
 
 #+++ TurbulentKineticEnergyEquation exports
@@ -186,11 +190,13 @@ include("TurbulentKineticEnergyEquation.jl")
 include("PotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
 include("Filters/Filters.jl")
+include("CoarseGrainedKineticEnergyEquation.jl") # depends on FlowDiagnostics (tensors) and Filters
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
 using .FlowDiagnostics
 using .Filters
+using .CoarseGrainedKineticEnergyEquation
 using .ProgressMessengers
 
 #+++ Custom `show` for diagnostics
@@ -357,6 +363,12 @@ end
 @diagnostic_show KineticEnergyEquation.KineticEnergyBuoyancyProduction       "KineticEnergyBuoyancyProduction"     "kinetic energy buoyancy production  uᵢbᵢ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"        "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyIsotropicDissipationRate "KineticEnergyIsotropicDissipationRate" "isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ"
+#---
+
+#+++ CoarseGrainedKineticEnergyEquation
+# Only the (single-`KernelFunctionOperation`) flux gets a custom display; `SubfilterStressTensor`
+# returns a `NamedTuple` of components, like `StressTensor`/`StrainRateTensor`, so it has none.
+@diagnostic_show CoarseGrainedKineticEnergyEquation.KineticEnergyCrossScaleFlux "KineticEnergyCrossScaleFlux" "cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ"
 #---
 
 #+++ TurbulentKineticEnergyEquation
