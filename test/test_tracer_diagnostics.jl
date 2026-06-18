@@ -100,6 +100,45 @@ function test_tracer_terms(model)
     @test DIFF isa TracerTotalDiffusion
     @test DIFF_field isa Field
 
+    DIFF_FLUX = TracerEquation.DiffusiveFluxX(model, model.grid, model.closure, model.closure_fields, 
+                                    Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
+    DIFF_FLUX_field = Field(DIFF_FLUX)
+    @test DIFF_FLUX isa TracerEquation.DiffusiveFluxX
+    @test DIFF_FLUX isa TracerDiffusiveFluxX
+    @test DIFF_FLUX_field isa Field
+
+    DIFF_FLUX = TracerEquation.DiffusiveFluxX(model, :a)
+    DIFF_FLUX_field = Field(DIFF_FLUX)
+    @test DIFF_FLUX isa TracerEquation.DiffusiveFluxX
+    @test DIFF_FLUX isa TracerDiffusiveFluxX
+    @test DIFF_FLUX_field isa Field
+    
+    DIFF_FLUX = TracerEquation.DiffusiveFluxY(model, model.grid, model.closure, model.closure_fields, 
+                                    Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
+    DIFF_FLUX_field = Field(DIFF_FLUX)
+    @test DIFF_FLUX isa TracerEquation.DiffusiveFluxY
+    @test DIFF_FLUX isa TracerDiffusiveFluxY
+    @test DIFF_FLUX_field isa Field
+
+    DIFF_FLUX = TracerEquation.DiffusiveFluxY(model, :a)
+    DIFF_FLUX_field = Field(DIFF_FLUX)
+    @test DIFF_FLUX isa TracerEquation.DiffusiveFluxY
+    @test DIFF_FLUX isa TracerDiffusiveFluxY
+    @test DIFF_FLUX_field isa Field
+
+    DIFF_FLUX = TracerEquation.DiffusiveFluxZ(model, model.grid, model.closure, model.closure_fields, 
+                                    Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
+    DIFF_FLUX_field = Field(DIFF_FLUX)
+    @test DIFF_FLUX isa TracerEquation.DiffusiveFluxZ
+    @test DIFF_FLUX isa TracerDiffusiveFluxZ
+    @test DIFF_FLUX_field isa Field
+
+    DIFF_FLUX = TracerEquation.DiffusiveFluxZ(model, :a)
+    DIFF_FLUX_field = Field(DIFF_FLUX)
+    @test DIFF_FLUX isa TracerEquation.DiffusiveFluxZ
+    @test DIFF_FLUX isa TracerDiffusiveFluxZ
+    @test DIFF_FLUX_field isa Field
+
     FORC = TracerEquation.Forcing(model, model.forcing.a, model.clock, fields(model))
     FORC_field = Field(FORC)
     @test FORC isa TracerEquation.Forcing
