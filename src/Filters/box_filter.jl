@@ -85,8 +85,7 @@ end
 One-step form: apply a box filter to `ψ` directly, returning the `KernelFunctionOperation` that
 computes its local box-average. Equivalent to `BoxFilter(; dims, N, boundary)(ψ)`.
 
-The recommended form is the reusable, field-less [`BoxFilter`](@ref)`(; dims, N, boundary)`, which
-builds a filter once and applies it to any number of fields; see it for the full description of the
+Refer to [`BoxFilter`](@ref)`(; dims, N, boundary)` for the full description of the
 keyword arguments and boundary handling.
 """
 function BoxFilter(ψ; dims, N, boundary=:shrink)
