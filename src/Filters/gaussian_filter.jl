@@ -161,8 +161,7 @@ struct StretchedGaussianFilterKernel{D, S, L} <: AbstractGaussianFilterKernel{D}
     period::S
 end
 
-StretchedGaussianFilterKernel{D}(σ::S, loc::L, period::S) where {D, S, L} =
-    StretchedGaussianFilterKernel{D, S, L}(σ, loc, period)
+StretchedGaussianFilterKernel{D}(σ::S, loc::L, period::S) where {D, S, L} = StretchedGaussianFilterKernel{D, S, L}(σ, loc, period)
 
 # `(coordinate, cell width)` of the stencil cell at the (possibly out-of-range)
 # index `m` along a filtered direction, honoring the boundary policy's geometry.
@@ -461,8 +460,7 @@ the keyword arguments.
 """
 GaussianFilter(; dims, σ, N=nothing, boundary=:shrink) = GaussianFilterOperator(dims, σ, N, boundary)
 
-Base.show(io::IO, F::GaussianFilterOperator) =
-    print(io, "GaussianFilter(dims=", F.dims, ", σ=", F.σ, ", boundary=", repr(F.boundary), ")")
+Base.show(io::IO, F::GaussianFilterOperator) = print(io, "GaussianFilter(dims=", F.dims, ", σ=", F.σ, ", boundary=", repr(F.boundary), ")")
 #---
 
 infer_width(σ, grid, d) = ceil(Int, 2σ / direction_min_spacing(grid, d))

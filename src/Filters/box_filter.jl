@@ -198,8 +198,7 @@ keyword arguments.
 """
 BoxFilter(; dims, N, boundary=:shrink) = BoxFilterOperator(dims, N, boundary)
 
-Base.show(io::IO, F::BoxFilterOperator) =
-    print(io, "BoxFilter(dims=", F.dims, ", N=", F.N, ", boundary=", repr(F.boundary), ")")
+Base.show(io::IO, F::BoxFilterOperator) = print(io, "BoxFilter(dims=", F.dims, ", N=", F.N, ", boundary=", repr(F.boundary), ")")
 #---
 
 #+++ Staged multi-direction evaluation
