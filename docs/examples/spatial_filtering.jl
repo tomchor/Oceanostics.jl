@@ -85,7 +85,7 @@ run!(simulation)
 #
 # We now filter the snapshot at the end of the run. We pick a filter width ``\sigma = 4\Delta`` (a few
 # grid cells) and build a **reusable** Gaussian filter once — `GaussianFilter(; dims, σ)` returns a
-# callable filter we apply to many fields below by calling it, `gaussian(ψ)`. We then split the
+# callable filter we apply to many fields below by calling it, `filter(ψ)`. We then split the
 # vorticity into resolved and subfilter parts. Vorticity lives at ``(f, f, c)``, so we interpolate it
 # to cell centers before filtering (and for plotting).
 
@@ -95,10 +95,10 @@ using Oceanostics
 Δ = minimum_xspacing(grid)
 σ = 4Δ
 
-gaussian = GaussianFilter(; dims=(1, 2), σ=σ)             # reusable filter — build once, apply to many fields
+filter = GaussianFilter(; dims=(1, 2), σ=σ)             # reusable filter — build once, apply to many fields
 
 ω  = @at (Center, Center, Center) (∂x(v) - ∂y(u))   # vorticity at (Center, Center, Center)
-ω̄  = gaussian(ω)                                    # resolved (large-scale) vorticity
+ω̄  = filter(ω)                                      # resolved (large-scale) vorticity
 ω′ = ω - ω̄                                          # subfilter fluctuation
 
 # A normalized Gaussian filter removes small-scale variance while (on a periodic domain) preserving
@@ -137,7 +137,7 @@ fig_ω
 # and ``8\Delta`` — and plot each result as it is computed.
 
 σ_sweep = (2Δ, 4Δ, 8Δ)
-ω̄_sweep = [gaussian(ω) for s in σ_sweep]   # one filter per width, applied to ω
+ω̄_sweep = [filter(ω) for s in σ_sweep]   # one filter per width, applied to ω
 
 fig_sweep = Figure()
 for (i, s) in enumerate(σ_sweep)
@@ -156,18 +156,18 @@ fig_sweep
 # Filtering also lets us quantify transport by unresolved scales. The subfilter tracer flux is
 # ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``: the difference between the filtered advective
 # flux and the flux carried by the filtered fields. We interpolate the velocities to centers, build
-# the products as `Field`s, and reuse the same `gaussian` filter on each piece before combining — one
+# the products as `Field`s, and reuse the same `filter` filter on each piece before combining — one
 # filter object, applied to five different fields.
 
 uᶜ = Field(@at (Center, Center, Center) u)
 vᶜ = Field(@at (Center, Center, Center) v)
 
-ū  = gaussian(uᶜ)
-v̄  = gaussian(vᶜ)
-c̄  = gaussian(c)
+ū  = filter(uᶜ)
+v̄  = filter(vᶜ)
+c̄  = filter(c)
 
-ūc̄ = gaussian(uᶜ * c)   # = overline(u c)
-v̄c̄ = gaussian(vᶜ * c)   # = overline(v c)
+ūc̄ = filter(uᶜ * c)   # = overline(u c)
+v̄c̄ = filter(vᶜ * c)   # = overline(v c)
 
 τx = ūc̄ - ū * c̄
 τy = v̄c̄ - v̄ * c̄
