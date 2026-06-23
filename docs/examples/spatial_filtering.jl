@@ -97,9 +97,9 @@ using Oceanostics
 
 gaussian = GaussianFilter(; dims=(1, 2), σ=σ)             # reusable filter — build once, apply to many fields
 
-ω  = Field(@at (Center, Center, Center) (∂x(v) - ∂y(u)))   # vorticity at (Center, Center, Center)
-ω̄  = Field(gaussian(ω))                                    # resolved (large-scale) vorticity
-ω′ = Field(ω - ω̄)                                          # subfilter fluctuation
+ω  = @at (Center, Center, Center) (∂x(v) - ∂y(u))   # vorticity at (Center, Center, Center)
+ω̄  = gaussian(ω)                                    # resolved (large-scale) vorticity
+ω′ = ω - ω̄                                          # subfilter fluctuation
 
 # A normalized Gaussian filter removes small-scale variance while (on a periodic domain) preserving
 # the field mean, so the filtered field is necessarily smoother than the original. We plot the three
@@ -137,7 +137,7 @@ fig_ω
 # and ``8\Delta`` — and plot each result as it is computed.
 
 σ_sweep = (2Δ, 4Δ, 8Δ)
-ω̄_sweep = [Field(GaussianFilter(; dims=(1, 2), σ=s)(ω)) for s in σ_sweep]   # one filter per width, applied to ω
+ω̄_sweep = [gaussian(ω) for s in σ_sweep]   # one filter per width, applied to ω
 
 fig_sweep = Figure()
 for (i, s) in enumerate(σ_sweep)
@@ -162,16 +162,16 @@ fig_sweep
 uᶜ = Field(@at (Center, Center, Center) u)
 vᶜ = Field(@at (Center, Center, Center) v)
 
-ū  = Field(gaussian(uᶜ))
-v̄  = Field(gaussian(vᶜ))
-c̄  = Field(gaussian(c))
+ū  = gaussian(uᶜ)
+v̄  = gaussian(vᶜ)
+c̄  = gaussian(c)
 
-ūc̄ = Field(gaussian(Field(uᶜ * c)))   # = overline(u c)
-v̄c̄ = Field(gaussian(Field(vᶜ * c)))   # = overline(v c)
+ūc̄ = gaussian(uᶜ * c)   # = overline(u c)
+v̄c̄ = gaussian(vᶜ * c)   # = overline(v c)
 
-τx = Field(ūc̄ - ū * c̄)
-τy = Field(v̄c̄ - v̄ * c̄)
-τ  = Field(sqrt(τx^2 + τy^2))   # subfilter flux magnitude
+τx = ūc̄ - ū * c̄
+τy = v̄c̄ - v̄ * c̄
+τ  = √(τx^2 + τy^2)   # subfilter flux magnitude
 
 # Finally we plot the tracer, its filtered version, and the magnitude of the subfilter flux:
 
