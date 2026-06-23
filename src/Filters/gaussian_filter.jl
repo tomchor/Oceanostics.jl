@@ -347,72 +347,12 @@ end
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` that computes a Gaussian-weighted local average of `ψ` over the
-directions listed in `dims`.
+One-step form: apply a Gaussian filter to `ψ` directly, returning the `KernelFunctionOperation` that
+computes its Gaussian-weighted local average. Equivalent to `GaussianFilter(; dims, σ, N, boundary)(ψ)`.
 
-`σ` is the standard deviation of the Gaussian kernel in physical units (the same units as the grid
-spacing). The filter approximates the continuous Gaussian convolution
-`∫ G_σ(x-x') ψ(x') dx' / ∫ G_σ(x-x') dx'`: a stencil cell of width `Δₘ` whose centre sits a
-physical distance `r` from the current cell centre contributes weight `Δₘ · exp(-r² / 2σ²)`, and
-the result is normalized by the sum of the surviving weights, so all boundary policies behave
-consistently. On a uniform direction the `Δₘ` factor is constant and cancels, recovering the plain
-`exp(-r² / 2σ²)` weighting.
-
-`GaussianFilter` supports **both uniformly and variably spaced (stretched) directions**, choosing
-the implementation per direction at construction time so the regular-grid case keeps its original
-speed:
-
-  - **Uniform direction** — the weights are identical for every cell, so they are precomputed once
-    in cell-offset units (`σ_cells = σ / Δ`, weight `exp(-Δi² / 2σ_cells²)` at cell offset `Δi`)
-    and looked up in the hot loop. This is the fast path used on regular grids.
-  - **Stretched direction** — the physical footprint of a fixed cell offset varies from cell to
-    cell, so the weights cannot be precomputed; each is evaluated on the fly from the node
-    coordinates and widths (`Δₘ · exp(-(xₘ - xᵢ)² / 2σ²)`). The cell-width factor `Δₘ` is the
-    quadrature weight of the continuous convolution; it stops the average from being biased toward
-    finely resolved regions and keeps constants (and, to quadrature accuracy, linear fields)
-    preserved. The two paths agree exactly where they overlap (a uniform direction has
-    `xₘ - xᵢ = Δm·Δ` and constant `Δₘ`). Directions are decided independently, so a grid that is
-    uniform in `x` but stretched in `z` uses the fast path for `x` and the node-distance path for
-    `z`.
-
-`N` is the **total number of grid points used by the filter stencil** along each filtered
-direction — i.e. how many cells contribute to a single filtered output value. `N` must be an
-**odd integer ≥ 3** so the stencil is symmetric around the current cell. (This is the size of the
-filter stencil — *not* the size of the grid.) If unspecified, `N` is inferred per-direction from
-`σ` and the *smallest* spacing along that direction so that the stencil extends at least `2σ` to
-each side of the current cell everywhere (on a stretched direction it therefore reaches farther
-than `2σ` where cells are large, which is harmless since the Gaussian weights there are tiny). To
-override, pass either a single odd integer (applied to every filtered dim) or a tuple with one
-odd-integer count per dim in `dims` (in the order the user passed them). For `Periodic`
-directions the stencil must span at most one period (`N ≤ 2*Nd_grid + 1`, where `Nd_grid` is the
-number of cells along that direction); this is enforced at construction time.
-
-See `BoxFilter` for the `dims` and `boundary` keyword documentation.
-
-## Performance notes
-
-A multi-direction Gaussian filter is mathematically separable. The constructor still returns a
-single composable `KernelFunctionOperation`, but when that operation is the operand of a `Field`
-(the standard `Field(GaussianFilter(...))` / `compute!` path), the implementation evaluates the
-filter as a sequence of 1D passes through intermediate fields. This reduces the per-output read
-count from `N^d` to `d × N`, which is the main reason multi-direction filters with wide stencils
-are competitive on GPUs. Mixed-spacing filters stage the same way — each direction's 1D pass uses
-its own (uniform or stretched) kernel. If the filter is composed into another `AbstractOperation`
-(e.g. `2 * GaussianFilter(c; dims=(1,2,3))`) it falls back to the fused, single-kernel evaluation.
-
-## Examples
-
-```jldoctest
-julia> using Oceananigans, Oceanostics
-
-julia> grid = RectilinearGrid(size=(8, 8), x=(0, 1), z=(0, 1),
-                              topology=(Periodic, Flat, Bounded));
-
-julia> c = CenterField(grid);
-
-julia> GaussianFilter(c; dims=(1, 3), σ=0.1) isa KernelFunctionOperation
-true
-```
+The recommended form is the reusable, field-less [`GaussianFilter`](@ref)`(; dims, σ, N, boundary)`,
+which builds a filter once and applies it to any number of fields; see it for the full description of
+the keyword arguments, the Gaussian weighting, stretched-grid handling, and boundary handling.
 """
 function GaussianFilter(ψ; dims, σ, N=nothing, boundary=:shrink)
     validate_σ(σ)
@@ -447,16 +387,81 @@ end
 (F::GaussianFilterOperator)(ψ) = GaussianFilter(ψ; dims=F.dims, σ=F.σ, N=F.N, boundary=F.boundary)
 
 """
-    GaussianFilter(; dims, σ, N=nothing, boundary=:shrink)
+    $(SIGNATURES)
 
-Build a reusable, field-less Gaussian filter (a callable `GaussianFilterOperator`) capturing the
-Gaussian-filter parameters without binding them to a field. The returned object is callable:
-`F(ψ)` returns `GaussianFilter(ψ; dims, σ, N, boundary)`. Useful for applying the
-same filter to many fields or for passing a preconfigured filter to other
-diagnostics.
+Build a reusable, field-less Gaussian filter that computes a Gaussian-weighted local average over the
+directions listed in `dims`. The returned object is callable: applying it to a field, `gf(ψ)`, returns
+a `KernelFunctionOperation`. Build the filter once and reuse it across many fields, or pass it to other
+diagnostics that accept a filter.
 
-See the field-first [`GaussianFilter`](@ref)`(ψ; …)` method for the meaning of
-the keyword arguments.
+`σ` is the standard deviation of the Gaussian kernel in physical units (the same units as the grid
+spacing). The filter approximates the continuous Gaussian convolution
+`∫ G_σ(x-x') ψ(x') dx' / ∫ G_σ(x-x') dx'`: a stencil cell of width `Δₘ` whose centre sits a
+physical distance `r` from the current cell centre contributes weight `Δₘ · exp(-r² / 2σ²)`, and
+the result is normalized by the sum of the surviving weights, so all boundary policies behave
+consistently. On a uniform direction the `Δₘ` factor is constant and cancels, recovering the plain
+`exp(-r² / 2σ²)` weighting.
+
+`GaussianFilter` supports **both uniformly and variably spaced (stretched) directions**, choosing
+the implementation per direction so the regular-grid case keeps its original speed:
+
+  - **Uniform direction** — the weights are identical for every cell, so they are precomputed once
+    in cell-offset units (`σ_cells = σ / Δ`, weight `exp(-Δi² / 2σ_cells²)` at cell offset `Δi`)
+    and looked up in the hot loop. This is the fast path used on regular grids.
+  - **Stretched direction** — the physical footprint of a fixed cell offset varies from cell to
+    cell, so the weights cannot be precomputed; each is evaluated on the fly from the node
+    coordinates and widths (`Δₘ · exp(-(xₘ - xᵢ)² / 2σ²)`). The cell-width factor `Δₘ` is the
+    quadrature weight of the continuous convolution; it stops the average from being biased toward
+    finely resolved regions and keeps constants (and, to quadrature accuracy, linear fields)
+    preserved. The two paths agree exactly where they overlap (a uniform direction has
+    `xₘ - xᵢ = Δm·Δ` and constant `Δₘ`). Directions are decided independently, so a grid that is
+    uniform in `x` but stretched in `z` uses the fast path for `x` and the node-distance path for
+    `z`.
+
+`N` is the **total number of grid points used by the filter stencil** along each filtered
+direction — i.e. how many cells contribute to a single filtered output value. `N` must be an
+**odd integer ≥ 3** so the stencil is symmetric around the current cell. (This is the size of the
+filter stencil — *not* the size of the grid.) If unspecified, `N` is inferred per-direction from
+`σ` and the *smallest* spacing along that direction so that the stencil extends at least `2σ` to
+each side of the current cell everywhere (on a stretched direction it therefore reaches farther
+than `2σ` where cells are large, which is harmless since the Gaussian weights there are tiny). To
+override, pass either a single odd integer (applied to every filtered dim) or a tuple with one
+odd-integer count per dim in `dims` (in the order the user passed them). For `Periodic`
+directions the stencil must span at most one period (`N ≤ 2*Nd_grid + 1`, where `Nd_grid` is the
+number of cells along that direction); this is enforced when the filter is applied.
+
+See `BoxFilter` for the `dims` and `boundary` keyword documentation.
+
+## Performance notes
+
+A multi-direction Gaussian filter is mathematically separable. Applying the filter returns a single
+composable `KernelFunctionOperation`, but when that operation is the operand of a `Field` (the
+standard `Field(gf(ψ))` / `compute!` path), the implementation evaluates the filter as a sequence of
+1D passes through intermediate fields. This reduces the per-output read count from `N^d` to `d × N`,
+which is the main reason multi-direction filters with wide stencils are competitive on GPUs.
+Mixed-spacing filters stage the same way — each direction's 1D pass uses its own (uniform or
+stretched) kernel. If the filtered field is composed into another `AbstractOperation` (e.g.
+`2 * gf(c)`) it falls back to the fused, single-kernel evaluation.
+
+## Examples
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(8, 8), x=(0, 1), z=(0, 1),
+                              topology=(Periodic, Flat, Bounded));
+
+julia> c = CenterField(grid);
+
+julia> gf = GaussianFilter(; dims=(1, 3), σ=0.1)
+GaussianFilter(dims=(1, 3), σ=0.1, boundary=:shrink)
+
+julia> gf(c) isa KernelFunctionOperation
+true
+```
+
+A one-step shortcut `GaussianFilter(ψ; dims, σ, N, boundary)` is also accepted, which applies the
+filter to `ψ` immediately (equivalent to `GaussianFilter(; dims, σ, N, boundary)(ψ)`).
 """
 GaussianFilter(; dims, σ, N=nothing, boundary=:shrink) = GaussianFilterOperator(dims, σ, N, boundary)
 
