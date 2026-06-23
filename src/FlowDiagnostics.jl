@@ -880,7 +880,7 @@ being multiplied and filtered, so they may originally live at different staggere
 (e.g. a `Face`-located velocity and a `Center`-located tracer). `filter` is any callable mapping a
 field to its filtered counterpart, `ψ -> ψ̄`. The simplest choice is an Oceanostics filter
 object, e.g. `filter = GaussianFilter(; dims=(1, 2), σ=0.1)`, which is applied to each field
-internally; a closure `filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1)` works equally well.
+internally.
 
 The filtered pieces are materialized as `Field`s (so the separable filter's fast staged path fires);
 the returned object is a lazy `AbstractOperation` over those computed fields, ready for `Field`,
