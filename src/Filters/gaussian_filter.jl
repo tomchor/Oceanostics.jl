@@ -350,9 +350,8 @@ end
 One-step form: apply a Gaussian filter to `ψ` directly, returning the `KernelFunctionOperation` that
 computes its Gaussian-weighted local average. Equivalent to `GaussianFilter(; dims, σ, N, boundary)(ψ)`.
 
-The recommended form is the reusable, field-less [`GaussianFilter`](@ref)`(; dims, σ, N, boundary)`,
-which builds a filter once and applies it to any number of fields; see it for the full description of
-the keyword arguments, the Gaussian weighting, stretched-grid handling, and boundary handling.
+Refer to [`GaussianFilter`](@ref)`(; dims, σ, N, boundary)` for the full description of the
+keyword arguments, the Gaussian weighting, stretched-grid handling, and boundary handling.
 """
 function GaussianFilter(ψ; dims, σ, N=nothing, boundary=:shrink)
     validate_σ(σ)
@@ -370,12 +369,9 @@ end
 """
     GaussianFilterOperator{D, S, NN, B}
 
-A reusable, field-less Gaussian filter. Stores the `GaussianFilter` parameters
-(`dims`, `σ`, `N`, `boundary`) and, when called on a field `ψ`, returns
-`GaussianFilter(ψ; dims, σ, N, boundary)` — the very same
-`KernelFunctionOperation` that the field-first constructor would build.
-Construct one once with [`GaussianFilter`](@ref)`(; …)` and apply it to many
-fields.
+Returns a reusable Gaussian filter. Stores the `GaussianFilter` parameters
+(`dims`, `σ`, `N`, `boundary`) and, when called on a field `ψ`, returns `GaussianFilter(ψ; dims, σ, N, boundary)`.
+Construct one once with [`GaussianFilter`](@ref)`(; …)` and apply it to many fields.
 """
 struct GaussianFilterOperator{D, S, NN, B}
     dims::D
