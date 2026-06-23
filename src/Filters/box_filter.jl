@@ -102,11 +102,9 @@ end
 """
     BoxFilterOperator{D, NN, B}
 
-A reusable, field-less box filter. Stores the `BoxFilter` parameters (`dims`,
-`N`, `boundary`) and, when called on a field `ψ`, returns
-`BoxFilter(ψ; dims, N, boundary)` — the very same `KernelFunctionOperation` that
-the field-first constructor would build. Construct one once with
-[`BoxFilter`](@ref)`(; …)` and apply it to many fields.
+Returns a reusable box filter. Stores the `BoxFilter` parameters (`dims`,
+`N`, `boundary`) and, when called on a field `ψ`, returns `BoxFilter(ψ; dims, N, boundary)`.
+Construct one once with [`BoxFilter`](@ref)`(; …)` and apply it to many fields.
 """
 struct BoxFilterOperator{D, NN, B}
     dims::D
