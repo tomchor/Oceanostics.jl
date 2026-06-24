@@ -89,7 +89,7 @@ Refer to [`BoxFilter`](@ref)`(; dims, N, boundary)` for the full description of 
 keyword arguments and boundary handling.
 """
 function BoxFilter(ψ; dims, N, boundary=:shrink)
-    dims = to_filter_dims(dims)
+    dims = tuplefy_dims(dims)
     validate_N(N)
     grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
     width = (N - 1) ÷ 2
@@ -197,7 +197,7 @@ A one-step shortcut `BoxFilter(ψ; dims, N, boundary)` is also accepted, which a
 `ψ` immediately (equivalent to `BoxFilter(; dims, N, boundary)(ψ)`).
 """
 function BoxFilter(; dims, N, boundary=:shrink)
-    dims = to_filter_dims(dims)
+    dims = tuplefy_dims(dims)
     validate_dims(dims)
     validate_N(N)
     return BoxFilterOperator(dims, N, boundary)

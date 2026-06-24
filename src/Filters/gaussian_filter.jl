@@ -354,7 +354,7 @@ Refer to [`GaussianFilter`](@ref)`(; dims, σ, N, boundary)` for the full descri
 keyword arguments, the Gaussian weighting, stretched-grid handling, and boundary handling.
 """
 function GaussianFilter(ψ; dims, σ, N=nothing, boundary=:shrink)
-    dims = to_filter_dims(dims)
+    dims = tuplefy_dims(dims)
     validate_σ(σ)
     grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
 
@@ -461,7 +461,7 @@ A one-step shortcut `GaussianFilter(ψ; dims, σ, N, boundary)` is also accepted
 filter to `ψ` immediately (equivalent to `GaussianFilter(; dims, σ, N, boundary)(ψ)`).
 """
 function GaussianFilter(; dims, σ, N=nothing, boundary=:shrink)
-    dims = to_filter_dims(dims)
+    dims = tuplefy_dims(dims)
     validate_dims(dims)
     validate_σ(σ)
     N === nothing || (N isa Tuple ? foreach(validate_N, N) : validate_N(N))
