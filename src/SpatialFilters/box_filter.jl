@@ -88,10 +88,10 @@ computes its local box-average. Equivalent to `BoxFilter(; dims, N, boundary)(ψ
 Refer to [`BoxFilter`](@ref)`(; dims, N, boundary)` for the full description of the
 keyword arguments and boundary handling.
 """
-function BoxFilter(ψ; dims, N, boundary=:shrink)
+function BoxFilter(ψ; dims, N, boundary=:shrink, boundary_conditions=boundary)
     dims = tuplefy_dims(dims)
     validate_N(N)
-    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
+    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary_conditions)
     width = (N - 1) ÷ 2
     widths = ntuple(_ -> width, length(sorted_dims))
     validate_periodic_widths(grid, sorted_dims, policies, widths)
@@ -196,11 +196,11 @@ true
 A one-step shortcut `BoxFilter(ψ; dims, N, boundary)` is also accepted, which applies the filter to
 `ψ` immediately (equivalent to `BoxFilter(; dims, N, boundary)(ψ)`).
 """
-function BoxFilter(; dims, N, boundary=:shrink)
+function BoxFilter(; dims, N, boundary=:shrink, boundary_conditions=boundary)
     dims = tuplefy_dims(dims)
     validate_dims(dims)
     validate_N(N)
-    return BoxFilterOperator(dims, N, boundary)
+    return BoxFilterOperator(dims, N, boundary_conditions)
 end
 
 Base.show(io::IO, F::BoxFilterOperator) = print(io, "BoxFilter(dims=", F.dims, ", N=", F.N, ", boundary=", repr(F.boundary), ")")

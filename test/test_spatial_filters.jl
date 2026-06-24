@@ -746,6 +746,34 @@ function test_reusable_gaussian_filter(grid)
     @test GaussianFilter(; dims=1, σ=0.1).dims === (1,)
     @test Array(interior(Field(GaussianFilter(c; dims=1, σ=0.1)))) ≈ Array(interior(Field(GaussianFilter(c; dims=(1,), σ=0.1))))
 end
+
+# Oceananigans `BoundaryCondition` interface (issue #251): type-based specs reproduce the symbol /
+# NamedTuple API, the `boundary_conditions` keyword aliases `boundary`, and a `FieldBoundaryConditions`
+# resolves per side (collapsing when symmetric, splitting when not).
+function test_boundary_condition_interface(Filter, fkw)
+    grid = make_grid(; halo=(1, 1, 1), topology=(Bounded, Bounded, Bounded))
+    c = center_field_from(grid, (x, y, z) -> sin(2π * x) * cos(2π * y) + z^2)
+    ia(ψ) = Array(interior(ψ))
+    w = 2
+
+    @test ia(compute_filter(c, Filter, (1, 3), w; boundary=ShrinkingBoundaryCondition(), fkw...)) ≈ ia(compute_filter(c, Filter, (1, 3), w; boundary=:shrink, fkw...))
+    @test ia(compute_filter(c, Filter, (1, 3), w; boundary=GradientBoundaryCondition(0), fkw...)) ≈ ia(compute_filter(c, Filter, (1, 3), w; boundary=:edge, fkw...))
+    @test ia(compute_filter(c, Filter, (1, 3), w; boundary=ValueBoundaryCondition(0.5), fkw...))  ≈ ia(compute_filter(c, Filter, (1, 3), w; boundary=(left=0.5, right=0.5), fkw...))
+
+    # `boundary_conditions` is an alias for `boundary`.
+    @test ia(compute_filter(c, Filter, (1, 3), w; boundary_conditions=:edge, fkw...)) ≈ ia(compute_filter(c, Filter, (1, 3), w; boundary=:edge, fkw...))
+
+    # FieldBoundaryConditions: symmetric reproduces the symbol spec; asymmetric is finite and distinct.
+    fbc_sym  = FieldBoundaryConditions(west=GradientBoundaryCondition(0), east=GradientBoundaryCondition(0))
+    @test ia(compute_filter(c, Filter, (1,), w; boundary_conditions=fbc_sym, fkw...)) ≈ ia(compute_filter(c, Filter, (1,), w; boundary=:edge, fkw...))
+    fbc_asym = FieldBoundaryConditions(west=ValueBoundaryCondition(0.0), east=GradientBoundaryCondition(0))
+    a = ia(compute_filter(c, Filter, (1,), w; boundary_conditions=fbc_asym, fkw...))
+    @test all(isfinite, a)
+    @test !(a ≈ ia(compute_filter(c, Filter, (1,), w; boundary=:edge, fkw...)))
+
+    # Unsupported (non-zero) gradient/flux conditions error.
+    @test_throws ArgumentError compute_filter(c, Filter, (1,), w; boundary=GradientBoundaryCondition(1.0), fkw...)
+end
 #---
 
 #+++ Run tests
@@ -786,6 +814,10 @@ filter_configs = [
                 test_constant_pad_boundary(Ns, Filter, make_weights, fkw)
                 test_per_dim_boundary(Ns, Filter, make_weights, fkw)
                 test_periodic_ignores_boundary(Filter, fkw)
+            end
+
+            @testset "BoundaryCondition interface" begin
+                test_boundary_condition_interface(Filter, fkw)
             end
 
             @testset "Composability" begin

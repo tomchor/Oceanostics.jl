@@ -353,10 +353,10 @@ computes its Gaussian-weighted local average. Equivalent to `GaussianFilter(; di
 Refer to [`GaussianFilter`](@ref)`(; dims, σ, N, boundary)` for the full description of the
 keyword arguments, the Gaussian weighting, stretched-grid handling, and boundary handling.
 """
-function GaussianFilter(ψ; dims, σ, N=nothing, boundary=:shrink)
+function GaussianFilter(ψ; dims, σ, N=nothing, boundary=:shrink, boundary_conditions=boundary)
     dims = tuplefy_dims(dims)
     validate_σ(σ)
-    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
+    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary_conditions)
 
     sorted_widths = resolve_gaussian_widths(N, σ, grid, dims, sorted_dims)
     validate_periodic_widths(grid, sorted_dims, policies, sorted_widths)
@@ -460,12 +460,12 @@ true
 A one-step shortcut `GaussianFilter(ψ; dims, σ, N, boundary)` is also accepted, which applies the
 filter to `ψ` immediately (equivalent to `GaussianFilter(; dims, σ, N, boundary)(ψ)`).
 """
-function GaussianFilter(; dims, σ, N=nothing, boundary=:shrink)
+function GaussianFilter(; dims, σ, N=nothing, boundary=:shrink, boundary_conditions=boundary)
     dims = tuplefy_dims(dims)
     validate_dims(dims)
     validate_σ(σ)
     N === nothing || (N isa Tuple ? foreach(validate_N, N) : validate_N(N))
-    return GaussianFilterOperator(dims, σ, N, boundary)
+    return GaussianFilterOperator(dims, σ, N, boundary_conditions)
 end
 
 Base.show(io::IO, F::GaussianFilterOperator) =

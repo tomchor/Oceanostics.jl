@@ -1,7 +1,7 @@
 module SpatialFilters
 using DocStringExtensions
 
-export BoxFilter, GaussianFilter
+export BoxFilter, GaussianFilter, ShrinkingBoundaryCondition
 
 using Oceananigans: location
 using Oceananigans.Grids: topology, Periodic,
@@ -10,6 +10,9 @@ using Oceananigans.Grids: topology, Periodic,
                           xnode, ynode, znode
 using Oceananigans.Operators: xspacing, yspacing, zspacing
 using Oceananigans.AbstractOperations: KernelFunctionOperation
+using Oceananigans.BoundaryConditions: BoundaryCondition, FieldBoundaryConditions,
+                                       AbstractBoundaryConditionClassification, DefaultBoundaryCondition,
+                                       Value, Gradient, Flux
 
 using Oceanostics: CustomKFO
 
@@ -50,6 +53,40 @@ struct ConstantBoundary{T} <: AbstractBoundaryPolicy
     ConstantBoundary{T}(l, r) where {T} = new{T}(l, r)
 end
 ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), typeof(right))}(promote(left, right)...)
+
+"""
+    SplitBoundary(left, right)
+
+Apply a different `AbstractBoundaryPolicy` to each side of a `Bounded` direction: `left` to offsets
+past the low-index end, `right` to offsets past the high-index end. Built automatically from a
+`FieldBoundaryConditions` whose two sides differ.
+"""
+struct SplitBoundary{L<:AbstractBoundaryPolicy, R<:AbstractBoundaryPolicy} <: AbstractBoundaryPolicy
+    left::L
+    right::R
+end
+#---
+
+#+++ Filter boundary conditions (Oceananigans BoundaryCondition interface)
+"""
+    Shrink <: AbstractBoundaryConditionClassification
+
+Boundary-condition classification marking a wall where a filter stencil should shrink. See
+[`ShrinkingBoundaryCondition`](@ref).
+"""
+struct Shrink <: AbstractBoundaryConditionClassification end
+
+"""
+    ShrinkingBoundaryCondition()
+
+Boundary condition telling a spatial filter to *shrink* its stencil at a wall, averaging only over
+the interior cells the stencil actually covers (the filter analog of the default `:shrink` policy).
+Unlike the symbol API it composes with Oceananigans' boundary-condition types, e.g.
+
+    boundary_conditions = FieldBoundaryConditions(west = ShrinkingBoundaryCondition(),
+                                                  east = GradientBoundaryCondition(0))
+"""
+ShrinkingBoundaryCondition() = BoundaryCondition(Shrink, nothing)
 #---
 
 #+++ Stencil value readers
@@ -89,6 +126,22 @@ end
     return ifelse(in_bounds, @inbounds(ψ[i, j, clamp(k, 1, N)]), zero(eltype(ψ))), Int(in_bounds)
 end
 
+@inline function x_stencil_fetch(b::SplitBoundary, ψ, i, j, k, N)
+    i < 1 && return x_stencil_fetch(b.left, ψ, i, j, k, N)
+    i > N && return x_stencil_fetch(b.right, ψ, i, j, k, N)
+    return (@inbounds(ψ[i, j, k]), 1)
+end
+@inline function y_stencil_fetch(b::SplitBoundary, ψ, i, j, k, N)
+    j < 1 && return y_stencil_fetch(b.left, ψ, i, j, k, N)
+    j > N && return y_stencil_fetch(b.right, ψ, i, j, k, N)
+    return (@inbounds(ψ[i, j, k]), 1)
+end
+@inline function z_stencil_fetch(b::SplitBoundary, ψ, i, j, k, N)
+    k < 1 && return z_stencil_fetch(b.left, ψ, i, j, k, N)
+    k > N && return z_stencil_fetch(b.right, ψ, i, j, k, N)
+    return (@inbounds(ψ[i, j, k]), 1)
+end
+
 @inline x_stencil_call(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(wrap_periodic_index(i, N), j, k, grid, fargs...), 1)
 @inline y_stencil_call(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, wrap_periodic_index(j, N), k, grid, fargs...), 1)
 @inline z_stencil_call(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, j, wrap_periodic_index(k, N), grid, fargs...), 1)
@@ -113,6 +166,22 @@ end
     in_bounds = (1 <= k) & (k <= N)
     return ifelse(in_bounds, f(i, j, clamp(k, 1, N), grid, fargs...), zero(grid)), Int(in_bounds)
 end
+
+@inline function x_stencil_call(b::SplitBoundary, f, i, j, k, N, grid, fargs...)
+    i < 1 && return x_stencil_call(b.left, f, i, j, k, N, grid, fargs...)
+    i > N && return x_stencil_call(b.right, f, i, j, k, N, grid, fargs...)
+    return (f(i, j, k, grid, fargs...), 1)
+end
+@inline function y_stencil_call(b::SplitBoundary, f, i, j, k, N, grid, fargs...)
+    j < 1 && return y_stencil_call(b.left, f, i, j, k, N, grid, fargs...)
+    j > N && return y_stencil_call(b.right, f, i, j, k, N, grid, fargs...)
+    return (f(i, j, k, grid, fargs...), 1)
+end
+@inline function z_stencil_call(b::SplitBoundary, f, i, j, k, N, grid, fargs...)
+    k < 1 && return z_stencil_call(b.left, f, i, j, k, N, grid, fargs...)
+    k > N && return z_stencil_call(b.right, f, i, j, k, N, grid, fargs...)
+    return (f(i, j, k, grid, fargs...), 1)
+end
 #---
 
 #+++ Shared filter infrastructure
@@ -121,6 +190,14 @@ function resolve_filter_policies(ψ, dims, boundary)
 
     grid = ψ.grid
     loc = location(ψ)
+    sorted_dims = Tuple(d for d in (1, 2, 3) if d in dims)
+
+    # A `FieldBoundaryConditions` carries one condition per *side* of each direction, so it is
+    # resolved per dim rather than per user-supplied spec.
+    if boundary isa FieldBoundaryConditions
+        policies = ntuple(i -> dim_policy_from_field_bcs(grid, boundary, sorted_dims[i]), length(sorted_dims))
+        return grid, loc, sorted_dims, policies
+    end
 
     per_user_dim_specs = if boundary isa Tuple
         error_message = "`boundary` must be a single spec or a tuple with one entry per dim in `dims`; got length $(length(boundary)) for dims=$dims"
@@ -132,7 +209,6 @@ function resolve_filter_policies(ψ, dims, boundary)
 
     foreach(parse_boundary_spec, per_user_dim_specs)
 
-    sorted_dims = Tuple(d for d in (1, 2, 3) if d in dims)
     sorted_specs = ntuple(i -> begin
         user_idx = findfirst(==(sorted_dims[i]), dims)
         per_user_dim_specs[user_idx]
@@ -217,7 +293,37 @@ function parse_boundary_spec(nt::NamedTuple)
 end
 
 parse_boundary_spec(p::AbstractBoundaryPolicy) = p
-parse_boundary_spec(x) = throw(ArgumentError("`boundary` must be :shrink, :edge, or (left=a, right=b); got $(repr(x))"))
+
+# Oceananigans `BoundaryCondition` objects (the type-based spec; see `ShrinkingBoundaryCondition`).
+# `:edge` is the zero-gradient (homogeneous Neumann) case, so `GradientBoundaryCondition(0)` and the
+# `NoFluxBoundaryCondition`/zero-flux map onto it; `ValueBoundaryCondition(v)` is constant padding.
+parse_boundary_spec(::BoundaryCondition{<:Shrink}) = ShrinkBoundary()
+parse_boundary_spec(bc::BoundaryCondition{<:Gradient}) = bc.condition isa Number && iszero(bc.condition) ? EdgeBoundary() :
+    throw(ArgumentError("only a zero `GradientBoundaryCondition` (≡ `:edge`) is supported as a filter boundary condition so far; got $bc"))
+parse_boundary_spec(bc::BoundaryCondition{<:Flux}) = (bc.condition === nothing || (bc.condition isa Number && iszero(bc.condition))) ? EdgeBoundary() :
+    throw(ArgumentError("only a zero `FluxBoundaryCondition` is supported as a filter boundary condition so far; got $bc"))
+parse_boundary_spec(bc::BoundaryCondition{<:Value}) = bc.condition isa Number ? ConstantBoundary(bc.condition, bc.condition) :
+    throw(ArgumentError("a `ValueBoundaryCondition` used for filter padding must hold a number; got $(repr(bc.condition))"))
+parse_boundary_spec(bc::BoundaryCondition) =
+    throw(ArgumentError("unsupported filter boundary condition $bc; use ShrinkingBoundaryCondition(), a zero Gradient/Flux (≡ :edge), or a ValueBoundaryCondition"))
+
+# Translate one direction of a `FieldBoundaryConditions` into a policy: each side is mapped
+# independently and the two collapse to a single policy when they agree, or to a `SplitBoundary` when
+# they differ. Unspecified sides (Oceananigans `DefaultBoundaryCondition`) fall back to shrinking.
+function dim_policy_from_field_bcs(grid, fbc::FieldBoundaryConditions, d)
+    topology(grid, d) === Periodic && return PeriodicBoundary()
+    left_bc, right_bc = d == 1 ? (fbc.west, fbc.east) :
+                        d == 2 ? (fbc.south, fbc.north) :
+                                 (fbc.bottom, fbc.top)
+    left  = side_policy(left_bc)
+    right = side_policy(right_bc)
+    return left === right ? left : SplitBoundary(left, right)
+end
+
+side_policy(::DefaultBoundaryCondition) = ShrinkBoundary()
+side_policy(bc) = parse_boundary_spec(bc)
+
+parse_boundary_spec(x) = throw(ArgumentError("`boundary` must be :shrink, :edge, (left=a, right=b), an Oceananigans BoundaryCondition, or a FieldBoundaryConditions; got $(repr(x))"))
 #---
 
 #+++ Shared staged-compute infrastructure

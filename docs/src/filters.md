@@ -69,10 +69,26 @@ julia> size(Field(bf_edge(c))) == size(Field(bf_mixed(c))) == (32, 1, 32)
 true
 ```
 
+#### Oceananigans boundary conditions
+
+The boundary treatment can equivalently be given with Oceananigans' boundary-condition types (passed
+as `boundary` or the alias `boundary_conditions`): [`ShrinkingBoundaryCondition`](@ref) ↔ `:shrink`,
+`GradientBoundaryCondition(0)` (or a zero `FluxBoundaryCondition`) ↔ `:edge`, and
+`ValueBoundaryCondition(v)` ↔ constant padding with `v`. A `FieldBoundaryConditions` sets each side
+of each direction independently — these filter boundary conditions are separate from the field's own.
+
+```jldoctest filters
+julia> bcs = FieldBoundaryConditions(west=ShrinkingBoundaryCondition(), east=GradientBoundaryCondition(0));
+
+julia> size(Field(BoxFilter(; dims=1, N=3, boundary_conditions=bcs)(c)))
+(32, 1, 32)
+```
+
 ### API reference
 
 ```@docs
 BoxFilter
+ShrinkingBoundaryCondition
 ```
 
 ## Gaussian filter
