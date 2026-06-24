@@ -137,7 +137,7 @@ fig_ω
 # and ``8\Delta`` — and plot each result as it is computed.
 
 σ_sweep = (2Δ, 4Δ, 8Δ)
-ω̄_sweep = [filter(ω) for s in σ_sweep]   # one filter per width, applied to ω
+ω̄_sweep = [GaussianFilter(ω; dims=(1, 2), σ=s) for s in σ_sweep]   # one filter per width, applied to ω
 
 fig_sweep = Figure()
 for (i, s) in enumerate(σ_sweep)
@@ -155,9 +155,9 @@ fig_sweep
 #
 # Filtering also lets us quantify transport by unresolved scales. The subfilter tracer flux is
 # ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``: the difference between the filtered advective
-# flux and the flux carried by the filtered fields. We interpolate the velocities to centers, build
-# the products as `Field`s, and reuse the same `filter` filter on each piece before combining — one
-# filter object, applied to five different fields.
+# flux and the flux carried by the filtered fields. We interpolate the velocities to centers and
+# reuse the same `filter` object on each piece — the two velocities, the tracer, and the two
+# advective products ``u_i c`` — before combining: one filter object, applied to five different fields.
 
 uᶜ = Field(@at (Center, Center, Center) u)
 vᶜ = Field(@at (Center, Center, Center) v)
