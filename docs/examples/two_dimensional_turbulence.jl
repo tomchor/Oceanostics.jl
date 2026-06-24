@@ -2,7 +2,7 @@
 #
 # In this example we simulate a 2D flow initialized with random-noise velocities and a passive tracer ``c`` with
 # a smooth sine/cosine initial condition. We then use Oceanostics to close the volume-integrated
-# kinetic-energy and tracer-variance (``c^2``) budgets.
+# kinetic energy and tracer variance (``c^2``) budgets.
 #
 # Before starting, make sure you have the required packages installed for this example, which can
 # be done with
@@ -76,15 +76,15 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
 #
 # Up until now we have only used Oceananigans, but we can make use of Oceanostics for the first
 # diagnostic we'll set-up: a progress messenger. Here we use a `BasicMessenger`, which,
-# as the name suggests, displays basic information about the simulation
+# as the name suggests, displays only basic information about the simulation
 
 using Oceanostics
 
 progress = ProgressMessengers.BasicMessenger()
-simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))
 
 # We define the visualization fields — speed, vorticity, kinetic energy `KE` — and the
-# dissipation rates `ε` and `χ`, which we will use to close the budgets.
+# dissipation rates `ε` and `χ`, which we will use to close KE and tracer variance budgets.
 
 using Oceananigans.AbstractOperations: @at
 
@@ -94,9 +94,14 @@ KE        = KineticEnergyEquation.KineticEnergy(model)
 ε         = KineticEnergyEquation.DissipationRate(model)
 χ         = TracerVarianceEquation.TracerVarianceDissipationRate(model, :c)
 
+# Note that `KineticEnergyEquation.DissipationRate` (`ε`) and `TracerVarianceEquation.TracerVarianceDissipationRate`
+# (`χ`) --- which can also be called as `KineticEnergyDissipationRate` and `TracerVarianceDissipationRate` --- are
+# implemented using the same kernels as Oceananigans (and therefore use the same interpolations and
+# discretizations).
+
 # To close the budgets we also define the relevant volume integrals as scalar outputs. For a 2D
 # periodic domain with no forcing or buoyancy, advection and pressure-redistribution terms
-# volume-integrate to (essentially) zero by incompressibility, so the volume-integrated KE and
+# volume-integrate to zero due to incompressibility, so the volume-integrated KE and
 # ``c^2`` evolution equations reduce to
 #
 # ```math
@@ -110,7 +115,7 @@ KE        = KineticEnergyEquation.KineticEnergy(model)
 # previous time-step velocities. We are not doing that here: we compute ``\varepsilon``
 # from the current model state and finite-difference snapshots of ``\int \mathrm{KE}\, dV``
 # independently. The two relations are consistent in the continuum limit but only approximately
-# at the discrete level, so we expect the KE budget to close only approximately.
+# at the discrete level for a well-resolved flow, so we expect the KE budget to close only approximately.
 
 ∫KE = Integral(KE)
 ∫c² = Integral(c^2)
@@ -184,12 +189,12 @@ dc²dt    = (∫c²_t[idx2] .- ∫c²_t[idx1]) ./ Δt_pair
 KE_resid = @. dKEdt - (-ε_pair)
 c²_resid = @. dc²dt - (-χ_pair)
 
-using Test                               #hide
-rms(x) = √(sum(abs2, x) / length(x))     #hide
-@test rms(KE_resid) < 0.02 * rms(dKEdt)  #hide
-@test rms(KE_resid) < 0.02 * rms(ε_pair) #hide
-@test rms(c²_resid) < 0.01 * rms(dc²dt)  #hide
-@test rms(c²_resid) < 0.01 * rms(χ_pair) #hide
+using Test                                #hide
+rms(x) = √(sum(abs2, x) / length(x))      #hide
+@test rms(KE_resid) < 0.02 * rms(dKEdt);  #hide
+@test rms(KE_resid) < 0.02 * rms(ε_pair); #hide
+@test rms(c²_resid) < 0.01 * rms(dc²dt);  #hide
+@test rms(c²_resid) < 0.01 * rms(χ_pair); #hide
 
 
 # ## Plotting
@@ -274,7 +279,3 @@ nothing #hide
 # integrated quantity is compared against ``-\int \varepsilon\, dV`` (respectively
 # ``-\int \chi\, dV``), the only term that survives volume-integration for a periodic
 # incompressible flow with a centered advection scheme. The residual shows the gap between them.
-#
-# Note that `KineticEnergyDissipationRate` (`ε`) and `TracerVarianceDissipationRate` (`χ`) are
-# implemented using the same kernels as Oceananigans (and therefore use the same interpolations and
-# discretizations).
