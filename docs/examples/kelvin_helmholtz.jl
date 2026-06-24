@@ -14,11 +14,27 @@
 
 # ## Model and simulation setup
 
-# We begin by creating a model with an isotropic diffusivity and fifth-order advection on a `xz`
-# 128² grid using a buoyancy `b` as the active scalar. We'll work here with nondimensional
-# quantities.
-
 using Oceananigans
+
+# We work with nondimensional quantities, following the standard nondimensionalization of the
+# stratified shear layer ([Kaminski and Smyth, 2019](https://doi.org/10.1017/jfm.2018.973)). We
+# nondimensionalize the Boussinesq equations using the shear-layer half-width `h` as the length
+# scale and the velocity scale `U` (half the velocity difference across the layer), so that time is
+# measured in units of `h / U`. The flow is then governed by three nondimensional numbers — the
+# Richardson number `Ri`, the Reynolds number `Re = U h / ν`, and the Prandtl number `Pr = ν / κ` —
+# from which the viscosity `ν` and the buoyancy diffusivity `κ` follow:
+
+U  = 1     # velocity scale (half the velocity difference across the shear layer)
+h  = 1     # length scale (shear-layer half-width)
+Ri = 0.1   # Richardson number
+Re = 5e4   # Reynolds number
+Pr = 1     # Prandtl number
+
+ν = U * h / Re   # viscosity
+κ = ν / Pr       # buoyancy diffusivity
+
+# We begin by creating a model with this isotropic diffusivity and fifth-order advection on a `xz`
+# 128² grid, using a buoyancy `b` as the active scalar:
 
 N = 128
 L = 10
@@ -26,19 +42,20 @@ grid = RectilinearGrid(size=(N, N), x=(-L/2, +L/2), z=(-L/2, +L/2), topology=(Pe
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = UpwindBiased(order=5),
-                            closure = ScalarDiffusivity(ν=2e-5, κ=2e-5),
+                            closure = ScalarDiffusivity(; ν, κ),
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
-# We use hyperbolic tangent functions for the initial conditions and set the maximum Richardson
-# number below the threshold of 1/4. We also add some grid-scale small-amplitude noise to `u` to
-# kick the instability off:
+# We use hyperbolic tangent profiles with the *same* length scale `h` for both the shear flow and
+# the stratification. The buoyancy jump `B₀ = U² Ri / h` is chosen so that the gradient Richardson
+# number `N² / (∂u/∂z)²` reaches its minimum value `Ri = 0.1` — below the classical stability
+# threshold of 1/4 — at the center of the shear layer (`z = 0`), where the flow is most unstable. We
+# also add grid-scale small-amplitude noise to `u` to kick the instability off:
 
+B₀ = U^2 * Ri / h
 
 noise(x, z) = 2e-2 * randn()
-shear_flow(x, z) = tanh(z) + noise(x, z)
-
-Ri₀ = 0.1; h = 1/4
-stratification(x, z) = h * Ri₀ * tanh(z / h)
+shear_flow(x, z) = U * tanh(z / h) + noise(x, z)
+stratification(x, z) = B₀ * tanh(z / h)
 
 set!(model, u=shear_flow, b=stratification)
 
@@ -139,7 +156,7 @@ hm2 = heatmap!(ax2, Qₙ; colormap = :inferno, colorrange = (0, 0.2))
 Colorbar(fig[3, 2], hm2, vertical=false, height=8)
 
 bₙ = @lift b_t[$n]
-hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-2.5e-2, +2.5e-2))
+hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-B₀, +B₀))
 Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
 # We now plot the time evolution of our integrated quantities
