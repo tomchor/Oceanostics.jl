@@ -70,7 +70,7 @@ set!(model, u=shear_flow, b=stratification, w=perturbation)
 #
 # Next create an adaptive-time-step simulation using the model above:
 
-simulation = Simulation(model, Δt=0.1, stop_time=200)
+simulation = Simulation(model, Δt=0.1, stop_time=120)
 
 wizard = TimeStepWizard(cfl=0.8, max_Δt=1)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
