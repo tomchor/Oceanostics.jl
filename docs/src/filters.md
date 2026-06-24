@@ -1,4 +1,4 @@
-# Filters
+# Spatial filters
 
 Oceanostics provides spatial filters that operate directly on Oceananigans fields.
 All filters are built on top of Oceananigans'

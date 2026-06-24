@@ -38,7 +38,7 @@ pages = ["Home" => "index.md",
                                 ],
          "Flow diagnostics" => "flow_diagnostics.md",
          "Progress messengers" => "progress_messengers.md",
-         "Filters" => "filters.md",
+         "Spatial filters" => "filters.md",
          "Examples" => example_pages,
          "Function library" => "library.md",
         ]

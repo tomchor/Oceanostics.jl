@@ -8,7 +8,7 @@ recursive one that invokes another kernel function at each stencil point.
 struct BoxFilterKernel{D} <: Function end
 const BoxFilter = CustomKFO{<:BoxFilterKernel}
 
-# `@unroll_full` (defined in `Filters.jl`) is applied here for the same
+# `@unroll_full` (defined in `SpatialFilters.jl`) is applied here for the same
 # reason as in `GaussianFilterKernel`: without it the per-thread
 # accumulator state and per-iteration policy branch can fail to specialize,
 # producing a measurable cliff at large widths. For `BoxFilter` there is no
@@ -208,7 +208,7 @@ Base.show(io::IO, F::BoxFilterOperator) = print(io, "BoxFilter(dims=", F.dims, "
 
 #+++ Staged multi-direction evaluation
 # Multi-direction BoxFilters dispatch into the shared
-# `_compute_staged_filter!` machinery defined in `Filters.jl`. 1D filters
+# `_compute_staged_filter!` machinery defined in `SpatialFilters.jl`. 1D filters
 # (`length(args) == 3`) fall through to the default `compute!` and use the
 # unrolled single-direction kernel above.
 const _BoxFilter2D = KernelFunctionOperation{LX, LY, LZ, G, T,

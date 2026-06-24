@@ -1,4 +1,4 @@
-module Filters
+module SpatialFilters
 using DocStringExtensions
 
 export BoxFilter, GaussianFilter
@@ -241,7 +241,7 @@ parse_boundary_spec(x) = throw(ArgumentError("`boundary` must be :shrink, :edge,
 # A self-contained "fully unroll this loop" macro. This is the same pattern
 # as `KernelAbstractions.Extras.@unroll`: attach the LLVM
 # `llvm.loop.unroll.full` loopinfo node to the body so the optimizer is
-# required to unroll the loop. Done inline so the `Filters` submodule does
+# required to unroll the loop. Done inline so the `SpatialFilters` submodule does
 # not need to add `KernelAbstractions` as a direct dependency.
 macro unroll_full(expr)
     expr.head === :for || error("@unroll_full needs a `for` loop")

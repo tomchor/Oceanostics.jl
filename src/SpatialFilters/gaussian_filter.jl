@@ -32,7 +32,7 @@ const GaussianFilter = CustomKFO{<:AbstractGaussianFilterKernel}
 
 GaussianFilterKernel{D}(weights::W) where {D, W} = GaussianFilterKernel{D, W}(weights)
 
-# `@unroll_full` (LLVM `llvm.loop.unroll.full` hint, defined in Filters.jl)
+# `@unroll_full` (LLVM `llvm.loop.unroll.full` hint, defined in SpatialFilters.jl)
 # is essential here: the weights tuple is captured by-value in each thread's
 # register file, and tuple indexing by a non-constant `idx` would force
 # spilling the tuple to per-thread local memory. Forcing a full unroll keeps
@@ -495,7 +495,7 @@ end
 #+++ Staged multi-direction evaluation
 #
 # Multi-direction GaussianFilters are evaluated via the shared
-# `_compute_staged_filter!` machinery defined in `Filters.jl`. The aliases
+# `_compute_staged_filter!` machinery defined in `SpatialFilters.jl`. The aliases
 # below pin the dispatch — 1D filters (`length(args) == 3`) fall through to
 # the default `compute!` and use the unrolled single-direction kernel.
 # Match a multi-direction GaussianFilter regardless of whether each direction's

@@ -9,7 +9,7 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceanostics
 using Oceanostics: BoxFilter, GaussianFilter
 # operator types are internal (not exported) — reach them through the submodule for the `isa` checks
-using Oceanostics.Filters: GaussianFilterKernel, StretchedGaussianFilterKernel, BoxFilterOperator, GaussianFilterOperator
+using Oceanostics.SpatialFilters: GaussianFilterKernel, StretchedGaussianFilterKernel, BoxFilterOperator, GaussianFilterOperator
 
 arch = has_cuda_gpu() ? GPU() : CPU()
 
@@ -761,7 +761,7 @@ filter_configs = [
     ("GaussianFilter", GaussianFilter, w -> gauss_weights(w, σ_test_cells),  (; σ=σ_test_physical)),
 ]
 
-@testset "Filters on $(typeof(arch).name.wrapper)" begin
+@testset "SpatialFilters on $(typeof(arch).name.wrapper)" begin
     for (filter_name, Filter, make_weights, fkw) in filter_configs
         @testset "$filter_name" begin
             Nx = Ny = Nz = 8
