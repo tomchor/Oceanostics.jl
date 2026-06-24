@@ -62,7 +62,7 @@ export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 #---
 
-#+++ Filters exports
+#+++ SpatialFilters exports
 export BoxFilter, GaussianFilter
 #---
 
@@ -185,12 +185,12 @@ include("KineticEnergyEquation.jl")
 include("TurbulentKineticEnergyEquation.jl")
 include("PotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
-include("Filters/Filters.jl")
+include("SpatialFilters/SpatialFilters.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
 using .FlowDiagnostics
-using .Filters
+using .SpatialFilters
 using .ProgressMessengers
 
 #+++ Custom `show` for diagnostics
@@ -386,9 +386,9 @@ end
 @diagnostic_show CustomKFO{<:FlowDiagnostics.MixedLayerDepthKernel} "MixedLayerDepth"                    "mixed layer depth (shallowest depth where the criterion is met)"
 #---
 
-#+++ Filters
-@diagnostic_show Filters.BoxFilter      "BoxFilter"      "local box-average (running mean) of the operand"
-@diagnostic_show Filters.GaussianFilter "GaussianFilter" "local Gaussian-weighted average of the operand"
+#+++ SpatialFilters
+@diagnostic_show SpatialFilters.BoxFilter      "BoxFilter"      "local box-average (running mean) of the operand"
+@diagnostic_show SpatialFilters.GaussianFilter "GaussianFilter" "local Gaussian-weighted average of the operand"
 #---
 #---
 

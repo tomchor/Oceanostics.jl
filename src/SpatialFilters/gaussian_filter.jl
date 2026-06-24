@@ -32,7 +32,7 @@ const GaussianFilter = CustomKFO{<:AbstractGaussianFilterKernel}
 
 GaussianFilterKernel{D}(weights::W) where {D, W} = GaussianFilterKernel{D, W}(weights)
 
-# `@unroll_full` (LLVM `llvm.loop.unroll.full` hint, defined in Filters.jl)
+# `@unroll_full` (LLVM `llvm.loop.unroll.full` hint, defined in SpatialFilters.jl)
 # is essential here: the weights tuple is captured by-value in each thread's
 # register file, and tuple indexing by a non-constant `idx` would force
 # spilling the tuple to per-thread local memory. Forcing a full unroll keeps
@@ -161,8 +161,7 @@ struct StretchedGaussianFilterKernel{D, S, L} <: AbstractGaussianFilterKernel{D}
     period::S
 end
 
-StretchedGaussianFilterKernel{D}(σ::S, loc::L, period::S) where {D, S, L} =
-    StretchedGaussianFilterKernel{D, S, L}(σ, loc, period)
+StretchedGaussianFilterKernel{D}(σ::S, loc::L, period::S) where {D, S, L} = StretchedGaussianFilterKernel{D, S, L}(σ, loc, period)
 
 # `(coordinate, cell width)` of the stencil cell at the (possibly out-of-range)
 # index `m` along a filtered direction, honoring the boundary policy's geometry.
@@ -348,8 +347,49 @@ end
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` that computes a Gaussian-weighted local average of `ψ` over the
-directions listed in `dims`.
+One-step form: apply a Gaussian filter to `ψ` directly, returning the `KernelFunctionOperation` that
+computes its Gaussian-weighted local average. Equivalent to `GaussianFilter(; dims, σ, N, boundary)(ψ)`.
+
+Refer to [`GaussianFilter`](@ref)`(; dims, σ, N, boundary)` for the full description of the
+keyword arguments, the Gaussian weighting, stretched-grid handling, and boundary handling.
+"""
+function GaussianFilter(ψ; dims, σ, N=nothing, boundary=:shrink)
+    dims = tuplefy_dims(dims)
+    validate_σ(σ)
+    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
+
+    sorted_widths = resolve_gaussian_widths(N, σ, grid, dims, sorted_dims)
+    validate_periodic_widths(grid, sorted_dims, policies, sorted_widths)
+    σT = convert(eltype(grid), σ)
+
+    return build_filter_kfo((d, i) -> gaussian_kernel(grid, loc, σT, d, sorted_widths[i]),
+                            grid, loc, sorted_dims, sorted_widths, policies, ψ)
+end
+
+#+++ Reusable (field-less) Gaussian filter
+"""
+    GaussianFilterOperator{D, S, NN, B}
+
+Returns a reusable Gaussian filter. Stores the `GaussianFilter` parameters
+(`dims`, `σ`, `N`, `boundary`) and, when called on a field `ψ`, returns `GaussianFilter(ψ; dims, σ, N, boundary)`.
+Construct one once with [`GaussianFilter`](@ref)`(; …)` and apply it to many fields.
+"""
+struct GaussianFilterOperator{D, S, NN, B}
+    dims::D
+    σ::S
+    N::NN
+    boundary::B
+end
+
+(F::GaussianFilterOperator)(ψ) = GaussianFilter(ψ; dims=F.dims, σ=F.σ, N=F.N, boundary=F.boundary)
+
+"""
+    $(SIGNATURES)
+
+Build a reusable, field-less Gaussian filter that computes a Gaussian-weighted local average over the
+directions listed in `dims`. The returned object is callable: applying it to a field, `gf(ψ)`, returns
+a `KernelFunctionOperation`. Build the filter once and reuse it across many fields, or pass it to other
+diagnostics that accept a filter.
 
 `σ` is the standard deviation of the Gaussian kernel in physical units (the same units as the grid
 spacing). The filter approximates the continuous Gaussian convolution
@@ -360,8 +400,7 @@ consistently. On a uniform direction the `Δₘ` factor is constant and cancels,
 `exp(-r² / 2σ²)` weighting.
 
 `GaussianFilter` supports **both uniformly and variably spaced (stretched) directions**, choosing
-the implementation per direction at construction time so the regular-grid case keeps its original
-speed:
+the implementation per direction so the regular-grid case keeps its original speed:
 
   - **Uniform direction** — the weights are identical for every cell, so they are precomputed once
     in cell-offset units (`σ_cells = σ / Δ`, weight `exp(-Δi² / 2σ_cells²)` at cell offset `Δi`)
@@ -386,20 +425,20 @@ than `2σ` where cells are large, which is harmless since the Gaussian weights t
 override, pass either a single odd integer (applied to every filtered dim) or a tuple with one
 odd-integer count per dim in `dims` (in the order the user passed them). For `Periodic`
 directions the stencil must span at most one period (`N ≤ 2*Nd_grid + 1`, where `Nd_grid` is the
-number of cells along that direction); this is enforced at construction time.
+number of cells along that direction); this is enforced when the filter is applied.
 
 See `BoxFilter` for the `dims` and `boundary` keyword documentation.
 
 ## Performance notes
 
-A multi-direction Gaussian filter is mathematically separable. The constructor still returns a
-single composable `KernelFunctionOperation`, but when that operation is the operand of a `Field`
-(the standard `Field(GaussianFilter(...))` / `compute!` path), the implementation evaluates the
-filter as a sequence of 1D passes through intermediate fields. This reduces the per-output read
-count from `N^d` to `d × N`, which is the main reason multi-direction filters with wide stencils
-are competitive on GPUs. Mixed-spacing filters stage the same way — each direction's 1D pass uses
-its own (uniform or stretched) kernel. If the filter is composed into another `AbstractOperation`
-(e.g. `2 * GaussianFilter(c; dims=(1,2,3))`) it falls back to the fused, single-kernel evaluation.
+A multi-direction Gaussian filter is mathematically separable. Applying the filter returns a single
+composable `KernelFunctionOperation`, but when that operation is the operand of a `Field` (the
+standard `Field(gf(ψ))` / `compute!` path), the implementation evaluates the filter as a sequence of
+1D passes through intermediate fields. This reduces the per-output read count from `N^d` to `d × N`,
+which is the main reason multi-direction filters with wide stencils are competitive on GPUs.
+Mixed-spacing filters stage the same way — each direction's 1D pass uses its own (uniform or
+stretched) kernel. If the filtered field is composed into another `AbstractOperation` (e.g.
+`2 * gf(c)`) it falls back to the fused, single-kernel evaluation.
 
 ## Examples
 
@@ -411,21 +450,27 @@ julia> grid = RectilinearGrid(size=(8, 8), x=(0, 1), z=(0, 1),
 
 julia> c = CenterField(grid);
 
-julia> GaussianFilter(c; dims=(1, 3), σ=0.1) isa KernelFunctionOperation
+julia> gf = GaussianFilter(; dims=(1, 3), σ=0.1)
+GaussianFilter(dims=(1, 3), σ=0.1, N=nothing, boundary=:shrink)
+
+julia> gf(c) isa KernelFunctionOperation
 true
 ```
+
+A one-step shortcut `GaussianFilter(ψ; dims, σ, N, boundary)` is also accepted, which applies the
+filter to `ψ` immediately (equivalent to `GaussianFilter(; dims, σ, N, boundary)(ψ)`).
 """
-function GaussianFilter(ψ; dims, σ, N=nothing, boundary=:shrink)
+function GaussianFilter(; dims, σ, N=nothing, boundary=:shrink)
+    dims = tuplefy_dims(dims)
+    validate_dims(dims)
     validate_σ(σ)
-    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
-
-    sorted_widths = resolve_gaussian_widths(N, σ, grid, dims, sorted_dims)
-    validate_periodic_widths(grid, sorted_dims, policies, sorted_widths)
-    σT = convert(eltype(grid), σ)
-
-    return build_filter_kfo((d, i) -> gaussian_kernel(grid, loc, σT, d, sorted_widths[i]),
-                            grid, loc, sorted_dims, sorted_widths, policies, ψ)
+    N === nothing || (N isa Tuple ? foreach(validate_N, N) : validate_N(N))
+    return GaussianFilterOperator(dims, σ, N, boundary)
 end
+
+Base.show(io::IO, F::GaussianFilterOperator) =
+    print(io, "GaussianFilter(dims=", F.dims, ", σ=", F.σ, ", N=", F.N, ", boundary=", repr(F.boundary), ")")
+#---
 
 infer_width(σ, grid, d) = ceil(Int, 2σ / direction_min_spacing(grid, d))
 
@@ -450,7 +495,7 @@ end
 #+++ Staged multi-direction evaluation
 #
 # Multi-direction GaussianFilters are evaluated via the shared
-# `_compute_staged_filter!` machinery defined in `Filters.jl`. The aliases
+# `_compute_staged_filter!` machinery defined in `SpatialFilters.jl`. The aliases
 # below pin the dispatch — 1D filters (`length(args) == 3`) fall through to
 # the default `compute!` and use the unrolled single-direction kernel.
 # Match a multi-direction GaussianFilter regardless of whether each direction's
