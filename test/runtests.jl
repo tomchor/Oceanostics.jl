@@ -55,8 +55,8 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
         include("test_progress_messengers.jl")
     end
 
-    if group == :filters || group == :all
-        include("test_filters.jl")
+    if group == :spatial_filters || group == :all
+        include("test_spatial_filters.jl")
     end
 
     if group == :perf_invariants || group == :all
