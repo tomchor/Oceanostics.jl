@@ -21,14 +21,14 @@ using Oceananigans
 # nondimensionalize the Boussinesq equations using the shear-layer half-width `h` as the length
 # scale and the velocity scale `U` (half the velocity difference across the layer), so that time is
 # measured in units of `h / U`. The flow is then governed by three nondimensional numbers — the
-# Richardson number `Ri`, the Reynolds number `Re = U h / ν`, and the Prandtl number `Pr = ν / κ` —
+# Richardson number `Ri₀`, the Reynolds number `Re = U h / ν`, and the Prandtl number `Pr = ν / κ` —
 # from which the viscosity `ν` and the buoyancy diffusivity `κ` follow:
 
-U  = 1     # velocity scale (half the velocity difference across the shear layer)
-h  = 1     # length scale (shear-layer half-width)
-Ri = 0.1   # Richardson number
-Re = 5e4   # Reynolds number
-Pr = 1     # Prandtl number
+U   = 1     # velocity scale (half the velocity difference across the shear layer)
+h   = 1     # length scale (shear-layer half-width)
+Ri₀ = 0.1   # Richardson number
+Re  = 5e4   # Reynolds number
+Pr  = 1     # Prandtl number
 
 ν = U * h / Re   # viscosity
 κ = ν / Pr       # buoyancy diffusivity
@@ -51,26 +51,32 @@ model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
 # We use hyperbolic tangent profiles with the *same* length scale `h` for both the shear flow and
-# the stratification. The buoyancy jump `B₀ = U² Ri / h` is chosen so that the gradient Richardson
-# number `N² / (∂u/∂z)²` reaches its minimum value `Ri = 0.1` — below the classical stability
+# the stratification. The buoyancy jump `B₀ = U² Ri₀ / h` is chosen so that the gradient Richardson
+# number `N² / (∂u/∂z)²` reaches its minimum value `Ri₀ = 0.1` — below the classical stability
 # threshold of 1/4 — at the center of the shear layer (`z = 0`), where the flow is most unstable. To
 # kick off the instability we perturb the vertical velocity `w` with the most unstable mode
 # `sin(k_max x)`, localized to the shear layer by a Gaussian envelope `exp(-z²)` and given a random
-# amplitude:
+# amplitude. We seed the random number generator so the perturbation — and hence the movie — is
+# reproducible:
 
-B₀ = U^2 * Ri / h
+B₀ = U^2 * Ri₀ / h
 perturbation_amplitude = 5e-2
 
 shear_flow(x, z) = U * tanh(z / h)
 stratification(x, z) = B₀ * tanh(z / h)
 perturbation(x, z) = perturbation_amplitude * abs(randn()) * exp(-z^2) * sin(x * k_max - π)
 
+using Random
+Random.seed!(43)
 set!(model, u=shear_flow, b=stratification, w=perturbation)
 
 #
-# Next create an adaptive-time-step simulation using the model above:
+# Next create an adaptive-time-step simulation using the model above. The initial time step is set
+# conservatively from the horizontal grid spacing and velocity scale; the `TimeStepWizard` below
+# adapts it as the flow evolves:
 
-simulation = Simulation(model, Δt=0.1, stop_time=120)
+Δx = minimum_xspacing(grid)
+simulation = Simulation(model, Δt = 0.1 * Δx / U, stop_time=120)
 
 wizard = TimeStepWizard(cfl=0.8, max_Δt=1)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
@@ -87,7 +93,7 @@ progress = ProgressMessengers.TimedMessenger()
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))
 
 
-# We can also define some useful diagnostics for of the flow, starting with the `RichardsonNumber`
+# We can also define some useful diagnostics of the flow, starting with the `RichardsonNumber`
 
 Ri = RichardsonNumber(model)
 
@@ -195,6 +201,6 @@ end
 # ![](kelvin_helmholtz.mp4)
 #
 # Similarly to the kinetic energy dissipation rate (see the [Two-dimensional turbulence example](@ref two_d_turbulence_example)),
-# `TracerVarianceDissipationRate` and `TracerVarianceDiffusion` are implemented
-# with a energy-conserving formulation, which means that (for `NoFlux` boundary conditions) their
+# `TracerVarianceEquation.DissipationRate` and `TracerVarianceEquation.Diffusion` are implemented
+# with an energy-conserving formulation, which means that (for `NoFlux` boundary conditions) their
 # volume-integral should be exactly (up to machine precision) the same.
