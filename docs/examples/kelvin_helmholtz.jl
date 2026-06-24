@@ -14,38 +14,69 @@
 
 # ## Model and simulation setup
 
-# We begin by creating a model with an isotropic diffusivity and fifth-order advection on a `xz`
-# 128² grid using a buoyancy `b` as the active scalar. We'll work here with nondimensional
-# quantities.
-
 using Oceananigans
 
+# We work with nondimensional quantities, following the standard nondimensionalization of the
+# stratified shear layer ([Kaminski and Smyth, 2019](https://doi.org/10.1017/jfm.2018.973)). We
+# nondimensionalize the Boussinesq equations using the shear-layer half-width `h` as the length
+# scale and the velocity scale `U` (half the velocity difference across the layer), so that time is
+# measured in units of `h / U`. The flow is then governed by three nondimensional numbers — the
+# Richardson number `Ri₀`, the Reynolds number `Re = U h / ν`, and the Prandtl number `Pr = ν / κ` —
+# from which the viscosity `ν` and the buoyancy diffusivity `κ` follow:
+
+U   = 1     # velocity scale (half the velocity difference across the shear layer)
+h   = 1     # length scale (shear-layer half-width)
+Ri₀ = 0.1   # Richardson number
+Re  = 5e4   # Reynolds number
+Pr  = 1     # Prandtl number
+
+ν = U * h / Re   # viscosity
+κ = ν / Pr       # buoyancy diffusivity
+
+# We begin by creating a model with this isotropic diffusivity and fifth-order advection on a `xz`
+# grid, using a buoyancy `b` as the active scalar. We make the box one wavelength of the most
+# unstable Kelvin-Helmholtz mode wide (`k_max = 0.4446 / h`; [Michalke,
+# 1964](https://doi.org/10.1017/S0022112064000908)), so that the perturbation we seed below fits
+# periodically:
+
 N = 128
-L = 10
-grid = RectilinearGrid(size=(N, N), x=(-L/2, +L/2), z=(-L/2, +L/2), topology=(Periodic, Flat, Bounded))
+k_max = 0.4446 / h   # most unstable KH wavenumber (Michalke, 1964)
+Lx = 2π / k_max      # one most-unstable wavelength
+Lz = 10
+grid = RectilinearGrid(size=(N, N), x=(-Lx/2, +Lx/2), z=(-Lz/2, +Lz/2), topology=(Periodic, Flat, Bounded))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = UpwindBiased(order=5),
-                            closure = ScalarDiffusivity(ν=2e-5, κ=2e-5),
+                            closure = ScalarDiffusivity(; ν, κ),
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
-# We use hyperbolic tangent functions for the initial conditions and set the maximum Richardson
-# number below the threshold of 1/4. We also add some grid-scale small-amplitude noise to `u` to
-# kick the instability off:
+# We use hyperbolic tangent profiles with the same length scale `h` for both the shear flow and
+# the stratification. The buoyancy jump `B₀ = U² Ri₀ / h` is chosen so that the gradient Richardson
+# number `N² / (∂u/∂z)²` reaches its minimum value `Ri₀ = 0.1` — below the classical stability
+# threshold of 1/4 — at the center of the shear layer (`z = 0`), where the flow is most unstable. To
+# kick off the instability we perturb the vertical velocity `w` with the most unstable mode
+# `sin(k_max x)`, localized to the shear layer by a Gaussian envelope `exp(-z²)` and given a random
+# amplitude. We seed the random number generator so the perturbation — and hence the movie — is
+# reproducible:
 
+B₀ = U^2 * Ri₀ / h
+perturbation_amplitude = 5e-2
 
-noise(x, z) = 2e-2 * randn()
-shear_flow(x, z) = tanh(z) + noise(x, z)
+shear_flow(x, z) = U * tanh(z / h)
+stratification(x, z) = B₀ * tanh(z / h)
+perturbation(x, z) = perturbation_amplitude * abs(randn()) * exp(-z^2) * sin(x * k_max - π)
 
-Ri₀ = 0.1; h = 1/4
-stratification(x, z) = h * Ri₀ * tanh(z / h)
-
-set!(model, u=shear_flow, b=stratification)
+using Random
+Random.seed!(43)
+set!(model, u=shear_flow, b=stratification, w=perturbation)
 
 #
-# Next create an adaptive-time-step simulation using the model above:
+# Next create an adaptive-time-step simulation using the model above. The initial time step is set
+# conservatively from the horizontal grid spacing and velocity scale; the `TimeStepWizard` below
+# adapts it as the flow evolves:
 
-simulation = Simulation(model, Δt=0.1, stop_time=100)
+Δx = minimum_xspacing(grid)
+simulation = Simulation(model, Δt = 0.1 * Δx / U, stop_time=120)
 
 wizard = TimeStepWizard(cfl=0.8, max_Δt=1)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
@@ -62,7 +93,7 @@ progress = ProgressMessengers.TimedMessenger()
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))
 
 
-# We can also define some useful diagnostics for of the flow, starting with the `RichardsonNumber`
+# We can also define some useful diagnostics of the flow, starting with the `RichardsonNumber`
 
 Ri = RichardsonNumber(model)
 
@@ -139,7 +170,7 @@ hm2 = heatmap!(ax2, Qₙ; colormap = :inferno, colorrange = (0, 0.2))
 Colorbar(fig[3, 2], hm2, vertical=false, height=8)
 
 bₙ = @lift b_t[$n]
-hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-2.5e-2, +2.5e-2))
+hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-B₀, +B₀))
 Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
 # We now plot the time evolution of our integrated quantities
@@ -170,6 +201,6 @@ end
 # ![](kelvin_helmholtz.mp4)
 #
 # Similarly to the kinetic energy dissipation rate (see the [Two-dimensional turbulence example](@ref two_d_turbulence_example)),
-# `TracerVarianceDissipationRate` and `TracerVarianceDiffusion` are implemented
-# with a energy-conserving formulation, which means that (for `NoFlux` boundary conditions) their
+# `TracerVarianceEquation.DissipationRate` and `TracerVarianceEquation.Diffusion` are implemented
+# with an energy-conserving formulation, which means that (for `NoFlux` boundary conditions) their
 # volume-integral should be exactly (up to machine precision) the same.
