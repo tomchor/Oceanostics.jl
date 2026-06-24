@@ -140,7 +140,7 @@ julia> stretched_grid = RectilinearGrid(size=(16, 16),
 julia> cz = CenterField(stretched_grid); set!(cz, (x, z) -> sin(2π*x) * z);
 
 julia> gf = GaussianFilter(; dims=(1, 3), σ=0.1)
-GaussianFilter(dims=(1, 3), σ=0.1, boundary=:shrink)
+GaussianFilter(dims=(1, 3), σ=0.1, N=nothing, boundary=:shrink)
 
 julia> c̄z = Field(gf(cz));
 
