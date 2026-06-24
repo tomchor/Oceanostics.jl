@@ -89,6 +89,7 @@ Refer to [`BoxFilter`](@ref)`(; dims, N, boundary)` for the full description of 
 keyword arguments and boundary handling.
 """
 function BoxFilter(ψ; dims, N, boundary=:shrink)
+    dims = to_filter_dims(dims)
     validate_N(N)
     grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
     width = (N - 1) ÷ 2
@@ -123,7 +124,8 @@ in `dims`. The returned object is callable: applying it to a field, `bf(ψ)`, re
 diagnostics that accept a filter.
 
 `dims` is a tuple of distinct integers drawn from `(1, 2, 3)` (where `1`, `2`, `3` correspond to `x`,
-`y`, `z`).
+`y`, `z`). A single integer (e.g. `dims=2`) is accepted as shorthand for filtering along that one
+direction.
 
 `N` is the **total number of grid points used by the filter stencil** along each filtered direction —
 i.e. how many cells are averaged together to produce one filtered output value (e.g. `N=3` is a
@@ -194,7 +196,12 @@ true
 A one-step shortcut `BoxFilter(ψ; dims, N, boundary)` is also accepted, which applies the filter to
 `ψ` immediately (equivalent to `BoxFilter(; dims, N, boundary)(ψ)`).
 """
-BoxFilter(; dims, N, boundary=:shrink) = BoxFilterOperator(dims, N, boundary)
+function BoxFilter(; dims, N, boundary=:shrink)
+    dims = to_filter_dims(dims)
+    validate_dims(dims)
+    validate_N(N)
+    return BoxFilterOperator(dims, N, boundary)
+end
 
 Base.show(io::IO, F::BoxFilterOperator) = print(io, "BoxFilter(dims=", F.dims, ", N=", F.N, ", boundary=", repr(F.boundary), ")")
 #---

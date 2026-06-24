@@ -354,6 +354,7 @@ Refer to [`GaussianFilter`](@ref)`(; dims, σ, N, boundary)` for the full descri
 keyword arguments, the Gaussian weighting, stretched-grid handling, and boundary handling.
 """
 function GaussianFilter(ψ; dims, σ, N=nothing, boundary=:shrink)
+    dims = to_filter_dims(dims)
     validate_σ(σ)
     grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
 
@@ -450,7 +451,7 @@ julia> grid = RectilinearGrid(size=(8, 8), x=(0, 1), z=(0, 1),
 julia> c = CenterField(grid);
 
 julia> gf = GaussianFilter(; dims=(1, 3), σ=0.1)
-GaussianFilter(dims=(1, 3), σ=0.1, boundary=:shrink)
+GaussianFilter(dims=(1, 3), σ=0.1, N=nothing, boundary=:shrink)
 
 julia> gf(c) isa KernelFunctionOperation
 true
@@ -459,9 +460,16 @@ true
 A one-step shortcut `GaussianFilter(ψ; dims, σ, N, boundary)` is also accepted, which applies the
 filter to `ψ` immediately (equivalent to `GaussianFilter(; dims, σ, N, boundary)(ψ)`).
 """
-GaussianFilter(; dims, σ, N=nothing, boundary=:shrink) = GaussianFilterOperator(dims, σ, N, boundary)
+function GaussianFilter(; dims, σ, N=nothing, boundary=:shrink)
+    dims = to_filter_dims(dims)
+    validate_dims(dims)
+    validate_σ(σ)
+    N === nothing || (N isa Tuple ? foreach(validate_N, N) : validate_N(N))
+    return GaussianFilterOperator(dims, σ, N, boundary)
+end
 
-Base.show(io::IO, F::GaussianFilterOperator) = print(io, "GaussianFilter(dims=", F.dims, ", σ=", F.σ, ", boundary=", repr(F.boundary), ")")
+Base.show(io::IO, F::GaussianFilterOperator) =
+    print(io, "GaussianFilter(dims=", F.dims, ", σ=", F.σ, ", N=", F.N, ", boundary=", repr(F.boundary), ")")
 #---
 
 infer_width(σ, grid, d) = ceil(Int, 2σ / direction_min_spacing(grid, d))

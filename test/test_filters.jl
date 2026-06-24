@@ -711,6 +711,10 @@ function test_reusable_box_filter(grid)
 
     # show prints something tidy.
     @test occursin("BoxFilter(dims=", sprint(show, F))
+
+    # A single integer `dims` is shorthand for one direction.
+    @test BoxFilter(; dims=1, N=5).dims === (1,)
+    @test Array(interior(Field(BoxFilter(c; dims=1, N=5)))) ≈ Array(interior(Field(BoxFilter(c; dims=(1,), N=5))))
 end
 
 function test_reusable_gaussian_filter(grid)
@@ -733,6 +737,14 @@ function test_reusable_gaussian_filter(grid)
     @test FN(c) == GaussianFilter(c; dims=(1,), σ=0.1, N=5, boundary=:edge)
 
     @test occursin("GaussianFilter(dims=", sprint(show, F))
+
+    # `show` always prints N — `nothing` when inferred, the value when set.
+    @test occursin("N=nothing", sprint(show, F))
+    @test occursin("N=5", sprint(show, FN))
+
+    # A single integer `dims` is shorthand for one direction.
+    @test GaussianFilter(; dims=1, σ=0.1).dims === (1,)
+    @test Array(interior(Field(GaussianFilter(c; dims=1, σ=0.1)))) ≈ Array(interior(Field(GaussianFilter(c; dims=(1,), σ=0.1))))
 end
 #---
 

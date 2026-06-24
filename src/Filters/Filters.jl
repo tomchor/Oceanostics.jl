@@ -186,6 +186,10 @@ validate_dims(dims::Tuple{Vararg{Int}}) =
 
 validate_dims(dims) = throw(ArgumentError("`dims` must be a tuple of integers; got $(typeof(dims))"))
 
+# A bare integer `dims` is shorthand for filtering along that single direction.
+to_filter_dims(dims::Integer) = (Int(dims),)
+to_filter_dims(dims) = dims
+
 validate_N(N::Integer) = ((N >= 3) & isodd(N)) || throw(ArgumentError("`N` must be an odd integer ≥ 3; got $N"))
 validate_N(N) = throw(ArgumentError("`N` must be an odd integer ≥ 3; got $(typeof(N))"))
 
