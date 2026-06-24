@@ -50,7 +50,7 @@ model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             closure = ScalarDiffusivity(; ν, κ),
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
-# We use hyperbolic tangent profiles with the *same* length scale `h` for both the shear flow and
+# We use hyperbolic tangent profiles with the same length scale `h` for both the shear flow and
 # the stratification. The buoyancy jump `B₀ = U² Ri₀ / h` is chosen so that the gradient Richardson
 # number `N² / (∂u/∂z)²` reaches its minimum value `Ri₀ = 0.1` — below the classical stability
 # threshold of 1/4 — at the center of the shear layer (`z = 0`), where the flow is most unstable. To
