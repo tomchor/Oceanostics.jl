@@ -1,4 +1,4 @@
-module Filters
+module SpatialFilters
 using DocStringExtensions
 
 export BoxFilter, GaussianFilter
@@ -186,6 +186,11 @@ validate_dims(dims::Tuple{Vararg{Int}}) =
 
 validate_dims(dims) = throw(ArgumentError("`dims` must be a tuple of integers; got $(typeof(dims))"))
 
+# Normalize a `dims` argument to canonical tuple form: a bare integer is treated as a
+# one-element tuple (a single direction), and anything else is passed through unchanged.
+tuplefy_dims(dims::Integer) = (Int(dims),)
+tuplefy_dims(dims) = dims
+
 validate_N(N::Integer) = ((N >= 3) & isodd(N)) || throw(ArgumentError("`N` must be an odd integer ≥ 3; got $N"))
 validate_N(N) = throw(ArgumentError("`N` must be an odd integer ≥ 3; got $(typeof(N))"))
 
@@ -236,7 +241,7 @@ parse_boundary_spec(x) = throw(ArgumentError("`boundary` must be :shrink, :edge,
 # A self-contained "fully unroll this loop" macro. This is the same pattern
 # as `KernelAbstractions.Extras.@unroll`: attach the LLVM
 # `llvm.loop.unroll.full` loopinfo node to the body so the optimizer is
-# required to unroll the loop. Done inline so the `Filters` submodule does
+# required to unroll the loop. Done inline so the `SpatialFilters` submodule does
 # not need to add `KernelAbstractions` as a direct dependency.
 macro unroll_full(expr)
     expr.head === :for || error("@unroll_full needs a `for` loop")

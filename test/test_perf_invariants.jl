@@ -115,7 +115,7 @@ end
     grid  = model.grid
 
     #+++ Allocation + type-stability across modules
-    @testset "Filters" begin
+    @testset "SpatialFilters" begin
         c = model.tracers.b
         for dims in ((1,), (1,2), (1,2,3))
             test_kfo_invariants("BoxFilter dims=$dims",      BoxFilter(c; dims=dims, N=3))
