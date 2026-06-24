@@ -34,11 +34,16 @@ Pr = 1     # Prandtl number
 κ = ν / Pr       # buoyancy diffusivity
 
 # We begin by creating a model with this isotropic diffusivity and fifth-order advection on a `xz`
-# 128² grid, using a buoyancy `b` as the active scalar:
+# grid, using a buoyancy `b` as the active scalar. We make the box one wavelength of the most
+# unstable Kelvin-Helmholtz mode wide (`k_max = 0.4446 / h`; [Michalke,
+# 1964](https://doi.org/10.1017/S0022112064000908)), so that the perturbation we seed below fits
+# periodically:
 
 N = 128
-L = 10
-grid = RectilinearGrid(size=(N, N), x=(-L/2, +L/2), z=(-L/2, +L/2), topology=(Periodic, Flat, Bounded))
+k_max = 0.4446 / h   # most unstable KH wavenumber (Michalke, 1964)
+Lx = 2π / k_max      # one most-unstable wavelength
+Lz = 10
+grid = RectilinearGrid(size=(N, N), x=(-Lx/2, +Lx/2), z=(-Lz/2, +Lz/2), topology=(Periodic, Flat, Bounded))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = UpwindBiased(order=5),
@@ -48,21 +53,24 @@ model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
 # We use hyperbolic tangent profiles with the *same* length scale `h` for both the shear flow and
 # the stratification. The buoyancy jump `B₀ = U² Ri / h` is chosen so that the gradient Richardson
 # number `N² / (∂u/∂z)²` reaches its minimum value `Ri = 0.1` — below the classical stability
-# threshold of 1/4 — at the center of the shear layer (`z = 0`), where the flow is most unstable. We
-# also add grid-scale small-amplitude noise to `u` to kick the instability off:
+# threshold of 1/4 — at the center of the shear layer (`z = 0`), where the flow is most unstable. To
+# kick off the instability we perturb the vertical velocity `w` with the most unstable mode
+# `sin(k_max x)`, localized to the shear layer by a Gaussian envelope `exp(-z²)` and given a random
+# amplitude:
 
 B₀ = U^2 * Ri / h
+perturbation_amplitude = 5e-2
 
-noise(x, z) = 2e-2 * randn()
-shear_flow(x, z) = U * tanh(z / h) + noise(x, z)
+shear_flow(x, z) = U * tanh(z / h)
 stratification(x, z) = B₀ * tanh(z / h)
+perturbation(x, z) = perturbation_amplitude * abs(randn()) * exp(-z^2) * sin(x * k_max - π)
 
-set!(model, u=shear_flow, b=stratification)
+set!(model, u=shear_flow, b=stratification, w=perturbation)
 
 #
 # Next create an adaptive-time-step simulation using the model above:
 
-simulation = Simulation(model, Δt=0.1, stop_time=100)
+simulation = Simulation(model, Δt=0.1, stop_time=200)
 
 wizard = TimeStepWizard(cfl=0.8, max_Δt=1)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
