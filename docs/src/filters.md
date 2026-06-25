@@ -34,7 +34,7 @@ julia> c = CenterField(grid);
 julia> set!(c, (x, z) -> sin(2π * x) * z);
 
 julia> bf = BoxFilter(; dims=(1, 3), N=5)
-BoxFilter(dims=(1, 3), N=5, boundary=:shrink)
+BoxFilter(dims=(1, 3), N=5)
 
 julia> c̄ = Field(bf(c));
 
@@ -43,45 +43,40 @@ julia> size(c̄)
 ```
 
 The same `bf` can be applied to as many fields as you like. A one-step shortcut
-`BoxFilter(ψ; dims, N, boundary)`, which builds and applies the filter in a single call, is also
-accepted throughout.
+`BoxFilter(ψ; dims, N, boundary_conditions)`, which builds and applies the filter in a single call, is
+also accepted throughout.
 
 ### Boundary handling
 
-For `Periodic` directions, stencil offsets are always wrapped — the `boundary`
-keyword is silently ignored. For `Bounded` directions the `boundary` keyword
-selects how out-of-bounds offsets are treated:
+Boundary treatment is supplied through `boundary_conditions` using Oceananigans' boundary-condition
+types, kept **separate** from the filtered field's own boundary conditions:
 
-| `boundary`            | Behaviour                                                        |
-|:----------------------|:-----------------------------------------------------------------|
-| `:shrink` *(default)* | Drop out-of-bounds offsets from sum **and** count (honest local average; stencil shrinks near walls). |
-| `:edge`               | Replicate the nearest interior cell (`ψ[1]` or `ψ[N]`).          |
-| `(left=a, right=b)`   | Pad with constant `a` on the low side and `b` on the high side.  |
+  - `nothing` *(default)* — every side inherits the filtered field's own boundary condition.
+  - a single `BoundaryCondition` — applied to every filtered side.
+  - a `FieldBoundaryConditions` — one condition per side; any side left unset inherits the field's.
 
-A single spec applies to every filtered dimension, or a tuple gives per-dimension control:
+Each condition maps to a stencil rule:
+
+| boundary condition | behaviour |
+|:-------------------|:----------|
+| `ShrinkingBoundaryCondition()` | Drop out-of-bounds offsets from sum **and** count (honest local average; stencil shrinks near walls). |
+| zero `GradientBoundaryCondition` / `FluxBoundaryCondition` (incl. `NoFluxBoundaryCondition`) | Replicate the nearest interior cell. |
+| `ValueBoundaryCondition(v)` | Pad with the constant `v`. |
+| anything else (non-zero gradient/flux, `OpenBoundaryCondition`, …) | Fall back to the shrinking stencil. |
+
+`Periodic` directions are always wrapped, regardless of `boundary_conditions`. An `AbstractOperation`
+operand is first materialized into a `Field` (carrying Oceananigans' default boundary conditions),
+which then supplies the inherited conditions.
 
 ```jldoctest filters
-julia> bf_edge  = BoxFilter(; dims=(1, 3), N=3, boundary=:edge);
+julia> bf_edge = BoxFilter(; dims=(1, 3), N=3, boundary_conditions=GradientBoundaryCondition(0));
 
-julia> bf_mixed = BoxFilter(; dims=(1, 3), N=3, boundary=(:shrink, (left=0.0, right=0.0)));
+julia> z_bcs = FieldBoundaryConditions(bottom=ShrinkingBoundaryCondition(), top=ValueBoundaryCondition(0.0));
+
+julia> bf_mixed = BoxFilter(; dims=3, N=3, boundary_conditions=z_bcs);
 
 julia> size(Field(bf_edge(c))) == size(Field(bf_mixed(c))) == (32, 1, 32)
 true
-```
-
-#### Oceananigans boundary conditions
-
-The boundary treatment can equivalently be given with Oceananigans' boundary-condition types (passed
-as `boundary` or the alias `boundary_conditions`): [`ShrinkingBoundaryCondition`](@ref) ↔ `:shrink`,
-`GradientBoundaryCondition(0)` (or a zero `FluxBoundaryCondition`) ↔ `:edge`, and
-`ValueBoundaryCondition(v)` ↔ constant padding with `v`. A `FieldBoundaryConditions` sets each side
-of each direction independently — these filter boundary conditions are separate from the field's own.
-
-```jldoctest filters
-julia> bcs = FieldBoundaryConditions(west=ShrinkingBoundaryCondition(), east=GradientBoundaryCondition(0));
-
-julia> size(Field(BoxFilter(; dims=1, N=3, boundary_conditions=bcs)(c)))
-(32, 1, 32)
 ```
 
 ### API reference
@@ -122,7 +117,7 @@ stencil extends at least `2σ` on each side of the current cell. To override,
 pass `N` explicitly: a single odd integer (≥ 3) applies to every filtered
 dim, or a tuple of odd integers sets one count per dim.
 
-`dims` and `boundary` work identically to `BoxFilter`.
+`dims` and `boundary_conditions` work identically to `BoxFilter`.
 
 For a worked end-to-end example — coarse-graining a turbulent flow, a filter-width sweep, and a
 subfilter tracer flux — see the [Spatial filtering example](@ref spatial_filtering_example).
@@ -156,7 +151,7 @@ julia> stretched_grid = RectilinearGrid(size=(16, 16),
 julia> cz = CenterField(stretched_grid); set!(cz, (x, z) -> sin(2π*x) * z);
 
 julia> gf = GaussianFilter(; dims=(1, 3), σ=0.1)
-GaussianFilter(dims=(1, 3), σ=0.1, N=nothing, boundary=:shrink)
+GaussianFilter(dims=(1, 3), σ=0.1, N=nothing)
 
 julia> c̄z = Field(gf(cz));
 

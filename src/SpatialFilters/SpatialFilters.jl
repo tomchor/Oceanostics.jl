@@ -9,7 +9,7 @@ using Oceananigans.Grids: topology, Periodic,
                           xspacings, yspacings, zspacings,
                           xnode, ynode, znode
 using Oceananigans.Operators: xspacing, yspacing, zspacing
-using Oceananigans.AbstractOperations: KernelFunctionOperation
+using Oceananigans.AbstractOperations: KernelFunctionOperation, AbstractOperation
 using Oceananigans.BoundaryConditions: BoundaryCondition, FieldBoundaryConditions,
                                        AbstractBoundaryConditionClassification, DefaultBoundaryCondition,
                                        Value, Gradient, Flux
@@ -185,43 +185,16 @@ end
 #---
 
 #+++ Shared filter infrastructure
-function resolve_filter_policies(ψ, dims, boundary)
+function resolve_filter_policies(ψ, dims, boundary_conditions)
     validate_dims(dims)
 
     grid = ψ.grid
     loc = location(ψ)
+    field_bcs = ψ.boundary_conditions
     sorted_dims = Tuple(d for d in (1, 2, 3) if d in dims)
 
-    # A `FieldBoundaryConditions` carries one condition per *side* of each direction, so it is
-    # resolved per dim rather than per user-supplied spec.
-    if boundary isa FieldBoundaryConditions
-        policies = ntuple(i -> dim_policy_from_field_bcs(grid, boundary, sorted_dims[i]), length(sorted_dims))
-        return grid, loc, sorted_dims, policies
-    end
-
-    per_user_dim_specs = if boundary isa Tuple
-        error_message = "`boundary` must be a single spec or a tuple with one entry per dim in `dims`; got length $(length(boundary)) for dims=$dims"
-        length(boundary) == length(dims) || throw(ArgumentError(error_message))
-        boundary
-    else
-        ntuple(_ -> boundary, length(dims))
-    end
-
-    foreach(parse_boundary_spec, per_user_dim_specs)
-
-    sorted_specs = ntuple(i -> begin
-        user_idx = findfirst(==(sorted_dims[i]), dims)
-        per_user_dim_specs[user_idx]
-    end, length(sorted_dims))
-
-    policies = ntuple(i -> begin
-        d = sorted_dims[i]
-        if topology(grid, d) === Periodic
-            PeriodicBoundary()
-        else
-            parse_boundary_spec(sorted_specs[i])
-        end
-    end, length(sorted_dims))
+    policies = ntuple(i -> direction_policy(grid, sorted_dims[i], boundary_conditions, field_bcs),
+                      length(sorted_dims))
 
     return grid, loc, sorted_dims, policies
 end
@@ -281,49 +254,71 @@ function validate_periodic_widths(grid, sorted_dims, policies, widths)
     end
 end
 
-parse_boundary_spec(s::Symbol) =
-    s === :shrink ? ShrinkBoundary() :
-    s === :edge   ? EdgeBoundary()   :
-    throw(ArgumentError("`boundary` symbol must be :shrink or :edge; got :$s"))
+# `boundary_conditions` may be `nothing` (inherit every side from the filtered field), a single
+# `BoundaryCondition` (applied to every filtered side), or a `FieldBoundaryConditions` (per side;
+# sides left at their `DefaultBoundaryCondition` inherit from the field). These are kept separate
+# from the field's own boundary conditions.
+validate_boundary_conditions(::Nothing) = nothing
+validate_boundary_conditions(::BoundaryCondition) = nothing
+validate_boundary_conditions(::FieldBoundaryConditions) = nothing
+validate_boundary_conditions(x) = throw(ArgumentError(
+    "`boundary_conditions` must be `nothing`, an Oceananigans `BoundaryCondition`, or a `FieldBoundaryConditions`; " *
+    "got $(repr(x)). Symbol/NamedTuple specs (:shrink, :edge, (left=, right=)) were removed — use " *
+    "ShrinkingBoundaryCondition(), GradientBoundaryCondition(0), or ValueBoundaryCondition(v)."))
 
-function parse_boundary_spec(nt::NamedTuple)
-    ((length(nt) == 2) & haskey(nt, :left) & haskey(nt, :right)) ||
-        throw(ArgumentError("`boundary` NamedTuple must have exactly keys `:left` and `:right`; got keys $(keys(nt))"))
-    return ConstantBoundary(nt.left, nt.right)
+# Deprecated `boundary` keyword (the old symbol API).
+no_boundary_keyword(::Nothing) = nothing
+no_boundary_keyword(b) = throw(ArgumentError(
+    "the `boundary` keyword and its symbol specs (:shrink, :edge, (left=, right=)) were removed; pass " *
+    "`boundary_conditions` with Oceananigans boundary conditions instead (ShrinkingBoundaryCondition(), " *
+    "GradientBoundaryCondition(0), ValueBoundaryCondition(v), or a FieldBoundaryConditions). Got boundary=$(repr(b))."))
+
+# Materialize an `AbstractOperation` operand into a computed `Field` (carrying Oceananigans' default
+# boundary conditions, which the filter then inherits); a `Field` is passed through unchanged.
+function materialize_operand(ψ::AbstractOperation)
+    field = Field(ψ)
+    compute!(field)
+    return field
 end
+materialize_operand(ψ) = ψ
 
-parse_boundary_spec(p::AbstractBoundaryPolicy) = p
+# Effective boundary condition for one side: the user's, unless unset (`nothing`, or a
+# `DefaultBoundaryCondition` within a `FieldBoundaryConditions`), in which case the field's is used.
+user_side_bc(::Nothing, side) = nothing
+user_side_bc(bc::BoundaryCondition, side) = bc
+user_side_bc(fbc::FieldBoundaryConditions, side) =
+    (s = getproperty(fbc, side); s isa DefaultBoundaryCondition ? nothing : s)
 
-# Oceananigans `BoundaryCondition` objects (the type-based spec; see `ShrinkingBoundaryCondition`).
-# `:edge` is the zero-gradient (homogeneous Neumann) case, so `GradientBoundaryCondition(0)` and the
-# `NoFluxBoundaryCondition`/zero-flux map onto it; `ValueBoundaryCondition(v)` is constant padding.
-parse_boundary_spec(::BoundaryCondition{<:Shrink}) = ShrinkBoundary()
-parse_boundary_spec(bc::BoundaryCondition{<:Gradient}) = bc.condition isa Number && iszero(bc.condition) ? EdgeBoundary() :
-    throw(ArgumentError("only a zero `GradientBoundaryCondition` (≡ `:edge`) is supported as a filter boundary condition so far; got $bc"))
-parse_boundary_spec(bc::BoundaryCondition{<:Flux}) = (bc.condition === nothing || (bc.condition isa Number && iszero(bc.condition))) ? EdgeBoundary() :
-    throw(ArgumentError("only a zero `FluxBoundaryCondition` is supported as a filter boundary condition so far; got $bc"))
-parse_boundary_spec(bc::BoundaryCondition{<:Value}) = bc.condition isa Number ? ConstantBoundary(bc.condition, bc.condition) :
-    throw(ArgumentError("a `ValueBoundaryCondition` used for filter padding must hold a number; got $(repr(bc.condition))"))
-parse_boundary_spec(bc::BoundaryCondition) =
-    throw(ArgumentError("unsupported filter boundary condition $bc; use ShrinkingBoundaryCondition(), a zero Gradient/Flux (≡ :edge), or a ValueBoundaryCondition"))
+effective_side_bc(user_bcs, field_bcs, side) =
+    (u = user_side_bc(user_bcs, side); u === nothing ? getproperty(field_bcs, side) : u)
 
-# Translate one direction of a `FieldBoundaryConditions` into a policy: each side is mapped
-# independently and the two collapse to a single policy when they agree, or to a `SplitBoundary` when
-# they differ. Unspecified sides (Oceananigans `DefaultBoundaryCondition`) fall back to shrinking.
-function dim_policy_from_field_bcs(grid, fbc::FieldBoundaryConditions, d)
+side_names(d) = d == 1 ? (:west, :east) : d == 2 ? (:south, :north) : (:bottom, :top)
+
+# Translate one boundary condition into a stencil policy. `:edge` was the zero-gradient (homogeneous
+# Neumann) case, so a zero `Gradient`/`Flux` (incl. `NoFlux`) maps onto it; a `Value(v)` is constant
+# padding with `v`. Anything without a discrete analog (non-zero gradient/flux, `Open`, `nothing`, …)
+# falls back to a shrinking stencil — an honest local average that assumes nothing about the wall.
+bc_to_policy(::Nothing) = ShrinkBoundary()
+bc_to_policy(bc::DefaultBoundaryCondition) = bc_to_policy(bc.boundary_condition)
+bc_to_policy(::BoundaryCondition{<:Shrink}) = ShrinkBoundary()
+bc_to_policy(bc::BoundaryCondition{<:Gradient}) = bc.condition isa Number && iszero(bc.condition) ? EdgeBoundary() : ShrinkBoundary()
+bc_to_policy(bc::BoundaryCondition{<:Flux}) = (bc.condition === nothing || (bc.condition isa Number && iszero(bc.condition))) ? EdgeBoundary() : ShrinkBoundary()
+bc_to_policy(bc::BoundaryCondition{<:Value}) = bc.condition isa Number ? ConstantBoundary(bc.condition, bc.condition) : ShrinkBoundary()
+bc_to_policy(::BoundaryCondition) = ShrinkBoundary()
+
+# Per-direction policy: `Periodic` topology always wraps; otherwise the two sides are resolved and
+# translated independently, collapsing to one policy when they agree, or a `SplitBoundary` when not.
+function direction_policy(grid, d, user_bcs, field_bcs)
     topology(grid, d) === Periodic && return PeriodicBoundary()
-    left_bc, right_bc = d == 1 ? (fbc.west, fbc.east) :
-                        d == 2 ? (fbc.south, fbc.north) :
-                                 (fbc.bottom, fbc.top)
-    left  = side_policy(left_bc)
-    right = side_policy(right_bc)
+    lo, hi = side_names(d)
+    left  = bc_to_policy(effective_side_bc(user_bcs, field_bcs, lo))
+    right = bc_to_policy(effective_side_bc(user_bcs, field_bcs, hi))
     return left === right ? left : SplitBoundary(left, right)
 end
 
-side_policy(::DefaultBoundaryCondition) = ShrinkBoundary()
-side_policy(bc) = parse_boundary_spec(bc)
-
-parse_boundary_spec(x) = throw(ArgumentError("`boundary` must be :shrink, :edge, (left=a, right=b), an Oceananigans BoundaryCondition, or a FieldBoundaryConditions; got $(repr(x))"))
+# Compact one-line rendering of a stored `boundary_conditions` value for `show`.
+bc_summary(bc) = bc
+bc_summary(::FieldBoundaryConditions) = "FieldBoundaryConditions(…)"
 #---
 
 #+++ Shared staged-compute infrastructure

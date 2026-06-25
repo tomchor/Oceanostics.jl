@@ -38,6 +38,11 @@ function compute_filter(ψ, Filter, dims, width; kwargs...)
     return cf
 end
 
+# A `FieldBoundaryConditions` setting just the two sides of one direction `d` (the others inherit).
+dim_fbc(d, low, high) = d == 1 ? FieldBoundaryConditions(west=low, east=high) :
+                        d == 2 ? FieldBoundaryConditions(south=low, north=high) :
+                                 FieldBoundaryConditions(bottom=low, top=high)
+
 box_weights(width) = ntuple(_ -> 1.0, 2*width + 1)
 gauss_weights(width, σ) = ntuple(idx -> exp(-(idx - width - 1)^2 / (2σ^2)), 2*width + 1)
 #---
@@ -254,8 +259,8 @@ function test_small_halo(Filter, fkw)
     for g in (tiny_periodic, tiny_bounded, tiny_mixed)
         c = CenterField(g)
         @test Filter(c; dims=(1,),      N=11, fkw...)                                 isa KernelFunctionOperation
-        @test Filter(c; dims=(1, 2, 3), N=11, boundary=:edge, fkw...)                 isa KernelFunctionOperation
-        @test Filter(c; dims=(1, 2, 3), N=11, boundary=(left=0.0, right=0.0), fkw...) isa KernelFunctionOperation
+        @test Filter(c; dims=(1, 2, 3), N=11, boundary_conditions=GradientBoundaryCondition(0), fkw...) isa KernelFunctionOperation
+        @test Filter(c; dims=(1, 2, 3), N=11, boundary_conditions=ValueBoundaryCondition(0.0), fkw...)  isa KernelFunctionOperation
     end
 end
 
@@ -265,7 +270,7 @@ function test_shrink_boundary(Ns, Filter, make_weights, fkw)
     ic = Array(interior(c))
     for dims in [(1,), (2,), (3,), (1, 2), (1, 2, 3)]
         width = 2
-        cf  = compute_filter(c, Filter, dims, width; fkw...)
+        cf  = compute_filter(c, Filter, dims, width; boundary_conditions=ShrinkingBoundaryCondition(), fkw...)
         w1d = make_weights(width)
         ref = reference_weighted_average_shrink(ic, dims, width, Ns, w1d)
         @test Array(interior(cf)) ≈ ref
@@ -278,7 +283,7 @@ function test_edge_boundary(Ns, Filter, make_weights, fkw)
     ic = Array(interior(c))
     for dims in [(1,), (2,), (3,), (1, 2, 3)]
         width = 2
-        cf  = compute_filter(c, Filter, dims, width; boundary=:edge, fkw...)
+        cf  = compute_filter(c, Filter, dims, width; boundary_conditions=GradientBoundaryCondition(0), fkw...)
         w1d = make_weights(width)
         ref = reference_weighted_average_edge(ic, dims, width, Ns, w1d)
         @test Array(interior(cf)) ≈ ref
@@ -292,7 +297,8 @@ function test_constant_pad_boundary(Ns, Filter, make_weights, fkw)
     left, right = -1.25, 2.5
     for (d, width) in [(1, 2), (2, 3), (3, 2)]
         dims = (d,)
-        cf  = compute_filter(c, Filter, dims, width; boundary=(left=left, right=right), fkw...)
+        cf  = compute_filter(c, Filter, dims, width;
+                             boundary_conditions=dim_fbc(d, ValueBoundaryCondition(left), ValueBoundaryCondition(right)), fkw...)
         w1d = make_weights(width)
         ref = reference_weighted_average_constant_1d(ic, d, width, Ns, w1d, left, right)
         @test Array(interior(cf)) ≈ ref
@@ -304,7 +310,10 @@ function test_per_dim_boundary(Ns, Filter, make_weights, fkw)
     c  = center_field_from(bounded_grid, (x, y, z) -> sin(2π * x) * cos(2π * y))
     ic = Array(interior(c))
     width = 2
-    cf = compute_filter(c, Filter, (1, 2), width; boundary=(:shrink, :edge), fkw...)
+    cf = compute_filter(c, Filter, (1, 2), width;
+                        boundary_conditions=FieldBoundaryConditions(west=ShrinkingBoundaryCondition(), east=ShrinkingBoundaryCondition(),
+                                                                    south=GradientBoundaryCondition(0), north=GradientBoundaryCondition(0)),
+                        fkw...)
     w1d = make_weights(width)
     shrink_in_x       = reference_weighted_average_shrink(ic,        (1,), width, Ns, w1d)
     edge_of_shrink_xy = reference_weighted_average_edge(shrink_in_x, (2,), width, Ns, w1d)
@@ -315,18 +324,19 @@ function test_periodic_ignores_boundary(Filter, fkw)
     mixed_grid = make_grid(; halo=(1, 1, 1), topology=(Periodic, Bounded, Bounded))
     c = center_field_from(mixed_grid, (x, y, z) -> sin(2π * x) + y)
     cf_default = compute_filter(c, Filter, (1,), 3; fkw...)
-    cf_absurd  = compute_filter(c, Filter, (1,), 3; boundary=(left=1e6, right=-1e6), fkw...)
+    cf_absurd  = compute_filter(c, Filter, (1,), 3; boundary_conditions=ValueBoundaryCondition(1e6), fkw...)
     @test Array(interior(cf_default)) ≈ Array(interior(cf_absurd))
 end
 
 function test_boundary_validation(grid, Filter, fkw)
     c = CenterField(grid)
-    @test_throws ArgumentError Filter(c; dims=(1,),   N=3, boundary=:foo, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,),   N=3, boundary=(foo=1,), fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,),   N=3, boundary=(left=1, right=2, mid=3), fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,),   N=3, boundary=42, fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1, 2), N=3, boundary=(:shrink,), fkw...)
-    @test_throws ArgumentError Filter(c; dims=(1,),   N=3, boundary=(:shrink, :edge), fkw...)
+    # `boundary_conditions` must be nothing / a BoundaryCondition / a FieldBoundaryConditions.
+    @test_throws ArgumentError Filter(c; dims=(1,), N=3, boundary_conditions=:edge, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,), N=3, boundary_conditions=(left=1, right=2), fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,), N=3, boundary_conditions=42, fkw...)
+    @test_throws ArgumentError Filter(c; dims=(1,), N=3, boundary_conditions=(ShrinkingBoundaryCondition(),), fkw...)
+    # The old `boundary` keyword and its symbol specs were removed.
+    @test_throws ArgumentError Filter(c; dims=(1,), N=3, boundary=:shrink, fkw...)
 end
 #---
 
@@ -357,30 +367,34 @@ function test_1d_bounded_hand_computed()
     fill_halo_regions!(c)
 
     # :shrink, width=2
+    shrink = ShrinkingBoundaryCondition()
+    edge   = GradientBoundaryCondition(0)
+    pad(l, r) = FieldBoundaryConditions(west=ValueBoundaryCondition(l), east=ValueBoundaryCondition(r))
+
     shrink_expected = [1, 1.5, 2, 3, 4, 5, 6, 7, 7.5, 8]
-    @test Array(interior(compute_filter(c, BoxFilter, (1,), 2)))[:] ≈ shrink_expected
+    @test Array(interior(compute_filter(c, BoxFilter, (1,), 2; boundary_conditions=shrink)))[:] ≈ shrink_expected
 
-    # :shrink, width=3
+    # shrink, width=3
     shrink_expected_w3 = [1.5, 2, 2.5, 3, 4, 5, 6, 6.5, 7, 7.5]
-    @test Array(interior(compute_filter(c, BoxFilter, (1,), 3)))[:] ≈ shrink_expected_w3
+    @test Array(interior(compute_filter(c, BoxFilter, (1,), 3; boundary_conditions=shrink)))[:] ≈ shrink_expected_w3
 
-    # :edge, width=2
+    # edge, width=2
     edge_expected = [0.6, 1.2, 2, 3, 4, 5, 6, 7, 7.8, 8.4]
-    @test Array(interior(compute_filter(c, BoxFilter, (1,), 2; boundary=:edge)))[:] ≈ edge_expected
+    @test Array(interior(compute_filter(c, BoxFilter, (1,), 2; boundary_conditions=edge)))[:] ≈ edge_expected
 
-    # :edge, width=3
+    # edge, width=3
     edge_expected_w3 = [6/7, 10/7, 15/7, 3, 4, 5, 6, 48/7, 53/7, 57/7]
-    @test Array(interior(compute_filter(c, BoxFilter, (1,), 3; boundary=:edge)))[:] ≈ edge_expected_w3
+    @test Array(interior(compute_filter(c, BoxFilter, (1,), 3; boundary_conditions=edge)))[:] ≈ edge_expected_w3
 
     # Constant-pad (left=-1, right=-2), width=2
     const_expected = [0.2, 1, 2, 3, 4, 5, 6, 7, 5.6, 4]
     @test Array(interior(compute_filter(c, BoxFilter, (1,), 2;
-                                        boundary=(left=-1.0, right=-2.0))))[:] ≈ const_expected
+                                        boundary_conditions=pad(-1.0, -2.0))))[:] ≈ const_expected
 
     # Constant-pad (left=-1, right=-2), width=3
     const_expected_w3 = [3/7, 8/7, 2, 3, 4, 5, 6, 37/7, 31/7, 24/7]
     @test Array(interior(compute_filter(c, BoxFilter, (1,), 3;
-                                        boundary=(left=-1.0, right=-2.0))))[:] ≈ const_expected_w3
+                                        boundary_conditions=pad(-1.0, -2.0))))[:] ≈ const_expected_w3
 end
 #---
 
@@ -551,8 +565,8 @@ function test_gaussian_stretched_numerical()
         # Bounded stretched z, :shrink and :edge
         gz = make_stretched_z_grid()
         cz = center_field_from(gz, (x, y, z) -> sin(2π*x) * cos(2π*y) + z^2 + 0.3z)
-        for boundary in (:shrink, :edge)
-            cf = compute_filter(cz, GaussianFilter, (3,), width; σ=σ, boundary=boundary)
+        for (boundary, bc) in ((:shrink, ShrinkingBoundaryCondition()), (:edge, GradientBoundaryCondition(0)))
+            cf = compute_filter(cz, GaussianFilter, (3,), width; σ=σ, boundary_conditions=bc)
             ref = reference_gaussian_stretched(cz, gz, 3, σ, width; boundary=boundary)
             @test Array(interior(cf)) ≈ ref
         end
@@ -705,9 +719,9 @@ function test_reusable_box_filter(grid)
     # The two filtered fields differ (the operator did not capture the field).
     @test !(Array(interior(Field(F(c)))) ≈ Array(interior(Field(F(d)))))
 
-    # The boundary keyword is threaded through.
-    Fb = BoxFilter(; dims=(1,), N=5, boundary=:edge)
-    @test Fb(c) == BoxFilter(c; dims=(1,), N=5, boundary=:edge)
+    # The boundary_conditions keyword is threaded through.
+    Fb = BoxFilter(; dims=(1,), N=5, boundary_conditions=GradientBoundaryCondition(0))
+    @test Fb(c) == BoxFilter(c; dims=(1,), N=5, boundary_conditions=GradientBoundaryCondition(0))
 
     # show prints something tidy.
     @test occursin("BoxFilter(dims=", sprint(show, F))
@@ -732,9 +746,9 @@ function test_reusable_gaussian_filter(grid)
 
     @test !(Array(interior(Field(F(c)))) ≈ Array(interior(Field(F(d)))))
 
-    # The N and boundary keywords are threaded through.
-    FN = GaussianFilter(; dims=(1,), σ=0.1, N=5, boundary=:edge)
-    @test FN(c) == GaussianFilter(c; dims=(1,), σ=0.1, N=5, boundary=:edge)
+    # The N and boundary_conditions keywords are threaded through.
+    FN = GaussianFilter(; dims=(1,), σ=0.1, N=5, boundary_conditions=GradientBoundaryCondition(0))
+    @test FN(c) == GaussianFilter(c; dims=(1,), σ=0.1, N=5, boundary_conditions=GradientBoundaryCondition(0))
 
     @test occursin("GaussianFilter(dims=", sprint(show, F))
 
@@ -747,32 +761,53 @@ function test_reusable_gaussian_filter(grid)
     @test Array(interior(Field(GaussianFilter(c; dims=1, σ=0.1)))) ≈ Array(interior(Field(GaussianFilter(c; dims=(1,), σ=0.1))))
 end
 
-# Oceananigans `BoundaryCondition` interface (issue #251): type-based specs reproduce the symbol /
-# NamedTuple API, the `boundary_conditions` keyword aliases `boundary`, and a `FieldBoundaryConditions`
-# resolves per side (collapsing when symmetric, splitting when not).
-function test_boundary_condition_interface(Filter, fkw)
+# Oceananigans `BoundaryCondition` interface (issue #251): boundary conditions are inherited per
+# direction from the filtered field, a single BC or a partial `FieldBoundaryConditions` overrides,
+# `AbstractOperation`s are materialized first, and the resolution is robust across BC kinds.
+function test_boundary_condition_interface(Ns, Filter, make_weights, fkw)
     grid = make_grid(; halo=(1, 1, 1), topology=(Bounded, Bounded, Bounded))
     c = center_field_from(grid, (x, y, z) -> sin(2π * x) * cos(2π * y) + z^2)
+    ic = Array(interior(c))
     ia(ψ) = Array(interior(ψ))
-    w = 2
+    w1d = make_weights(2)
 
-    @test ia(compute_filter(c, Filter, (1, 3), w; boundary=ShrinkingBoundaryCondition(), fkw...)) ≈ ia(compute_filter(c, Filter, (1, 3), w; boundary=:shrink, fkw...))
-    @test ia(compute_filter(c, Filter, (1, 3), w; boundary=GradientBoundaryCondition(0), fkw...)) ≈ ia(compute_filter(c, Filter, (1, 3), w; boundary=:edge, fkw...))
-    @test ia(compute_filter(c, Filter, (1, 3), w; boundary=ValueBoundaryCondition(0.5), fkw...))  ≈ ia(compute_filter(c, Filter, (1, 3), w; boundary=(left=0.5, right=0.5), fkw...))
+    edge3   = reference_weighted_average_edge(ic,   (1, 2, 3), 2, Ns, w1d)
+    shrink3 = reference_weighted_average_shrink(ic, (1, 2, 3), 2, Ns, w1d)
+    edgex   = reference_weighted_average_edge(ic,   (1,),      2, Ns, w1d)
+    shrinkx = reference_weighted_average_shrink(ic, (1,),      2, Ns, w1d)
 
-    # `boundary_conditions` is an alias for `boundary`.
-    @test ia(compute_filter(c, Filter, (1, 3), w; boundary_conditions=:edge, fkw...)) ≈ ia(compute_filter(c, Filter, (1, 3), w; boundary=:edge, fkw...))
+    # Default (`nothing`): a CenterField carries NoFlux BCs, which map to edge replication.
+    @test ia(compute_filter(c, Filter, (1, 2, 3), 2; fkw...)) ≈ edge3
 
-    # FieldBoundaryConditions: symmetric reproduces the symbol spec; asymmetric is finite and distinct.
-    fbc_sym  = FieldBoundaryConditions(west=GradientBoundaryCondition(0), east=GradientBoundaryCondition(0))
-    @test ia(compute_filter(c, Filter, (1,), w; boundary_conditions=fbc_sym, fkw...)) ≈ ia(compute_filter(c, Filter, (1,), w; boundary=:edge, fkw...))
-    fbc_asym = FieldBoundaryConditions(west=ValueBoundaryCondition(0.0), east=GradientBoundaryCondition(0))
-    a = ia(compute_filter(c, Filter, (1,), w; boundary_conditions=fbc_asym, fkw...))
-    @test all(isfinite, a)
-    @test !(a ≈ ia(compute_filter(c, Filter, (1,), w; boundary=:edge, fkw...)))
+    # A single BoundaryCondition overrides every filtered side.
+    @test ia(compute_filter(c, Filter, (1, 2, 3), 2; boundary_conditions=ShrinkingBoundaryCondition(), fkw...)) ≈ shrink3
+    @test ia(compute_filter(c, Filter, (1, 2, 3), 2; boundary_conditions=GradientBoundaryCondition(0),  fkw...)) ≈ edge3
 
-    # Unsupported (non-zero) gradient/flux conditions error.
-    @test_throws ArgumentError compute_filter(c, Filter, (1,), w; boundary=GradientBoundaryCondition(1.0), fkw...)
+    # A partial FieldBoundaryConditions overrides the west side and inherits the east side from the
+    # field (NoFlux → edge): equal to spelling both sides out, and distinct from either pure case.
+    partial = FieldBoundaryConditions(west=ShrinkingBoundaryCondition())
+    full    = FieldBoundaryConditions(west=ShrinkingBoundaryCondition(), east=GradientBoundaryCondition(0))
+    mixed   = ia(compute_filter(c, Filter, (1,), 2; boundary_conditions=partial, fkw...))
+    @test mixed ≈ ia(compute_filter(c, Filter, (1,), 2; boundary_conditions=full, fkw...))
+    @test !(mixed ≈ edgex) && !(mixed ≈ shrinkx)
+
+    # An AbstractOperation operand is materialized to a Field first; filtering it matches filtering the
+    # pre-materialized Field.
+    opf = Field(c + c); compute!(opf)
+    @test ia(compute_filter(c + c, Filter, (1, 2), 2; boundary_conditions=ShrinkingBoundaryCondition(), fkw...)) ≈
+          ia(compute_filter(opf,   Filter, (1, 2), 2; boundary_conditions=ShrinkingBoundaryCondition(), fkw...))
+
+    # Robust across BC kinds: conditions without a discrete analog (non-zero gradient, Open, …) fall
+    # back to shrinking instead of erroring.
+    @test ia(compute_filter(c, Filter, (1,), 2; boundary_conditions=GradientBoundaryCondition(3.0), fkw...)) ≈ shrinkx
+
+    # A field whose own BCs are ValueBoundaryConditions has them inherited by the default filter.
+    vfbc = FieldBoundaryConditions(grid, (Center(), Center(), Center()),
+                                   west=ValueBoundaryCondition(0.0), east=ValueBoundaryCondition(0.0))
+    cv = CenterField(grid; boundary_conditions=vfbc)
+    set!(cv, (x, y, z) -> sin(2π * x) * cos(2π * y) + z^2)
+    @test ia(compute_filter(cv, Filter, (1,), 2; fkw...)) ≈
+          ia(compute_filter(cv, Filter, (1,), 2; boundary_conditions=ValueBoundaryCondition(0.0), fkw...))
 end
 #---
 
@@ -817,7 +852,7 @@ filter_configs = [
             end
 
             @testset "BoundaryCondition interface" begin
-                test_boundary_condition_interface(Filter, fkw)
+                test_boundary_condition_interface(Ns, Filter, make_weights, fkw)
             end
 
             @testset "Composability" begin

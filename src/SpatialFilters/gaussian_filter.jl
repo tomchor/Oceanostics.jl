@@ -348,14 +348,17 @@ end
     $(SIGNATURES)
 
 One-step form: apply a Gaussian filter to `ψ` directly, returning the `KernelFunctionOperation` that
-computes its Gaussian-weighted local average. Equivalent to `GaussianFilter(; dims, σ, N, boundary)(ψ)`.
+computes its Gaussian-weighted local average. Equivalent to `GaussianFilter(; dims, σ, N, boundary_conditions)(ψ)`.
 
-Refer to [`GaussianFilter`](@ref)`(; dims, σ, N, boundary)` for the full description of the
+Refer to [`GaussianFilter`](@ref)`(; dims, σ, N, boundary_conditions)` for the full description of the
 keyword arguments, the Gaussian weighting, stretched-grid handling, and boundary handling.
 """
-function GaussianFilter(ψ; dims, σ, N=nothing, boundary=:shrink, boundary_conditions=boundary)
+function GaussianFilter(ψ; dims, σ, N=nothing, boundary_conditions=nothing, boundary=nothing)
+    no_boundary_keyword(boundary)
     dims = tuplefy_dims(dims)
     validate_σ(σ)
+    validate_boundary_conditions(boundary_conditions)
+    ψ = materialize_operand(ψ)
     grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary_conditions)
 
     sorted_widths = resolve_gaussian_widths(N, σ, grid, dims, sorted_dims)
@@ -370,18 +373,19 @@ end
 """
     GaussianFilterOperator{D, S, NN, B}
 
-Returns a reusable Gaussian filter. Stores the `GaussianFilter` parameters
-(`dims`, `σ`, `N`, `boundary`) and, when called on a field `ψ`, returns `GaussianFilter(ψ; dims, σ, N, boundary)`.
-Construct one once with [`GaussianFilter`](@ref)`(; …)` and apply it to many fields.
+Returns a reusable Gaussian filter. Stores the `GaussianFilter` parameters (`dims`, `σ`, `N`,
+`boundary_conditions`) and, when called on a field `ψ`, returns
+`GaussianFilter(ψ; dims, σ, N, boundary_conditions)`. Construct one once with
+[`GaussianFilter`](@ref)`(; …)` and apply it to many fields.
 """
 struct GaussianFilterOperator{D, S, NN, B}
     dims::D
     σ::S
     N::NN
-    boundary::B
+    boundary_conditions::B
 end
 
-(F::GaussianFilterOperator)(ψ) = GaussianFilter(ψ; dims=F.dims, σ=F.σ, N=F.N, boundary=F.boundary)
+(F::GaussianFilterOperator)(ψ) = GaussianFilter(ψ; dims=F.dims, σ=F.σ, N=F.N, boundary_conditions=F.boundary_conditions)
 
 """
     $(SIGNATURES)
@@ -427,7 +431,7 @@ odd-integer count per dim in `dims` (in the order the user passed them). For `Pe
 directions the stencil must span at most one period (`N ≤ 2*Nd_grid + 1`, where `Nd_grid` is the
 number of cells along that direction); this is enforced when the filter is applied.
 
-See `BoxFilter` for the `dims` and `boundary` keyword documentation.
+See `BoxFilter` for the `dims` and `boundary_conditions` keyword documentation.
 
 ## Performance notes
 
@@ -451,25 +455,30 @@ julia> grid = RectilinearGrid(size=(8, 8), x=(0, 1), z=(0, 1),
 julia> c = CenterField(grid);
 
 julia> gf = GaussianFilter(; dims=(1, 3), σ=0.1)
-GaussianFilter(dims=(1, 3), σ=0.1, N=nothing, boundary=:shrink)
+GaussianFilter(dims=(1, 3), σ=0.1, N=nothing)
 
 julia> gf(c) isa KernelFunctionOperation
 true
 ```
 
-A one-step shortcut `GaussianFilter(ψ; dims, σ, N, boundary)` is also accepted, which applies the
-filter to `ψ` immediately (equivalent to `GaussianFilter(; dims, σ, N, boundary)(ψ)`).
+A one-step shortcut `GaussianFilter(ψ; dims, σ, N, boundary_conditions)` is also accepted, which applies
+the filter to `ψ` immediately (equivalent to `GaussianFilter(; dims, σ, N, boundary_conditions)(ψ)`).
 """
-function GaussianFilter(; dims, σ, N=nothing, boundary=:shrink, boundary_conditions=boundary)
+function GaussianFilter(; dims, σ, N=nothing, boundary_conditions=nothing, boundary=nothing)
+    no_boundary_keyword(boundary)
     dims = tuplefy_dims(dims)
     validate_dims(dims)
     validate_σ(σ)
+    validate_boundary_conditions(boundary_conditions)
     N === nothing || (N isa Tuple ? foreach(validate_N, N) : validate_N(N))
     return GaussianFilterOperator(dims, σ, N, boundary_conditions)
 end
 
-Base.show(io::IO, F::GaussianFilterOperator) =
-    print(io, "GaussianFilter(dims=", F.dims, ", σ=", F.σ, ", N=", F.N, ", boundary=", repr(F.boundary), ")")
+function Base.show(io::IO, F::GaussianFilterOperator)
+    print(io, "GaussianFilter(dims=", F.dims, ", σ=", F.σ, ", N=", F.N)
+    F.boundary_conditions === nothing || print(io, ", boundary_conditions=", bc_summary(F.boundary_conditions))
+    print(io, ")")
+end
 #---
 
 infer_width(σ, grid, d) = ceil(Int, 2σ / direction_min_spacing(grid, d))
