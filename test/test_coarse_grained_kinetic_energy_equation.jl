@@ -66,10 +66,11 @@ function test_cross_scale_ke_flux_matches_manual(model, filt)
     @test location(Π) == (Center, Center, Center)
     @test interior(Field(Π)) ≈ interior(Field(Π_manual))
 
-    # the flux is a single KernelFunctionOperation with a custom display (cf. PR #250)
+    # the flux is a single KernelFunctionOperation with a custom display (cf. PR #250): the two-arg
+    # `show` is a one-line summary, while the three-arg `MIME"text/plain"` show adds the `computes:` line
     @test Π isa KineticEnergyCrossScaleFlux
     @test occursin("KineticEnergyCrossScaleFlux", sprint(show, Π))
-    @test occursin("computes:", sprint(show, Π))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), Π))
 
     # reachable by the short name CoarseGrainedKineticEnergyEquation.CrossScaleFlux too (same type alias)
     @test CoarseGrainedKineticEnergyEquation.CrossScaleFlux === KineticEnergyCrossScaleFlux
