@@ -364,8 +364,8 @@ jobs:
         env:
           TEST_GROUP: "general_flow_diagnostics"
 
-  filters:
-    name: Filters - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+  spatial_filters:
+    name: Spatial filters - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     strategy:
@@ -387,7 +387,7 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
         env:
-          TEST_GROUP: "filters"
+          TEST_GROUP: "spatial_filters"
 
   perf_invariants:
     name: Perf invariants - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}

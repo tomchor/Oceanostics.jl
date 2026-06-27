@@ -8,7 +8,8 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 
 using Oceanostics
 using Oceanostics: BoxFilter, GaussianFilter
-using Oceanostics.Filters: GaussianFilterKernel, StretchedGaussianFilterKernel
+# operator types are internal (not exported) — reach them through the submodule for the `isa` checks
+using Oceanostics.SpatialFilters: GaussianFilterKernel, StretchedGaussianFilterKernel, BoxFilterOperator, GaussianFilterOperator
 
 arch = has_cuda_gpu() ? GPU() : CPU()
 
@@ -678,6 +679,75 @@ function test_gaussian_dirac_delta()
 end
 #---
 
+#+++ Reusable (field-less) filter objects
+# A field-less filter object built by `BoxFilter(; …)` / `GaussianFilter(; …)`
+# must, when called on a field, reproduce exactly the KFO that the field-first
+# constructor builds. We check both the KFO `==` (they are assembled
+# identically) and the computed `Field` interiors, and that the same operator
+# reused on two different fields gives each field's own filtered result.
+function test_reusable_box_filter(grid)
+    c = center_field_from(grid, (x, y, z) -> sin(2π*x) + cos(2π*y))
+    d = center_field_from(grid, (x, y, z) -> cos(2π*x) * z)
+
+    F = BoxFilter(; dims=(1, 2), N=5)
+    @test F isa BoxFilterOperator
+
+    # Same KFO as the field-first constructor (identically assembled).
+    @test F(c) == BoxFilter(c; dims=(1, 2), N=5)
+
+    # Computed interiors match too.
+    @test Array(interior(Field(F(c)))) ≈ Array(interior(Field(BoxFilter(c; dims=(1, 2), N=5))))
+
+    # Reusing the operator on a second field gives that field's own result.
+    @test F(d) == BoxFilter(d; dims=(1, 2), N=5)
+    @test Array(interior(Field(F(d)))) ≈ Array(interior(Field(BoxFilter(d; dims=(1, 2), N=5))))
+
+    # The two filtered fields differ (the operator did not capture the field).
+    @test !(Array(interior(Field(F(c)))) ≈ Array(interior(Field(F(d)))))
+
+    # The boundary keyword is threaded through.
+    Fb = BoxFilter(; dims=(1,), N=5, boundary=:edge)
+    @test Fb(c) == BoxFilter(c; dims=(1,), N=5, boundary=:edge)
+
+    # show prints something tidy.
+    @test occursin("BoxFilter(dims=", sprint(show, F))
+
+    # A single integer `dims` is shorthand for one direction.
+    @test BoxFilter(; dims=1, N=5).dims === (1,)
+    @test Array(interior(Field(BoxFilter(c; dims=1, N=5)))) ≈ Array(interior(Field(BoxFilter(c; dims=(1,), N=5))))
+end
+
+function test_reusable_gaussian_filter(grid)
+    c = center_field_from(grid, (x, y, z) -> sin(2π*x) + cos(2π*y))
+    d = center_field_from(grid, (x, y, z) -> cos(2π*x) * z)
+
+    F = GaussianFilter(; dims=(1, 2), σ=0.1)
+    @test F isa GaussianFilterOperator
+
+    @test F(c) == GaussianFilter(c; dims=(1, 2), σ=0.1)
+    @test Array(interior(Field(F(c)))) ≈ Array(interior(Field(GaussianFilter(c; dims=(1, 2), σ=0.1))))
+
+    @test F(d) == GaussianFilter(d; dims=(1, 2), σ=0.1)
+    @test Array(interior(Field(F(d)))) ≈ Array(interior(Field(GaussianFilter(d; dims=(1, 2), σ=0.1))))
+
+    @test !(Array(interior(Field(F(c)))) ≈ Array(interior(Field(F(d)))))
+
+    # The N and boundary keywords are threaded through.
+    FN = GaussianFilter(; dims=(1,), σ=0.1, N=5, boundary=:edge)
+    @test FN(c) == GaussianFilter(c; dims=(1,), σ=0.1, N=5, boundary=:edge)
+
+    @test occursin("GaussianFilter(dims=", sprint(show, F))
+
+    # `show` always prints N — `nothing` when inferred, the value when set.
+    @test occursin("N=nothing", sprint(show, F))
+    @test occursin("N=5", sprint(show, FN))
+
+    # A single integer `dims` is shorthand for one direction.
+    @test GaussianFilter(; dims=1, σ=0.1).dims === (1,)
+    @test Array(interior(Field(GaussianFilter(c; dims=1, σ=0.1)))) ≈ Array(interior(Field(GaussianFilter(c; dims=(1,), σ=0.1))))
+end
+#---
+
 #+++ Run tests
 # Reference weights are computed in cells; the GaussianFilter API takes σ in
 # physical units. The shared test grid is uniform with Δ = 1/8, so a physical
@@ -691,7 +761,7 @@ filter_configs = [
     ("GaussianFilter", GaussianFilter, w -> gauss_weights(w, σ_test_cells),  (; σ=σ_test_physical)),
 ]
 
-@testset "Filters on $(typeof(arch).name.wrapper)" begin
+@testset "SpatialFilters on $(typeof(arch).name.wrapper)" begin
     for (filter_name, Filter, make_weights, fkw) in filter_configs
         @testset "$filter_name" begin
             Nx = Ny = Nz = 8
@@ -751,6 +821,11 @@ filter_configs = [
         test_gaussian_stretched_constant_and_linear()
         test_gaussian_stretched_staged_matches_fused()
         test_gaussian_stretched_dirac_delta()
+    end
+
+    @testset "Reusable (field-less) filter objects" begin
+        test_reusable_box_filter(make_grid())
+        test_reusable_gaussian_filter(make_grid())
     end
 end
 #---

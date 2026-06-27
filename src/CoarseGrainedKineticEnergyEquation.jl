@@ -11,7 +11,7 @@ using Oceananigans.AbstractOperations: @at, KernelFunctionOperation
 using Oceanostics: CustomKFO
 using ..FlowDiagnostics: StressTensor, StrainRateTensor
 import ..FlowDiagnostics            # for the (unexported) `validate_dims`
-using ..Filters: GaussianFilter, BoxFilter   # BoxFilter is imported so its docstring `@ref` resolves in-module
+using ..SpatialFilters: GaussianFilter, BoxFilter   # BoxFilter is imported so its docstring `@ref` resolves in-module
 
 #+++ Shared helpers
 # Filter only the velocities that the requested `dims` actually use: component τᵢⱼ / S̄ᵢⱼ needs uᵢ and

@@ -1,4 +1,4 @@
-# Filters
+# Spatial filters
 
 Oceanostics provides spatial filters that operate directly on Oceananigans fields.
 All filters are built on top of Oceananigans'
@@ -20,6 +20,9 @@ a 3D box filter performs one pass over the data, not three.
 
 ### Basic usage
 
+Build a reusable filter once with the keyword-only constructor, then apply it to any field by calling
+it — `bf(ψ)` returns a `KernelFunctionOperation` that you wrap in a `Field`:
+
 ```jldoctest filters
 julia> using Oceananigans, Oceanostics
 
@@ -30,11 +33,18 @@ julia> c = CenterField(grid);
 
 julia> set!(c, (x, z) -> sin(2π * x) * z);
 
-julia> c̄ = Field(BoxFilter(c; dims=(1, 3), N=5));
+julia> bf = BoxFilter(; dims=(1, 3), N=5)
+BoxFilter(dims=(1, 3), N=5, boundary=:shrink)
+
+julia> c̄ = Field(bf(c));
 
 julia> size(c̄)
 (32, 1, 32)
 ```
+
+The same `bf` can be applied to as many fields as you like. A one-step shortcut
+`BoxFilter(ψ; dims, N, boundary)`, which builds and applies the filter in a single call, is also
+accepted throughout.
 
 ### Boundary handling
 
@@ -51,11 +61,11 @@ selects how out-of-bounds offsets are treated:
 A single spec applies to every filtered dimension, or a tuple gives per-dimension control:
 
 ```jldoctest filters
-julia> c̄_edge = Field(BoxFilter(c; dims=(1, 3), N=3, boundary=:edge));
+julia> bf_edge  = BoxFilter(; dims=(1, 3), N=3, boundary=:edge);
 
-julia> c̄_mixed = Field(BoxFilter(c; dims=(1, 3), N=3, boundary=(:shrink, (left=0.0, right=0.0))));
+julia> bf_mixed = BoxFilter(; dims=(1, 3), N=3, boundary=(:shrink, (left=0.0, right=0.0)));
 
-julia> size(c̄_edge) == size(c̄_mixed) == (32, 1, 32)
+julia> size(Field(bf_edge(c))) == size(Field(bf_mixed(c))) == (32, 1, 32)
 true
 ```
 
@@ -129,15 +139,20 @@ julia> stretched_grid = RectilinearGrid(size=(16, 16),
 
 julia> cz = CenterField(stretched_grid); set!(cz, (x, z) -> sin(2π*x) * z);
 
-julia> c̄z = Field(GaussianFilter(cz; dims=(1, 3), σ=0.1));
+julia> gf = GaussianFilter(; dims=(1, 3), σ=0.1)
+GaussianFilter(dims=(1, 3), σ=0.1, N=nothing, boundary=:shrink)
+
+julia> c̄z = Field(gf(cz));
 
 julia> c̄z isa Field
 true
 ```
 
+Because the filter stores only its parameters (not a grid or field), the same `gf` applies to a field
+on any grid — here the uniform grid from the box-filter example above:
 
 ```jldoctest filters
-julia> c̄_gauss = Field(GaussianFilter(c; dims=(1, 3), σ=0.05));
+julia> c̄_gauss = Field(gf(c));
 
 julia> c̄_gauss isa Field
 true
@@ -146,11 +161,11 @@ true
 Pass `N` to override the default stencil:
 
 ```jldoctest filters
-julia> c̄_wide = Field(GaussianFilter(c; dims=(1,), σ=0.05, N=11));
+julia> gf_wide   = GaussianFilter(; dims=(1,), σ=0.05, N=11);
 
-julia> c̄_perdim = Field(GaussianFilter(c; dims=(1, 3), σ=0.05, N=(7, 11)));
+julia> gf_perdim = GaussianFilter(; dims=(1, 3), σ=0.05, N=(7, 11));
 
-julia> (c̄_wide isa Field, c̄_perdim isa Field)
+julia> (Field(gf_wide(c)) isa Field, Field(gf_perdim(c)) isa Field)
 (true, true)
 ```
 

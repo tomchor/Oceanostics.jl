@@ -88,6 +88,11 @@ arch = has_cuda_gpu() ? GPU() : CPU()
         τ_hand = Field(Field(filt(Field(a_loc * b_loc))) - Field(filt(a_loc)) * Field(filt(b_loc)))
         @test all(interior(Field(subfilter_covariance(c, b, filt; loc))) .≈ interior(τ_hand))
 
+        # a reusable filter object can be passed directly as `filter` (it is callable), matching the closure
+        filter_object = GaussianFilter(; dims=(1, 2, 3), σ=0.1)
+        @test interior(Field(subfilter_covariance(c, b, filter_object; loc))) ≈
+              interior(Field(subfilter_covariance(c, b, filt; loc)))
+
         # subfilter tracer flux special case reproduces the hand-rolled construction (cf. spatial_filtering.jl)
         uᶜ = Field(@at loc u); ū = Field(filt(uᶜ)); c̄ = Field(filt(c)); ūc̄ = Field(filt(Field(uᶜ * c)))
         τx_hand = Field(ūc̄ - ū * c̄)
