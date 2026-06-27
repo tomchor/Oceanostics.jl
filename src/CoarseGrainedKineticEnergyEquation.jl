@@ -54,7 +54,7 @@ framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100
 quantity contracted with the resolved strain rate to form the cross-scale kinetic-energy flux — see
 [`KineticEnergyCrossScaleFlux`](@ref).
 
-`filter` is a function that maps a field to its low-pass-filtered counterpart, e.g. a closure over
+`filter` is any callable that maps a field to its low-pass-filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref):
 
 ```jldoctest; output = false
@@ -63,7 +63,7 @@ using Oceananigans, Oceanostics
 grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
 model = NonhydrostaticModel(grid)
 
-filter(ψ) = GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1)
+filter = GaussianFilter(; dims=(1, 2, 3), σ=0.1)
 τ = SubfilterStressTensor(model, filter)
 
 keys(τ)
@@ -99,7 +99,7 @@ function SubfilterStressTensor(model, filter; dims = (1, 2, 3), collocate_diagon
 end
 
 SubfilterStressTensor(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing, collocate_diagonals = false) =
-    SubfilterStressTensor(model, ψ -> GaussianFilter(ψ; dims, σ, boundary, N); dims, collocate_diagonals)
+    SubfilterStressTensor(model, GaussianFilter(; dims, σ, boundary, N); dims, collocate_diagonals)
 #---
 
 #+++ Cross-scale kinetic-energy flux
@@ -144,7 +144,7 @@ Center)`, with off-diagonal components counted twice by symmetry. `Πₖ > 0` is
 resolved → subfilter) transfer. The result is per unit mass (units `m² s⁻³`); multiply by a reference
 density `ρ₀` for a volumetric power.
 
-`filter` is a function mapping a field to its filtered counterpart, e.g. a closure over
+`filter` is any callable mapping a field to its filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref):
 
 ```jldoctest; output = false
@@ -154,7 +154,7 @@ grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Per
 model = NonhydrostaticModel(grid)
 
 ℓ = 0.2  # filter scale (full width at half maximum)
-filter(ψ) = GaussianFilter(ψ; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))))
+filter = GaussianFilter(; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))))
 
 KineticEnergyCrossScaleFlux(model, filter)
 
@@ -194,7 +194,7 @@ function KineticEnergyCrossScaleFlux(model, filter; dims = (1, 2, 3))
 end
 
 KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
-    KineticEnergyCrossScaleFlux(model, ψ -> GaussianFilter(ψ; dims, σ, boundary, N); dims)
+    KineticEnergyCrossScaleFlux(model, GaussianFilter(; dims, σ, boundary, N); dims)
 #---
 
 end # module

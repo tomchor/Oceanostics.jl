@@ -22,8 +22,8 @@ coarse-graining framework of [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D
 ``\Pi_K`` denotes a forward (downscale) transfer. It is computed per unit mass (units ``\mathrm{m^2\,s^{-3}}``);
 multiply by a reference density ``\rho_0`` for a volumetric power.
 
-Both diagnostics take a `filter` argument: a function mapping a field to its low-pass-filtered
-counterpart, typically a closure over [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). This decouples the
+Both diagnostics take a `filter` argument: any callable mapping a field to its low-pass-filtered
+counterpart, typically a reusable [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). This decouples the
 choice of filter (kernel, scale, boundary treatment, and the directions it acts in) from the directions
 the tensors are contracted over (`dims`), so you can — for instance — filter horizontally yet contract the
 full 3D tensor.
@@ -37,7 +37,7 @@ grid = RectilinearGrid(size=(16, 16, 16), extent=(1, 1, 1), topology=(Periodic, 
 model = NonhydrostaticModel(grid)
 
 ℓ = 0.2  # Gaussian filter scale (full width at half maximum) in all three directions
-filter(ψ) = GaussianFilter(ψ; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
+filter = GaussianFilter(; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
 τ  = SubfilterStressTensor(model, filter)         # the subfilter stress tensor components
 Πₖ = KineticEnergyCrossScaleFlux(model, filter)   # the cross-scale KE flux, at (Center, Center, Center)
