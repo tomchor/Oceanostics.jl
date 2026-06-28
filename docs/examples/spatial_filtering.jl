@@ -184,7 +184,7 @@ fig_τ
 
 # ## Cross-scale kinetic energy flux
 #
-# We can also calculate the kientic energy flux across the filter scale:
+# We can also calculate the kinetic energy flux across the filter scale:
 #
 # ```math
 # \Pi_K = -\tau_{ij}\,\bar{S}_{ij}, \qquad

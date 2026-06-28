@@ -1,5 +1,5 @@
 using Test
-using CUDA: has_cuda_gpu, @allowscalar
+using CUDA: has_cuda_gpu
 using Oceananigans
 using Oceananigans.Fields: location
 using Oceananigans.AbstractOperations: compute_at!
