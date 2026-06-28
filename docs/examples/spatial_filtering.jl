@@ -195,9 +195,7 @@ fig_τ
 
 # ## Cross-scale kinetic energy flux
 #
-# The same coarse-graining gives the kinetic energy budget *across scales*. Filtering the momentum
-# equation and contracting with the filtered velocity produces a term that exchanges kinetic energy
-# between the resolved and subfilter scales — the cross-scale flux
+# We can also calculate the kientic energy flux across the filter scale:
 #
 # ```math
 # \Pi_K = -\tau_{ij}\,\bar{S}_{ij}, \qquad
