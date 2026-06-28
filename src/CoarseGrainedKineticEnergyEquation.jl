@@ -2,7 +2,7 @@ module CoarseGrainedKineticEnergyEquation
 
 using DocStringExtensions
 
-export SubfilterStressTensor, KineticEnergyCrossScaleFlux, CrossScaleFlux
+export subfilter_stress_tensor, KineticEnergyCrossScaleFlux, CrossScaleFlux
 
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: Field
@@ -25,10 +25,12 @@ function filtered_velocities(filter, dims, u, v, w)
     return ū, v̄, w̄
 end
 
-# τⁱʲ = filter(uⁱuʲ) - ūⁱūʲ, component by component, given already-filtered velocities. Reuses
-# `StressTensor` to build the momentum-flux tensor uⁱuʲ of both the full and the filtered velocity;
-# `filter` is applied to the (materialized) full flux and the filtered flux is subtracted. The result
-# is a `NamedTuple` with the same keys/locations as `StressTensor`.
+# Low-level method of `subfilter_stress_tensor` taking already-filtered velocities `ū, v̄, w̄`, so the
+# (expensive) velocity filtering can be done once and shared — `KineticEnergyCrossScaleFlux` reuses
+# `ū, v̄, w̄` for both the strain rate and this stress. Computes τⁱʲ = filter(uⁱuʲ) - ūⁱūʲ component by
+# component, reusing `StressTensor` to build the momentum-flux tensor uⁱuʲ of both the full and the
+# filtered velocity; `filter` is applied to the (materialized) full flux and the filtered flux is
+# subtracted. The result is a `NamedTuple` with the same keys/locations as `StressTensor`.
 function subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, collocate_diagonals=false)
     flux_full = StressTensor(grid, u, v, w; dims, collocate_diagonals)   # uⁱuʲ
     flux_filt = StressTensor(grid, ū, v̄, w̄; dims, collocate_diagonals)   # ūⁱūʲ
@@ -64,7 +66,7 @@ grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Per
 model = NonhydrostaticModel(grid)
 
 filter = GaussianFilter(; dims=(1, 2, 3), σ=0.1)
-τ = SubfilterStressTensor(model, filter)
+τ = subfilter_stress_tensor(model, filter)
 
 keys(τ)
 
@@ -86,11 +88,11 @@ component `τⁱʲ` is kept only when both `i` and `j` are in `dims`, and only t
 kept components are filtered. The default `dims = (1, 2, 3)` returns the full tensor; `dims = (1, 3)`
 returns the `x`–`z` subset (`τ₁₁`, `τ₃₃`, `τ₁₃`).
 
-A convenience method `SubfilterStressTensor(model; σ, dims, boundary, N, collocate_diagonals)` builds
+A convenience method `subfilter_stress_tensor(model; σ, dims, boundary, N, collocate_diagonals)` builds
 the Gaussian `filter` for you from a standard deviation `σ` (a Gaussian of full width at half maximum
 `ℓ` has `σ = ℓ / (2√(2 ln 2))`).
 """
-function SubfilterStressTensor(model, filter; dims = (1, 2, 3), collocate_diagonals = false)
+function subfilter_stress_tensor(model, filter; dims = (1, 2, 3), collocate_diagonals = false)
     FlowDiagnostics.validate_dims(dims)
     grid = model.grid
     u, v, w = model.velocities
@@ -98,8 +100,8 @@ function SubfilterStressTensor(model, filter; dims = (1, 2, 3), collocate_diagon
     return subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, collocate_diagonals)
 end
 
-SubfilterStressTensor(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing, collocate_diagonals = false) =
-    SubfilterStressTensor(model, GaussianFilter(; dims, σ, boundary, N); dims, collocate_diagonals)
+subfilter_stress_tensor(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing, collocate_diagonals = false) =
+    subfilter_stress_tensor(model, GaussianFilter(; dims, σ, boundary, N); dims, collocate_diagonals)
 #---
 
 #+++ Cross-scale kinetic-energy flux
@@ -137,7 +139,7 @@ Return the cross-scale (scale-to-scale) kinetic-energy flux `Πₖ`, the rate at
     Πₖ = -τⁱʲ S̄ⁱʲ
 ```
 
-where `τⁱʲ = filter(uⁱuʲ) - ūⁱūʲ` is the subfilter-scale stress tensor ([`SubfilterStressTensor`](@ref))
+where `τⁱʲ = filter(uⁱuʲ) - ūⁱūʲ` is the subfilter-scale stress tensor ([`subfilter_stress_tensor`](@ref))
 and `S̄ⁱʲ = ½(∂ūⁱ/∂xʲ + ∂ūʲ/∂xⁱ)` is the strain rate tensor of the filtered velocity
 ([`StrainRateTensor`](@ref) applied to `ūⁱ`). The contraction is evaluated at `(Center, Center,
 Center)`, with off-diagonal components counted twice by symmetry. `Πₖ > 0` is forward (downscale,

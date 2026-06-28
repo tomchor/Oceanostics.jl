@@ -4,7 +4,7 @@ using Oceananigans
 using Oceananigans.Fields: location
 
 using Oceanostics
-using Oceanostics: SubfilterStressTensor, KineticEnergyCrossScaleFlux, GaussianFilter
+using Oceanostics: subfilter_stress_tensor, KineticEnergyCrossScaleFlux, GaussianFilter
 using Oceanostics: StressTensor, StrainRateTensor
 
 arch = has_cuda_gpu() ? GPU() : CPU()
@@ -15,7 +15,7 @@ center(x) = @at (Center, Center, Center) x
 #+++ Test functions
 function test_subfilter_stress_tensor(model, filt)
     grid = model.grid
-    τ = SubfilterStressTensor(model, filt)
+    τ = subfilter_stress_tensor(model, filt)
     @test keys(τ) == (:τ₁₁, :τ₂₂, :τ₃₃, :τ₁₂, :τ₁₃, :τ₂₃)
 
     # each component lives at the same location as the corresponding `StressTensor` component
@@ -28,7 +28,7 @@ function test_subfilter_stress_tensor(model, filt)
     end
 
     # `collocate_diagonals` is forwarded to `StressTensor`: diagonals move to ccc, off-diagonals stay
-    τc = SubfilterStressTensor(model, filt; collocate_diagonals=true)
+    τc = subfilter_stress_tensor(model, filt; collocate_diagonals=true)
     @test location(τc.τ₁₁) == (Center, Center, Center)
     @test location(τc.τ₂₂) == (Center, Center, Center)
     @test location(τc.τ₃₃) == (Center, Center, Center)
@@ -36,12 +36,12 @@ function test_subfilter_stress_tensor(model, filt)
           (location(τ.τ₁₂),  location(τ.τ₁₃),  location(τ.τ₂₃))
 
     # `dims` selects sub-dimensional tensors, exactly like `StressTensor`
-    @test keys(SubfilterStressTensor(model, filt; dims=(1, 3))) == (:τ₁₁, :τ₃₃, :τ₁₃)
-    @test keys(SubfilterStressTensor(model, filt; dims=(2,)))   == (:τ₂₂,)
+    @test keys(subfilter_stress_tensor(model, filt; dims=(1, 3))) == (:τ₁₁, :τ₃₃, :τ₁₃)
+    @test keys(subfilter_stress_tensor(model, filt; dims=(2,)))   == (:τ₂₂,)
 
     # invalid `dims` are rejected
-    @test_throws ArgumentError SubfilterStressTensor(model, filt; dims=(1, 4))
-    @test_throws ArgumentError SubfilterStressTensor(model, filt; dims=())
+    @test_throws ArgumentError subfilter_stress_tensor(model, filt; dims=(1, 4))
+    @test_throws ArgumentError subfilter_stress_tensor(model, filt; dims=())
     return nothing
 end
 
@@ -85,7 +85,7 @@ end
 function test_convenience_method(model)
     σ = 0.12
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
-    @test keys(SubfilterStressTensor(model; σ)) == keys(SubfilterStressTensor(model, filt))
+    @test keys(subfilter_stress_tensor(model; σ)) == keys(subfilter_stress_tensor(model, filt))
     @test interior(Field(KineticEnergyCrossScaleFlux(model; σ))) ≈
           interior(Field(KineticEnergyCrossScaleFlux(model, filt)))
     return nothing
@@ -97,7 +97,7 @@ function test_uniform_flow_vanishes(grid, filt; U=2, V=-3)
     model = NonhydrostaticModel(grid)
     set!(model, u=U, v=V) # w ≡ 0; a uniform horizontal flow is divergence-free
 
-    τ = SubfilterStressTensor(model, filt)
+    τ = subfilter_stress_tensor(model, filt)
     for τᵢⱼ in τ
         @test all(abs.(interior(Field(τᵢⱼ))) .< 1e-10)
     end
