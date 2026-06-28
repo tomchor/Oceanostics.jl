@@ -83,26 +83,21 @@ run!(simulation)
 
 # ## Scale separation
 #
-# We now filter the snapshot at the end of the run. We pick a filter width ``\sigma = 4\Delta`` (a few
-# grid cells) and build a **reusable** Gaussian filter once — `GaussianFilter(; dims, σ)` returns a
-# callable filter we apply to many fields below by calling it, `filter(ψ)`. We then split the
-# vorticity into filtered and subfilter parts.
+# We now filter the snapshot at the end of the run. We pick a Gaussian filter with a kernel standard deviation
+# (serving as the filter width) of ``\sigma = 8\Delta`` (a few grid cells wide):
 
-using Oceananigans.AbstractOperations: @at
 using Oceanostics
 
 Δ = minimum_xspacing(grid)
-σ = 4Δ
+σ = 8Δ
 
-filter = GaussianFilter(; dims=(1, 2), σ=σ)             # reusable filter — build once, apply to many fields
+filter = GaussianFilter(; dims=(1, 2), σ=σ)
 
-ω  = @at (Center, Center, Center) (∂x(v) - ∂y(u))   # vorticity at (Center, Center, Center)
-ω̄  = filter(ω)                                      # filtered (large-scale) vorticity
-ω′ = ω - ω̄                                          # subfilter fluctuation
+ω  = ∂x(v) - ∂y(u) # vorticity
+ω̄  = filter(ω)     # filtered (large-scale) vorticity
+ω′ = Field(ω - ω̄)  # subfilter fluctuation
 
-# A normalized Gaussian filter removes small-scale variance while (on a periodic domain) preserving
-# the field mean, so the filtered field is necessarily smoother than the original. We plot the three
-# fields side by side:
+# We plot the vorticity, filtered vorticity, and subfilter fluctuations side by side:
 
 using CairoMakie
 set_theme!(Theme(fontsize = 18))
@@ -113,9 +108,9 @@ axis_kwargs = (aspect = DataAspect(),
                xticklabelsvisible = false, yticklabelsvisible = false)
 
 fig_ω = Figure()
-ax_ω  = Axis(fig_ω[1, 1]; title = "Vorticity ω",         axis_kwargs...)
-ax_ω̄  = Axis(fig_ω[1, 2]; title = "Filtered ω̄",          axis_kwargs...)
-ax_ω′ = Axis(fig_ω[1, 3]; title = "Residual ω′ = ω − ω̄", axis_kwargs...)
+ax_ω  = Axis(fig_ω[1, 1]; title = "Vorticity ω", axis_kwargs...)
+ax_ω̄  = Axis(fig_ω[1, 2]; title = "Filtered ω̄",  axis_kwargs...)
+ax_ω′ = Axis(fig_ω[1, 3]; title = "ω′ = ω − ω̄",  axis_kwargs...)
 
 ω_range = (-10, 10)
 heatmap!(ax_ω,  ω;  colormap = :balance, colorrange = ω_range)
@@ -158,19 +153,15 @@ fig_sweep
 # reuse the same `filter` object on each piece — the two velocities, the tracer, and the two
 # advective products ``u_i c`` — before combining: one filter object, applied to five different fields.
 
-uᶜ = Field(@at (Center, Center, Center) u)
-vᶜ = Field(@at (Center, Center, Center) v)
+using Oceananigans.AbstractOperations: @at
 
-ū  = filter(uᶜ)
-v̄  = filter(vᶜ)
+ū  = filter(u)
+v̄  = filter(v)
 c̄  = filter(c)
 
-ūc̄ = filter(uᶜ * c)   # = overline(u c)
-v̄c̄ = filter(vᶜ * c)   # = overline(v c)
-
-τx = ūc̄ - ū * c̄
-τy = v̄c̄ - v̄ * c̄
-τ  = √(τx^2 + τy^2)   # subfilter flux magnitude
+τx = filter(u * c) - ū * c̄   # overline(u c) - ū c̄
+τy = filter(v * c) - v̄ * c̄
+τ  = √(τx^2 + τy^2)          # subfilter flux magnitude
 
 # Finally we plot the tracer, its filtered version, and the magnitude of the subfilter flux:
 
