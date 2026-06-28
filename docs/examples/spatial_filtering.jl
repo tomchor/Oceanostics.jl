@@ -211,8 +211,7 @@ fig_τ
 #
 # Rather than assembling ``\tau_{ij}`` and ``\bar{S}_{ij}`` by hand as we did for the tracer flux,
 # Oceanostics packages them as [`SubfilterStressTensor`](@ref) and [`KineticEnergyCrossScaleFlux`](@ref).
-# The latter accepts the very same reusable `filter` we built above and returns ``\Pi_K`` at cell
-# centers:
+# The latter accepts the same `filter` we built above and returns ``\Pi_K``:
 
 Πₖ = KineticEnergyCrossScaleFlux(model, filter; dims=(1, 2))
 

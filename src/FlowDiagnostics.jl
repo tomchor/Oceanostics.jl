@@ -863,7 +863,7 @@ fields `a` and `b` under a low-pass spatial `filter` (overbar):
 ```
 
 co-located at `loc`. Here `filter(ψ)` is a normalized local average (e.g. an Oceanostics
-`GaussianFilter` or `BoxFilter`) that splits a field into a resolved part `ψ̄` and a subfilter
+`GaussianFilter` or `BoxFilter`) that splits a field into a filtered part `ψ̄` and a subfilter
 fluctuation `ψ′ = ψ - ψ̄`. `τ(a, b)` is the part of the product `ab` that the filtered fields `ā b̄`
 cannot represent on their own — the transport/stress carried by scales smaller than the filter width
 (Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1).
@@ -871,7 +871,7 @@ cannot represent on their own — the transport/stress carried by scales smaller
 Two common special cases are:
 
   - **Subfilter tracer flux** — `a = uᵢ` (a velocity component), `b = c` (a tracer):
-    `τ(uᵢ, c) = filter(uᵢ c) - ūᵢ c̄`, the flux of `c` carried by unresolved scales.
+    `τ(uᵢ, c) = filter(uᵢ c) - ūᵢ c̄`, the flux of `c` carried by subfilter scales.
   - **Subfilter momentum stress** — `a = uᵢ`, `b = uⱼ`: `τ(uᵢ, uⱼ) = filter(uᵢ uⱼ) - ūᵢ ūⱼ`, the
     subfilter (subgrid-scale) Reynolds-type stress component.
 
