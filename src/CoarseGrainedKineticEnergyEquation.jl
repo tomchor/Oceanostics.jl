@@ -116,7 +116,7 @@ const _CONTRACTION = ((:τ₁₁, :S₁₁, 1), (:τ₂₂, :S₂₂, 1), (:τ�
 
 function _cross_scale_ke_flux(τ, S̄)
     terms = (weight * to_center(τ[kτ]) * to_center(S̄[kS]) for (kτ, kS, weight) in _CONTRACTION if haskey(τ, kτ))
-    return -reduce(+, terms)
+    return -sum(terms)
 end
 
 # Expose the flux as a single `KernelFunctionOperation` so it displays like the other diagnostics (via

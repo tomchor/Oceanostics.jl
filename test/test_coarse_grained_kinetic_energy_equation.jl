@@ -2,6 +2,7 @@ using Test
 using CUDA: has_cuda_gpu, @allowscalar
 using Oceananigans
 using Oceananigans.Fields: location
+using Oceananigans.AbstractOperations: compute_at!
 
 using Oceanostics
 using Oceanostics: subfilter_stress_tensor, KineticEnergyCrossScaleFlux, GaussianFilter
@@ -104,6 +105,35 @@ function test_uniform_flow_vanishes(grid, filt; U=2, V=-3)
     @test all(abs.(interior(Field(KineticEnergyCrossScaleFlux(model, filt)))) .< 1e-10)
     return nothing
 end
+
+# A reusable filter object (the documented idiom, `GaussianFilter(; …)`) can be passed directly as
+# `filter`, giving the same result as an equivalent field-first closure.
+function test_reusable_filter_object(model)
+    reusable = GaussianFilter(; dims=(1, 2, 3), σ=0.1, boundary=:edge)
+    closure  = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1, boundary=:edge)
+    @test keys(subfilter_stress_tensor(model, reusable)) == keys(subfilter_stress_tensor(model, closure))
+    @test interior(Field(KineticEnergyCrossScaleFlux(model, reusable))) ≈
+          interior(Field(KineticEnergyCrossScaleFlux(model, closure)))
+    return nothing
+end
+
+# The diagnostic holds internally materialized filtered `Field`s; recomputing it at a new time — as an
+# `OutputWriter` does each output — must reflect the updated flow, not stay frozen at construction.
+function test_recomputes_on_evolution(model, filt)
+    Πf = Field(KineticEnergyCrossScaleFlux(model, filt))
+    compute_at!(Πf, 0.0)
+    snapshot = Array(interior(Πf))
+
+    set!(model, u=(x, y, z) -> 2randn(), v=(x, y, z) -> 2randn(), w=(x, y, z) -> 2randn())
+    compute_at!(Πf, 1.0)
+
+    fresh = Field(KineticEnergyCrossScaleFlux(model, filt))
+    compute_at!(fresh, 2.0)
+
+    @test !(Array(interior(Πf)) ≈ snapshot)   # tracked the change in the flow
+    @test interior(Πf) ≈ interior(fresh)      # equals a flux built fresh on the new state
+    return nothing
+end
 #---
 
 @testset "Coarse-grained kinetic energy equation" begin
@@ -125,4 +155,10 @@ end
 
     @info "    Uniform flow vanishes"
     test_uniform_flow_vanishes(grid, ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1, boundary=:edge))
+
+    @info "    Reusable filter object as `filter`"
+    test_reusable_filter_object(model)
+
+    @info "    Recomputes as the flow evolves"
+    test_recomputes_on_evolution(model, filt)
 end
