@@ -30,7 +30,7 @@ full 3D tensor.
 
 ## Example
 
-```jldoctest; output = false
+```jldoctest
 using Oceananigans, Oceanostics
 
 grid = RectilinearGrid(size=(16, 16, 16), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))

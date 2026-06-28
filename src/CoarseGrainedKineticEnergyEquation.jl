@@ -59,7 +59,7 @@ quantity contracted with the filtered strain rate to form the cross-scale kineti
 `filter` is any callable that maps a field to its low-pass-filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref):
 
-```jldoctest; output = false
+```jldoctest
 using Oceananigans, Oceanostics
 
 grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
@@ -149,7 +149,7 @@ density `ρ₀` for a volumetric power.
 `filter` is any callable mapping a field to its filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref):
 
-```jldoctest; output = false
+```jldoctest
 using Oceananigans, Oceanostics
 
 grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
