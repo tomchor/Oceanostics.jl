@@ -214,12 +214,12 @@ fig_τ
 # The latter accepts the very same reusable `filter` we built above and returns ``\Pi_K`` at cell
 # centers:
 
-Πₖ = Field(KineticEnergyCrossScaleFlux(model, filter; dims=(1, 2)))
+Πₖ = KineticEnergyCrossScaleFlux(model, filter; dims=(1, 2))
 
 # We show it next to the filtered kinetic energy ``\tfrac{1}{2}(\bar{u}^2 + \bar{v}^2)``, reusing the
 # filtered velocities ``\bar{u}``, ``\bar{v}`` from the previous section:
 
-K̄ = Field((ū^2 + v̄^2) / 2)
+K̄ = (ū^2 + v̄^2) / 2
 
 fig_Π = Figure()
 ax_K = Axis(fig_Π[1, 1]; title = "Filtered KE ½(ū² + v̄²)", axis_kwargs...)
