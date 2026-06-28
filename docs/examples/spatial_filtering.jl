@@ -149,9 +149,9 @@ fig_sweep
 #
 # Filtering also lets us quantify transport by subfilter scales. The subfilter tracer flux is
 # ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``: the difference between the filtered advective
-# flux and the flux carried by the filtered fields. We interpolate the velocities to centers and
-# reuse the same `filter` object on each piece — the two velocities, the tracer, and the two
-# advective products ``u_i c`` — before combining: one filter object, applied to five different fields.
+# flux and the flux carried by the filtered fields. We reuse the same `filter` object on each piece —
+# the two velocities, the tracer, and the two advective products ``u_i c`` — before combining: one
+# filter object, applied to five different fields.
 
 using Oceananigans.AbstractOperations: @at
 
