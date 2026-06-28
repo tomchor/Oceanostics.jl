@@ -8,10 +8,10 @@
 # \psi = \bar{\psi} + \psi', \qquad \psi' \equiv \psi - \bar{\psi},
 # ```
 #
-# where the overbar denotes a Gaussian-weighted local average with standard deviation ``\sigma``.
-# Beyond visualization, filtering lets us build *subfilter* (subgrid-scale) diagnostics such as the
+# where the overbar denotes a Gaussian-weighted local average.
+# Beyond visualization, filtering lets us build *subfilter* (sub-filter-scale) diagnostics such as the
 # subfilter tracer flux ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``, which represents the
-# transport carried by scales smaller than ``\sigma``. We close the example with the *cross-scale
+# transport carried by scales smaller than the filter width. We close the example with the *cross-scale
 # kinetic energy flux*, which measures the energy exchanged between the filtered and subfilter scales.
 #
 # Before starting, make sure you have the required packages installed for this example, which can
@@ -25,18 +25,17 @@
 # ## Model and simulation setup
 #
 # To get a turbulent field to filter, we follow the
-# [Two-dimensional turbulence example](@ref two_d_turbulence_example): we run the same quick
+# [Two-dimensional turbulence example](@ref two_d_turbulence_example): we run the same
 # doubly-periodic 2D turbulence simulation, initialized with a smooth, well-resolved sum of Gaussian
 # velocity blobs and a sine/cosine tracer that the flow stirs into thin filaments. See that example
-# for a detailed walk-through of the setup — here we only summarize it, with two differences: we use
-# a smaller grid and a shorter run time, since we just need a developed, multi-scale field. (The
+# for a detailed walk-through of the setup; here we only summarize it. (The
 # grid here is uniform, but [`GaussianFilter`](@ref) also supports stretched directions, choosing a
 # fast precomputed-weight path on uniform directions and a node-distance path on variably spaced
 # ones.)
 
 using Oceananigans
 
-grid = RectilinearGrid(size=(128, 128), extent=(2π, 2π), topology=(Periodic, Periodic, Flat))
+grid = RectilinearGrid(size=(256, 256), extent=(2π, 2π), topology=(Periodic, Periodic, Flat))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = Centered(order=4),
@@ -87,8 +86,7 @@ run!(simulation)
 # We now filter the snapshot at the end of the run. We pick a filter width ``\sigma = 4\Delta`` (a few
 # grid cells) and build a **reusable** Gaussian filter once — `GaussianFilter(; dims, σ)` returns a
 # callable filter we apply to many fields below by calling it, `filter(ψ)`. We then split the
-# vorticity into filtered and subfilter parts. Vorticity lives at ``(f, f, c)``, so we interpolate it
-# to cell centers before filtering (and for plotting).
+# vorticity into filtered and subfilter parts.
 
 using Oceananigans.AbstractOperations: @at
 using Oceanostics
