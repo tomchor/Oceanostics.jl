@@ -39,7 +39,7 @@ model = NonhydrostaticModel(grid)
 ℓ = 0.2  # Gaussian filter scale (full width at half maximum) in all three directions
 filter = GaussianFilter(; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
-τ  = SubfilterStressTensor(model, filter)         # the subfilter stress tensor components
+τ  = subfilter_stress_tensor(model, filter)       # the subfilter stress tensor components
 Πₖ = KineticEnergyCrossScaleFlux(model, filter)   # the cross-scale KE flux, at (Center, Center, Center)
 
 # equivalently, the convenience method builds the Gaussian filter from σ for you:
@@ -57,7 +57,7 @@ KineticEnergyCrossScaleFlux KernelFunctionOperation at (Center, Center, Center)
 ## Subfilter-scale stress tensor
 
 ```@docs
-Oceanostics.CoarseGrainedKineticEnergyEquation.SubfilterStressTensor
+Oceanostics.CoarseGrainedKineticEnergyEquation.subfilter_stress_tensor
 ```
 
 ## Cross-scale kinetic energy flux
