@@ -130,7 +130,7 @@ fig_ω
 # are averaged away. We filter the vorticity at three increasing widths — ``2\Delta``, ``4\Delta``
 # and ``8\Delta`` — and plot each result as it is computed.
 
-σ_sweep = (2Δ, 4Δ, 8Δ)
+σ_sweep = (4Δ, 8Δ, 16Δ)
 ω̄_sweep = [GaussianFilter(ω; dims=(1, 2), σ=s) for s in σ_sweep]   # one filter per width, applied to ω
 
 fig_sweep = Figure()
