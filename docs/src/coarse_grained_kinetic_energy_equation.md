@@ -1,9 +1,9 @@
 # Coarse-grained kinetic energy equation
 
 The `CoarseGrainedKineticEnergyEquation` module provides diagnostics for the *filtered* (coarse-grained)
-kinetic energy budget, in which a low-pass spatial filter `(\overline{\;\cdot\;})` separates a resolved
+kinetic energy budget, in which a low-pass spatial filter `(\overline{\;\cdot\;})` separates a filtered
 scale from a subfilter scale. Applying the filter to the momentum equation and contracting with the
-filtered velocity gives an evolution equation for the resolved kinetic energy
+filtered velocity gives an evolution equation for the filtered kinetic energy
 ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\,\overline{u}_i`` in which a new term appears that exchanges
 energy between scales:
 
@@ -17,7 +17,7 @@ energy between scales:
 
 Here ``\tau_{ij}`` is the subfilter-scale stress tensor and ``\overline{S}_{ij}`` is the strain rate
 tensor of the filtered velocity. ``\Pi_K`` is the cross-scale (scale-to-scale) kinetic energy flux: the
-rate at which the filter transfers kinetic energy from the resolved to the subfilter scales, following the
+rate at which the filter transfers kinetic energy from the filtered to the subfilter scales, following the
 coarse-graining framework of [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1). A positive
 ``\Pi_K`` denotes a forward (downscale) transfer. It is computed per unit mass (units ``\mathrm{m^2\,s^{-3}}``);
 multiply by a reference density ``\rho_0`` for a volumetric power.

@@ -43,7 +43,7 @@ end
     $(SIGNATURES)
 
 Return the components of the subfilter-scale (SFS) stress tensor `τ`, the residual momentum flux that
-a low-pass `filter` removes from the resolved scales:
+a low-pass `filter` removes from the filtered scales:
 
 ```
     τⁱʲ = filter(uⁱuʲ) - ūⁱ ūʲ ,   ūⁱ = filter(uⁱ)
@@ -51,7 +51,7 @@ a low-pass `filter` removes from the resolved scales:
 
 (also called the sub-grid stress in LES, or the generalized central moment in the coarse-graining
 framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). It is the
-quantity contracted with the resolved strain rate to form the cross-scale kinetic-energy flux — see
+quantity contracted with the filtered strain rate to form the cross-scale kinetic-energy flux — see
 [`KineticEnergyCrossScaleFlux`](@ref).
 
 `filter` is any callable that maps a field to its low-pass-filtered counterpart, e.g. a reusable
@@ -130,7 +130,7 @@ const CrossScaleFlux = KineticEnergyCrossScaleFlux
     $(SIGNATURES)
 
 Return the cross-scale (scale-to-scale) kinetic-energy flux `Πₖ`, the rate at which a low-pass
-`filter` transfers kinetic energy from the resolved to the subfilter scales (Aluie et al., 2018,
+`filter` transfers kinetic energy from the filtered to the subfilter scales (Aluie et al., 2018,
 *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1):
 
 ```
@@ -141,7 +141,7 @@ where `τⁱʲ = filter(uⁱuʲ) - ūⁱūʲ` is the subfilter-scale stress tens
 and `S̄ⁱʲ = ½(∂ūⁱ/∂xʲ + ∂ūʲ/∂xⁱ)` is the strain rate tensor of the filtered velocity
 ([`StrainRateTensor`](@ref) applied to `ūⁱ`). The contraction is evaluated at `(Center, Center,
 Center)`, with off-diagonal components counted twice by symmetry. `Πₖ > 0` is forward (downscale,
-resolved → subfilter) transfer. The result is per unit mass (units `m² s⁻³`); multiply by a reference
+filtered → subfilter) transfer. The result is per unit mass (units `m² s⁻³`); multiply by a reference
 density `ρ₀` for a volumetric power.
 
 `filter` is any callable mapping a field to its filtered counterpart, e.g. a reusable
@@ -185,7 +185,7 @@ function KineticEnergyCrossScaleFlux(model, filter; dims = (1, 2, 3))
     u, v, w = model.velocities
     ū, v̄, w̄ = filtered_velocities(filter, dims, u, v, w)
 
-    # Resolved-scale strain S̄ⁱʲ from the filtered velocities, and the subfilter stress τⁱʲ. The
+    # Strain S̄ⁱʲ of the filtered velocities, and the subfilter stress τⁱʲ. The
     # contraction interpolates every component to cell centers, so the components can stay at their
     # natural staggered locations here; the result is wrapped in a `KernelFunctionOperation`.
     S̄ = StrainRateTensor(grid, ū, v̄, w̄; dims)

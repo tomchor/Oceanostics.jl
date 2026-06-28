@@ -1,7 +1,7 @@
 # # [Spatial filtering and subfilter fluxes](@id spatial_filtering_example)
 #
 # In this example we use Oceanostics' [`GaussianFilter`](@ref) to coarse-grain a two-dimensional
-# turbulent flow. Spatial filtering splits a field into a smooth, large-scale (resolved) part and a
+# turbulent flow. Spatial filtering splits a field into a smooth, large-scale (filtered) part and a
 # small-scale (subfilter) fluctuation,
 #
 # ```math
@@ -12,7 +12,7 @@
 # Beyond visualization, filtering lets us build *subfilter* (subgrid-scale) diagnostics such as the
 # subfilter tracer flux ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``, which represents the
 # transport carried by scales smaller than ``\sigma``. We close the example with the *cross-scale
-# kinetic energy flux*, which measures the energy exchanged between the resolved and subfilter scales.
+# kinetic energy flux*, which measures the energy exchanged between the filtered and subfilter scales.
 #
 # Before starting, make sure you have the required packages installed for this example, which can
 # be done with
@@ -87,7 +87,7 @@ run!(simulation)
 # We now filter the snapshot at the end of the run. We pick a filter width ``\sigma = 4\Delta`` (a few
 # grid cells) and build a **reusable** Gaussian filter once — `GaussianFilter(; dims, σ)` returns a
 # callable filter we apply to many fields below by calling it, `filter(ψ)`. We then split the
-# vorticity into resolved and subfilter parts. Vorticity lives at ``(f, f, c)``, so we interpolate it
+# vorticity into filtered and subfilter parts. Vorticity lives at ``(f, f, c)``, so we interpolate it
 # to cell centers before filtering (and for plotting).
 
 using Oceananigans.AbstractOperations: @at
@@ -99,7 +99,7 @@ using Oceanostics
 filter = GaussianFilter(; dims=(1, 2), σ=σ)             # reusable filter — build once, apply to many fields
 
 ω  = @at (Center, Center, Center) (∂x(v) - ∂y(u))   # vorticity at (Center, Center, Center)
-ω̄  = filter(ω)                                      # resolved (large-scale) vorticity
+ω̄  = filter(ω)                                      # filtered (large-scale) vorticity
 ω′ = ω - ω̄                                          # subfilter fluctuation
 
 # A normalized Gaussian filter removes small-scale variance while (on a periodic domain) preserving
@@ -128,7 +128,7 @@ Colorbar(fig_ω[1, 4], hm_ω)
 resize_to_layout!(fig_ω)
 fig_ω
 
-# The Gaussian filter splits the vorticity into a smooth resolved field ``\bar{\omega}`` and the
+# The Gaussian filter splits the vorticity into a smooth filtered field ``\bar{\omega}`` and the
 # fine-scale residual ``\omega'`` it removes.
 
 # ## Filter-width sweep
@@ -154,7 +154,7 @@ fig_sweep
 
 # ## Subfilter tracer flux
 #
-# Filtering also lets us quantify transport by unresolved scales. The subfilter tracer flux is
+# Filtering also lets us quantify transport by subfilter scales. The subfilter tracer flux is
 # ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``: the difference between the filtered advective
 # flux and the flux carried by the filtered fields. We interpolate the velocities to centers and
 # reuse the same `filter` object on each piece — the two velocities, the tracer, and the two
@@ -205,7 +205,7 @@ fig_τ
 #
 # where ``\tau_{ij}`` is the subfilter (momentum) stress tensor — the tensor analogue of the subfilter
 # tracer flux above — and ``\bar{S}_{ij}`` is the strain rate of the filtered velocity. ``\Pi_K > 0``
-# is a forward (downscale) transfer from resolved to subfilter scales, while ``\Pi_K < 0`` is
+# is a forward (downscale) transfer from filtered to subfilter scales, while ``\Pi_K < 0`` is
 # backscatter from small to large scales, which is prominent in two-dimensional turbulence and its
 # inverse energy cascade (see [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1)).
 #
@@ -216,13 +216,13 @@ fig_τ
 
 Πₖ = Field(KineticEnergyCrossScaleFlux(model, filter; dims=(1, 2)))
 
-# We show it next to the resolved kinetic energy ``\tfrac{1}{2}(\bar{u}^2 + \bar{v}^2)``, reusing the
+# We show it next to the filtered kinetic energy ``\tfrac{1}{2}(\bar{u}^2 + \bar{v}^2)``, reusing the
 # filtered velocities ``\bar{u}``, ``\bar{v}`` from the previous section:
 
 K̄ = Field((ū^2 + v̄^2) / 2)
 
 fig_Π = Figure()
-ax_K = Axis(fig_Π[1, 1]; title = "Resolved KE ½(ū² + v̄²)", axis_kwargs...)
+ax_K = Axis(fig_Π[1, 1]; title = "Filtered KE ½(ū² + v̄²)", axis_kwargs...)
 ax_Π = Axis(fig_Π[1, 3]; title = "Cross-scale flux Πₖ",    axis_kwargs...)
 
 hm_K = heatmap!(ax_K, K̄; colormap = :magma)
@@ -237,4 +237,4 @@ fig_Π
 
 # Red (``\Pi_K > 0``) marks forward transfer to subfilter scales and blue (``\Pi_K < 0``) marks
 # backscatter to larger scales. Both concentrate in the strained regions between vortices, where the
-# resolved strain ``\bar{S}_{ij}`` — and hence the scale-to-scale energy exchange — is largest.
+# filtered strain ``\bar{S}_{ij}`` — and hence the scale-to-scale energy exchange — is largest.
