@@ -1,4 +1,17 @@
 using Test
+import Dates
+import Logging
+
+# Prefix each log record with a timestamp ("[ HH:MM:SS Info: … ]" instead of "[ Info: … ]") so the
+# per-section `@info` lines in the test output show when each stage ran.
+function timestamped_metafmt(level, _module, _group, id, file, line)
+    color, prefix, suffix = Logging.default_metafmt(level, _module, _group, id, file, line)
+    return color, string(Dates.format(Dates.now(), "HH:MM:SS"), " ", prefix), suffix
+end
+
+# Only switch the logger in CI — local runs keep the plain format. CI (GitHub Actions) sets CI=true.
+get(ENV, "CI", "false") == "true" &&
+    Logging.global_logger(Logging.ConsoleLogger(stderr, Logging.Info; meta_formatter = timestamped_metafmt))
 
 group     = get(ENV, "TEST_GROUP", :all) |> Symbol
 
