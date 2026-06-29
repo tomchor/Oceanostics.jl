@@ -201,11 +201,11 @@ KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N =
     KineticEnergyCrossScaleFlux(model, GaussianFilter(; dims, σ, boundary, N); dims)
 #---
 
-#+++ Coarse-grained (filtered-flow) kinetic-energy dissipation
+#+++ Coarse-grained kinetic-energy dissipation
 # A distinct kernel — delegating to `KineticEnergyEquation`'s `viscous_dissipation_rate_ccc` — so this
 # diagnostic gets its own type alias and display while reusing the exact ∂ⱼuᵢ·Fᵢⱼ viscous contraction.
-@inline coarse_grained_dissipation_rate_ccc(i, j, k, grid, closure_fields, model_fields, p) =
-    viscous_dissipation_rate_ccc(i, j, k, grid, closure_fields, model_fields, p)
+@inline coarse_grained_dissipation_rate_ccc(i, j, k, grid, closure_fields, filtered_filtered_model_fields, p) =
+    viscous_dissipation_rate_ccc(i, j, k, grid, closure_fields, filtered_model_fields, p)
 
 const CoarseGrainedKineticEnergyDissipationRate = CustomKFO{<:typeof(coarse_grained_dissipation_rate_ccc)}
 const DissipationRate = CoarseGrainedKineticEnergyDissipationRate
@@ -278,10 +278,10 @@ function CoarseGrainedKineticEnergyDissipationRate(model, filter)
     # The field set the viscous fluxes need (velocities + tracers + auxiliary fields), but with the
     # resolved velocities swapped for their filtered counterparts, so `viscous_dissipation_rate_ccc`
     # evaluates ∂ⱼūᵢ·Fᵢⱼ(ū): the dissipation of the filtered flow.
-    model_fields = merge(perturbation_fields(model), (; u = ū, v = v̄, w = w̄))
+    filtered_model_fields = merge(perturbation_fields(model), (; u = ū, v = v̄, w = w̄))
     parameters = (; model.closure, model.clock, model.buoyancy)
     return KernelFunctionOperation{Center, Center, Center}(coarse_grained_dissipation_rate_ccc, grid,
-                                                           model.closure_fields, model_fields, parameters)
+                                                           model.closure_fields, filtered_model_fields, parameters)
 end
 
 CoarseGrainedKineticEnergyDissipationRate(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
