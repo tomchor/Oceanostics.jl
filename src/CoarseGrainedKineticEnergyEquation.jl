@@ -221,7 +221,7 @@ viscosity removes kinetic energy from the *filtered* velocity field `ūᵢ = fil
 ```
 
 where `Fᵢⱼ` is the viscous stress (flux) tensor supplied by the model's closure. This is exactly the
-[`KineticEnergyDissipationRate`](@ref) `ε = ∂ⱼuᵢ·Fᵢⱼ` — the same viscous contraction and the same closure
+[`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) `ε = ∂ⱼuᵢ·Fᵢⱼ` — the same viscous contraction and the same closure
 machinery — evaluated on the filtered velocities instead of the full ones, so it is the viscous sink in
 the budget of the filtered kinetic energy `K̄ = ½ūᵢūᵢ` (coarse-graining framework of Aluie et al., 2018,
 *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). For a constant-viscosity `ScalarDiffusivity` it
@@ -252,13 +252,13 @@ CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Ce
 ```
 
 The viscosity is taken from `model.closure`/`model.closure_fields`, exactly as in
-[`KineticEnergyDissipationRate`](@ref), so the model needs a closure whose viscous fluxes are defined,
+[`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate), so the model needs a closure whose viscous fluxes are defined,
 just as that diagnostic does. The filtered velocities are materialized as `Field`s internally (and
 refreshed on recompute), so the returned object is a lazy operation ready for `Field`, `Integral`, and
 `OutputWriter`s and recomputes as the simulation evolves.
 
 Unlike the cross-scale flux and the stress tensor, this diagnostic takes no `dims` argument: it always
-forms the full viscous contraction (matching [`KineticEnergyDissipationRate`](@ref)). The directions the
+forms the full viscous contraction (matching [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)). The directions the
 filter acts in are set inside `filter`.
 
 A convenience method `CoarseGrainedKineticEnergyDissipationRate(model; σ, dims, boundary, N)` builds the

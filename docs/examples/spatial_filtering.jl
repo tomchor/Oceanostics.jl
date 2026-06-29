@@ -233,7 +233,7 @@ fig_Π
 # \overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,F_{ij}(\overline{u}),
 # ```
 #
-# the [`KineticEnergyDissipationRate`](@ref) ``\partial_j u_i\,F_{ij}`` evaluated on the filtered
+# the [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) ``\partial_j u_i\,F_{ij}`` evaluated on the filtered
 # velocities (``\nu`` from the model's closure). It reuses the same `filter`, lives at cell centers, and
 # for this constant-viscosity run equals ``2\nu\,\overline{S}_{ij}\overline{S}_{ij}``:
 

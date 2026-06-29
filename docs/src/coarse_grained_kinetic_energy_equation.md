@@ -24,7 +24,7 @@ multiply by a reference density ``\rho_0`` for a volumetric power.
 
 The filtered kinetic energy ``\overline{K}`` also has a viscous sink: the dissipation acting on the
 *filtered* flow. Mirroring the resolved-scale dissipation ``\varepsilon = \partial_j u_i\,F_{ij}``
-([`KineticEnergyDissipationRate`](@ref)) but evaluated on the filtered velocities, it is
+([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) but evaluated on the filtered velocities, it is
 
 ```math
 \overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,F_{ij}(\overline{u})
