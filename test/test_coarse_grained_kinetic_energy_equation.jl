@@ -5,7 +5,7 @@ using Oceananigans.Fields: location
 using Oceananigans.AbstractOperations: compute_at!
 
 using Oceanostics
-using Oceanostics: subfilter_stress_tensor, CoarseGrainedKineticEnergyCrossScaleFlux, GaussianFilter
+using Oceanostics: subfilter_stress_tensor, KineticEnergyCrossScaleFlux, GaussianFilter
 using Oceanostics: CoarseGrainedKineticEnergyDissipationRate, KineticEnergyDissipationRate
 using Oceanostics: StressTensor, StrainRateTensor
 
@@ -64,22 +64,22 @@ function test_cross_scale_ke_flux_matches_manual(model, filt)
     Π_manual = -(center(τ₁₁) * center(S̄.S₁₁) + center(τ₂₂) * center(S̄.S₂₂) + center(τ₃₃) * center(S̄.S₃₃) +
                  2center(τ₁₂) * center(S̄.S₁₂) + 2center(τ₁₃) * center(S̄.S₁₃) + 2center(τ₂₃) * center(S̄.S₂₃))
 
-    Π = CoarseGrainedKineticEnergyCrossScaleFlux(model, filt)
+    Π = KineticEnergyCrossScaleFlux(model, filt)
     @test location(Π) == (Center, Center, Center)
     @test interior(Field(Π)) ≈ interior(Field(Π_manual))
 
     # the flux is a single KernelFunctionOperation with a custom display (cf. PR #250): the two-arg
     # `show` is a one-line summary, while the three-arg `MIME"text/plain"` show adds the `computes:` line
-    @test Π isa CoarseGrainedKineticEnergyCrossScaleFlux
-    @test occursin("CoarseGrainedKineticEnergyCrossScaleFlux", sprint(show, Π))
+    @test Π isa KineticEnergyCrossScaleFlux
+    @test occursin("KineticEnergyCrossScaleFlux", sprint(show, Π))
     @test occursin("computes:", sprint(show, MIME("text/plain"), Π))
 
     # reachable by the short name CoarseGrainedKineticEnergyEquation.CrossScaleFlux too (same type alias)
-    @test CoarseGrainedKineticEnergyEquation.CrossScaleFlux === CoarseGrainedKineticEnergyCrossScaleFlux
-    @test CoarseGrainedKineticEnergyEquation.CrossScaleFlux(model, filt) isa CoarseGrainedKineticEnergyCrossScaleFlux
+    @test CoarseGrainedKineticEnergyEquation.CrossScaleFlux === KineticEnergyCrossScaleFlux
+    @test CoarseGrainedKineticEnergyEquation.CrossScaleFlux(model, filt) isa KineticEnergyCrossScaleFlux
 
     # invalid `dims` are rejected here too
-    @test_throws ArgumentError CoarseGrainedKineticEnergyCrossScaleFlux(model, filt; dims=(1, 1))
+    @test_throws ArgumentError KineticEnergyCrossScaleFlux(model, filt; dims=(1, 1))
     return nothing
 end
 
@@ -88,8 +88,8 @@ function test_convenience_method(model)
     σ = 0.12
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
     @test keys(subfilter_stress_tensor(model; σ)) == keys(subfilter_stress_tensor(model, filt))
-    @test interior(Field(CoarseGrainedKineticEnergyCrossScaleFlux(model; σ))) ≈
-          interior(Field(CoarseGrainedKineticEnergyCrossScaleFlux(model, filt)))
+    @test interior(Field(KineticEnergyCrossScaleFlux(model; σ))) ≈
+          interior(Field(KineticEnergyCrossScaleFlux(model, filt)))
     return nothing
 end
 
@@ -103,7 +103,7 @@ function test_uniform_flow_vanishes(grid, filt; U=2, V=-3)
     for τᵢⱼ in τ
         @test all(abs.(interior(Field(τᵢⱼ))) .< 1e-10)
     end
-    @test all(abs.(interior(Field(CoarseGrainedKineticEnergyCrossScaleFlux(model, filt)))) .< 1e-10)
+    @test all(abs.(interior(Field(KineticEnergyCrossScaleFlux(model, filt)))) .< 1e-10)
     return nothing
 end
 
@@ -113,22 +113,22 @@ function test_reusable_filter_object(model)
     reusable = GaussianFilter(; dims=(1, 2, 3), σ=0.1, boundary=:edge)
     closure  = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1, boundary=:edge)
     @test keys(subfilter_stress_tensor(model, reusable)) == keys(subfilter_stress_tensor(model, closure))
-    @test interior(Field(CoarseGrainedKineticEnergyCrossScaleFlux(model, reusable))) ≈
-          interior(Field(CoarseGrainedKineticEnergyCrossScaleFlux(model, closure)))
+    @test interior(Field(KineticEnergyCrossScaleFlux(model, reusable))) ≈
+          interior(Field(KineticEnergyCrossScaleFlux(model, closure)))
     return nothing
 end
 
 # The diagnostic holds internally materialized filtered `Field`s; recomputing it at a new time — as an
 # `OutputWriter` does each output — must reflect the updated flow, not stay frozen at construction.
 function test_recomputes_on_evolution(model, filt)
-    Πf = Field(CoarseGrainedKineticEnergyCrossScaleFlux(model, filt))
+    Πf = Field(KineticEnergyCrossScaleFlux(model, filt))
     compute_at!(Πf, 0.0)
     snapshot = Array(interior(Πf))
 
     set!(model, u=(x, y, z) -> 2randn(), v=(x, y, z) -> 2randn(), w=(x, y, z) -> 2randn())
     compute_at!(Πf, 1.0)
 
-    fresh = Field(CoarseGrainedKineticEnergyCrossScaleFlux(model, filt))
+    fresh = Field(KineticEnergyCrossScaleFlux(model, filt))
     compute_at!(fresh, 2.0)
 
     @test !(Array(interior(Πf)) ≈ snapshot)   # tracked the change in the flow

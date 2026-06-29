@@ -55,7 +55,7 @@ model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4))
 filter = GaussianFilter(; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
 τ  = subfilter_stress_tensor(model, filter)                  # the subfilter stress tensor components
-Πₖ = CoarseGrainedKineticEnergyCrossScaleFlux(model, filter)              # the cross-scale KE flux, at (Center, Center, Center)
+Πₖ = KineticEnergyCrossScaleFlux(model, filter)              # the cross-scale KE flux, at (Center, Center, Center)
 ε̄ = CoarseGrainedKineticEnergyDissipationRate(model, filter) # dissipation of the filtered flow
 
 # equivalently, the convenience methods build the Gaussian filter from σ for you:
@@ -79,7 +79,7 @@ Oceanostics.CoarseGrainedKineticEnergyEquation.subfilter_stress_tensor
 ## Cross-scale kinetic energy flux
 
 ```@docs
-Oceanostics.CoarseGrainedKineticEnergyEquation.CoarseGrainedKineticEnergyCrossScaleFlux
+Oceanostics.CoarseGrainedKineticEnergyEquation.KineticEnergyCrossScaleFlux
 ```
 
 ## Coarse-grained kinetic energy dissipation

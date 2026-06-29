@@ -199,10 +199,10 @@ fig_τ
 # inverse energy cascade (see [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1)).
 #
 # Rather than assembling ``\tau_{ij}`` and ``\bar{S}_{ij}`` by hand as we did for the tracer flux,
-# Oceanostics packages a [`CoarseGrainedKineticEnergyCrossScaleFlux`](@ref) which accepts the same `filter` we built
+# Oceanostics packages a [`KineticEnergyCrossScaleFlux`](@ref) which accepts the same `filter` we built
 # above and returns ``\Pi_K``:
 
-Πₖ = CoarseGrainedKineticEnergyCrossScaleFlux(model, filter; dims=(1, 2))
+Πₖ = KineticEnergyCrossScaleFlux(model, filter; dims=(1, 2))
 
 # We show it next to the filtered kinetic energy ``\tfrac{1}{2}(\bar{u}^2 + \bar{v}^2)``, reusing the
 # filtered velocities ``\bar{u}``, ``\bar{v}`` from the previous section:
