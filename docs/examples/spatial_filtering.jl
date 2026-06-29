@@ -223,6 +223,30 @@ Colorbar(fig_Π[1, 4], hm_Π)
 resize_to_layout!(fig_Π)
 fig_Π
 
+# ## Coarse-grained kinetic energy dissipation
+#
+# The cross-scale flux ``\Pi_K`` shuffles kinetic energy *between* the filtered and subfilter scales, but
+# it is not a true sink. Viscosity acting on the *filtered* flow is, and Oceanostics exposes that
+# resolved-scale sink as [`KineticEnergyCoarseGrainedDissipationRate`](@ref):
+#
+# ```math
+# \overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,F_{ij}(\overline{u}),
+# ```
+#
+# the [`KineticEnergyDissipationRate`](@ref) ``\partial_j u_i\,F_{ij}`` evaluated on the filtered
+# velocities (``\nu`` from the model's closure). It reuses the same `filter`, lives at cell centers, and
+# for this constant-viscosity run equals ``2\nu\,\overline{S}_{ij}\overline{S}_{ij}``:
+
+ε̄ = KineticEnergyCoarseGrainedDissipationRate(model, filter)
+
+fig_ε = Figure()
+ax_ε = Axis(fig_ε[1, 1]; title = "Coarse-grained KE dissipation ε̄", axis_kwargs...)
+hm_ε = heatmap!(ax_ε, ε̄; colormap = :magma)
+Colorbar(fig_ε[1, 2], hm_ε)
+
+resize_to_layout!(fig_ε)
+fig_ε
+
 # Red (``\Pi_K > 0``) marks forward transfer to subfilter scales and blue (``\Pi_K < 0``) marks
 # backscatter to larger scales. Both concentrate in the strained regions between vortices, where the
 # filtered strain ``\bar{S}_{ij}`` — and hence the scale-to-scale energy exchange — is largest.
