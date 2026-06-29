@@ -204,7 +204,7 @@ KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N =
 #+++ Coarse-grained kinetic-energy dissipation
 # A distinct kernel — delegating to `KineticEnergyEquation`'s `viscous_dissipation_rate_ccc` — so this
 # diagnostic gets its own type alias and display while reusing the exact ∂ⱼuᵢ·Fᵢⱼ viscous contraction.
-@inline coarse_grained_dissipation_rate_ccc(i, j, k, grid, closure_fields, filtered_filtered_model_fields, p) =
+@inline coarse_grained_dissipation_rate_ccc(i, j, k, grid, closure_fields, filtered_model_fields, p) =
     viscous_dissipation_rate_ccc(i, j, k, grid, closure_fields, filtered_model_fields, p)
 
 const CoarseGrainedKineticEnergyDissipationRate = CustomKFO{<:typeof(coarse_grained_dissipation_rate_ccc)}
