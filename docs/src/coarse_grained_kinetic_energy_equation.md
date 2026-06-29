@@ -54,15 +54,15 @@ model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4))
 filter = GaussianFilter(; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
 τ  = subfilter_stress_tensor(model, filter)                  # the subfilter stress tensor components
-Πₖ = KineticEnergyCrossScaleFlux(model, filter)              # the cross-scale KE flux, at (Center, Center, Center)
-ε̄ = KineticEnergyCoarseGrainedDissipationRate(model, filter) # dissipation of the filtered flow
+Πₖ = CoarseGrainedKineticEnergyCrossScaleFlux(model, filter)              # the cross-scale KE flux, at (Center, Center, Center)
+ε̄ = CoarseGrainedKineticEnergyDissipationRate(model, filter) # dissipation of the filtered flow
 
 # equivalently, the convenience methods build the Gaussian filter from σ for you:
-ε̄ = KineticEnergyCoarseGrainedDissipationRate(model; σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
+ε̄ = CoarseGrainedKineticEnergyDissipationRate(model; σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
 # output
 
-KineticEnergyCoarseGrainedDissipationRate KernelFunctionOperation at (Center, Center, Center)
+CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 16×16×16 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Nothing", "NamedTuple", "NamedTuple")
@@ -78,11 +78,11 @@ Oceanostics.CoarseGrainedKineticEnergyEquation.subfilter_stress_tensor
 ## Cross-scale kinetic energy flux
 
 ```@docs
-Oceanostics.CoarseGrainedKineticEnergyEquation.KineticEnergyCrossScaleFlux
+Oceanostics.CoarseGrainedKineticEnergyEquation.CoarseGrainedKineticEnergyCrossScaleFlux
 ```
 
 ## Coarse-grained kinetic energy dissipation
 
 ```@docs
-Oceanostics.CoarseGrainedKineticEnergyEquation.KineticEnergyCoarseGrainedDissipationRate
+Oceanostics.CoarseGrainedKineticEnergyEquation.CoarseGrainedKineticEnergyDissipationRate
 ```

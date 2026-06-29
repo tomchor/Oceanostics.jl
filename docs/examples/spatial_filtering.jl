@@ -199,10 +199,10 @@ fig_τ
 # inverse energy cascade (see [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1)).
 #
 # Rather than assembling ``\tau_{ij}`` and ``\bar{S}_{ij}`` by hand as we did for the tracer flux,
-# Oceanostics packages a [`KineticEnergyCrossScaleFlux`](@ref) which accepts the same `filter` we built
+# Oceanostics packages a [`CoarseGrainedKineticEnergyCrossScaleFlux`](@ref) which accepts the same `filter` we built
 # above and returns ``\Pi_K``:
 
-Πₖ = KineticEnergyCrossScaleFlux(model, filter; dims=(1, 2))
+Πₖ = CoarseGrainedKineticEnergyCrossScaleFlux(model, filter; dims=(1, 2))
 
 # We show it next to the filtered kinetic energy ``\tfrac{1}{2}(\bar{u}^2 + \bar{v}^2)``, reusing the
 # filtered velocities ``\bar{u}``, ``\bar{v}`` from the previous section:
@@ -227,7 +227,7 @@ fig_Π
 #
 # The cross-scale flux ``\Pi_K`` shuffles kinetic energy *between* the filtered and subfilter scales, but
 # it is not a true sink. Viscosity acting on the *filtered* flow is, and Oceanostics exposes that
-# resolved-scale sink as [`KineticEnergyCoarseGrainedDissipationRate`](@ref):
+# resolved-scale sink as [`CoarseGrainedKineticEnergyDissipationRate`](@ref):
 #
 # ```math
 # \overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,F_{ij}(\overline{u}),
@@ -237,7 +237,7 @@ fig_Π
 # velocities (``\nu`` from the model's closure). It reuses the same `filter`, lives at cell centers, and
 # for this constant-viscosity run equals ``2\nu\,\overline{S}_{ij}\overline{S}_{ij}``:
 
-ε̄ = KineticEnergyCoarseGrainedDissipationRate(model, filter)
+ε̄ = CoarseGrainedKineticEnergyDissipationRate(model, filter)
 
 fig_ε = Figure()
 ax_ε = Axis(fig_ε[1, 1]; title = "Coarse-grained KE dissipation ε̄", axis_kwargs...)
