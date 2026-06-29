@@ -37,10 +37,11 @@ dissipation of the resolved strain. Like ``\Pi_K`` it is per unit mass (units ``
 multiply by ``\rho_0`` for a volumetric power.
 
 These diagnostics take a `filter` argument: any callable mapping a field to its low-pass-filtered
-counterpart, typically a reusable [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). This decouples the
-choice of filter (kernel, scale, boundary treatment, and the directions it acts in) from the directions
-the tensors are contracted over (`dims`), so you can — for instance — filter horizontally yet contract the
-full 3D tensor.
+counterpart, typically a reusable [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The directions the
+filter acts in (set inside `filter`) are independent of how each diagnostic contracts: the stress tensor
+and cross-scale flux take a `dims` argument selecting the directions they contract over — so you can
+filter horizontally yet contract the full 3D tensor — while the coarse-grained dissipation always forms
+the full viscous contraction.
 
 ## Example
 
