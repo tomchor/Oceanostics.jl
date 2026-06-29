@@ -354,14 +354,14 @@ end
 #---
 
 #+++ KineticEnergyEquation
-@diagnostic_show KineticEnergyEquation.KineticEnergy                         "KineticEnergy"                       "kinetic energy  ½uᵢuᵢ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyTendency                 "KineticEnergyTendency"               "kinetic energy tendency  uᵢGᵢ (excl. nonhydrostatic pressure)"
-@diagnostic_show KineticEnergyEquation.KineticEnergyAdvection                "KineticEnergyAdvection"              "kinetic energy advection  uᵢ∂ⱼ(uᵢuⱼ)"
-@diagnostic_show KineticEnergyEquation.KineticEnergyStress                   "KineticEnergyStress"                 "kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyForcing                  "KineticEnergyForcing"                "kinetic energy forcing  uᵢFᵤᵢ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyPressureRedistribution   "KineticEnergyPressureRedistribution" "kinetic energy pressure redistribution  uᵢ∂ᵢp"
-@diagnostic_show KineticEnergyEquation.KineticEnergyBuoyancyProduction       "KineticEnergyBuoyancyProduction"     "kinetic energy buoyancy production  uᵢbᵢ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"        "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ"
+@diagnostic_show KineticEnergyEquation.KineticEnergy                         "KineticEnergy"                         "kinetic energy  ½uᵢuᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyTendency                 "KineticEnergyTendency"                 "kinetic energy tendency  uᵢGᵢ (excl. nonhydrostatic pressure)"
+@diagnostic_show KineticEnergyEquation.KineticEnergyAdvection                "KineticEnergyAdvection"                "kinetic energy advection  uᵢ∂ⱼ(uᵢuⱼ)"
+@diagnostic_show KineticEnergyEquation.KineticEnergyStress                   "KineticEnergyStress"                   "kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyForcing                  "KineticEnergyForcing"                  "kinetic energy forcing  uᵢFᵤᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyPressureRedistribution   "KineticEnergyPressureRedistribution"   "kinetic energy pressure redistribution  uᵢ∂ᵢp"
+@diagnostic_show KineticEnergyEquation.KineticEnergyBuoyancyProduction       "KineticEnergyBuoyancyProduction"       "kinetic energy buoyancy production  uᵢbᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"          "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyIsotropicDissipationRate "KineticEnergyIsotropicDissipationRate" "isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ"
 #---
 
