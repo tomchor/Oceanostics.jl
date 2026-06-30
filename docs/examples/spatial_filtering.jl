@@ -230,7 +230,7 @@ fig_Π
 # resolved-scale sink as [`CoarseGrainedKineticEnergyDissipationRate`](@ref):
 #
 # ```math
-# \overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,F_{ij}(\overline{u}),
+# \overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,F_{ij}(\overline{u}_i),
 # ```
 #
 # the [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) ``\partial_j u_i\,F_{ij}`` evaluated on the filtered

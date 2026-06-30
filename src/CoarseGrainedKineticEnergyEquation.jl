@@ -217,7 +217,7 @@ Return the coarse-grained (filtered-flow) kinetic-energy dissipation rate `ε̄`
 viscosity removes kinetic energy from the *filtered* velocity field `ūᵢ = filter(uᵢ)`:
 
 ```
-    ε̄ = ∂ⱼūᵢ · Fᵢⱼ(ū)
+    ε̄ = ∂ⱼūᵢ · Fᵢⱼ(ūᵢ)
 ```
 
 where `Fᵢⱼ` is the viscous stress (flux) tensor supplied by the model's closure. This is exactly the
@@ -248,7 +248,7 @@ CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Ce
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Nothing", "NamedTuple", "NamedTuple")
-└── computes: coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·Fᵢⱼ
+└── computes: coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·Fᵢⱼ(ūᵢ)
 ```
 
 The viscosity is taken from `model.closure`/`model.closure_fields`, exactly as in
@@ -277,7 +277,7 @@ function CoarseGrainedKineticEnergyDissipationRate(model, filter)
 
     # The field set the viscous fluxes need (velocities + tracers + auxiliary fields), but with the
     # resolved velocities swapped for their filtered counterparts, so `viscous_dissipation_rate_ccc`
-    # evaluates ∂ⱼūᵢ·Fᵢⱼ(ū): the dissipation of the filtered flow.
+    # evaluates ∂ⱼūᵢ·Fᵢⱼ(ūᵢ): the dissipation of the filtered flow.
     filtered_model_fields = merge(perturbation_fields(model), (; u = ū, v = v̄, w = w̄))
     parameters = (; model.closure, model.clock, model.buoyancy)
     return KernelFunctionOperation{Center, Center, Center}(coarse_grained_dissipation_rate_ccc, grid,

@@ -369,7 +369,7 @@ end
 # The single-`KernelFunctionOperation` diagnostics get a custom display; `subfilter_stress_tensor`
 # returns a `NamedTuple` of components, like `StressTensor`/`StrainRateTensor`, so it has none.
 @diagnostic_show CoarseGrainedKineticEnergyEquation.KineticEnergyCrossScaleFlux               "KineticEnergyCrossScaleFlux"               "cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ"
-@diagnostic_show CoarseGrainedKineticEnergyEquation.CoarseGrainedKineticEnergyDissipationRate "CoarseGrainedKineticEnergyDissipationRate" "coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·Fᵢⱼ"
+@diagnostic_show CoarseGrainedKineticEnergyEquation.CoarseGrainedKineticEnergyDissipationRate "CoarseGrainedKineticEnergyDissipationRate" "coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·Fᵢⱼ(ūᵢ)"
 #---
 
 #+++ TurbulentKineticEnergyEquation

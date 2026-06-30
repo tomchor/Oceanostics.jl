@@ -27,7 +27,7 @@ The filtered kinetic energy ``\overline{K}`` also has a viscous sink: the dissip
 ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) but evaluated on the filtered velocities, it is
 
 ```math
-\overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,F_{ij}(\overline{u})
+\overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,F_{ij}(\overline{u}_i)
 ```
 
 where ``\overline{u}_i = \overline{u_i}`` is the filtered velocity and ``F_{ij}`` is the viscous stress
@@ -67,7 +67,7 @@ CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Ce
 ├── grid: 16×16×16 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Nothing", "NamedTuple", "NamedTuple")
-└── computes: coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·Fᵢⱼ
+└── computes: coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·Fᵢⱼ(ūᵢ)
 ```
 
 ## Subfilter-scale stress tensor
