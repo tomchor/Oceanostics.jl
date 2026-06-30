@@ -217,10 +217,10 @@ Return the coarse-grained (filtered-flow) kinetic-energy dissipation rate `ε̄`
 viscosity removes kinetic energy from the *filtered* velocity field `ūᵢ = filter(uᵢ)`:
 
 ```
-    ε̄ = ∂ⱼūᵢ · Fᵢⱼ(ūᵢ)
+    ε̄ = ∂ⱼūᵢ · F̄ᵢⱼ
 ```
 
-where `Fᵢⱼ` is the viscous stress (flux) tensor supplied by the model's closure. This is exactly the
+where `F̄ᵢⱼ` is the viscous stress (flux) tensor supplied by the model's closure. This is exactly the
 [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) `ε = ∂ⱼuᵢ·Fᵢⱼ` — the same viscous contraction and the same closure
 machinery — evaluated on the filtered velocities instead of the full ones, so it is the viscous sink in
 the budget of the filtered kinetic energy `K̄ = ½ūᵢūᵢ` (coarse-graining framework of Aluie et al., 2018,
@@ -248,7 +248,7 @@ CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Ce
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Nothing", "NamedTuple", "NamedTuple")
-└── computes: coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·Fᵢⱼ(ūᵢ)
+└── computes: coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·F̄ᵢⱼ
 ```
 
 The viscosity is taken from `model.closure`/`model.closure_fields`, exactly as in
@@ -277,7 +277,7 @@ function CoarseGrainedKineticEnergyDissipationRate(model, filter)
 
     # The field set the viscous fluxes need (velocities + tracers + auxiliary fields), but with the
     # resolved velocities swapped for their filtered counterparts, so `viscous_dissipation_rate_ccc`
-    # evaluates ∂ⱼūᵢ·Fᵢⱼ(ūᵢ): the dissipation of the filtered flow.
+    # evaluates ∂ⱼūᵢ·F̄ᵢⱼ: the dissipation of the filtered flow.
     filtered_model_fields = merge(perturbation_fields(model), (; u = ū, v = v̄, w = w̄))
     parameters = (; model.closure, model.clock, model.buoyancy)
     return KernelFunctionOperation{Center, Center, Center}(coarse_grained_dissipation_rate_ccc, grid,

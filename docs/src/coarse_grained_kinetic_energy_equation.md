@@ -27,10 +27,10 @@ The filtered kinetic energy ``\overline{K}`` also has a viscous sink: the dissip
 ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) but evaluated on the filtered velocities, it is
 
 ```math
-\overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,F_{ij}(\overline{u}_i)
+\overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,\overline{F}_{ij}
 ```
 
-where ``\overline{u}_i = \overline{u_i}`` is the filtered velocity and ``F_{ij}`` is the viscous stress
+where ``\overline{u}_i = \overline{u_i}`` is the filtered velocity and ``\overline{F}_{ij}`` is the viscous stress
 (flux) tensor supplied by the model's closure, evaluated on ``\overline{u}``. For a constant-viscosity
 closure this reduces to ``\overline{\varepsilon} = 2\nu\,\overline{S}_{ij}\overline{S}_{ij}``, the
 dissipation of the resolved strain. Like ``\Pi_K`` it is per unit mass (units ``\mathrm{m^2\,s^{-3}}``);
@@ -67,7 +67,7 @@ CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Ce
 ├── grid: 16×16×16 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Nothing", "NamedTuple", "NamedTuple")
-└── computes: coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·Fᵢⱼ(ūᵢ)
+└── computes: coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·F̄ᵢⱼ
 ```
 
 ## Subfilter-scale stress tensor
