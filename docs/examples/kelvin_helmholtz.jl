@@ -3,6 +3,8 @@
 # This example simulates a simple 2D Kelvin-Helmholtz instability and is based on the similar
 # [Oceananigans
 # example](https://clima.github.io/OceananigansDocumentation/stable/literated/kelvin_helmholtz_instability/).
+# We then use Oceanostics to close the volume-integrated *coarse-grained* (filtered-flow) kinetic-energy
+# budget of the developing billows.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -99,30 +101,74 @@ Ri = RichardsonNumber(model)
 
 # We also set-up the `QVelocityGradientTensorInvariant`, which is usually used for visualizing
 # vortices in the flow:
+
 Q = QVelocityGradientTensorInvariant(model)
 
 # Q is one of the velocity gradient tensor invariants and it measures the amount of vorticity versus
 # the strain in the flow and, when it's positive, indicates a vortex. This method of vortex
 # visualization is called the [Q-criterion](https://tinyurl.com/mwv6fskc).
+
+# ### Coarse-grained kinetic energy budget
 #
-# Let's also keep track of the amount of buoyancy mixing by measuring the buoyancy
-# variance dissipation rate and diffusive term. When volume-integrated, these two quantities should
-# be equal.
+# Kelvin-Helmholtz billows draw kinetic energy from the mean shear and pass it down to ever-smaller
+# scales, so this is a natural flow in which to look at a *coarse-grained* (filtered) kinetic-energy
+# budget in the spirit of [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1). We define a
+# Gaussian filter whose width is comparable to the shear-layer half-width `h` and use it to build every
+# term in the budget of the filtered kinetic energy ``\overline{K} = \tfrac{1}{2}\overline{u}_i\overline{u}_i``.
+# Volume-integrated — advection and pressure work integrate to zero, since the flow is periodic in `x`
+# and `w = 0` with free slip at the `z` walls — that budget reads
+#
+# ```math
+# \frac{d}{dt} \int \overline{K}\, dV
+#   = \int \overline{w}\,\overline{b}\, dV
+#   - \int \Pi_K\, dV
+#   - \int \overline{\varepsilon}\, dV ,
+# ```
+#
+# with a buoyancy production ``\overline{w}\,\overline{b}`` (the conversion between filtered kinetic and
+# potential energy), the cross-scale kinetic-energy flux ``\Pi_K`` to subfilter scales
+# ([`KineticEnergyCrossScaleFlux`](@ref)), and the coarse-grained viscous dissipation
+# ``\overline{\varepsilon}`` ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)).
 
-∫χᴰ = Integral(TracerVarianceEquation.DissipationRate(model, :b))
-∫χ = Integral(TracerVarianceEquation.Diffusion(model, :b))
+using Oceananigans.AbstractOperations: @at
+
+filter = GaussianFilter(; dims=(1, 3), σ=h/2, boundary=:shrink)  # FWHM ≈ h, the shear-layer width
+
+u, w = model.velocities.u, model.velocities.w
+b = model.tracers.b
+ū, w̄, b̄ = filter(u), filter(w), filter(b)
+
+K̄  = @at (Center, Center, Center) (ū^2 + w̄^2) / 2   # filtered kinetic energy ½ūᵢūᵢ
+w̄b̄ = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy production of the filtered flow
+Πₖ = KineticEnergyCrossScaleFlux(model, filter; dims=(1, 3))
+ε̄  = CoarseGrainedKineticEnergyDissipationRate(model, filter)
+
+# The budget only needs the (cheap) volume integrals of these terms:
+
+∫K̄  = Integral(K̄)
+∫w̄b̄ = Integral(w̄b̄)
+∫Πₖ = Integral(Πₖ)
+∫ε̄  = Integral(ε̄)
 
 
-# Now we write these quantities, along with `b`, to a NetCDF:
-
-output_fields = (; Ri, Q, model.tracers.b, ∫χ, ∫χᴰ)
+# We use two NetCDF writers. A *snapshot* writer stores the 2D fields on a plain `TimeInterval(1)`,
+# while a *budget* writer stores only the integrated scalars on `ConsecutiveIterations(TimeInterval(1))`
+# — a second sample one model step after each output time — which lets us finite-difference `∫K̄` across
+# that single step to estimate `d/dt`, exactly as in the
+# [Two-dimensional turbulence example](@ref two_d_turbulence_example).
 
 using NCDatasets
 filename = "kelvin_helmholtz"
-simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
+
+simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b),
                                               filename = joinpath(@__DIR__, filename),
                                               schedule = TimeInterval(1),
                                               overwrite_existing = true)
+
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫K̄, ∫w̄b̄, ∫Πₖ, ∫ε̄),
+                                                  filename = joinpath(@__DIR__, filename * "_budget"),
+                                                  schedule = ConsecutiveIterations(TimeInterval(1)),
+                                                  overwrite_existing = true)
 
 
 # ## Run the simulation and process results
@@ -131,20 +177,48 @@ simulation.output_writers[:nc] = NetCDFWriter(model, output_fields,
 
 run!(simulation)
 
-# Now we'll read the results using `FieldTimeSeries`
+# Now we'll read the snapshot fields using `FieldTimeSeries`
 
 filepath = simulation.output_writers[:nc].filepath
 Ri_t = FieldTimeSeries(filepath, "Ri")
 Q_t  = FieldTimeSeries(filepath, "Q")
 b_t  = FieldTimeSeries(filepath, "b")
 
-# Volume-integrated quantities are scalar time series, so we read them directly with NCDatasets:
-
 ds = NCDataset(filepath)
-∫χ  = ds["∫χ"][:]
-∫χᴰ = ds["∫χᴰ"][:]
+times = ds["time"][:]
 close(ds)
 
+# The integrated budget scalars come in consecutive-iteration pairs `(2k-1, 2k)`; a one-step finite
+# difference inside each pair gives `d(∫K̄)/dt`, and each source term is evaluated at the pair midpoint.
+
+bud_filepath = simulation.output_writers[:budget].filepath
+ds_bud = NCDataset(bud_filepath)
+times_bud = ds_bud["time"][:]
+∫K̄_t  = ds_bud["∫K̄"][:]
+∫w̄b̄_t = ds_bud["∫w̄b̄"][:]
+∫Πₖ_t = ds_bud["∫Πₖ"][:]
+∫ε̄_t  = ds_bud["∫ε̄"][:]
+close(ds_bud)
+
+i1 = 1:2:length(times_bud) - 1   # primary snapshots
+i2 = 2:2:length(times_bud)       # consecutive-iteration snapshots
+Δt_pair = times_bud[i2] .- times_bud[i1]
+t_pair  = @. 0.5 * (times_bud[i1] + times_bud[i2])
+
+dK̄dt    = (∫K̄_t[i2] .- ∫K̄_t[i1]) ./ Δt_pair
+w̄b̄_pair = @. 0.5 * (∫w̄b̄_t[i1] + ∫w̄b̄_t[i2])
+Πₖ_pair = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2])
+ε̄_pair  = @. 0.5 * (∫ε̄_t[i1] + ∫ε̄_t[i2])
+
+resid = @. dK̄dt - (w̄b̄_pair - Πₖ_pair - ε̄_pair)
+
+using Test                              #hide
+rms(x) = √(sum(abs2, x) / length(x))    #hide
+@test rms(resid) < 0.06 * rms(dK̄dt);    #hide
+
+
+# ## Plotting
+#
 # We now use Makie to create the figure and its axes
 
 using CairoMakie
@@ -173,18 +247,22 @@ bₙ = @lift b_t[$n]
 hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-B₀, +B₀))
 Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
-# We now plot the time evolution of our integrated quantities
+# The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget: `d(∫K̄)/dt`
+# against its three sources — buoyancy production `∫w̄b̄ dV`, minus the cross-scale flux `−∫Πₖ dV`, and
+# minus the coarse-grained dissipation `−∫ε̄ dV` — with the residual.
 
-axb = Axis(fig[4, 1:3]; xlabel="Time", height=100)
-times = b_t.times
-lines!(axb, times, ∫χ,  label = "∫χdV")
-lines!(axb, times, ∫χᴰ, label = "∫χᴰdV", linestyle=:dash)
-axislegend(position=:lb, labelsize=14)
+ax_bud = Axis(fig[4, 1:3]; xlabel = "Time", title = "Coarse-grained KE budget", height = 140)
+lines!(ax_bud, t_pair, dK̄dt,     label = "d(∫K̄)/dt")
+lines!(ax_bud, t_pair, w̄b̄_pair,  label = "∫w̄b̄ dV")
+lines!(ax_bud, t_pair, -Πₖ_pair, label = "−∫Πₖ dV")
+lines!(ax_bud, t_pair, -ε̄_pair,  label = "−∫ε̄ dV")
+lines!(ax_bud, t_pair, resid,    label = "residual", color = :black, linestyle = :dash)
+axislegend(ax_bud; position = :lb, labelsize = 10)
 
 # Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
 
 tₙ = @lift times[$n]
-vlines!(axb, tₙ, color=:black, linestyle=:dash)
+vlines!(ax_bud, tₙ, color=:black, linestyle=:dash)
 
 title = @lift "Time = " * string(round(times[$n], digits=2))
 fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);
@@ -200,7 +278,11 @@ end
 
 # ![](kelvin_helmholtz.mp4)
 #
-# Similarly to the kinetic energy dissipation rate (see the [Two-dimensional turbulence example](@ref two_d_turbulence_example)),
-# `TracerVarianceEquation.DissipationRate` and `TracerVarianceEquation.Diffusion` are implemented
-# with an energy-conserving formulation, which means that (for `NoFlux` boundary conditions) their
-# volume-integral should be exactly (up to machine precision) the same.
+# The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget. As the billows
+# grow and overturn, the filtered flow loses kinetic energy to potential energy (`∫w̄b̄ dV < 0`) and
+# feeds the subfilter scales through the cross-scale flux (`−∫Πₖ dV`), while the coarse-grained viscous
+# dissipation `∫ε̄ dV` stays comparatively small at this Reynolds number. The residual (dashed) is the
+# gap between `d(∫K̄)/dt` and the sum of the three terms. Unlike the centered-advection
+# [Two-dimensional turbulence example](@ref two_d_turbulence_example), the upwind scheme here adds some
+# numerical dissipation, but because it acts mostly at the grid scale it barely projects onto the
+# smooth filtered budget, which still closes to within a few percent.
