@@ -23,18 +23,23 @@ coarse-graining framework of [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D
 multiply by a reference density ``\rho_0`` for a volumetric power.
 
 The filtered kinetic energy ``\overline{K}`` also has a viscous sink: the dissipation acting on the
-*filtered* flow. Mirroring the resolved-scale dissipation ``\varepsilon = \partial_j u_i\,F_{ij}``
-([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) but evaluated on the filtered velocities, it is
+*filtered* flow. It contracts the filtered velocity gradient with the *filtered* viscous flux,
 
 ```math
-\overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,\overline{F}_{ij}
+\overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,\overline{F}_{ij},
+\qquad
+\overline{F}_{ij} = \overline{F_{ij}(u)}
 ```
 
-where ``\overline{u}_i = \overline{u_i}`` is the filtered velocity and ``\overline{F}_{ij}`` is the viscous stress
-(flux) tensor supplied by the model's closure, evaluated on ``\overline{u}``. For a constant-viscosity
-closure this reduces to ``\overline{\varepsilon} = 2\nu\,\overline{S}_{ij}\overline{S}_{ij}``, the
-dissipation of the resolved strain. Like ``\Pi_K`` it is per unit mass (units ``\mathrm{m^2\,s^{-3}}``);
-multiply by ``\rho_0`` for a volumetric power.
+where ``F_{ij}(u)`` is the model's viscous momentum flux built from the **full** velocities and closure
+(the flux [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)
+contracts) and ``\overline{F}_{ij}`` is that flux low-pass filtered. The flux is filtered, not recomputed
+from ``\overline{u}``: ``\overline{F_{ij}(u)}`` and ``F_{ij}(\overline{u})`` agree only for a constant,
+uniform viscosity (where the filter commutes with the flux) and differ once the viscosity varies in
+space. For a constant-viscosity closure it reduces to
+``\overline{\varepsilon} = 2\nu\,\overline{S}_{ij}\overline{S}_{ij}``, the dissipation of the resolved
+strain. Like ``\Pi_K`` it is per unit mass (units ``\mathrm{m^2\,s^{-3}}``); multiply by ``\rho_0`` for a
+volumetric power.
 
 These diagnostics take a `filter` argument: any callable mapping a field to its low-pass-filtered
 counterpart, typically a reusable [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The directions the
@@ -66,7 +71,7 @@ filter = GaussianFilter(; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(le
 CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 16×16×16 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
-└── arguments: ("Nothing", "NamedTuple", "NamedTuple")
+└── arguments: ("NamedTuple", "NamedTuple")
 └── computes: coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·F̄ᵢⱼ
 ```
 

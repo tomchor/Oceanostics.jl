@@ -136,10 +136,11 @@ function test_recomputes_on_evolution(model, filt)
     return nothing
 end
 
-# Coarse-grained dissipation = the KE dissipation of the *filtered* flow. Reference: the existing
-# `KineticEnergyDissipationRate` (same ∂ⱼuᵢ·Fᵢⱼ machinery) through its perturbation mechanism, with the
-# mean set to the subfilter part `u - ū`, so the velocities it dissipates are exactly the filtered `ūᵢ`.
-# This guards that the constructor swaps in the filtered velocities and reuses the viscous contraction.
+# Coarse-grained dissipation ε̄ = ∂ⱼūᵢ·filter(Fᵢⱼ(u)). On a periodic grid with constant ν the filter
+# commutes with the (linear) viscous flux, so filter(Fᵢⱼ(u)) = Fᵢⱼ(ū) and ε̄ equals the KE dissipation of
+# the filtered flow. That reference is built from the existing `KineticEnergyDissipationRate` via its
+# perturbation mechanism, with the mean set to the subfilter part `u - ū` so it dissipates exactly ūᵢ.
+# (This requires the periodic grid; on a bounded grid the two flux orderings differ near the boundary.)
 function test_coarse_grained_dissipation_matches_filtered_flow(model, filt)
     u, v, w = model.velocities
     ū = Field(filt(u)); v̄ = Field(filt(v)); w̄ = Field(filt(w))
@@ -180,8 +181,8 @@ function test_coarse_grained_dissipation_uniform_vanishes(grid, filt; ν=1e-3, U
 end
 
 # Holds materialized filtered `Field`s — recomputing at a new time must reflect the new flow, not stay
-# frozen. The filtered velocities sit in a NamedTuple argument, so this also checks that `compute_at!`
-# refreshes them through that NamedTuple.
+# frozen. The filtered velocities and the filtered fluxes sit in NamedTuple arguments, so this also
+# checks that `compute_at!` refreshes them through those NamedTuples.
 function test_coarse_grained_dissipation_recomputes(model, filt)
     εf = Field(CoarseGrainedKineticEnergyDissipationRate(model, filt))
     compute_at!(εf, 0.0)
@@ -225,13 +226,16 @@ end
     @info "    Recomputes as the flow evolves"
     test_recomputes_on_evolution(model, filt)
 
-    # The coarse-grained dissipation reuses KineticEnergyDissipationRate's viscous contraction, so it
-    # needs a model with a closure; a constant-ν ScalarDiffusivity keeps the comparison clean.
+    # The coarse-grained dissipation contracts the filtered velocity gradient with the *filtered* full-flow
+    # viscous flux. A fully periodic grid (so the filter commutes with the constant-ν flux) plus a
+    # dissipative closure lets the match test compare against KineticEnergyDissipationRate of the filtered
+    # flow exactly.
     @info "    Coarse-grained (filtered-flow) KE dissipation"
-    model_ν = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-3))
+    grid_periodic = RectilinearGrid(arch, size=(8, 8, 8), extent=(1, 1, 1), topology=(Periodic, Periodic, Periodic))
+    model_ν = NonhydrostaticModel(grid_periodic; closure=ScalarDiffusivity(ν=1e-3))
     set!(model_ν, u=(x, y, z) -> randn(), v=(x, y, z) -> randn(), w=(x, y, z) -> randn())
     test_coarse_grained_dissipation_matches_filtered_flow(model_ν, filt)
     test_coarse_grained_dissipation_convenience(model_ν)
-    test_coarse_grained_dissipation_uniform_vanishes(grid, ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1, boundary=:edge))
+    test_coarse_grained_dissipation_uniform_vanishes(grid_periodic, ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1))
     test_coarse_grained_dissipation_recomputes(model_ν, filt) # mutates model_ν; keep last
 end
