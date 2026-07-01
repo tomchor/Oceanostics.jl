@@ -225,20 +225,15 @@ fig_Π
 
 # ## Coarse-grained kinetic energy dissipation
 #
-# The cross-scale flux ``\Pi_K`` shuffles kinetic energy *between* the filtered and subfilter scales, but
-# it is not a true sink. Viscosity acting on the *filtered* flow is, and Oceanostics exposes that
-# resolved-scale sink as [`CoarseGrainedKineticEnergyDissipationRate`](@ref):
+# We can also calculate the dissipation acting on the *filtered* flow using [`CoarseGrainedKineticEnergyDissipationRate`](@ref):
 #
 # ```math
-# \overline{\varepsilon} = \frac{\partial \overline{u}_i}{\partial x_j}\,\overline{F}_{ij},
+# \varepsilon^f = \frac{\partial \overline{u}_i}{\partial x_j}\,\overline{F}_{ij},
 # ```
 #
-# the [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) contraction
-# ``\partial_j u_i\,F_{ij}`` taken with the filtered velocity gradient and the *filtered* flux
-# ``\overline{F}_{ij} = \overline{F_{ij}(u)}`` (``\nu`` from the model's closure; the flux is filtered, not
-# recomputed from ``\overline{u}``, which matters when the viscosity is non-uniform). It reuses the same
-# `filter`, lives at cell centers, and for this constant-viscosity run equals
-# ``2\nu\,\overline{S}_{ij}\overline{S}_{ij}``:
+# where ``\varepsilon^f `` indicates the dissipation of the filtered flow and ``\overline{F}_{ij}``
+# is the filtered viscous stress tensor. In our case (width a constant-viscosity run)
+# ``\overline{F}_{ij}`` simplifies to ``\nu\,\partial_j\overline{u}_i\,\partial_\overline{u}_i``:
 
 ε̄ = CoarseGrainedKineticEnergyDissipationRate(model, filter)
 
