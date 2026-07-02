@@ -186,7 +186,7 @@ function TotalDiffusion(model, tracer_name; kwargs...)
     tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
     tracer = model.tracers[tracer_index]
     immersed_bc = tracer.boundary_conditions.immersed
-    return TotalDiffusion(model, tracer, immersed_bc, model.closure, model.closure_fields, Val(tracer_index), model.clock, fields(model), model.buoyancy)
+    return TotalDiffusion(model, tracer, immersed_bc, model.closure, model.closure_fields, Val(tracer_index), model.clock, fields(model), model.buoyancy; kwargs...)
 end
 
 """
