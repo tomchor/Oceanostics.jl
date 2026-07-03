@@ -20,16 +20,17 @@ and forcing terms)
 
 with Coriolis parameter ``f_i``, kinematic pressure ``p``, buoyancy ``b`` along the vertical ``\hat g_i``,
 the permutation symbol ``\epsilon_{ijk}``, and the kinematic stress tensor ``\tau_{ij}`` supplied by the
-closure (its components are the model's viscous fluxes, the ones
-[`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) contracts; the
-velocity components are ``(v_1, v_2, v_3) = (u, v, w)``). Incompressibility ``\partial_i v_i = 0`` lets us
-write advection in flux form, ``v_j \, \partial_j v_i = \partial_j (v_i v_j)``.
+closure. The velocity components are ``(v_1, v_2, v_3) = (u, v, w)``, and the resolved viscous dissipation
+``\varepsilon = -\partial_j v_i \, \tau_{ij}`` is what
+[`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) computes.
+Incompressibility ``\partial_i v_i = 0`` lets us write advection in flux form,
+``v_j \, \partial_j v_i = \partial_j (v_i v_j)``.
 
 We can define the residual (subfilter) stress tensor
 ```math
 \tau^r_{ij} = \overline{v_i v_j} - \bar v_i\,\bar v_j ,
 ```
-and re-write the filtered momentum equation picks can be re-written as:
+and re-write the filtered momentum equation as:
 
 ```math
 \partial_t \bar v_i = - \bar v_j \, \partial_j \bar v_i
@@ -58,7 +59,7 @@ integrated over a closed or periodic domain. The two local exchange terms are
 ```math
 \Pi_K = -\tau^r_{ij}\,\overline{S}_{ij} ,
 \qquad
-\varepsilon^l = \partial_j \bar v_i \, \overline{F}_{ij} = -\bar\tau_{ij}\,\overline{S}_{ij} ,
+\varepsilon^l = -\bar\tau_{ij}\,\overline{S}_{ij} ,
 \qquad
 \overline{S}_{ij} = \tfrac{1}{2}\left(\partial_j \bar v_i + \partial_i \bar v_j\right) .
 ```
@@ -71,10 +72,10 @@ the rate at which the filter transfers kinetic energy from the filtered to the s
 residual stress ``\tau^r_{ij}`` itself is available as [`subfilter_stress_tensor`](@ref).
 
 ``\varepsilon^l`` ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)) is the viscous dissipation
-of the filtered flow: the filtered velocity gradient contracted with the *filtered* viscous flux
-``\overline{F}_{ij} = \overline{F_{ij}(v)}``. The flux is filtered, not recomputed from
-``\bar v_i``: ``\overline{F_{ij}(v)}`` and ``F_{ij}(\bar v)`` agree only for a constant, uniform
-viscosity (where the filter commutes with the flux) and differ once the viscosity varies in space. For a
+of the filtered flow, formed from the filtered strain and the *filtered* stress
+``\bar\tau_{ij} = \overline{\tau_{ij}(v)}``. The stress is filtered, not recomputed from
+``\bar v_i``: ``\overline{\tau_{ij}(v)}`` and ``\tau_{ij}(\bar v)`` agree only for a constant, uniform
+viscosity (where the filter commutes with the stress) and differ once the viscosity varies in space. For a
 constant-viscosity closure it reduces to ``\varepsilon^l = 2\nu\,\overline{S}_{ij}\overline{S}_{ij}``,
 the dissipation of the resolved strain.
 
