@@ -59,7 +59,7 @@ integrated over a closed or periodic domain. The two local exchange terms are
 ```math
 \Pi_K = -\tau^r_{ij}\,\overline{S}_{ij} ,
 \qquad
-\varepsilon^l = -\bar\tau_{ij}\,\overline{S}_{ij} ,
+\varepsilon^l = -\partial_j \bar v_i \, \bar\tau_{ij} ,
 \qquad
 \overline{S}_{ij} = \tfrac{1}{2}\left(\partial_j \bar v_i + \partial_i \bar v_j\right) .
 ```
@@ -72,18 +72,15 @@ the rate at which the filter transfers kinetic energy from the filtered to the s
 residual stress ``\tau^r_{ij}`` itself is available as [`subfilter_stress_tensor`](@ref).
 
 ``\varepsilon^l`` ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)) is the viscous dissipation
-of the filtered flow, formed from the filtered strain and the *filtered* stress
-``\bar\tau_{ij} = \overline{\tau_{ij}(v)}``. The stress is filtered, not recomputed from
-``\bar v_i``: ``\overline{\tau_{ij}(v)}`` and ``\tau_{ij}(\bar v)`` agree only for a constant, uniform
-viscosity (where the filter commutes with the stress) and differ once the viscosity varies in space. For a
-constant-viscosity closure it reduces to ``\varepsilon^l = 2\nu\,\overline{S}_{ij}\overline{S}_{ij}``,
-the dissipation of the resolved strain.
-
-Both ``\Pi_K`` and ``\varepsilon^l`` are per unit mass (units ``\mathrm{m^2\,s^{-3}}``); multiply
-by a reference density ``\rho_0`` for a volumetric power.
+of the filtered flow: the filtered velocity gradient contracted with the *filtered* stress
+``\bar\tau_{ij}``. The stress is filtered, not recomputed from ``\bar v_i``:
+``\overline{\tau_{ij}(v_i)}`` and ``\tau_{ij}(\bar v_i)`` agree only for a constant, uniform
+viscosity. When ``\tau_{ij}`` is symmetric (as for an isotropic closure) the antisymmetric part of the gradient drops out
+and the dissipation can be written with the strain rate, ``\varepsilon^l = -\bar\tau_{ij}\,\overline{S}_{ij}``,
+reducing further to ``2\nu\,\overline{S}_{ij}\overline{S}_{ij}`` for a constant-viscosity closure.
 
 These diagnostics take a `filter` argument: any callable mapping a field to its low-pass-filtered
-counterpart, typically a reusable [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The directions the
+counterpart, typically a [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The directions the
 filter acts in (set inside `filter`) are independent of how each diagnostic contracts: the stress tensor
 and cross-scale flux take a `dims` argument selecting the directions they contract over — so you can
 filter horizontally yet contract the full 3D tensor — while the coarse-grained dissipation always forms
