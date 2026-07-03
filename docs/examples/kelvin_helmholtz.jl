@@ -26,11 +26,11 @@ using Oceananigans
 # Richardson number `Ri₀`, the Reynolds number `Re = U h / ν`, and the Prandtl number `Pr = ν / κ` —
 # from which the viscosity `ν` and the buoyancy diffusivity `κ` follow:
 
-U   = 1     # velocity scale (half the velocity difference across the shear layer)
-h   = 1     # length scale (shear-layer half-width)
+U = 1     # velocity scale (half the velocity difference across the shear layer)
+h = 1     # length scale (shear-layer half-width)
 Ri₀ = 0.1   # Richardson number
-Re  = 5e4   # Reynolds number
-Pr  = 1     # Prandtl number
+Re = 5e4   # Reynolds number
+Pr = 1     # Prandtl number
 
 ν = U * h / Re   # viscosity
 κ = ν / Pr       # buoyancy diffusivity
@@ -45,7 +45,7 @@ N = 128
 k_max = 0.4446 / h   # most unstable KH wavenumber (Michalke, 1964)
 Lx = 2π / k_max      # one most-unstable wavelength
 Lz = 10
-grid = RectilinearGrid(size=(N, N), x=(-Lx/2, +Lx/2), z=(-Lz/2, +Lz/2), topology=(Periodic, Flat, Bounded))
+grid = RectilinearGrid(size=(N, N), x=(-Lx / 2, +Lx / 2), z=(-Lz / 2, +Lz / 2), topology=(Periodic, Flat, Bounded))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = UpwindBiased(order=5),
@@ -78,7 +78,7 @@ set!(model, u=shear_flow, b=stratification, w=perturbation)
 # adapts it as the flow evolves:
 
 Δx = minimum_xspacing(grid)
-simulation = Simulation(model, Δt = 0.1 * Δx / U, stop_time=120)
+simulation = Simulation(model, Δt=0.1 * Δx / U, stop_time=120)
 
 wizard = TimeStepWizard(cfl=0.8, max_Δt=1)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
@@ -127,28 +127,28 @@ Q = QVelocityGradientTensorInvariant(model)
 #
 # with a buoyancy production ``\overline{w}\,\overline{b}`` (the conversion between filtered kinetic and
 # potential energy), the cross-scale kinetic-energy flux ``\Pi_K`` to subfilter scales
-# ([`KineticEnergyCrossScaleFlux`](@ref)), and the coarse-grained viscous dissipation
-# ``\overline{\varepsilon}`` ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)).
+# ([`KineticEnergyCrossScaleFlux`](@ref)), and viscous dissipation due to the coarse-grained
+# flow ``\overline{\varepsilon}`` ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)).
 
 using Oceananigans.AbstractOperations: @at
 
-filter = GaussianFilter(; dims=(1, 3), σ=h/2, boundary=:shrink)  # FWHM ≈ h, the shear-layer width
+filter = GaussianFilter(; dims=(1, 3), σ=h / 2, boundary=:shrink)  # FWHM ≈ h, the shear-layer width
 
 u, w = model.velocities.u, model.velocities.w
 b = model.tracers.b
 ū, w̄, b̄ = filter(u), filter(w), filter(b)
 
-K̄  = @at (Center, Center, Center) (ū^2 + w̄^2) / 2   # filtered kinetic energy ½ūᵢūᵢ
+K̄ = @at (Center, Center, Center) (ū^2 + w̄^2) / 2   # filtered kinetic energy ½ūᵢūᵢ
 w̄b̄ = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy production of the filtered flow
 Πₖ = KineticEnergyCrossScaleFlux(model, filter; dims=(1, 3))
-ε̄  = CoarseGrainedKineticEnergyDissipationRate(model, filter)
+ε̄ = CoarseGrainedKineticEnergyDissipationRate(model, filter)
 
 # The budget only needs the (cheap) volume integrals of these terms:
 
-∫K̄  = Integral(K̄)
+∫K̄ = Integral(K̄)
 ∫w̄b̄ = Integral(w̄b̄)
 ∫Πₖ = Integral(Πₖ)
-∫ε̄  = Integral(ε̄)
+∫ε̄ = Integral(ε̄)
 
 
 # We use two NetCDF writers. A *snapshot* writer stores the 2D fields on a plain `TimeInterval(1)`,
@@ -161,14 +161,14 @@ using NCDatasets
 filename = "kelvin_helmholtz"
 
 simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b),
-                                              filename = joinpath(@__DIR__, filename),
-                                              schedule = TimeInterval(1),
-                                              overwrite_existing = true)
+    filename=joinpath(@__DIR__, filename),
+    schedule=TimeInterval(1),
+    overwrite_existing=true)
 
 simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫K̄, ∫w̄b̄, ∫Πₖ, ∫ε̄),
-                                                  filename = joinpath(@__DIR__, filename * "_budget"),
-                                                  schedule = ConsecutiveIterations(TimeInterval(1)),
-                                                  overwrite_existing = true)
+    filename=joinpath(@__DIR__, filename * "_budget"),
+    schedule=ConsecutiveIterations(TimeInterval(1)),
+    overwrite_existing=true)
 
 
 # ## Run the simulation and process results
@@ -181,8 +181,8 @@ run!(simulation)
 
 filepath = simulation.output_writers[:nc].filepath
 Ri_t = FieldTimeSeries(filepath, "Ri")
-Q_t  = FieldTimeSeries(filepath, "Q")
-b_t  = FieldTimeSeries(filepath, "b")
+Q_t = FieldTimeSeries(filepath, "Q")
+b_t = FieldTimeSeries(filepath, "b")
 
 ds = NCDataset(filepath)
 times = ds["time"][:]
@@ -194,21 +194,21 @@ close(ds)
 bud_filepath = simulation.output_writers[:budget].filepath
 ds_bud = NCDataset(bud_filepath)
 times_bud = ds_bud["time"][:]
-∫K̄_t  = ds_bud["∫K̄"][:]
+∫K̄_t = ds_bud["∫K̄"][:]
 ∫w̄b̄_t = ds_bud["∫w̄b̄"][:]
 ∫Πₖ_t = ds_bud["∫Πₖ"][:]
-∫ε̄_t  = ds_bud["∫ε̄"][:]
+∫ε̄_t = ds_bud["∫ε̄"][:]
 close(ds_bud)
 
-i1 = 1:2:length(times_bud) - 1   # primary snapshots
+i1 = 1:2:length(times_bud)-1   # primary snapshots
 i2 = 2:2:length(times_bud)       # consecutive-iteration snapshots
 Δt_pair = times_bud[i2] .- times_bud[i1]
-t_pair  = @. 0.5 * (times_bud[i1] + times_bud[i2])
+t_pair = @. 0.5 * (times_bud[i1] + times_bud[i2])
 
-dK̄dt    = (∫K̄_t[i2] .- ∫K̄_t[i1]) ./ Δt_pair
+dK̄dt = (∫K̄_t[i2] .- ∫K̄_t[i1]) ./ Δt_pair
 w̄b̄_pair = @. 0.5 * (∫w̄b̄_t[i1] + ∫w̄b̄_t[i2])
 Πₖ_pair = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2])
-ε̄_pair  = @. 0.5 * (∫ε̄_t[i1] + ∫ε̄_t[i2])
+ε̄_pair = @. 0.5 * (∫ε̄_t[i1] + ∫ε̄_t[i2])
 
 resid = @. dK̄dt - (w̄b̄_pair - Πₖ_pair - ε̄_pair)
 
@@ -223,41 +223,41 @@ rms(x) = √(sum(abs2, x) / length(x))    #hide
 
 using CairoMakie
 
-set_theme!(Theme(fontsize = 24))
+set_theme!(Theme(fontsize=24))
 fig = Figure()
 
 kwargs = (xlabel="x", ylabel="z", height=150, width=250)
-ax1 = Axis(fig[2, 1]; title = "Ri", kwargs...)
-ax2 = Axis(fig[2, 2]; title = "Q", kwargs...)
-ax3 = Axis(fig[2, 3]; title = "b", kwargs...);
+ax1 = Axis(fig[2, 1]; title="Ri", kwargs...)
+ax2 = Axis(fig[2, 2]; title="Q", kwargs...)
+ax3 = Axis(fig[2, 3]; title="b", kwargs...);
 
 # Next we use `Observable`s to lift the values and plot heatmaps and their colorbars
 
 n = Observable(1)
 
 Riₙ = @lift Ri_t[$n]
-hm1 = heatmap!(ax1, Riₙ; colormap = :bwr, colorrange = (-1, +1))
+hm1 = heatmap!(ax1, Riₙ; colormap=:bwr, colorrange=(-1, +1))
 Colorbar(fig[3, 1], hm1, vertical=false, height=8)
 
 Qₙ = @lift Q_t[$n]
-hm2 = heatmap!(ax2, Qₙ; colormap = :inferno, colorrange = (0, 0.2))
+hm2 = heatmap!(ax2, Qₙ; colormap=:inferno, colorrange=(0, 0.2))
 Colorbar(fig[3, 2], hm2, vertical=false, height=8)
 
 bₙ = @lift b_t[$n]
-hm3 = heatmap!(ax3, bₙ; colormap = :balance, colorrange = (-B₀, +B₀))
+hm3 = heatmap!(ax3, bₙ; colormap=:balance, colorrange=(-B₀, +B₀))
 Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
 # The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget: `d(∫K̄)/dt`
 # against its three sources — buoyancy production `∫w̄b̄ dV`, minus the cross-scale flux `−∫Πₖ dV`, and
 # minus the coarse-grained dissipation `−∫ε̄ dV` — with the residual.
 
-ax_bud = Axis(fig[4, 1:3]; xlabel = "Time", title = "Coarse-grained KE budget", height = 140)
-lines!(ax_bud, t_pair, dK̄dt,     label = "d(∫K̄)/dt")
-lines!(ax_bud, t_pair, w̄b̄_pair,  label = "∫w̄b̄ dV")
-lines!(ax_bud, t_pair, -Πₖ_pair, label = "−∫Πₖ dV")
-lines!(ax_bud, t_pair, -ε̄_pair,  label = "−∫ε̄ dV")
-lines!(ax_bud, t_pair, resid,    label = "residual", color = :black, linestyle = :dash)
-axislegend(ax_bud; position = :lb, labelsize = 10)
+ax_bud = Axis(fig[4, 1:3]; xlabel="Time", title="Coarse-grained KE budget", height=140)
+lines!(ax_bud, t_pair, dK̄dt, label="d(∫K̄)/dt")
+lines!(ax_bud, t_pair, w̄b̄_pair, label="∫w̄b̄ dV")
+lines!(ax_bud, t_pair, -Πₖ_pair, label="−∫Πₖ dV")
+lines!(ax_bud, t_pair, -ε̄_pair, label="−∫ε̄ dV")
+lines!(ax_bud, t_pair, resid, label="residual", color=:black, linestyle=:dash)
+axislegend(ax_bud; position=:lb, labelsize=10)
 
 # Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
 
@@ -273,7 +273,7 @@ resize_to_layout!(fig)
 
 @info "Animating..."
 record(fig, filename * ".mp4", 1:length(times), framerate=10) do i
-       n[] = i
+    n[] = i
 end
 
 # ![](kelvin_helmholtz.mp4)
