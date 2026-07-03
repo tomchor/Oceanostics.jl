@@ -279,7 +279,7 @@ end
 # ![](kelvin_helmholtz.mp4)
 #
 # The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget. As the billows
-# grow and overturn, the filtered flow loses kinetic energy to potential energy (`∫w̄b̄ dV < 0`) and
+# grow and overturn, the filtered flow mostly loses kinetic energy to potential energy (`∫w̄b̄ dV < 0`) and
 # feeds the subfilter scales through the cross-scale flux (`−∫Πₖ dV`), while the coarse-grained viscous
 # dissipation `∫ε̄ dV` stays comparatively small at this Reynolds number. The residual (dashed) is the
 # gap between `d(∫K̄)/dt` and the sum of the three terms. Unlike the centered-advection
