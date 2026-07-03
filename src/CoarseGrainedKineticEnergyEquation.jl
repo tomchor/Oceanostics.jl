@@ -206,7 +206,7 @@ KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N =
 #---
 
 #+++ Coarse-grained (filtered-flow) kinetic-energy dissipation
-# ε̄ = ∂ⱼūᵢ·F̄ᵢⱼ, the dissipation of the filtered flow: the filtered velocity gradient ∂ⱼūᵢ contracted with
+# εˡ = ∂ⱼūᵢ·F̄ᵢⱼ, the dissipation of the filtered flow: the filtered velocity gradient ∂ⱼūᵢ contracted with
 # the *filtered* viscous flux F̄ᵢⱼ = filter(Fᵢⱼ(u)). Fᵢⱼ(u) is the model's viscous momentum flux built from
 # the FULL velocities and closure (the same `viscous_flux_uᵢxⱼ` that `KineticEnergyDissipationRate`
 # contracts), and it is low-pass filtered. Filtering the flux — rather than recomputing it from ūᵢ — is
@@ -248,11 +248,11 @@ const DissipationRate = CoarseGrainedKineticEnergyDissipationRate
 """
     $(SIGNATURES)
 
-Return the coarse-grained (filtered-flow) kinetic-energy dissipation rate `ε̄`, the rate at which
+Return the coarse-grained (filtered-flow) kinetic-energy dissipation rate `εˡ`, the rate at which
 viscosity removes kinetic energy from the *filtered* velocity field `ūᵢ = filter(uᵢ)`:
 
 ```
-    ε̄ = ∂ⱼūᵢ · F̄ᵢⱼ ,   F̄ᵢⱼ = filter(Fᵢⱼ(u))
+    εˡ = ∂ⱼūᵢ · F̄ᵢⱼ ,   F̄ᵢⱼ = filter(Fᵢⱼ(u))
 ```
 
 Here `Fᵢⱼ(u)` is the model's viscous momentum-flux tensor built from the **full** velocities and closure
@@ -289,7 +289,7 @@ CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Ce
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
-└── computes: coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·F̄ᵢⱼ
+└── computes: coarse-grained kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ
 ```
 
 The viscosity and fluxes come from `model.closure`/`model.closure_fields`, exactly as in

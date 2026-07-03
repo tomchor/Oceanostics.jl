@@ -99,10 +99,10 @@ filter = GaussianFilter(; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(le
 
 τ  = subfilter_stress_tensor(model, filter)                  # the subfilter stress tensor components
 Πₖ = KineticEnergyCrossScaleFlux(model, filter)              # the cross-scale KE flux, at (Center, Center, Center)
-ε̄ = CoarseGrainedKineticEnergyDissipationRate(model, filter) # dissipation of the filtered flow
+εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filter) # dissipation of the filtered flow
 
 # equivalently, the convenience methods build the Gaussian filter from σ for you:
-ε̄ = CoarseGrainedKineticEnergyDissipationRate(model; σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
+εˡ = CoarseGrainedKineticEnergyDissipationRate(model; σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
 # output
 
@@ -110,7 +110,7 @@ CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Ce
 ├── grid: 16×16×16 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
-└── computes: coarse-grained kinetic energy dissipation rate  ε̄ = ∂ⱼūᵢ·F̄ᵢⱼ
+└── computes: coarse-grained kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ
 ```
 
 ## Subfilter-scale stress tensor
