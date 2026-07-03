@@ -160,7 +160,7 @@ w̄b̄ = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy productio
 using NCDatasets
 filename = "kelvin_helmholtz"
 
-simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b),
+simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b, w̄b̄, Πₖ, ε̄),
     filename=joinpath(@__DIR__, filename),
     schedule=TimeInterval(1),
     overwrite_existing=true)
@@ -183,6 +183,9 @@ filepath = simulation.output_writers[:nc].filepath
 Ri_t = FieldTimeSeries(filepath, "Ri")
 Q_t = FieldTimeSeries(filepath, "Q")
 b_t = FieldTimeSeries(filepath, "b")
+w̄b̄_t = FieldTimeSeries(filepath, "w̄b̄")
+Πₖ_t = FieldTimeSeries(filepath, "Πₖ")
+ε̄_t = FieldTimeSeries(filepath, "ε̄")
 
 ds = NCDataset(filepath)
 times = ds["time"][:]
@@ -247,11 +250,36 @@ bₙ = @lift b_t[$n]
 hm3 = heatmap!(ax3, bₙ; colormap=:balance, colorrange=(-B₀, +B₀))
 Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
+# The second row shows the (local) budget terms as 2D fields: the buoyancy production `w̄b̄`, the
+# cross-scale kinetic-energy flux `Πₖ`, and the coarse-grained dissipation `ε̄`. Each gets a symmetric
+# (or, for the sign-definite `ε̄`, one-sided) color range set from its own peak magnitude over the run.
+
+maxabs(fts) = maximum(maximum(abs, interior(fts[k])) for k in 1:length(times))
+wb_lim = maxabs(w̄b̄_t)
+Π_lim = maxabs(Πₖ_t)
+ε_lim = maxabs(ε̄_t)
+
+ax4 = Axis(fig[4, 1]; title="w̄b̄", kwargs...)
+ax5 = Axis(fig[4, 2]; title="Πₖ", kwargs...)
+ax6 = Axis(fig[4, 3]; title="ε̄", kwargs...)
+
+w̄b̄ₙ = @lift w̄b̄_t[$n]
+hm4 = heatmap!(ax4, w̄b̄ₙ; colormap=:balance, colorrange=(-wb_lim, wb_lim))
+Colorbar(fig[5, 1], hm4, vertical=false, height=8)
+
+Πₖₙ = @lift Πₖ_t[$n]
+hm5 = heatmap!(ax5, Πₖₙ; colormap=:balance, colorrange=(-Π_lim, Π_lim))
+Colorbar(fig[5, 2], hm5, vertical=false, height=8)
+
+ε̄ₙ = @lift ε̄_t[$n]
+hm6 = heatmap!(ax6, ε̄ₙ; colormap=:magma, colorrange=(0, ε_lim))
+Colorbar(fig[5, 3], hm6, vertical=false, height=8);
+
 # The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget: `d(∫K̄)/dt`
 # against its three sources — buoyancy production `∫w̄b̄ dV`, minus the cross-scale flux `−∫Πₖ dV`, and
 # minus the coarse-grained dissipation `−∫ε̄ dV` — with the residual.
 
-ax_bud = Axis(fig[4, 1:3]; xlabel="Time", title="Coarse-grained KE budget", height=140)
+ax_bud = Axis(fig[6, 1:3]; xlabel="Time", title="Coarse-grained KE budget", height=140)
 lines!(ax_bud, t_pair, dK̄dt, label="d(∫K̄)/dt")
 lines!(ax_bud, t_pair, w̄b̄_pair, label="∫w̄b̄ dV")
 lines!(ax_bud, t_pair, -Πₖ_pair, label="−∫Πₖ dV")
