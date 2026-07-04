@@ -207,13 +207,13 @@ fig_τ
 # We show it next to the filtered kinetic energy ``\tfrac{1}{2}(\bar{u}^2 + \bar{v}^2)``, reusing the
 # filtered velocities ``\bar{u}``, ``\bar{v}`` from the previous section:
 
-K̄ = (ū^2 + v̄^2) / 2
+Kˡ = (ū^2 + v̄^2) / 2
 
 fig_Π = Figure()
 ax_K = Axis(fig_Π[1, 1]; title = "Filtered KE ½(ū² + v̄²)", axis_kwargs...)
 ax_Π = Axis(fig_Π[1, 3]; title = "Cross-scale flux Πₖ",    axis_kwargs...)
 
-hm_K = heatmap!(ax_K, K̄; colormap = :magma)
+hm_K = heatmap!(ax_K, Kˡ; colormap = :magma)
 Colorbar(fig_Π[1, 2], hm_K)
 
 Πlim = 0.95 * maximum(abs, interior(Πₖ))
@@ -222,6 +222,28 @@ Colorbar(fig_Π[1, 4], hm_Π)
 
 resize_to_layout!(fig_Π)
 fig_Π
+
+# ## Coarse-grained kinetic energy dissipation
+#
+# We can also calculate the dissipation acting on the *filtered* flow using [`CoarseGrainedKineticEnergyDissipationRate`](@ref):
+#
+# ```math
+# \varepsilon^l = \frac{\partial \overline{u}_i}{\partial x_j}\,\overline{F}_{ij},
+# ```
+#
+# where ``\varepsilon^l `` indicates the dissipation of the filtered flow and ``\overline{F}_{ij}``
+# is the filtered viscous stress tensor. In our case (width a constant-viscosity run)
+# ``\overline{F}_{ij}`` simplifies to ``\nu\,\partial_j\overline{u}_i\,\partial_\overline{u}_i``:
+
+εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filter)
+
+fig_ε = Figure()
+ax_ε = Axis(fig_ε[1, 1]; title = "Coarse-grained KE dissipation εˡ", axis_kwargs...)
+hm_ε = heatmap!(ax_ε, εˡ; colormap = :magma)
+Colorbar(fig_ε[1, 2], hm_ε)
+
+resize_to_layout!(fig_ε)
+fig_ε
 
 # Red (``\Pi_K > 0``) marks forward transfer to subfilter scales and blue (``\Pi_K < 0``) marks
 # backscatter to larger scales. Both concentrate in the strained regions between vortices, where the
