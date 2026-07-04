@@ -14,6 +14,7 @@ OUTPUT_DIR   = joinpath(@__DIR__, "src/generated")
 examples = ["Two-dimensional turbulence"   => "two_dimensional_turbulence",
             "Kelvin-Helmholtz instability" => "kelvin_helmholtz",
             "Tilted bottom boundary layer" => "tilted_bottom_boundary_layer",
+            "Eady baroclinic instability"  => "eady_baroclinic_instability",
             "Spatial filtering"            => "spatial_filtering",
             ]
 
