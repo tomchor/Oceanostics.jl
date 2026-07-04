@@ -41,7 +41,7 @@ export KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyB
 #---
 
 #+++ CoarseGrainedKineticEnergyEquation exports
-export subfilter_stress_tensor, KineticEnergyCrossScaleFlux
+export subfilter_stress_tensor, KineticEnergyCrossScaleFlux, CoarseGrainedKineticEnergyDissipationRate
 #---
 
 #+++ TurbulentKineticEnergyEquation exports
@@ -354,21 +354,22 @@ end
 #---
 
 #+++ KineticEnergyEquation
-@diagnostic_show KineticEnergyEquation.KineticEnergy                         "KineticEnergy"                       "kinetic energy  ½uᵢuᵢ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyTendency                 "KineticEnergyTendency"               "kinetic energy tendency  uᵢGᵢ (excl. nonhydrostatic pressure)"
-@diagnostic_show KineticEnergyEquation.KineticEnergyAdvection                "KineticEnergyAdvection"              "kinetic energy advection  uᵢ∂ⱼ(uᵢuⱼ)"
-@diagnostic_show KineticEnergyEquation.KineticEnergyStress                   "KineticEnergyStress"                 "kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyForcing                  "KineticEnergyForcing"                "kinetic energy forcing  uᵢFᵤᵢ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyPressureRedistribution   "KineticEnergyPressureRedistribution" "kinetic energy pressure redistribution  uᵢ∂ᵢp"
-@diagnostic_show KineticEnergyEquation.KineticEnergyBuoyancyProduction       "KineticEnergyBuoyancyProduction"     "kinetic energy buoyancy production  uᵢbᵢ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"        "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ"
+@diagnostic_show KineticEnergyEquation.KineticEnergy                         "KineticEnergy"                         "kinetic energy  ½uᵢuᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyTendency                 "KineticEnergyTendency"                 "kinetic energy tendency  uᵢGᵢ (excl. nonhydrostatic pressure)"
+@diagnostic_show KineticEnergyEquation.KineticEnergyAdvection                "KineticEnergyAdvection"                "kinetic energy advection  uᵢ∂ⱼ(uᵢuⱼ)"
+@diagnostic_show KineticEnergyEquation.KineticEnergyStress                   "KineticEnergyStress"                   "kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyForcing                  "KineticEnergyForcing"                  "kinetic energy forcing  uᵢFᵤᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyPressureRedistribution   "KineticEnergyPressureRedistribution"   "kinetic energy pressure redistribution  uᵢ∂ᵢp"
+@diagnostic_show KineticEnergyEquation.KineticEnergyBuoyancyProduction       "KineticEnergyBuoyancyProduction"       "kinetic energy buoyancy production  uᵢbᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"          "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyIsotropicDissipationRate "KineticEnergyIsotropicDissipationRate" "isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ"
 #---
 
 #+++ CoarseGrainedKineticEnergyEquation
-# Only the (single-`KernelFunctionOperation`) flux gets a custom display; `subfilter_stress_tensor`
+# The single-`KernelFunctionOperation` diagnostics get a custom display; `subfilter_stress_tensor`
 # returns a `NamedTuple` of components, like `StressTensor`/`StrainRateTensor`, so it has none.
-@diagnostic_show CoarseGrainedKineticEnergyEquation.KineticEnergyCrossScaleFlux "KineticEnergyCrossScaleFlux" "cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ"
+@diagnostic_show CoarseGrainedKineticEnergyEquation.KineticEnergyCrossScaleFlux               "KineticEnergyCrossScaleFlux"               "cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ"
+@diagnostic_show CoarseGrainedKineticEnergyEquation.CoarseGrainedKineticEnergyDissipationRate "CoarseGrainedKineticEnergyDissipationRate" "coarse-grained kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ"
 #---
 
 #+++ TurbulentKineticEnergyEquation
