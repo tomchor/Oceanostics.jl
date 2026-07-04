@@ -259,7 +259,7 @@ Here `Fᵢⱼ(u)` is the model's viscous momentum-flux tensor built from the **f
 (the same fluxes [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)
 contracts), and `F̄ᵢⱼ = filter(Fᵢⱼ(u))` is that flux low-pass filtered. Contracting the filtered flux with
 the filtered velocity gradient gives the viscous sink in the budget of the filtered kinetic energy
-`K̄ = ½ūᵢūᵢ` (coarse-graining framework of Aluie et al., 2018, *J. Phys. Oceanogr.*,
+`Kˡ = ½ūᵢūᵢ` (coarse-graining framework of Aluie et al., 2018, *J. Phys. Oceanogr.*,
 doi:10.1175/JPO-D-17-0100.1).
 
 Note the flux is filtered, `filter(Fᵢⱼ(u))`, not recomputed from the filtered velocity, `Fᵢⱼ(ū)`. The two

@@ -138,34 +138,34 @@ u, w = model.velocities.u, model.velocities.w
 b = model.tracers.b
 ū, w̄, b̄ = filter(u), filter(w), filter(b)
 
-K̄  = @at (Center, Center, Center) (ū^2 + w̄^2) / 2   # filtered kinetic energy ½ūᵢūᵢ
+Kˡ = @at (Center, Center, Center) (ū^2 + w̄^2) / 2   # filtered kinetic energy ½ūᵢūᵢ
 w̄b̄ = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy production of the filtered flow
 Πₖ = KineticEnergyCrossScaleFlux(model, filter; dims=(1, 3))
-ε̄  = CoarseGrainedKineticEnergyDissipationRate(model, filter)
+εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filter)
 
 # The budget only needs the (cheap) volume integrals of these terms:
 
-∫K̄  = Integral(K̄)
+∫Kˡ = Integral(Kˡ)
 ∫w̄b̄ = Integral(w̄b̄)
 ∫Πₖ = Integral(Πₖ)
-∫ε̄  = Integral(ε̄)
+∫εˡ = Integral(εˡ)
 
 
 # We use two NetCDF writers. A *snapshot* writer stores the 2D fields on a plain `TimeInterval(1)`,
 # while a *budget* writer stores only the integrated scalars on `ConsecutiveIterations(TimeInterval(1))`
-# — a second sample one model step after each output time — which lets us finite-difference `∫K̄` across
+# — a second sample one model step after each output time — which lets us finite-difference `∫Kˡ` across
 # that single step to estimate `d/dt`, exactly as in the
 # [Two-dimensional turbulence example](@ref two_d_turbulence_example).
 
 using NCDatasets
 filename = "kelvin_helmholtz"
 
-simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b, w̄b̄, Πₖ, ε̄),
+simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b, w̄b̄, Πₖ, εˡ),
                                               filename=joinpath(@__DIR__, filename),
                                               schedule=TimeInterval(1),
                                               overwrite_existing=true)
 
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫K̄, ∫w̄b̄, ∫Πₖ, ∫ε̄),
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫Kˡ, ∫w̄b̄, ∫Πₖ, ∫εˡ),
                                                   filename=joinpath(@__DIR__, filename * "_budget"),
                                                   schedule=ConsecutiveIterations(TimeInterval(1)),
                                                   overwrite_existing=true)
@@ -185,22 +185,22 @@ Q_t  = FieldTimeSeries(filepath, "Q")
 b_t  = FieldTimeSeries(filepath, "b")
 w̄b̄_t = FieldTimeSeries(filepath, "w̄b̄")
 Πₖ_t = FieldTimeSeries(filepath, "Πₖ")
-ε̄_t  = FieldTimeSeries(filepath, "ε̄")
+εˡ_t = FieldTimeSeries(filepath, "εˡ")
 
 ds = NCDataset(filepath)
 times = ds["time"][:]
 close(ds)
 
 # The integrated budget scalars come in consecutive-iteration pairs `(2k-1, 2k)`; a one-step finite
-# difference inside each pair gives `d(∫K̄)/dt`, and each source term is evaluated at the pair midpoint.
+# difference inside each pair gives `d(∫Kˡ)/dt`, and each source term is evaluated at the pair midpoint.
 
 bud_filepath = simulation.output_writers[:budget].filepath
 ds_bud = NCDataset(bud_filepath)
 times_bud = ds_bud["time"][:]
-∫K̄_t      = ds_bud["∫K̄"][:]
+∫Kˡ_t     = ds_bud["∫Kˡ"][:]
 ∫w̄b̄_t     = ds_bud["∫w̄b̄"][:]
 ∫Πₖ_t     = ds_bud["∫Πₖ"][:]
-∫ε̄_t      = ds_bud["∫ε̄"][:]
+∫εˡ_t     = ds_bud["∫εˡ"][:]
 close(ds_bud)
 
 i1 = 1:2:length(times_bud)-1   # primary snapshots
@@ -208,16 +208,16 @@ i2 = 2:2:length(times_bud)       # consecutive-iteration snapshots
 Δt_pair = times_bud[i2] .- times_bud[i1]
 t_pair = @. 0.5 * (times_bud[i1] + times_bud[i2])
 
-dK̄dt    = (∫K̄_t[i2] .- ∫K̄_t[i1]) ./ Δt_pair
+dKˡdt   = (∫Kˡ_t[i2] .- ∫Kˡ_t[i1]) ./ Δt_pair
 w̄b̄_pair = @. 0.5 * (∫w̄b̄_t[i1] + ∫w̄b̄_t[i2])
 Πₖ_pair = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2])
-ε̄_pair  = @. 0.5 * (∫ε̄_t[i1] + ∫ε̄_t[i2])
+εˡ_pair = @. 0.5 * (∫εˡ_t[i1] + ∫εˡ_t[i2])
 
-resid = @. dK̄dt - (w̄b̄_pair - Πₖ_pair - ε̄_pair)
+resid = @. dKˡdt - (w̄b̄_pair - Πₖ_pair - εˡ_pair)
 
 using Test                              #hide
 rms(x) = √(sum(abs2, x) / length(x))    #hide
-@test rms(resid) < 0.06 * rms(dK̄dt);    #hide
+@test rms(resid) < 0.06 * rms(dKˡdt);   #hide
 
 
 # ## Plotting
@@ -251,17 +251,17 @@ hm3 = heatmap!(ax3, bₙ; colormap=:balance, colorrange=(-B₀, +B₀))
 Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
 # The second row shows the (local) budget terms as 2D fields: the buoyancy production `w̄b̄`, the
-# cross-scale kinetic-energy flux `Πₖ`, and the coarse-grained dissipation `ε̄`. Each gets a symmetric
-# (or, for the sign-definite `ε̄`, one-sided) color range set from its own peak magnitude over the run.
+# cross-scale kinetic-energy flux `Πₖ`, and the coarse-grained dissipation `εˡ`. Each gets a symmetric
+# (or, for the sign-definite `εˡ`, one-sided) color range set from its own peak magnitude over the run.
 
 maxabs(fts) = maximum(maximum(abs, interior(fts[k])) for k in 1:length(times))
 wb_lim = maxabs(w̄b̄_t)
 Π_lim  = maxabs(Πₖ_t)
-ε_lim  = maxabs(ε̄_t)
+ε_lim  = maxabs(εˡ_t)
 
 ax4 = Axis(fig[4, 1]; title="w̄b̄", kwargs...)
 ax5 = Axis(fig[4, 2]; title="Πₖ", kwargs...)
-ax6 = Axis(fig[4, 3]; title="ε̄", kwargs...)
+ax6 = Axis(fig[4, 3]; title="εˡ", kwargs...)
 
 w̄b̄ₙ = @lift w̄b̄_t[$n]
 hm4 = heatmap!(ax4, w̄b̄ₙ; colormap=:balance, colorrange=(-wb_lim, wb_lim))
@@ -271,19 +271,19 @@ Colorbar(fig[5, 1], hm4, vertical=false, height=8)
 hm5 = heatmap!(ax5, Πₖₙ; colormap=:balance, colorrange=(-Π_lim, Π_lim))
 Colorbar(fig[5, 2], hm5, vertical=false, height=8)
 
-ε̄ₙ = @lift ε̄_t[$n]
-hm6 = heatmap!(ax6, ε̄ₙ; colormap=:magma, colorrange=(0, ε_lim))
+εˡₙ = @lift εˡ_t[$n]
+hm6 = heatmap!(ax6, εˡₙ; colormap=:magma, colorrange=(0, ε_lim))
 Colorbar(fig[5, 3], hm6, vertical=false, height=8);
 
-# The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget: `d(∫K̄)/dt`
+# The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget: `d(∫Kˡ)/dt`
 # against its three sources — buoyancy production `∫w̄b̄ dV`, minus the cross-scale flux `−∫Πₖ dV`, and
-# minus the coarse-grained dissipation `−∫ε̄ dV` — with the residual.
+# minus the coarse-grained dissipation `−∫εˡ dV` — with the residual.
 
 ax_bud = Axis(fig[6, 1:3]; xlabel="Time", title="Coarse-grained KE budget", height=140)
-lines!(ax_bud, t_pair, dK̄dt, label="d(∫K̄)/dt")
+lines!(ax_bud, t_pair, dKˡdt, label="d(∫Kˡ)/dt")
 lines!(ax_bud, t_pair, w̄b̄_pair, label="∫w̄b̄ dV")
 lines!(ax_bud, t_pair, -Πₖ_pair, label="−∫Πₖ dV")
-lines!(ax_bud, t_pair, -ε̄_pair, label="−∫ε̄ dV")
+lines!(ax_bud, t_pair, -εˡ_pair, label="−∫εˡ dV")
 lines!(ax_bud, t_pair, resid, label="residual", color=:black, linestyle=:dash)
 axislegend(ax_bud; position=:lb, labelsize=10)
 
@@ -309,8 +309,8 @@ end
 # The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget. As the billows
 # grow and overturn, the filtered flow mostly loses kinetic energy to potential energy (`∫w̄b̄ dV < 0`) and
 # feeds the subfilter scales through the cross-scale flux (`−∫Πₖ dV`), while the coarse-grained viscous
-# dissipation `∫ε̄ dV` stays comparatively small at this Reynolds number. The residual (dashed) is the
-# gap between `d(∫K̄)/dt` and the sum of the three terms. Unlike the centered-advection
+# dissipation `∫εˡ dV` stays comparatively small at this Reynolds number. The residual (dashed) is the
+# gap between `d(∫Kˡ)/dt` and the sum of the three terms. Unlike the centered-advection
 # [Two-dimensional turbulence example](@ref two_d_turbulence_example), the upwind scheme here adds some
 # numerical dissipation, but because it acts mostly at the grid scale it barely projects onto the
 # smooth filtered budget, which still closes to within a few percent.
