@@ -2,213 +2,140 @@
 #
 # This example simulates the [Eady problem](https://en.wikipedia.org/wiki/Eady_model): the
 # baroclinic instability of a uniformly stratified, uniformly sheared flow held in thermal-wind
-# balance on an ``f``-plane. It is the canonical model for the baroclinic instability that fills the
-# ocean and atmosphere with eddies. The setup follows the classic
-# [Eady turbulence example](https://numericalearth.github.io/OceananigansMuseum/stable/generated/eady_turbulence/),
-# scaled down to a submesoscale large-eddy simulation (LES) with a `DynamicSmagorinsky` closure, and
-# uses Oceanostics to diagnose the energy conversion that powers the instability: available potential
-# energy stored in the tilted background buoyancy field is released and converted into eddy kinetic
-# energy.
-#
-# This is a three-dimensional LES, so it is heavier than the other examples, but it is sized to
-# finish in a reasonable time. The resolution (`Nx, Ny, Nz`) and the `stop_time` below are the main
-# cost knobs and can be reduced for a quicker look or increased for a more resolved run.
+# balance on an ``f``-plane. It is a direct port of the classic
+# [Eady turbulence example](https://numericalearth.github.io/OceananigansMuseum/v0.74.1/generated/eady_turbulence/)
+# to up-to-date Oceananigans syntax, with the bottom drag removed.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
 #
 # ```julia
 # using Pkg
-# pkg"add Oceananigans, Oceanostics, CairoMakie, NCDatasets"
+# pkg"add Oceananigans, CairoMakie"
 # ```
 
-# ## The background state
+# ## The grid
 #
-# We work in dimensional (SI) units. The domain is doubly periodic in the horizontal, with `x` the
-# along-front direction and `y` the cross-front direction, and bounded in the vertical `z`. Following
-# the classic Eady setup, the background state is parameterized by the Coriolis frequency `f`, the
-# buoyancy frequency `N`, and the geostrophic shear `α = ∂U/∂z`. The background velocity and buoyancy
-# are then
-#
-# ```math
-# U(z) = α \left(z + \tfrac{H}{2}\right), \qquad B(y, z) = -α f \, y + N² z,
-# ```
-#
-# which are in thermal-wind balance, ``f\,\partial_z U = -\partial_y B = α f``. We pick a weakly
-# stratified, submesoscale-front regime so that the deformation radius stays small enough to resolve
-# in three dimensions:
+# We use a mesoscale-resolving grid: 48 × 48 × 16 points spanning a 1000 km × 1000 km horizontal
+# domain and a 4 km deep ocean, periodic in the horizontal and bounded in the vertical.
 
 using Oceananigans
 using Oceananigans.Units
 
-f₀ = 1e-4      # [s⁻¹] Coriolis frequency
-α  = 10 * f₀   # [s⁻¹] geostrophic shear ∂U/∂z
-N  = 1e-3      # [s⁻¹] buoyancy frequency
-H  = 50        # [m]   depth
+grid = RectilinearGrid(size = (48, 48, 16), x = (0, 1e6), y = (0, 1e6), z = (-4e3, 0),
+                       topology = (Periodic, Periodic, Bounded))
 
-coriolis = FPlane(f = f₀)
+Δx = minimum_xspacing(grid)
 
-# From these we can form the cross-front buoyancy gradient `M² = α f`, the deformation radius
-# `Lᵈ = N H / f`, and the wavelength of the fastest-growing Eady mode `λ ≈ 3.9 Lᵈ`, which sets a
-# natural horizontal size for the domain:
-
-M² = α * f₀              # cross-front buoyancy gradient ∂B/∂y (magnitude)
-Ld = N * H / f₀          # deformation radius
-λ  = 3.9 * Ld            # fastest-growing Eady wavelength
-
-@info "Deformation radius Lᵈ ≈ $(round(Ld)) m, fastest Eady wavelength λ ≈ $(round(λ)) m"
-
-# ## Grid
+# ## The background state
 #
-# We build a doubly-periodic grid one Eady wavelength wide, with a stretched vertical coordinate that
-# is fine near the surface (where the submesoscale dynamics concentrate) and coarsens toward the
-# bottom. The stretching follows the standard Oceananigans reference-to-stretched mapping: a uniform
-# reference coordinate `h ∈ [0, 1]` is passed through a refinement/stretching generator that clusters
-# grid faces near the surface.
+# The flow is set up on an ``f``-plane and the background state is parameterized by the Coriolis
+# frequency `f`, the buoyancy frequency `N`, and the geostrophic shear `α = ∂U/∂z`:
 
-Lx = Ly = 2000meters
-Nx = Ny = 64
-Nz = 32
+coriolis = FPlane(f = 1e-4) # [s⁻¹]
 
-refinement = 1.2   # controls spacing near the surface (higher means finer near the surface)
-stretching = 5.0   # controls how quickly the spacing coarsens toward the bottom
+basic_state_parameters = (α  = 10 * coriolis.f,  # [s⁻¹] geostrophic shear
+                          f  = coriolis.f,       # [s⁻¹] Coriolis parameter
+                          N  = 1e-3,             # [s⁻¹] buoyancy frequency
+                          Lz = grid.Lz)          # [m]   ocean depth
 
-## Normalized reference height, 0 at the bottom and 1 at the surface
-h(k) = (k - 1) / Nz
+# The background velocity increases linearly with height, and the background buoyancy combines the
+# geostrophic (cross-front) component with a stable stratification. They are in thermal-wind balance,
+# ``f\,\partial_z U = -\partial_y B``:
 
-## Linear near-surface generator
-ζ₀(k) = 1 + (h(k) - 1) / refinement
+U(x, y, z, t, p) = + p.α * (z + p.Lz)
+B(x, y, z, t, p) = - p.α * p.f * y + p.N^2 * z
 
-## Bottom-intensified stretching function
-Σ(k) = (1 - exp(-stretching * h(k))) / (1 - exp(-stretching))
+U_field = BackgroundField(U, parameters=basic_state_parameters)
+B_field = BackgroundField(B, parameters=basic_state_parameters)
 
-## Generating function: z_faces(1) = -H at the bottom, z_faces(Nz+1) = 0 at the surface
-z_faces(k) = H * (ζ₀(k) * Σ(k) - 1)
-
-grid = RectilinearGrid(topology = (Periodic, Periodic, Bounded), size = (Nx, Ny, Nz),
-                       x = (0, Lx), y = (0, Ly), z = z_faces)
-
-# ## Background fields
+# ## Turbulence closures
 #
-# The cross-front buoyancy gradient `-α f y` is not periodic in `y`, so, just like the constant
-# stratification in the [Tilted bottom boundary layer example](@ref), we cannot set it directly on
-# the periodic grid. Instead we impose the full background buoyancy and the geostrophic shear as
-# `BackgroundField`s and evolve only the periodic _perturbations_ away from them.
+# We dissipate variance with a Laplacian vertical diffusivity and a biharmonic horizontal
+# diffusivity, applied simultaneously as a tuple of two closures:
 
-@inline U_background(x, y, z, t, p) = p.α * (z + p.H / 2)
-@inline B_background(x, y, z, t, p) = - p.α * p.f * y + p.N^2 * z
+κ₂z = 1e-2                       # [m² s⁻¹] Laplacian vertical viscosity and diffusivity
+κ₄h = 1e-1 / day * Δx^4          # [m⁴ s⁻¹] biharmonic horizontal viscosity and diffusivity
 
-background_parameters = (; α, f = f₀, N, H)
-U_field = BackgroundField(U_background, parameters=background_parameters)
-B_field = BackgroundField(B_background, parameters=background_parameters)
+vertical_diffusivity   = VerticalScalarDiffusivity(ν=κ₂z, κ=κ₂z)
+biharmonic_diffusivity = HorizontalScalarBiharmonicDiffusivity(ν=κ₄h, κ=κ₄h)
 
-# ## Closure and model
+# ## Model
 #
-# We keep the LES closure of the original example: a `DynamicSmagorinsky`, which computes the
-# Smagorinsky coefficient dynamically from the resolved flow rather than fixing it a priori (here
-# with its default `LagrangianAveraging`). We assemble a `NonhydrostaticModel` with a `WENO`
-# advection scheme, the buoyancy `b` as the active tracer, and the background fields defined above.
+# We build a `NonhydrostaticModel` with fifth-order `WENO` advection, a third-order Runge-Kutta
+# timestepper, the buoyancy `b` as the active tracer, and the background fields and closures defined
+# above. Following the request, there is no bottom drag, so the vertical boundaries are free-slip.
 
-closure = DynamicSmagorinsky()
-
-model = NonhydrostaticModel(grid; coriolis, closure,
-                            timestepper = :RungeKutta3,
+model = NonhydrostaticModel(grid;
                             advection = WENO(order=5),
-                            buoyancy = BuoyancyTracer(), tracers = :b,
-                            background_fields = (; u = U_field, b = B_field))
+                            timestepper = :RungeKutta3,
+                            coriolis = coriolis,
+                            tracers = :b,
+                            buoyancy = BuoyancyTracer(),
+                            background_fields = (b=B_field, u=U_field),
+                            closure = (vertical_diffusivity, biharmonic_diffusivity))
 
 # ## Initial condition
 #
 # We seed the instability with small-amplitude random noise, damped toward the top and bottom
-# boundaries so the perturbation projects onto interior modes, and then remove any net horizontal-mean
-# velocity that the noise introduces. We use a fixed seed for reproducibility.
+# boundaries so it projects onto interior modes, and then remove any net horizontal-mean velocity the
+# noise introduces:
 
-using Random
-using Statistics: mean
-Random.seed!(43)
+Ξ(z) = randn() * z / grid.Lz * (z / grid.Lz + 1) # noise that vanishes at z = 0 and z = -Lz
 
-Ξ(z) = randn() * (z / H) * (z / H + 1) # random noise that vanishes at z = 0 and z = -H
-
-Ũ = 1e-1 * α * H    # velocity-noise amplitude
-B̃ = 1e-2 * α * f₀   # buoyancy-noise amplitude
+Ũ = 1e-1 * basic_state_parameters.α * grid.Lz    # velocity-noise amplitude
+B̃ = 1e-2 * basic_state_parameters.α * coriolis.f # buoyancy-noise amplitude
 
 uᵢ(x, y, z) = Ũ * Ξ(z)
+vᵢ(x, y, z) = Ũ * Ξ(z)
 bᵢ(x, y, z) = B̃ * Ξ(z)
 
-set!(model, u=uᵢ, v=uᵢ, b=bᵢ)
+set!(model, u=uᵢ, v=vᵢ, b=bᵢ)
 
+using Statistics: mean
 parent(model.velocities.u) .-= mean(interior(model.velocities.u))
 parent(model.velocities.v) .-= mean(interior(model.velocities.v))
 
 # ## Simulation
 #
-# We start from a conservative time step and let a `TimeStepWizard` adapt it as the eddies spin up.
-# Two subtleties matter here. First, the wizard's advective CFL only sees the resolved (perturbation)
-# velocities, so we cap the step ourselves from the background advective CFL, using the along-front
-# grid spacing and the peak geostrophic velocity. Second, the `DynamicSmagorinsky` eddy viscosity
-# grows sharply in the thin near-surface cells once the eddies saturate, so we also enforce a
-# `diffusive_cfl`; without it the vertical diffusion would go unstable at these step sizes.
+# The initial time step is set from the most restrictive of the advective and diffusive limits, and a
+# `TimeStepWizard` adapts it as the eddies spin up:
 
-Ū = α * H                                     # peak background (geostrophic) velocity
-max_Δt = 0.2 * minimum_xspacing(grid) / Ū     # keep the background advective CFL small
-simulation = Simulation(model, Δt = 0.1 * max_Δt, stop_time = 6days)
+Ū = basic_state_parameters.α * grid.Lz
+max_Δt = min(Δx / Ū, Δx^4 / κ₄h, Δx^2 / κ₂z, 1 / basic_state_parameters.N)
 
-wizard = TimeStepWizard(cfl=0.7, diffusive_cfl=0.5, max_change=1.1, max_Δt=max_Δt)
+simulation = Simulation(model, Δt = max_Δt, stop_time = 8days)
+
+wizard = TimeStepWizard(cfl=0.85, max_change=1.1, max_Δt=max_Δt)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(10))
 
-# We report progress with a custom messenger built from `Oceanostics.ProgressMessengers`:
+# We report progress with a simple messenger:
 
-using Oceanostics.ProgressMessengers
+using Printf
 
-walltime_per_timestep = StepDuration() # This needs to be instantiated here, and not in the function below
-progress(simulation) = @info (PercentageProgress(with_prefix=false, with_units=false) + SimulationTime() + TimeStep() + MaxVelocities() + AdvectiveCFLNumber() + walltime_per_timestep)(simulation)
-simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
+start_time = time_ns()
+progress(sim) = @printf("i: % 6d, sim time: % 10s, wall time: % 10s, Δt: % 10s, CFL: %.2e\n",
+                        sim.model.clock.iteration, prettytime(sim.model.clock.time),
+                        prettytime(1e-9 * (time_ns() - start_time)), prettytime(sim.Δt),
+                        AdvectiveCFL(sim.Δt)(sim.model))
 
-# ## Diagnostics
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(10))
+
+# ## Output
 #
-# The signature of baroclinic instability is the release of available potential energy into eddy
-# kinetic energy. We track that conversion with three Oceanostics diagnostics, all computed from the
-# resolved _perturbation_ fields (the background fields are excluded, since `model.velocities` and
-# `model.tracers.b` hold only the perturbations):
-#
-# - the eddy kinetic energy `KineticEnergy`,
-# - the buoyancy production `BuoyancyProduction`, i.e. the vertical buoyancy flux ``w'b'`` that
-#   converts potential to kinetic energy and appears as a source in the kinetic-energy budget,
-# - and the perturbation potential energy `PotentialEnergy` ``= -b'z``, which reflects the available
-#   potential energy released as the front slumps.
-#
-# We volume-integrate each one so we can follow the domain-wide energy budget in time:
+# We save the vertical vorticity `ζ = ∂v/∂x - ∂u/∂y` and the horizontal divergence `δ = -∂w/∂z` every
+# few hours:
 
-using Oceanostics.KineticEnergyEquation: KineticEnergy, BuoyancyProduction
-using Oceanostics.PotentialEnergyEquation: PotentialEnergy
+u, v, w = model.velocities
+ζ = ∂x(v) - ∂y(u)
+δ = -∂z(w)
 
-∫KE = Integral(KineticEnergy(model))
-∫wb = Integral(BuoyancyProduction(model))
-∫PE = Integral(PotentialEnergy(model))
-
-# For visualization we also keep two surface fields: the perturbation buoyancy `b'` and the vertical
-# vorticity `ζ = ∂v/∂x - ∂u/∂y`, which highlights the developing eddies and filaments.
-
-b′ = model.tracers.b
-ζ  = ∂x(model.velocities.v) - ∂y(model.velocities.u)
-
-# We write the volume integrals and the surface fields to two separate NetCDF files, since the
-# surface fields need a horizontal slice (`indices`) that does not apply to the scalar integrals:
-
-using NCDatasets
-
-simulation.output_writers[:energetics] =
-    NetCDFWriter(model, (; KE=∫KE, PE=∫PE, wb=∫wb),
-                 filename = joinpath(@__DIR__, "eady_energetics.nc"),
-                 schedule = TimeInterval(1hour),
-                 overwrite_existing = true)
-
-simulation.output_writers[:surface] =
-    NetCDFWriter(model, (; b=b′, ζ),
-                 filename = joinpath(@__DIR__, "eady_surface.nc"),
-                 schedule = TimeInterval(2hours),
-                 indices = (:, :, grid.Nz),
-                 overwrite_existing = true)
+filename = joinpath(@__DIR__, "eady_baroclinic_instability.jld2")
+simulation.output_writers[:fields] =
+    JLD2Writer(model, (; ζ, δ),
+               schedule = TimeInterval(4hours),
+               filename = filename,
+               overwrite_existing = true)
 
 # ## Run the simulation and process results
 #
@@ -216,77 +143,51 @@ simulation.output_writers[:surface] =
 
 run!(simulation)
 
-# We now read the results back with NCDatasets:
-
-ds_s = NCDataset(simulation.output_writers[:surface].filepath)
-ds_e = NCDataset(simulation.output_writers[:energetics].filepath)
-
-times   = ds_s["time"][:] # surface-snapshot times, used for the animation frames
-times_e = ds_e["time"][:] # energetics times, sampled more frequently
-
-x_caa = ds_s["x_caa"][:]; y_aca = ds_s["y_aca"][:] # buoyancy at (Center, Center)
-x_faa = ds_s["x_faa"][:]; y_afa = ds_s["y_afa"][:] # vorticity at (Face, Face)
-
-KE = ds_e["KE"][:]
-PE = ds_e["PE"][:]
-wb = ds_e["wb"][:]
-
-# We build a figure with the two surface fields on top and the energy budget below:
+# We read the vorticity and divergence back as `FieldTimeSeries`:
 
 using CairoMakie
 
+ζ_timeseries = FieldTimeSeries(filename, "ζ")
+δ_timeseries = FieldTimeSeries(filename, "δ")
+
+times = ζ_timeseries.times
+xζ, yζ, zζ = nodes(ζ_timeseries)
+xδ, yδ, zδ = nodes(δ_timeseries)
+
+k = grid.Nz # surface level
+
+ζmax = maximum(abs, interior(ζ_timeseries))
+δmax = maximum(abs, interior(δ_timeseries))
+
+# We now build the figure and animate the surface fields over time:
+
 set_theme!(Theme(fontsize = 18))
-fig = Figure(size = (900, 850))
+fig = Figure(size = (1100, 560))
 
 n = Observable(1)
 
-## Surface perturbation buoyancy (the retained singleton z-dimension needs the extra index)
-axb = Axis(fig[2, 1]; title = "surface b′", xlabel="x [m]", ylabel="y [m]", aspect=1)
-bₙ = @lift ds_s["b"][:, :, 1, $n]
-blim = @lift maximum(abs, ds_s["b"][:, :, 1, $n]) + eps()
-hmb = heatmap!(axb, x_caa, y_aca, bₙ; colormap = :balance, colorrange = @lift((-$blim, $blim)))
-Colorbar(fig[2, 2], hmb)
+axζ = Axis(fig[2, 1]; title = "vertical vorticity, ζ", xlabel="x [km]", ylabel="y [km]", aspect=1)
+axδ = Axis(fig[2, 3]; title = "horizontal divergence, δ", xlabel="x [km]", ylabel="y [km]", aspect=1)
 
-## Surface Rossby number ζ/f
-axζ = Axis(fig[2, 3]; title = "surface ζ / f", xlabel="x [m]", ylabel="y [m]", aspect=1)
-ζₙ = @lift ds_s["ζ"][:, :, 1, $n] ./ f₀
-hmζ = heatmap!(axζ, x_faa, y_afa, ζₙ; colormap = :curl, colorrange = (-3, +3))
-Colorbar(fig[2, 4], hmζ)
+ζₙ = @lift interior(ζ_timeseries[$n])[:, :, k]
+δₙ = @lift interior(δ_timeseries[$n])[:, :, k]
 
-## Energy budget time series
-axKE = Axis(fig[3, 1:4]; xlabel="time [days]", ylabel="∫KE, ∫PE − ∫PE₀ [m⁵ s⁻²]")
-lines!(axKE, times_e ./ day, KE,           label = "∫KE dV (eddy kinetic energy)")
-lines!(axKE, times_e ./ day, PE .- PE[1],  label = "∫PE dV − ∫PE₀ (released potential energy)")
-axislegend(axKE, position=:lt, labelsize=13)
+hmζ = heatmap!(axζ, xζ ./ 1e3, yζ ./ 1e3, ζₙ; colormap = :balance, colorrange = (-ζmax, ζmax))
+Colorbar(fig[2, 2], hmζ)
 
-axwb = Axis(fig[4, 1:4]; xlabel="time [days]", ylabel="∫w′b′ dV [m⁵ s⁻³]")
-lines!(axwb, times_e ./ day, wb, color=:purple, label = "∫w′b′ dV (buoyancy production)")
-axislegend(axwb, position=:lt, labelsize=13)
+hmδ = heatmap!(axδ, xδ ./ 1e3, yδ ./ 1e3, δₙ; colormap = :balance, colorrange = (-δmax, δmax))
+Colorbar(fig[2, 4], hmδ)
 
-## Moving time markers
-for ax in (axKE, axwb)
-    vlines!(ax, @lift(times[$n] / day), color=:black, linestyle=:dash)
-end
-
-title = @lift "Eady baroclinic instability, t = " * string(prettytime(times[$n]))
+title = @lift "Eady turbulence, t = " * prettytime(times[$n])
 fig[1, 1:4] = Label(fig, title, fontsize=22, tellwidth=false)
-
-# Finally we record the movie:
 
 @info "Animating..."
 record(fig, "eady_baroclinic_instability.mp4", 1:length(times), framerate=12) do i
     n[] = i
 end
 
-close(ds_s)
-close(ds_e)
-
 # ![](eady_baroclinic_instability.mp4)
 #
-# The surface panels show the front breaking up into a train of submesoscale eddies and filaments,
-# with vertical vorticity reaching order-`f` values (Rossby numbers of order one) as the instability
-# saturates. The lower panels tell the energetic story: the perturbation potential energy is drawn
-# down (the front slumps and restratifies) while the eddy kinetic energy grows, and the buoyancy
-# production `∫w'b' dV` stays positive throughout. Buoyant fluid rises and dense fluid sinks, which
-# is exactly the conversion of available potential energy into eddy kinetic energy that defines
-# baroclinic instability.
+# As the front becomes baroclinically unstable it rolls up into a field of mesoscale eddies, with the
+# vertical vorticity organizing into cyclonic and anticyclonic patches and the horizontal divergence
+# marking the frontogenetic regions between them.
