@@ -3,14 +3,16 @@
 # This example simulates the [Eady problem](https://en.wikipedia.org/wiki/Eady_model): the
 # baroclinic instability of a uniformly stratified, uniformly sheared flow held in thermal-wind
 # balance on an ``f``-plane. It is the canonical model for the baroclinic instability that fills the
-# ocean and atmosphere with mesoscale and submesoscale eddies. Here we solve it in three dimensions
-# as a large-eddy simulation (LES) with a `DynamicSmagorinsky` closure, and use Oceanostics to
-# diagnose the energy conversion that powers the instability: available potential energy stored in
-# the tilted background buoyancy field is released and converted into eddy kinetic energy.
+# ocean and atmosphere with eddies. The setup follows the classic
+# [Eady turbulence example](https://numericalearth.github.io/OceananigansMuseum/stable/generated/eady_turbulence/),
+# scaled down to a submesoscale large-eddy simulation (LES) with a `DynamicSmagorinsky` closure, and
+# uses Oceanostics to diagnose the energy conversion that powers the instability: available potential
+# energy stored in the tilted background buoyancy field is released and converted into eddy kinetic
+# energy.
 #
-# This is a heavier, three-dimensional example. It is meant to be run on its own (ideally on a GPU)
-# rather than as part of the lightweight documentation build, and the resolution and run length
-# below can be reduced for a quicker look.
+# This is a three-dimensional LES, so it is heavier than the other examples, but it is sized to
+# finish in a reasonable time. The resolution (`Nx, Ny, Nz`) and the `stop_time` below are the main
+# cost knobs and can be reduced for a quicker look or increased for a more resolved run.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -23,32 +25,36 @@
 # ## The background state
 #
 # We work in dimensional (SI) units. The domain is doubly periodic in the horizontal, with `x` the
-# along-front direction and `y` the cross-front direction, and bounded in the vertical `z`. The
-# background state consists of a uniform stratification `N²`, a uniform cross-front buoyancy gradient
-# `M²`, and a geostrophic velocity `U(z)` in thermal-wind balance with them:
+# along-front direction and `y` the cross-front direction, and bounded in the vertical `z`. Following
+# the classic Eady setup, the background state is parameterized by the Coriolis frequency `f`, the
+# buoyancy frequency `N`, and the geostrophic shear `α = ∂U/∂z`. The background velocity and buoyancy
+# are then
 #
 # ```math
-# B(y, z) = N² z + M² y, \qquad f \, \frac{\partial U}{\partial z} = -\frac{\partial B}{\partial y} = -M².
+# U(z) = α \left(z + \tfrac{H}{2}\right), \qquad B(y, z) = -α f \, y + N² z,
 # ```
 #
-# We pick a weakly stratified, submesoscale-front regime so that the deformation radius stays small
-# enough to fit inside a domain we can resolve in three dimensions:
+# which are in thermal-wind balance, ``f\,\partial_z U = -\partial_y B = α f``. We pick a weakly
+# stratified, submesoscale-front regime so that the deformation radius stays small enough to resolve
+# in three dimensions:
 
 using Oceananigans
 using Oceananigans.Units
 
-f₀ = 1e-4     # [s⁻¹]   Coriolis frequency
-N² = 1e-6     # [s⁻²]   background (vertical) buoyancy gradient
-M² = 1e-7     # [s⁻²]   cross-front (horizontal) buoyancy gradient
+f₀ = 1e-4      # [s⁻¹] Coriolis frequency
+α  = 10 * f₀   # [s⁻¹] geostrophic shear ∂U/∂z
+N  = 1e-3      # [s⁻¹] buoyancy frequency
+H  = 50        # [m]   depth
 
-# From these we can form the geostrophic shear `Λ = M²/f`, the deformation radius `Lᵈ = N H / f`,
-# and the wavelength of the fastest-growing Eady mode `λ ≈ 3.9 Lᵈ`, which sets a natural horizontal
-# size for the domain:
+coriolis = FPlane(f = f₀)
 
-H  = 50        # [m] depth
-Λ  = M² / f₀   # [s⁻¹] thermal-wind shear ∂U/∂z
-Ld = sqrt(N²) * H / f₀       # deformation radius
-λ  = 3.9 * Ld                # fastest-growing Eady wavelength
+# From these we can form the cross-front buoyancy gradient `M² = α f`, the deformation radius
+# `Lᵈ = N H / f`, and the wavelength of the fastest-growing Eady mode `λ ≈ 3.9 Lᵈ`, which sets a
+# natural horizontal size for the domain:
+
+M² = α * f₀              # cross-front buoyancy gradient ∂B/∂y (magnitude)
+Ld = N * H / f₀          # deformation radius
+λ  = 3.9 * Ld            # fastest-growing Eady wavelength
 
 @info "Deformation radius Lᵈ ≈ $(round(Ld)) m, fastest Eady wavelength λ ≈ $(round(λ)) m"
 
@@ -61,11 +67,11 @@ Ld = sqrt(N²) * H / f₀       # deformation radius
 # grid faces near the surface.
 
 Lx = Ly = 2000meters
-Nx = Ny = 128
-Nz = 48
+Nx = Ny = 64
+Nz = 32
 
-refinement = 1.5   # controls spacing near the surface (higher means finer near the surface)
-stretching = 6.0   # controls how quickly the spacing coarsens toward the bottom
+refinement = 1.2   # controls spacing near the surface (higher means finer near the surface)
+stretching = 5.0   # controls how quickly the spacing coarsens toward the bottom
 
 ## Normalized reference height, 0 at the bottom and 1 at the surface
 h(k) = (k - 1) / Nz
@@ -84,33 +90,26 @@ grid = RectilinearGrid(topology = (Periodic, Periodic, Bounded), size = (Nx, Ny,
 
 # ## Background fields
 #
-# The cross-front buoyancy gradient `M² y` is not periodic in `y`, so, just like the constant
+# The cross-front buoyancy gradient `-α f y` is not periodic in `y`, so, just like the constant
 # stratification in the [Tilted bottom boundary layer example](@ref), we cannot set it directly on
 # the periodic grid. Instead we impose the full background buoyancy and the geostrophic shear as
-# `BackgroundField`s and evolve only the periodic _perturbations_ away from them. We center `U(z)` so
-# that its vertical average vanishes, which keeps the advective time step small.
+# `BackgroundField`s and evolve only the periodic _perturbations_ away from them.
 
-@inline B_background(x, y, z, t, p) = p.N² * z + p.M² * y
-@inline U_background(x, y, z, t, p) = -p.Λ * (z + p.H / 2)
+@inline U_background(x, y, z, t, p) = p.α * (z + p.H / 2)
+@inline B_background(x, y, z, t, p) = - p.α * p.f * y + p.N^2 * z
 
-B_field = BackgroundField(B_background, parameters=(; N², M²))
-U_field = BackgroundField(U_background, parameters=(; Λ, H))
+background_parameters = (; α, f = f₀, N, H)
+U_field = BackgroundField(U_background, parameters=background_parameters)
+B_field = BackgroundField(B_background, parameters=background_parameters)
 
-# ## Coriolis and closure
+# ## Closure and model
 #
-# We use a traditional `FPlane` and a `DynamicSmagorinsky` closure. `DynamicSmagorinsky` computes the
-# Smagorinsky coefficient dynamically from the resolved flow rather than fixing it a priori; here we
-# use its default `LagrangianAveraging`, which averages the coefficient along Lagrangian trajectories
-# and so makes no assumption of statistical homogeneity.
+# We keep the LES closure of the original example: a `DynamicSmagorinsky`, which computes the
+# Smagorinsky coefficient dynamically from the resolved flow rather than fixing it a priori (here
+# with its default `LagrangianAveraging`). We assemble a `NonhydrostaticModel` with a `WENO`
+# advection scheme, the buoyancy `b` as the active tracer, and the background fields defined above.
 
-coriolis = FPlane(f = f₀)
 closure = DynamicSmagorinsky()
-
-# ## Model and initial condition
-#
-# We assemble a `NonhydrostaticModel` with a `WENO` advection scheme, the buoyancy `b` as the active
-# tracer, and the background fields defined above. We then seed the flow with small-amplitude random
-# noise on the velocities to trigger the instability, using a fixed seed for reproducibility.
 
 model = NonhydrostaticModel(grid; coriolis, closure,
                             timestepper = :RungeKutta3,
@@ -118,22 +117,44 @@ model = NonhydrostaticModel(grid; coriolis, closure,
                             buoyancy = BuoyancyTracer(), tracers = :b,
                             background_fields = (; u = U_field, b = B_field))
 
+# ## Initial condition
+#
+# We seed the instability with small-amplitude random noise, damped toward the top and bottom
+# boundaries so the perturbation projects onto interior modes, and then remove any net horizontal-mean
+# velocity that the noise introduces. We use a fixed seed for reproducibility.
+
 using Random
+using Statistics: mean
 Random.seed!(43)
 
-uᵢ(x, y, z) = 1e-3 * randn()
-set!(model, u=uᵢ, v=uᵢ, w=uᵢ)
+Ξ(z) = randn() * (z / H) * (z / H + 1) # random noise that vanishes at z = 0 and z = -H
+
+Ũ = 1e-1 * α * H    # velocity-noise amplitude
+B̃ = 1e-2 * α * f₀   # buoyancy-noise amplitude
+
+uᵢ(x, y, z) = Ũ * Ξ(z)
+bᵢ(x, y, z) = B̃ * Ξ(z)
+
+set!(model, u=uᵢ, v=uᵢ, b=bᵢ)
+
+parent(model.velocities.u) .-= mean(interior(model.velocities.u))
+parent(model.velocities.v) .-= mean(interior(model.velocities.v))
 
 # ## Simulation
 #
-# We set the initial time step from the finest vertical spacing and the geostrophic velocity scale,
-# and let a `TimeStepWizard` adapt it as the eddies spin up:
+# We start from a conservative time step and let a `TimeStepWizard` adapt it as the eddies spin up.
+# Two subtleties matter here. First, the wizard's advective CFL only sees the resolved (perturbation)
+# velocities, so we cap the step ourselves from the background advective CFL, using the along-front
+# grid spacing and the peak geostrophic velocity. Second, the `DynamicSmagorinsky` eddy viscosity
+# grows sharply in the thin near-surface cells once the eddies saturate, so we also enforce a
+# `diffusive_cfl`; without it the vertical diffusion would go unstable at these step sizes.
 
-Umax = Λ * H / 2   # magnitude of the background surface velocity
-simulation = Simulation(model, Δt = 0.2 * minimum_zspacing(grid) / Umax, stop_time = 8days)
+Ū = α * H                                     # peak background (geostrophic) velocity
+max_Δt = 0.2 * minimum_xspacing(grid) / Ū     # keep the background advective CFL small
+simulation = Simulation(model, Δt = 0.1 * max_Δt, stop_time = 6days)
 
-wizard = TimeStepWizard(cfl=0.7, max_change=1.1, max_Δt=1minute)
-simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(4))
+wizard = TimeStepWizard(cfl=0.7, diffusive_cfl=0.5, max_change=1.1, max_Δt=max_Δt)
+simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(10))
 
 # We report progress with a custom messenger built from `Oceanostics.ProgressMessengers`:
 
