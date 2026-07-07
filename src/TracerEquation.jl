@@ -8,7 +8,7 @@ using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffu
 
 using Oceanostics: validate_location, CustomKFO
 
-export Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, Forcing,
+export Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, DiffusiveFluxX, DiffusiveFluxY, DiffusiveFluxZ, Forcing,
        TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, 
        TracerDiffusiveFluxX, TracerDiffusiveFluxY, TracerDiffusiveFluxZ, TracerForcing
 

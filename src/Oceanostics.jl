@@ -10,7 +10,8 @@ export TracerEquation, KineticEnergyEquation, FilteredKineticEnergyEquation, Sub
 #---
 
 #+++ TracerEquation exports
-export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing
+export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing,
+       TracerDiffusiveFluxX, TracerDiffusiveFluxY,TracerDiffusiveFluxZ
 #---
 
 #+++ UMomentumEquation exports
@@ -311,6 +312,9 @@ end
 @diagnostic_show TracerEquation.Diffusion         "TracerDiffusion"          "tracer diffusion (interior)  ∂ⱼqᶜⱼ"
 @diagnostic_show TracerEquation.ImmersedDiffusion "TracerImmersedDiffusion"  "tracer diffusion through immersed boundaries  ∂ⱼ𝓆ᶜⱼ"
 @diagnostic_show TracerEquation.TotalDiffusion    "TracerTotalDiffusion"     "total tracer diffusion (interior + immersed)  ∂ⱼqᶜⱼ + ∂ⱼ𝓆ᶜⱼ"
+@diagnostic_show TracerEquation.DiffusiveFluxX    "TracerDiffusiveFluxX"     "subgrid tracer diffusion in x determined by the configured closure"
+@diagnostic_show TracerEquation.DiffusiveFluxY    "TracerDiffusiveFluxY"     "subgrid tracer diffusion in y determined by the configured closure"
+@diagnostic_show TracerEquation.DiffusiveFluxZ    "TracerDiffusiveFluxZ"     "subgrid tracer diffusion in z determined by the configured closure"
 #---
 
 #+++ UMomentumEquation
