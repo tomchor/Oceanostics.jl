@@ -116,43 +116,43 @@ function test_tracer_terms(model)
 end
 
 function test_subgrid_tracer_fluxes(model)
-    DIFF_FLUX = TracerEquation.DiffusiveFluxX(model, model.grid, model.closure, model.closure_fields, 
+    DIFF_FLUX = TracerEquation.XDiffusiveFlux(model, model.grid, model.closure, model.closure_fields, 
                                     Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
     DIFF_FLUX_field = Field(DIFF_FLUX)
-    @test DIFF_FLUX isa TracerEquation.DiffusiveFluxX
-    @test DIFF_FLUX isa TracerDiffusiveFluxX
+    @test DIFF_FLUX isa TracerEquation.XDiffusiveFlux
+    @test DIFF_FLUX isa TracerXDiffusiveFlux
     @test DIFF_FLUX_field isa Field
 
-    DIFF_FLUX = TracerEquation.DiffusiveFluxX(model, :a)
+    DIFF_FLUX = TracerEquation.XDiffusiveFlux(model, :a)
     DIFF_FLUX_field = Field(DIFF_FLUX)
-    @test DIFF_FLUX isa TracerEquation.DiffusiveFluxX
-    @test DIFF_FLUX isa TracerDiffusiveFluxX
+    @test DIFF_FLUX isa TracerEquation.XDiffusiveFlux
+    @test DIFF_FLUX isa TracerXDiffusiveFlux
     @test DIFF_FLUX_field isa Field
     
-    DIFF_FLUX = TracerEquation.DiffusiveFluxY(model, model.grid, model.closure, model.closure_fields, 
+    DIFF_FLUX = TracerEquation.YDiffusiveFlux(model, model.grid, model.closure, model.closure_fields, 
                                     Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
     DIFF_FLUX_field = Field(DIFF_FLUX)
-    @test DIFF_FLUX isa TracerEquation.DiffusiveFluxY
-    @test DIFF_FLUX isa TracerDiffusiveFluxY
+    @test DIFF_FLUX isa TracerEquation.YDiffusiveFlux
+    @test DIFF_FLUX isa TracerYDiffusiveFlux
     @test DIFF_FLUX_field isa Field
 
-    DIFF_FLUX = TracerEquation.DiffusiveFluxY(model, :a)
+    DIFF_FLUX = TracerEquation.YDiffusiveFlux(model, :a)
     DIFF_FLUX_field = Field(DIFF_FLUX)
-    @test DIFF_FLUX isa TracerEquation.DiffusiveFluxY
-    @test DIFF_FLUX isa TracerDiffusiveFluxY
+    @test DIFF_FLUX isa TracerEquation.YDiffusiveFlux
+    @test DIFF_FLUX isa TracerYDiffusiveFlux
     @test DIFF_FLUX_field isa Field
 
-    DIFF_FLUX = TracerEquation.DiffusiveFluxZ(model, model.grid, model.closure, model.closure_fields, 
+    DIFF_FLUX = TracerEquation.ZDiffusiveFlux(model, model.grid, model.closure, model.closure_fields, 
                                     Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
     DIFF_FLUX_field = Field(DIFF_FLUX)
-    @test DIFF_FLUX isa TracerEquation.DiffusiveFluxZ
-    @test DIFF_FLUX isa TracerDiffusiveFluxZ
+    @test DIFF_FLUX isa TracerEquation.ZDiffusiveFlux
+    @test DIFF_FLUX isa TracerZDiffusiveFlux
     @test DIFF_FLUX_field isa Field
 
-    DIFF_FLUX = TracerEquation.DiffusiveFluxZ(model, :a)
+    DIFF_FLUX = TracerEquation.ZDiffusiveFlux(model, :a)
     DIFF_FLUX_field = Field(DIFF_FLUX)
-    @test DIFF_FLUX isa TracerEquation.DiffusiveFluxZ
-    @test DIFF_FLUX isa TracerDiffusiveFluxZ
+    @test DIFF_FLUX isa TracerEquation.ZDiffusiveFlux
+    @test DIFF_FLUX isa TracerZDiffusiveFlux
     @test DIFF_FLUX_field isa Field
 
     return nothing
