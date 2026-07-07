@@ -14,48 +14,69 @@
 # pkg"add Oceananigans, CairoMakie"
 # ```
 
-# ## The grid
-#
-# We use a mesoscale-resolving grid: 48 × 48 × 16 points spanning a 1000 km × 1000 km horizontal
-# domain and a 4 km deep ocean, periodic in the horizontal and bounded in the vertical.
-
 using Oceananigans
 using Oceananigans.Units
 
-grid = RectilinearGrid(size = (48, 48, 16), x = (0, 1e6), y = (0, 1e6), z = (-4e3, 0),
-                       topology = (Periodic, Periodic, Bounded))
-
-Δx = minimum_xspacing(grid)
-
-# ## The background state
+# ## Parameters
 #
-# The flow is set up on an ``f``-plane and the background state is parameterized by the Coriolis
-# frequency `f`, the buoyancy frequency `N`, and the geostrophic shear `α = ∂U/∂z`:
+# We collect all the primitive parameters of the problem up front, before constructing anything.
 
-coriolis = FPlane(f = 1e-4) # [s⁻¹]
+## Domain size
+Lx = Ly = 1e6   # [m]   horizontal extent (1000 km)
+H  = 4e3        # [m]   depth
 
-basic_state_parameters = (α  = 10 * coriolis.f,  # [s⁻¹] geostrophic shear
-                          f  = coriolis.f,       # [s⁻¹] Coriolis parameter
-                          N  = 1e-3,             # [s⁻¹] buoyancy frequency
-                          Lz = grid.Lz)          # [m]   ocean depth
+## Physical parameters
+f = 1e-4        # [s⁻¹] Coriolis frequency
+α = 10 * f      # [s⁻¹] geostrophic shear ∂U/∂z
+N = 1e-3        # [s⁻¹] buoyancy frequency
 
-# The background velocity increases linearly with height, and the background buoyancy combines the
-# geostrophic (cross-front) component with a stable stratification. They are in thermal-wind balance,
-# ``f\,\partial_z U = -\partial_y B``:
+# ## Derived dynamical quantities
+#
+# From those parameters we can form the quantities that characterize the flow: the cross-front and
+# vertical buoyancy gradients, the deformation radius `Ld = N H / f`, the wavelength of the
+# fastest-growing Eady mode `λ ≈ 3.9 Ld`, the balanced Richardson number `Ri = N²/α²`, the
+# thermal-wind velocity scale `Ū = α H`, and the maximum Eady growth rate `σ ≈ 0.31 M²/N`.
 
-U(x, y, z, t, p) = + p.α * (z + p.Lz)
+M² = α * f          # [s⁻²]   cross-front buoyancy gradient |∂B/∂y|
+N² = N^2            # [s⁻²]   vertical buoyancy gradient
+Ld = N * H / f      # [m]     first baroclinic deformation radius
+λ  = 3.9 * Ld       # [m]     wavelength of the fastest-growing Eady mode
+Ri = N² / α^2       # []      balanced Richardson number
+Ū  = α * H          # [m s⁻¹] peak background (thermal-wind) velocity
+σ  = 0.31 * M² / N  # [s⁻¹]   maximum Eady growth rate
+
+@info "Deformation radius Ld = $(round(Ld/1e3, digits=1)) km, fastest Eady wavelength λ = $(round(λ/1e3, digits=1)) km"
+@info "Balanced Richardson number Ri = $(round(Ri, digits=2)), thermal-wind velocity Ū = $(round(Ū, digits=3)) m/s, Eady growth time 1/σ = $(prettytime(1/σ))"
+
+# ## Grid
+#
+# We use a mesoscale-resolving grid, periodic in the horizontal and bounded in the vertical:
+
+grid = RectilinearGrid(size = (48, 48, 16), extent = (Lx, Ly, H))
+
+# ## Coriolis and background state
+#
+# The flow is set up on an ``f``-plane. The background velocity increases linearly with height, and
+# the background buoyancy combines the geostrophic (cross-front) component with a stable
+# stratification. They are in thermal-wind balance, ``f\,\partial_z U = -\partial_y B``:
+
+coriolis = FPlane(f = f)
+
+U(x, y, z, t, p) = + p.α * (z + p.H)
 B(x, y, z, t, p) = - p.α * p.f * y + p.N^2 * z
 
-U_field = BackgroundField(U, parameters=basic_state_parameters)
-B_field = BackgroundField(B, parameters=basic_state_parameters)
+background_parameters = (; α, f, N, H)
+U_field = BackgroundField(U, parameters=background_parameters)
+B_field = BackgroundField(B, parameters=background_parameters)
 
 # ## Turbulence closures
 #
 # We dissipate variance with a Laplacian vertical diffusivity and a biharmonic horizontal
 # diffusivity, applied simultaneously as a tuple of two closures:
 
-κ₂z = 1e-2                       # [m² s⁻¹] Laplacian vertical viscosity and diffusivity
-κ₄h = 1e-1 / day * Δx^4          # [m⁴ s⁻¹] biharmonic horizontal viscosity and diffusivity
+Δx = minimum_xspacing(grid)
+κ₂z = 1e-2                # [m² s⁻¹] Laplacian vertical viscosity and diffusivity
+κ₄h = 1e-1 / day * Δx^4   # [m⁴ s⁻¹] biharmonic horizontal viscosity and diffusivity
 
 vertical_diffusivity   = VerticalScalarDiffusivity(ν=κ₂z, κ=κ₂z)
 biharmonic_diffusivity = HorizontalScalarBiharmonicDiffusivity(ν=κ₄h, κ=κ₄h)
@@ -81,10 +102,10 @@ model = NonhydrostaticModel(grid;
 # boundaries so it projects onto interior modes, and then remove any net horizontal-mean velocity the
 # noise introduces:
 
-Ξ(z) = randn() * z / grid.Lz * (z / grid.Lz + 1) # noise that vanishes at z = 0 and z = -Lz
+Ξ(z) = randn() * z / H * (z / H + 1) # noise that vanishes at z = 0 and z = -H
 
-Ũ = 1e-1 * basic_state_parameters.α * grid.Lz    # velocity-noise amplitude
-B̃ = 1e-2 * basic_state_parameters.α * coriolis.f # buoyancy-noise amplitude
+Ũ = 1e-1 * α * H   # velocity-noise amplitude
+B̃ = 1e-2 * α * f   # buoyancy-noise amplitude
 
 uᵢ(x, y, z) = Ũ * Ξ(z)
 vᵢ(x, y, z) = Ũ * Ξ(z)
@@ -101,10 +122,9 @@ parent(model.velocities.v) .-= mean(interior(model.velocities.v))
 # The initial time step is set from the most restrictive of the advective and diffusive limits, and a
 # `TimeStepWizard` adapts it as the eddies spin up:
 
-Ū = basic_state_parameters.α * grid.Lz
-max_Δt = min(Δx / Ū, Δx^4 / κ₄h, Δx^2 / κ₂z, 1 / basic_state_parameters.N)
+max_Δt = min(Δx / Ū, Δx^4 / κ₄h, Δx^2 / κ₂z, 1 / N)
 
-simulation = Simulation(model, Δt = max_Δt, stop_time = 8days)
+simulation = Simulation(model, Δt = max_Δt, stop_time = 16days)
 
 wizard = TimeStepWizard(cfl=0.85, max_change=1.1, max_Δt=max_Δt)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(10))
