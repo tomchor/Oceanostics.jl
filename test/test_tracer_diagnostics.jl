@@ -100,6 +100,22 @@ function test_tracer_terms(model)
     @test DIFF isa TracerTotalDiffusion
     @test DIFF_field isa Field
 
+    FORC = TracerEquation.Forcing(model, model.forcing.a, model.clock, fields(model))
+    FORC_field = Field(FORC)
+    @test FORC isa TracerEquation.Forcing
+    @test FORC isa TracerForcing
+    @test FORC_field isa Field
+
+    FORC = TracerEquation.Forcing(model, :a)
+    FORC_field = Field(FORC)
+    @test FORC isa TracerEquation.Forcing
+    @test FORC isa TracerForcing
+    @test FORC_field isa Field
+
+    return nothing
+end
+
+function test_subgrid_tracer_fluxes(model)
     DIFF_FLUX = TracerEquation.DiffusiveFluxX(model, model.grid, model.closure, model.closure_fields, 
                                     Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
     DIFF_FLUX_field = Field(DIFF_FLUX)
@@ -139,18 +155,6 @@ function test_tracer_terms(model)
     @test DIFF_FLUX isa TracerDiffusiveFluxZ
     @test DIFF_FLUX_field isa Field
 
-    FORC = TracerEquation.Forcing(model, model.forcing.a, model.clock, fields(model))
-    FORC_field = Field(FORC)
-    @test FORC isa TracerEquation.Forcing
-    @test FORC isa TracerForcing
-    @test FORC_field isa Field
-
-    FORC = TracerEquation.Forcing(model, :a)
-    FORC_field = Field(FORC)
-    @test FORC isa TracerEquation.Forcing
-    @test FORC isa TracerForcing
-    @test FORC_field isa Field
-
     return nothing
 end
 #---
@@ -165,6 +169,12 @@ end
 
             @info "        Testing tracer terms"
             test_tracer_terms(model)
+
+            closure = ScalarDiffusivity()
+            model = model_type(grid; closure, model_kwargs...)
+
+            @info "        Testing subgrid tracer fluxes"
+            test_subgrid_tracer_fluxes(model)
         end
     end
 end
