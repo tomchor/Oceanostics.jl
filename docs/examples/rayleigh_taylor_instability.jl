@@ -43,13 +43,9 @@ grid = RectilinearGrid(size=(N, N, N), x=(-H/2, H/2), y=(-H/2, H/2), z=(-H/2, H/
 # ## Closure
 #
 # Rayleigh-Taylor mixing is fully three-dimensional and turbulent, so we model the unresolved motions
-# with a `DynamicSmagorinsky` closure: a Smagorinsky eddy viscosity whose coefficient is computed on
-# the fly from the resolved flow with the dynamic (Germano) procedure, rather than tuned by hand. The
-# flow is statistically homogeneous in the two horizontal directions, so we average the dynamic
-# coefficient over horizontal planes (`averaging = (1, 2)`), which yields a stable, depth-dependent
-# eddy viscosity:
+# with a Large Eddy Simulation (LES) closure:
 
-closure = DynamicSmagorinsky(averaging=(1, 2))
+closure = SmagorinskyLilly(C=0.3)
 
 # We build a `NonhydrostaticModel` with a fourth-order centered advection scheme, a third-order
 # Runge-Kutta timestepper, and a buoyancy `b` as the active tracer. A centered scheme conserves kinetic
@@ -60,7 +56,7 @@ closure = DynamicSmagorinsky(averaging=(1, 2))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = Centered(order=4),
-                            closure = closure,
+                            closure,
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
 # ## Initial condition
@@ -89,7 +85,7 @@ set!(model, b=bᵢ)
 # layer accelerates:
 
 Δx = minimum_xspacing(grid)
-simulation = Simulation(model, Δt = 0.1 * Δx / U, stop_time = 6τ)
+simulation = Simulation(model, Δt = 0.1 * Δx / U, stop_time = 10τ)
 
 wizard = TimeStepWizard(cfl=0.7, max_change=1.1)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
@@ -241,8 +237,8 @@ n = Observable(1)
 axb = Axis(fig[2, 1]; title="buoyancy, b", xlabel="x", ylabel="z", aspect=1)
 axΠ = Axis(fig[2, 3]; title="cross-scale KE flux, Πₖ", xlabel="x", ylabel="z", aspect=1)
 
-blim = maximum(abs, b_arr)
-Πlim = maximum(abs, Π_arr)
+blim = 0.8 * maximum(abs, b_arr[:, :, 1])
+Πlim = 0.8 * maximum(abs, Π_arr[:, :, end])
 
 bₙ = @lift b_arr[:, :, $n]
 Πₙ = @lift Π_arr[:, :, $n]
