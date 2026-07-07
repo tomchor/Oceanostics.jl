@@ -212,15 +212,15 @@ TracerXDiffusiveFlux KernelFunctionOperation at (Face, Center, Center)
 └── computes: sub-grid diffusive flux given by the configured closure
 ```
 """
-function XDiffusiveFlux(model, grid, closure, closure_fields, val_tracer_index, tracer, clock, model_fields, buoyancy; location = (Face, Center, Center))
+function XDiffusiveFlux(model, val_tracer_index, tracer; location = (Face, Center, Center))
     validate_location(location, "XDiffusiveFlux", (Face, Center, Center))
-    return KernelFunctionOperation{Face, Center, Center}(diffusive_flux_x, grid, closure, closure_fields, val_tracer_index, tracer, clock, model_fields, buoyancy)
+    return KernelFunctionOperation{Face, Center, Center}(diffusive_flux_x, model.grid, model.closure, model.closure_fields, val_tracer_index, tracer, model.clock, fields(model), model.buoyancy)
 end
 
 function XDiffusiveFlux(model, tracer_name; kwargs...)
     tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
     @inbounds tracer = model.tracers[tracer_name]
-    return XDiffusiveFlux(model, model.grid, model.closure, model.closure_fields, Val(tracer_index), tracer, model.clock, fields(model), model.buoyancy; kwargs...)
+    return XDiffusiveFlux(model, Val(tracer_index), tracer; kwargs...)
 end
 
 """
@@ -246,15 +246,15 @@ TracerYDiffusiveFlux KernelFunctionOperation at (Center, Face, Center)
 └── computes: sub-grid diffusive flux given by the configured closure
 ```
 """
-function YDiffusiveFlux(model, grid, closure, closure_fields, val_tracer_index, tracer, clock, model_fields, buoyancy; location = (Center, Face, Center))
+function YDiffusiveFlux(model, val_tracer_index, tracer; location = (Center, Face, Center))
     validate_location(location, "YDiffusiveFlux", (Center, Face, Center))
-    return KernelFunctionOperation{Center, Face, Center}(diffusive_flux_y, grid, closure, closure_fields, val_tracer_index, tracer, clock, model_fields, buoyancy)
+    return KernelFunctionOperation{Center, Face, Center}(diffusive_flux_y, model.grid, model.closure, model.closure_fields, val_tracer_index, tracer, model.clock, fields(model), model.buoyancy)
 end
 
 function YDiffusiveFlux(model, tracer_name; kwargs...)
     tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
     @inbounds tracer = model.tracers[tracer_name]
-    return YDiffusiveFlux(model, model.grid, model.closure, model.closure_fields, Val(tracer_index), tracer, model.clock, fields(model), model.buoyancy; kwargs...)
+    return YDiffusiveFlux(model, Val(tracer_index), tracer; kwargs...)
 end
 
 """
@@ -280,15 +280,15 @@ TracerZDiffusiveFlux KernelFunctionOperation at (Center, Center, Face)
 └── computes: sub-grid diffusive flux given by the configured closure
 ```
 """
-function ZDiffusiveFlux(model, grid, closure, closure_fields, val_tracer_index, tracer, clock, model_fields, buoyancy; location = (Center, Center, Face))
+function ZDiffusiveFlux(model, val_tracer_index, tracer; location = (Center, Center, Face))
     validate_location(location, "ZDiffusiveFlux", (Center, Center, Face))
-    return KernelFunctionOperation{Center, Center, Face}(diffusive_flux_z, grid, closure, closure_fields, val_tracer_index, tracer, clock, model_fields, buoyancy)
+    return KernelFunctionOperation{Center, Center, Face}(diffusive_flux_z, model.grid, model.closure, model.closure_fields, val_tracer_index, tracer, model.clock, fields(model), model.buoyancy)
 end
 
 function ZDiffusiveFlux(model, tracer_name; kwargs...)
     tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
     @inbounds tracer = model.tracers[tracer_name]
-    return ZDiffusiveFlux(model, model.grid, model.closure, model.closure_fields, Val(tracer_index), tracer, model.clock, fields(model), model.buoyancy; kwargs...)
+    return ZDiffusiveFlux(model, Val(tracer_index), tracer; kwargs...)
 end
 #---
 
