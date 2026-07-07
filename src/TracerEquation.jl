@@ -219,7 +219,7 @@ end
 
 function XDiffusiveFlux(model, tracer_name; kwargs...)
     tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
-    tracer = model.tracers[tracer_index]
+    @inbounds tracer = model.tracers[tracer_name]
     return XDiffusiveFlux(model, model.grid, model.closure, model.closure_fields, Val(tracer_index), tracer, model.clock, fields(model), model.buoyancy; kwargs...)
 end
 
@@ -253,7 +253,7 @@ end
 
 function YDiffusiveFlux(model, tracer_name; kwargs...)
     tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
-    tracer = model.tracers[tracer_index]
+    @inbounds tracer = model.tracers[tracer_name]
     return YDiffusiveFlux(model, model.grid, model.closure, model.closure_fields, Val(tracer_index), tracer, model.clock, fields(model), model.buoyancy; kwargs...)
 end
 
@@ -287,7 +287,7 @@ end
 
 function ZDiffusiveFlux(model, tracer_name; kwargs...)
     tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
-    tracer = model.tracers[tracer_index]
+    @inbounds tracer = model.tracers[tracer_name]
     return ZDiffusiveFlux(model, model.grid, model.closure, model.closure_fields, Val(tracer_index), tracer, model.clock, fields(model), model.buoyancy; kwargs...)
 end
 #---
