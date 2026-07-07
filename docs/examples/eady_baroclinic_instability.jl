@@ -135,29 +135,33 @@ simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
 using Oceanostics.ProgressMessengers: TimedMessenger
 add_callback!(simulation, TimedMessenger(), IterationInterval(20))
 
-# ## Sub-filter-scale kinetic-energy budget
+# ## Coarse-grained kinetic-energy budget
 #
-# As the front rolls up, kinetic energy is passed from the large baroclinic eddies down to smaller
-# scales. We quantify that transfer with a *coarse-graining* (filtered-flow) analysis in the spirit of
-# [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1). A low-pass Gaussian filter of width
-# `ℓ` splits the flow into a resolved (`> ℓ`) and a sub-filter (`< ℓ`) part, and we build the budget of
-# the *sub-filter* kinetic energy ``K^s = \tfrac{1}{2}\,\tau_{ii}``, where
-# ``\tau_{ij} = \overline{u_i u_j} - \overline{u}_i\overline{u}_j`` is the sub-filter-scale stress. We
-# filter horizontally (`dims = (1, 2)`), since the flow is statistically homogeneous in the horizontal
-# and the deformation-scale eddies are the resolved structures.
+# As the front rolls up, kinetic energy moves between scales. We follow it with a *coarse-graining*
+# (filtered-flow) analysis in the spirit of [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1),
+# closing the volume-integrated budget of the filtered kinetic energy
+# ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i``. A low-pass Gaussian filter of width `ℓ`
+# defines the resolved (`> ℓ`) scales; we apply it horizontally (`dims = (1, 2)`), since the flow is
+# statistically homogeneous in the horizontal.
 #
-# Volume-integrated, the sub-filter kinetic energy is fed by the cross-scale flux ``\Pi_K`` from the
-# resolved scales and drained by sub-filter-scale dissipation ``\varepsilon^s``,
+# Because the mean geostrophic flow `U(z) = α(z + H)` is imposed as a `BackgroundField`, it is not part
+# of the resolved velocity, so its shear `∂U/∂z = α` enters the budget as an explicit production term.
+# Volume-integrated (advection and pressure work integrate to zero on the doubly-periodic, free-slip
+# domain), the budget reads
 #
 # ```math
-# \frac{d}{dt} \int K^s\, dV \;\approx\; \int \Pi_K\, dV \;-\; \int \varepsilon^s\, dV ,
+# \frac{d}{dt} \int \overline{K}\, dV
+#   = -α \int \overline{u}\,\overline{w}\, dV
+#   + \int \overline{w}\,\overline{b}\, dV
+#   - \int \Pi_K\, dV
+#   - \int \overline{\varepsilon}\, dV ,
 # ```
 #
-# with the cross-scale kinetic-energy flux ``\Pi_K = -\tau^{ij}\overline{S}^{ij}``
-# ([`KineticEnergyCrossScaleFlux`](@ref)). The mean geostrophic shear injects energy at large scales
-# only, so it does not appear directly in the sub-filter budget. We obtain ``\varepsilon^s`` as the
-# budget residual, since the total-viscous-dissipation diagnostic requires a three-dimensional-formulation
-# closure and this run uses a vertical Laplacian plus a horizontal biharmonic closure.
+# with a production ``-α\,\overline{u}\,\overline{w}`` by the background shear, a buoyancy production
+# ``\overline{w}\,\overline{b}`` (conversion between filtered kinetic and potential energy), the
+# cross-scale kinetic-energy flux ``\Pi_K = -\tau^{ij}\overline{S}^{ij}`` to sub-filter scales
+# ([`KineticEnergyCrossScaleFlux`](@ref)), and the coarse-grained dissipation ``\overline{\varepsilon}``
+# ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)).
 
 using Oceanostics
 using Oceananigans.AbstractOperations: @at
@@ -167,16 +171,19 @@ using Oceananigans.AbstractOperations: @at
 filt = GaussianFilter(; dims=(1, 2), σ=σℓ, boundary=:shrink)
 
 u, v, w = model.velocities
-ū, v̄, w̄ = filt(u), filt(v), filt(w)
+b = model.tracers.b
+ū, v̄, w̄, b̄ = filt(u), filt(v), filt(w), filt(b)
 
-Kˡ = @at (Center, Center, Center) (ū^2 + v̄^2 + w̄^2) / 2       # resolved (filtered) kinetic energy
-τ  = subfilter_stress_tensor(model, filt; collocate_diagonals=true)
-Kˢ = @at (Center, Center, Center) (τ.τ₁₁ + τ.τ₂₂ + τ.τ₃₃) / 2  # sub-filter-scale kinetic energy ½τᵢᵢ
-Πₖ = KineticEnergyCrossScaleFlux(model, filt)                  # resolved → sub-filter KE flux
-εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filt)    # dissipation of the filtered flow
+Kˡ = @at (Center, Center, Center) (ū^2 + v̄^2 + w̄^2) / 2   # filtered (coarse-grained) kinetic energy
+uw = @at (Center, Center, Center) (ū * w̄)                 # resolved flux of along-front momentum, ū w̄
+Pu = -α * uw                                              # production by the background shear α = ∂U/∂z
+wb = @at (Center, Center, Center) (w̄ * b̄)                 # buoyancy production
+Πₖ = KineticEnergyCrossScaleFlux(model, filt)             # cross-scale flux to sub-filter scales
+εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filt)  # coarse-grained dissipation
 
 ∫Kˡ = Integral(Kˡ)
-∫Kˢ = Integral(Kˢ)
+∫Pu = Integral(Pu)
+∫wb = Integral(wb)
 ∫Πₖ = Integral(Πₖ)
 ∫εˡ = Integral(εˡ)
 
@@ -188,7 +195,7 @@ Kˢ = @at (Center, Center, Center) (τ.τ₁₁ + τ.τ₂₂ + τ.τ₃₃) / 2
 #
 # We use two NetCDF writers: a *snapshot* writer for the surface fields, and a *budget* writer for the
 # volume integrals on `ConsecutiveIterations(TimeInterval(4hours))`, which takes a second sample one
-# model step after each output time. That lets us finite-difference `∫Kˢ` across the step to estimate
+# model step after each output time. That lets us finite-difference `∫K̄` across the step to estimate
 # `d/dt`, as in the [Kelvin-Helmholtz example](@ref kelvin_helmholtz_example).
 
 using NCDatasets
@@ -202,7 +209,7 @@ simulation.output_writers[:fields] =
                  overwrite_existing = true)
 
 simulation.output_writers[:budget] =
-    NetCDFWriter(model, (; ∫Kˡ, ∫Kˢ, ∫Πₖ, ∫εˡ),
+    NetCDFWriter(model, (; ∫Kˡ, ∫Pu, ∫wb, ∫Πₖ, ∫εˡ),
                  filename = filename * "_budget",
                  schedule = ConsecutiveIterations(TimeInterval(4hours)),
                  overwrite_existing = true)
@@ -229,13 +236,16 @@ close(ds)
 Πlim = maximum(abs, Π_arr)
 
 # The integrated budget scalars come in consecutive-iteration pairs `(2k-1, 2k)`; a one-step finite
-# difference inside each pair gives `d(∫Kˢ)/dt`, and the cross-scale flux is evaluated at the pair
-# midpoint. The inferred sub-filter dissipation is the residual `∫Πₖ - d(∫Kˢ)/dt`.
+# difference inside each pair gives `d(∫K̄)/dt`, and each source term is evaluated at the pair midpoint.
+# The residual measures how well the coarse-grained budget closes.
 
 ds_b = NCDataset(simulation.output_writers[:budget].filepath)
 tb    = ds_b["time"][:]
-∫Kˢ_t = ds_b["∫Kˢ"][:]
+∫Kˡ_t = ds_b["∫Kˡ"][:]
+∫Pu_t = ds_b["∫Pu"][:]
+∫wb_t = ds_b["∫wb"][:]
 ∫Πₖ_t = ds_b["∫Πₖ"][:]
+∫εˡ_t = ds_b["∫εˡ"][:]
 close(ds_b)
 
 i1 = 1:2:length(tb)-1
@@ -243,11 +253,14 @@ i2 = 2:2:length(tb)
 Δtp = tb[i2] .- tb[i1]
 tp  = @. 0.5 * (tb[i1] + tb[i2])
 
-dKˢdt = (∫Kˢ_t[i2] .- ∫Kˢ_t[i1]) ./ Δtp
-Πₖ_p  = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2])
-ε_sfs = Πₖ_p .- dKˢdt                     # inferred sub-filter-scale dissipation
+dKdt = (∫Kˡ_t[i2] .- ∫Kˡ_t[i1]) ./ Δtp
+Pu_p = @. 0.5 * (∫Pu_t[i1] + ∫Pu_t[i2])
+wb_p = @. 0.5 * (∫wb_t[i1] + ∫wb_t[i2])
+Πₖ_p = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2])
+εˡ_p = @. 0.5 * (∫εˡ_t[i1] + ∫εˡ_t[i2])
+resid = dKdt .- (Pu_p .+ wb_p .- Πₖ_p .- εˡ_p)
 
-# We now build the figure: surface maps of `ζ` and `Πₖ` on top, and the sub-filter-scale kinetic-energy
+# We now build the figure: surface maps of `ζ` and `Πₖ` on top, and the coarse-grained kinetic-energy
 # budget below.
 
 set_theme!(Theme(fontsize = 18))
@@ -268,12 +281,14 @@ hmΠ = heatmap!(axΠ, x_caa ./ 1e3, y_aca ./ 1e3, Πₙ; colormap = :balance, co
 Colorbar(fig[2, 4], hmΠ)
 
 ax_bud = Axis(fig[3, 1:4]; xlabel="time [days]", ylabel="[m⁵ s⁻³]",
-              title="Sub-filter-scale KE budget (ℓ = $(round(Int, ℓ/1e3)) km)")
-lines!(ax_bud, tp ./ day, dKˢdt, label="d(∫Kˢ)/dt")
-lines!(ax_bud, tp ./ day, Πₖ_p,  label="∫Πₖ dV  (resolved → sub-filter flux)")
-lines!(ax_bud, tp ./ day, ε_sfs, label="∫Πₖ − d(∫Kˢ)/dt  (inferred sub-filter dissipation)",
-       color=:black, linestyle=:dash)
-axislegend(ax_bud; position=:lt, labelsize=11)
+              title="Coarse-grained KE budget (ℓ = $(round(Int, ℓ/1e3)) km)")
+lines!(ax_bud, tp ./ day, dKdt,   label="d(∫K̄)/dt")
+lines!(ax_bud, tp ./ day, Pu_p,   label="−α∫ū w̄ dV  (background shear production)")
+lines!(ax_bud, tp ./ day, wb_p,   label="∫w̄ b̄ dV  (buoyancy production)")
+lines!(ax_bud, tp ./ day, -Πₖ_p,  label="−∫Πₖ dV  (flux to sub-filter scales)")
+lines!(ax_bud, tp ./ day, -εˡ_p,  label="−∫ε̄ dV  (dissipation)")
+lines!(ax_bud, tp ./ day, resid,  label="residual", color=:black, linestyle=:dash)
+axislegend(ax_bud; position=:lt, labelsize=10)
 
 vlines!(ax_bud, @lift(times[$n] / day), color=:black, linestyle=:dash)
 
@@ -287,9 +302,9 @@ end
 
 # ![](eady_baroclinic_instability.mp4)
 #
-# As the front becomes baroclinically unstable it rolls up into mesoscale eddies (left), and the
-# cross-scale flux `Πₖ` (right) marks where kinetic energy is passed across the filter scale: mostly
-# forward (downscale, `Πₖ > 0`) along the sharpening eddy edges, with patches of backscatter
-# (`Πₖ < 0`) elsewhere. The bottom panel shows the volume-integrated sub-filter-scale budget: the
-# cross-scale flux `∫Πₖ dV` builds up as the eddies grow, feeding the sub-filter kinetic energy
-# `d(∫Kˢ)/dt`, with the residual giving the sub-filter-scale dissipation that removes it.
+# As the front becomes baroclinically unstable it rolls up into mesoscale eddies (left), while the
+# cross-scale flux `Πₖ` (right) marks where kinetic energy crosses the filter scale: mostly forward
+# (downscale, `Πₖ > 0`) along the sharpening eddy edges, with patches of backscatter (`Πₖ < 0`). The
+# bottom panel shows the volume-integrated coarse-grained kinetic-energy budget: the background-shear
+# and buoyancy productions feed the filtered kinetic energy, part of it passes to the sub-filter scales
+# through `∫Πₖ dV` and is dissipated, and the small residual shows how well the budget closes.
