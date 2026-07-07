@@ -125,22 +125,15 @@ parent(model.velocities.v) .-= mean(interior(model.velocities.v))
 
 max_Δt = min(Δx / Ū, Δx^4 / κ₄h, Δx^2 / κ₂z, 1 / N)
 
-simulation = Simulation(model, Δt = max_Δt, stop_time = 16days)
+simulation = Simulation(model, Δt = max_Δt, stop_time = 10days)
 
 wizard = TimeStepWizard(cfl=0.85, max_change=1.1, max_Δt=max_Δt)
-simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(10))
+simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
 
 # We report progress with a simple messenger:
 
-using Printf
-
-start_time = time_ns()
-progress(sim) = @printf("i: % 6d, sim time: % 10s, wall time: % 10s, Δt: % 10s, CFL: %.2e\n",
-                        sim.model.clock.iteration, prettytime(sim.model.clock.time),
-                        prettytime(1e-9 * (time_ns() - start_time)), prettytime(sim.Δt),
-                        AdvectiveCFL(sim.Δt)(sim.model))
-
-simulation.callbacks[:progress] = Callback(progress, IterationInterval(10))
+using Oceanostics.ProgressMessengers: TimedMessenger
+add_callback!(simulation, TimedMessenger(), IterationInterval(20))
 
 # ## Sub-filter-scale kinetic-energy budget
 #
@@ -194,9 +187,9 @@ Kˢ = @at (Center, Center, Center) (τ.τ₁₁ + τ.τ₂₂ + τ.τ₃₃) / 2
 # ## Output
 #
 # We use two NetCDF writers: a *snapshot* writer for the surface fields, and a *budget* writer for the
-# volume integrals on `ConsecutiveIterations(TimeInterval(4hours))` — a second sample one model step
-# after each output time — which lets us finite-difference `∫Kˢ` across that step to estimate `d/dt`, as
-# in the [Kelvin-Helmholtz example](@ref).
+# volume integrals on `ConsecutiveIterations(TimeInterval(4hours))`, which takes a second sample one
+# model step after each output time. That lets us finite-difference `∫Kˢ` across the step to estimate
+# `d/dt`, as in the [Kelvin-Helmholtz example](@ref kelvin_helmholtz_example).
 
 using NCDatasets
 filename = joinpath(@__DIR__, "eady_baroclinic_instability")

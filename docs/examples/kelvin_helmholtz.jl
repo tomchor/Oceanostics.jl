@@ -219,7 +219,6 @@ using Test                              #hide
 rms(x) = √(sum(abs2, x) / length(x))    #hide
 @test rms(resid) < 0.06 * rms(dKˡdt);   #hide
 
-
 # ## Plotting
 #
 # We now use Makie to create the figure and its axes
