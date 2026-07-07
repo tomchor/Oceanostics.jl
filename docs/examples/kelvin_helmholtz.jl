@@ -1,4 +1,4 @@
-# # Kelvin-Helmholtz instability
+# # [Kelvin-Helmholtz instability](@id kelvin_helmholtz_example)
 #
 # This example simulates a simple 2D Kelvin-Helmholtz instability and is based on the similar
 # [Oceananigans

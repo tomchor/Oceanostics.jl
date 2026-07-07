@@ -18,6 +18,7 @@ using Oceanostics: CustomKFO
 using ..FlowDiagnostics: StressTensor, StrainRateTensor
 import ..FlowDiagnostics            # for the (unexported) `validate_dims`
 using ..SpatialFilters: GaussianFilter, BoxFilter   # BoxFilter is imported so its docstring `@ref` resolves in-module
+using ..KineticEnergyEquation: KineticEnergyDissipationRate   # imported so its docstring `@ref` resolves in-module
 
 #+++ Shared helpers
 # Filter only the velocities that the requested `dims` actually use: component τᵢⱼ / S̄ᵢⱼ needs uᵢ and
@@ -256,7 +257,7 @@ viscosity removes kinetic energy from the *filtered* velocity field `ūᵢ = fil
 ```
 
 Here `Fᵢⱼ(u)` is the model's viscous momentum-flux tensor built from the **full** velocities and closure
-(the same fluxes [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)
+(the same fluxes [`KineticEnergyDissipationRate`](@ref)
 contracts), and `F̄ᵢⱼ = filter(Fᵢⱼ(u))` is that flux low-pass filtered. Contracting the filtered flux with
 the filtered velocity gradient gives the viscous sink in the budget of the filtered kinetic energy
 `Kˡ = ½ūᵢūᵢ` (coarse-graining framework of Aluie et al., 2018, *J. Phys. Oceanogr.*,
@@ -293,14 +294,14 @@ CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Ce
 ```
 
 The viscosity and fluxes come from `model.closure`/`model.closure_fields`, exactly as in
-[`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate), so the model
+[`KineticEnergyDissipationRate`](@ref), so the model
 needs a closure whose viscous fluxes are defined. The filtered velocities and the filtered fluxes are
 materialized as `Field`s internally (and refreshed on recompute), so the returned object is a lazy
 operation ready for `Field`, `Integral`, and `OutputWriter`s and recomputes as the simulation evolves.
 
 Unlike the cross-scale flux and the stress tensor, this diagnostic takes no `dims` argument: it always
 forms the full viscous contraction (matching
-[`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)). The directions
+[`KineticEnergyDissipationRate`](@ref)). The directions
 the filter acts in are set inside `filter`.
 
 A convenience method `CoarseGrainedKineticEnergyDissipationRate(model; σ, dims, boundary, N)` builds the
