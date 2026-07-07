@@ -75,7 +75,7 @@ function test_tracer_terms(model)
     @test DIFF_field isa Field
 
     DIFF = TracerEquation.ImmersedDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
-                                   model.closure, model.closure_fields, Val(:a), model.clock, fields(model))
+                                            model.closure, model.closure_fields, Val(:a), model.clock, fields(model))
     DIFF_field = Field(DIFF)
     @test DIFF isa TracerEquation.ImmersedDiffusion
     @test DIFF isa TracerImmersedDiffusion
@@ -88,7 +88,7 @@ function test_tracer_terms(model)
     @test DIFF_field isa Field
 
     DIFF = TracerEquation.TotalDiffusion(model, model.tracers.a, model.tracers.a.boundary_conditions.immersed,
-                                model.closure, model.closure_fields, Val(:a), model.clock, fields(model), model.buoyancy)
+                                         model.closure, model.closure_fields, Val(:a), model.clock, fields(model), model.buoyancy)
     DIFF_field = Field(DIFF)
     @test DIFF isa TracerEquation.TotalDiffusion
     @test DIFF isa TracerTotalDiffusion
@@ -117,7 +117,7 @@ end
 
 function test_subgrid_tracer_fluxes(model)
     DIFF_FLUX = TracerEquation.XDiffusiveFlux(model, model.grid, model.closure, model.closure_fields, 
-                                    Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
+                                              Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
     DIFF_FLUX_field = Field(DIFF_FLUX)
     @test DIFF_FLUX isa TracerEquation.XDiffusiveFlux
     @test DIFF_FLUX isa TracerXDiffusiveFlux
@@ -130,7 +130,7 @@ function test_subgrid_tracer_fluxes(model)
     @test DIFF_FLUX_field isa Field
     
     DIFF_FLUX = TracerEquation.YDiffusiveFlux(model, model.grid, model.closure, model.closure_fields, 
-                                    Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
+                                              Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
     DIFF_FLUX_field = Field(DIFF_FLUX)
     @test DIFF_FLUX isa TracerEquation.YDiffusiveFlux
     @test DIFF_FLUX isa TracerYDiffusiveFlux
@@ -143,7 +143,7 @@ function test_subgrid_tracer_fluxes(model)
     @test DIFF_FLUX_field isa Field
 
     DIFF_FLUX = TracerEquation.ZDiffusiveFlux(model, model.grid, model.closure, model.closure_fields, 
-                                    Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
+                                              Val(:a), model.tracers.a, model.clock, fields(model), model.buoyancy)
     DIFF_FLUX_field = Field(DIFF_FLUX)
     @test DIFF_FLUX isa TracerEquation.ZDiffusiveFlux
     @test DIFF_FLUX isa TracerZDiffusiveFlux
