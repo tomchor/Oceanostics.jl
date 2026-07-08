@@ -2,14 +2,10 @@
 #
 # This example simulates a three-dimensional [Rayleigh-Taylor
 # instability](https://en.wikipedia.org/wiki/Rayleigh%E2%80%93Taylor_instability): a heavy fluid
-# initially resting above a light one, which is unstable under gravity. The interface buckles, heavy
-# fluid sinks in spikes while light fluid rises in bubbles, and the two interpenetrate into a growing
-# turbulent mixing layer. All of the kinetic energy is released from the potential energy stored in the
-# unstable stratification, with no fluxes through the boundaries, so the flow is a clean setting in
-# which to close a kinetic-energy budget. We run it as a large-eddy simulation (LES) with a
-# `DynamicSmagorinsky` closure and use Oceanostics to close the volume-integrated *coarse-grained*
-# (filtered-flow) kinetic-energy budget, in which the sub-filter scales appear only through a
-# cross-scale flux and a filtered dissipation.
+# initially resting above a light one, which is unstable under gravity. All of the kinetic energy is
+# released from the potential energy stored in the unstable stratification, with no fluxes through the
+# boundaries. We run it as a large-eddy simulation (LES) and use Oceanostics to close the volume-integrated
+# subfilter scale kinetic-energy budget.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -33,11 +29,11 @@ H  = 1     # domain height (length scale)
 U  = sqrt(Δb * H)   # free-fall velocity scale
 τ  = sqrt(H / Δb)   # free-fall time scale
 
-# We use a cubic box that is periodic in the two horizontal directions and bounded (free-slip) in the
+# We use a cuboid that is periodic in the two horizontal directions and bounded in the
 # vertical, with the unstable interface at mid-depth `z = 0`:
 
 N = 48
-grid = RectilinearGrid(size=(N, N, N), x=(-H/2, H/2), y=(-H/2, H/2), z=(-H/2, H/2),
+grid = RectilinearGrid(size=(N, N÷2, N), x=(-H/2, H/2), y=(-H/4, H/4), z=(-H/2, H/2),
                        topology=(Periodic, Periodic, Bounded))
 
 # ## Closure
@@ -50,9 +46,7 @@ closure = SmagorinskyLilly(C=0.3)
 # We build a `NonhydrostaticModel` with a fourth-order centered advection scheme, a third-order
 # Runge-Kutta timestepper, and a buoyancy `b` as the active tracer. A centered scheme conserves kinetic
 # energy discretely and adds no numerical dissipation of its own, so essentially all of the modeled
-# dissipation comes from the `DynamicSmagorinsky` closure, whose contribution the coarse-grained budget
-# below accounts for explicitly. The eddy viscosity supplies the grid-scale dissipation that keeps the
-# simulation stable, so the budget closes cleanly:
+# dissipation comes from the LES closure.
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = Centered(order=4),
@@ -68,8 +62,8 @@ model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
 # turbulent instability rather than a single growing bubble. We seed the random number generator so the
 # run is reproducible:
 
-δ = 0.02 * H                       # interface half-thickness
-b₀(z) = -(Δb / 2) * tanh(z / δ)    # +Δb/2 at the bottom, −Δb/2 at the top ⟹ unstable
+δ = 0.02 * H                    # interface half-thickness
+b₀(z) = -(Δb / 2) * tanh(z / δ) # +Δb/2 at the bottom, −Δb/2 at the top
 
 using Random
 Random.seed!(43)
@@ -87,8 +81,7 @@ set!(model, b=bᵢ)
 Δx = minimum_xspacing(grid)
 simulation = Simulation(model, Δt = 0.1 * Δx / U, stop_time = 10τ)
 
-wizard = TimeStepWizard(cfl=0.7, max_change=1.1)
-simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
+conjure_time_step_wizard!(simulation, IterationInterval(5), cfl=0.7, max_change=1.1)
 
 # ## Model diagnostics
 #
@@ -102,10 +95,10 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 
 # ### Coarse-grained kinetic-energy budget
 #
-# Rayleigh-Taylor turbulence converts potential energy into kinetic energy across a wide range of
-# scales, so we follow it with a *coarse-graining* (filtered-flow) analysis in the spirit of [Aluie et
+# Rayleigh-Taylor turbulence converts potential energy into kinetic energy (KE) across a wide range of
+# scales, so we follow it with subfilter scale KE analysis in the spirit of [Aluie et
 # al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1), closing the volume-integrated budget of the
-# filtered kinetic energy ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i``. We apply a
+# filtered KE ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i``. We apply a
 # Gaussian filter of width `ℓ` (a few grid cells) in the two horizontal directions, which are
 # statistically homogeneous; the vertical, singled out by gravity and bounded by the walls, is left
 # unfiltered.
