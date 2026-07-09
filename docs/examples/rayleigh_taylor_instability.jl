@@ -5,7 +5,8 @@
 # initially resting above a light one, which is unstable under gravity. All of the kinetic energy is
 # released from the potential energy stored in the unstable stratification, with no fluxes through the
 # boundaries. We run it as a large-eddy simulation (LES) and use Oceanostics to close the volume-integrated
-# subfilter scale kinetic-energy budget.
+# coarse-grained (filtered-flow) kinetic-energy budget, in which the sub-filter scales enter through a
+# cross-scale flux and the modeled dissipation.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -36,17 +37,17 @@ N = 48
 grid = RectilinearGrid(size=(N, N÷2, N), x=(-H/2, H/2), y=(-H/4, H/4), z=(-H/2, H/2),
                        topology=(Periodic, Periodic, Bounded))
 
-# ## Closure
+# ## Closure and model
 #
 # Rayleigh-Taylor mixing is fully three-dimensional and turbulent, so we model the unresolved motions
 # with a Large Eddy Simulation (LES) closure:
 
-closure = SmagorinskyLilly(C=0.3)
+closure = SmagorinskyLilly(C=0.3) # A large C adds eddy viscosity, keeping this very coarse example well behaved
 
 # We build a `NonhydrostaticModel` with a fourth-order centered advection scheme, a third-order
-# Runge-Kutta timestepper, and a buoyancy `b` as the active tracer. A centered scheme conserves kinetic
-# energy discretely and adds no numerical dissipation of its own, so essentially all of the modeled
-# dissipation comes from the LES closure.
+# Runge-Kutta timestepper, and a buoyancy `b` as the active tracer. A centered scheme is non-dissipative
+# and, unlike an upwind scheme, adds no numerical dissipation of its own, so essentially all of the
+# modeled dissipation comes from the LES closure.
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = Centered(order=4),
@@ -57,10 +58,10 @@ model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
 #
 # The initial buoyancy is a hyperbolic-tangent profile that is *heavy on top*: it decreases from
 # `+Δb/2` at the bottom to `−Δb/2` at the top, so `∂b/∂z < 0` and the stratification is unstable. The
-# interface is thin (a few grid cells) and we perturb it with small-amplitude random noise localized to
-# the interface, which seeds a broad band of horizontal wavelengths and produces a multi-mode,
-# turbulent instability rather than a single growing bubble. We seed the random number generator so the
-# run is reproducible:
+# interface is thin (its half-thickness `δ` is about one grid spacing) and we perturb it with
+# small-amplitude random noise localized to the interface, which seeds a broad band of horizontal
+# wavelengths and produces a multi-mode, turbulent instability rather than a single growing bubble. We
+# seed the random number generator so the run is reproducible:
 
 δ = 0.02 * H                    # interface half-thickness
 b₀(z) = -(Δb / 2) * tanh(z / δ) # +Δb/2 at the bottom, −Δb/2 at the top
@@ -96,7 +97,7 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 # ### Coarse-grained kinetic-energy budget
 #
 # Rayleigh-Taylor turbulence converts potential energy into kinetic energy (KE) across a wide range of
-# scales, so we follow it with subfilter scale KE analysis in the spirit of [Aluie et
+# scales, so we follow it with a coarse-graining (filtered-flow) analysis in the spirit of [Aluie et
 # al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1), closing the volume-integrated budget of the
 # filtered KE ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i``. We apply a
 # Gaussian filter of width `ℓ` (a few grid cells) in the two horizontal directions, which are
@@ -117,9 +118,12 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))
 # with a buoyancy production ``\overline{w}\,\overline{b}`` (the conversion of potential into filtered
 # kinetic energy), the cross-scale kinetic-energy flux ``\Pi_K = -\tau^{ij}\overline{S}^{ij}`` to
 # sub-filter scales ([`KineticEnergyCrossScaleFlux`](@ref)), and the coarse-grained viscous dissipation
-# ``\overline{\varepsilon}`` produced by the resolved flow ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)).
+# ``\overline{\varepsilon}`` of the filtered flow ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)).
 # With an LES closure, ``\overline{\varepsilon}`` is the dissipation carried out by the modeled
-# (dynamic-Smagorinsky) stress acting on the filtered flow.
+# (Smagorinsky-Lilly) stress acting on the filtered flow. Note that ``\Pi_K`` and
+# ``\overline{\varepsilon}`` are two separate sinks of ``\overline{K}``: the first moves energy across
+# the filter scale, the second removes it through the modeled stress. In the code below,
+# ``\overline{K}``, ``\Pi_K`` and ``\overline{\varepsilon}`` are written `Kˡ`, `Πₖ` and `εˡ`.
 
 using Oceananigans.AbstractOperations: @at
 
@@ -145,8 +149,9 @@ wb = @at (Center, Center, Center) (w̄ * b̄)                 # buoyancy product
 
 # ## Output
 #
-# We use two NetCDF writers. A *snapshot* writer stores a vertical (`x`–`z`) slice through the middle of
-# the box of the buoyancy `b` and the cross-scale flux `Πₖ`, while a *budget* writer stores only the
+# We use two NetCDF writers. A *snapshot* writer stores a vertical (`x`–`z`) slice of the buoyancy `b`
+# and the cross-scale flux `Πₖ` at a fixed `y` index (the flow is periodic and statistically homogeneous
+# in `y`, so the particular plane makes no difference), while a *budget* writer stores only the
 # integrated scalars on `ConsecutiveIterations(TimeInterval(τ/5))`, which takes a second sample one model
 # step after each output time. That lets us finite-difference `∫Kˡ` across that single step to estimate
 # `d/dt`, exactly as in the [Kelvin-Helmholtz example](@ref kelvin_helmholtz_example).
@@ -155,18 +160,16 @@ using NCDatasets
 filename = joinpath(@__DIR__, "rayleigh_taylor_instability")
 
 j_mid = N ÷ 2
-simulation.output_writers[:fields] =
-    NetCDFWriter(model, (; b, Πₖ),
-                 filename = filename,
-                 schedule = TimeInterval(τ / 5),
-                 indices = (:, j_mid, :),
-                 overwrite_existing = true)
-
-simulation.output_writers[:budget] =
-    NetCDFWriter(model, (; ∫Kˡ, ∫wb, ∫Πₖ, ∫εˡ),
-                 filename = filename * "_budget",
-                 schedule = ConsecutiveIterations(TimeInterval(τ / 5)),
-                 overwrite_existing = true)
+simulation.output_writers[:fields] = NetCDFWriter(model, (; b, Πₖ),
+                                                  filename = filename,
+                                                  schedule = TimeInterval(τ / 5),
+                                                  indices = (:, j_mid, :),
+                                                  overwrite_existing = true)   
+   
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫Kˡ, ∫wb, ∫Πₖ, ∫εˡ),
+                                                  filename = filename * "_budget",
+                                                  schedule = ConsecutiveIterations(TimeInterval(τ / 5)),
+                                                  overwrite_existing = true)
 
 # ## Run the simulation and process results
 #
@@ -243,8 +246,9 @@ hmΠ = heatmap!(axΠ, x_caa, z_aac, Πₙ; colormap=:balance, colorrange=(-Πlim
 Colorbar(fig[2, 4], hmΠ)
 
 # The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget: `d(∫Kˡ)/dt`
-# against its three sources, buoyancy production `∫w̄b̄ dV`, minus the cross-scale flux `−∫Πₖ dV`, and
-# minus the coarse-grained dissipation `−∫εˡ dV`, together with the residual.
+# against the single source that feeds it, the buoyancy production `∫w̄b̄ dV`, and the two sinks that
+# drain it, the cross-scale flux `−∫Πₖ dV` and the coarse-grained dissipation `−∫εˡ dV`, together with
+# the residual.
 
 ax_bud = Axis(fig[3, 1:4]; xlabel="time [free-fall units]", title="Coarse-grained KE budget")
 lines!(ax_bud, t_pair ./ τ, dKˡdt,   label="d(∫Kˡ)/dt")
@@ -271,5 +275,6 @@ end
 # crosses the filter scale, mostly forward (downscale, `Πₖ > 0`) along the sharpening edges of the
 # spikes and bubbles, with patches of backscatter (`Πₖ < 0`). The bottom panel shows the
 # volume-integrated coarse-grained kinetic-energy budget: buoyancy production feeds the filtered kinetic
-# energy, part of which passes to the sub-filter scales through `∫Πₖ dV` and is dissipated as
-# `∫εˡ dV`, and the small residual shows how well the budget closes.
+# energy, which is drained by two separate sinks, the cross-scale flux `∫Πₖ dV` that hands energy to the
+# sub-filter scales and the modeled dissipation `∫εˡ dV`. The small residual shows how well the budget
+# closes.
