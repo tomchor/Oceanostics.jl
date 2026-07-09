@@ -16,7 +16,7 @@
 # pkg"add Oceananigans, Oceanostics, CairoMakie, NCDatasets"
 # ```
 
-# ## Model and simulation setup
+# ## Parameters and grid
 
 using Oceananigans
 
@@ -136,14 +136,14 @@ b = model.tracers.b
 ū, v̄, w̄, b̄ = filt(u), filt(v), filt(w), filt(b)
 
 Kˡ = @at (Center, Center, Center) (ū^2 + v̄^2 + w̄^2) / 2   # filtered (coarse-grained) kinetic energy
-wb = @at (Center, Center, Center) (w̄ * b̄)                 # buoyancy production
+w̄b̄ = @at (Center, Center, Center) (w̄ * b̄)                 # buoyancy production
 Πₖ = KineticEnergyCrossScaleFlux(model, filt)             # cross-scale flux to sub-filter scales
 εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filt)  # coarse-grained dissipation
 
 # The budget needs only the (cheap) volume integrals of these terms:
 
 ∫Kˡ = Integral(Kˡ)
-∫wb = Integral(wb)
+∫w̄b̄ = Integral(w̄b̄)
 ∫Πₖ = Integral(Πₖ)
 ∫εˡ = Integral(εˡ)
 
@@ -165,7 +165,7 @@ simulation.output_writers[:fields] = NetCDFWriter(model, (; b, Πₖ),
                                                   indices = (:, 1, :),
                                                   overwrite_existing = true)
 
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫Kˡ, ∫wb, ∫Πₖ, ∫εˡ),
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫Kˡ, ∫w̄b̄, ∫Πₖ, ∫εˡ),
                                                   filename = filename * "_budget",
                                                   schedule = ConsecutiveIterations(TimeInterval(τ / 5)),
                                                   overwrite_existing = true)
@@ -198,7 +198,7 @@ bud_filepath = simulation.output_writers[:budget].filepath
 ds_bud = NCDataset(bud_filepath)
 times_bud = ds_bud["time"][:]
 ∫Kˡ_t = ds_bud["∫Kˡ"][:]
-∫wb_t = ds_bud["∫wb"][:]
+∫w̄b̄_t = ds_bud["∫w̄b̄"][:]
 ∫Πₖ_t = ds_bud["∫Πₖ"][:]
 ∫εˡ_t = ds_bud["∫εˡ"][:]
 close(ds_bud)
@@ -209,11 +209,11 @@ i2 = 2:2:length(times_bud)     # consecutive-iteration snapshots
 t_pair = @. 0.5 * (times_bud[i1] + times_bud[i2])
 
 dKˡdt   = (∫Kˡ_t[i2] .- ∫Kˡ_t[i1]) ./ Δt_pair
-wb_pair = @. 0.5 * (∫wb_t[i1] + ∫wb_t[i2])
+w̄b̄_pair = @. 0.5 * (∫w̄b̄_t[i1] + ∫w̄b̄_t[i2])
 Πₖ_pair = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2])
 εˡ_pair = @. 0.5 * (∫εˡ_t[i1] + ∫εˡ_t[i2])
 
-resid = @. dKˡdt - (wb_pair - Πₖ_pair - εˡ_pair)
+resid = @. dKˡdt - (w̄b̄_pair - Πₖ_pair - εˡ_pair)
 
 using Test                              #hide
 rms(x) = √(sum(abs2, x) / length(x))    #hide
@@ -251,7 +251,7 @@ Colorbar(fig[2, 4], hmΠ)
 
 ax_bud = Axis(fig[3, 1:4]; xlabel="time [free-fall units]", title="Coarse-grained KE budget")
 lines!(ax_bud, t_pair ./ τ, dKˡdt,   label="d(∫Kˡ)/dt")
-lines!(ax_bud, t_pair ./ τ, wb_pair,  label="∫w̄b̄ dV  (buoyancy production)")
+lines!(ax_bud, t_pair ./ τ, w̄b̄_pair, label="∫w̄b̄ dV  (buoyancy production)")
 lines!(ax_bud, t_pair ./ τ, -Πₖ_pair, label="−∫Πₖ dV  (flux to sub-filter scales)")
 lines!(ax_bud, t_pair ./ τ, -εˡ_pair, label="−∫εˡ dV  (dissipation)")
 lines!(ax_bud, t_pair ./ τ, resid,   label="residual", color=:black, linestyle=:dash)
