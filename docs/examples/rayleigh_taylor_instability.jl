@@ -129,7 +129,7 @@ using Oceananigans.AbstractOperations: @at
 
 ℓ  = 4 * Δx                          # filter scale (full width at half maximum)
 σℓ = ℓ / (2 * sqrt(2 * log(2)))      # corresponding Gaussian standard deviation
-filt = GaussianFilter(; dims=(1, 2), σ=σℓ, boundary=:shrink)
+filt = GaussianFilter(; dims=(1, 2), σ=σℓ)
 
 u, v, w = model.velocities
 b = model.tracers.b
@@ -159,13 +159,12 @@ wb = @at (Center, Center, Center) (w̄ * b̄)                 # buoyancy product
 using NCDatasets
 filename = joinpath(@__DIR__, "rayleigh_taylor_instability")
 
-j_mid = N ÷ 2
 simulation.output_writers[:fields] = NetCDFWriter(model, (; b, Πₖ),
                                                   filename = filename,
                                                   schedule = TimeInterval(τ / 5),
-                                                  indices = (:, j_mid, :),
-                                                  overwrite_existing = true)   
-   
+                                                  indices = (:, 1, :),
+                                                  overwrite_existing = true)
+
 simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫Kˡ, ∫wb, ∫Πₖ, ∫εˡ),
                                                   filename = filename * "_budget",
                                                   schedule = ConsecutiveIterations(TimeInterval(τ / 5)),
@@ -234,7 +233,7 @@ axb = Axis(fig[2, 1]; title="buoyancy, b", xlabel="x", ylabel="z", aspect=1)
 axΠ = Axis(fig[2, 3]; title="cross-scale KE flux, Πₖ", xlabel="x", ylabel="z", aspect=1)
 
 blim = 0.8 * maximum(abs, b_arr[:, :, 1])
-Πlim = 0.8 * maximum(abs, Π_arr[:, :, end])
+Πlim = 0.8 * maximum(abs, Π_arr)
 
 bₙ = @lift b_arr[:, :, $n]
 Πₙ = @lift Π_arr[:, :, $n]
