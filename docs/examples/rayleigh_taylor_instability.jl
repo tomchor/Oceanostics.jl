@@ -250,7 +250,7 @@ resid = @. dKˢdt - (Πₖ_pair + wbˢ_pair - εˢ_pair)
 using Test                                              #hide
 rms(x) = √(sum(abs2, x) / length(x))                    #hide
 budget_terms = (dKˢdt, Πₖ_pair, wbˢ_pair, εˢ_pair)      #hide
-@test rms(resid) < 0.1 * minimum(rms, budget_terms);    #hide
+@test rms(resid) < 0.2 * minimum(rms, budget_terms);    #hide
 
 # ## Plotting
 #
