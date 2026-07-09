@@ -159,7 +159,7 @@ wbˢ = subfilter_covariance(w, b, gfilter)                             # sub-fil
 
 ε   = KineticEnergyDissipationRate(model)                        # dissipation of the full flow
 εˡ  = CoarseGrainedKineticEnergyDissipationRate(model, gfilter)  # dissipation of the filtered flow
-εˢ  = gfilter(ε) - εˡ                                            # sub-filter dissipation
+εˢ  = Field(gfilter(ε)) - εˡ                                     # sub-filter dissipation
 
 # The budget needs only the (cheap) volume integrals of these terms:
 
