@@ -309,7 +309,7 @@ lines!(ax_bud, t_pair ./ τ, Πₖ_pair,  label="∫Πₖ dV  (flux from resolve
 lines!(ax_bud, t_pair ./ τ, wbˢ_pair, label="∫τ(w,b) dV  (sub-filter buoyancy flux)")
 lines!(ax_bud, t_pair ./ τ, -εˢ_pair, label="−∫εˢ dV  (sub-filter dissipation)")
 lines!(ax_bud, t_pair ./ τ, resid,    label="residual", color=:black, linestyle=:dash)
-axislegend(ax_bud; position=:rt, labelsize=10)
+axislegend(ax_bud; position=:lt, labelsize=10)
 
 vlines!(ax_bud, @lift(times[$n] / τ), color=:black, linestyle=:dash)
 
@@ -323,15 +323,8 @@ end
 
 # ![](rayleigh_taylor_instability.mp4)
 #
-# As the heavy fluid falls in spikes and the light fluid rises in bubbles (left), the flow rolls up and
-# breaks into a turbulent mixing layer. The cross-scale flux `Πₖ` (right) marks where kinetic energy
-# crosses the filter scale, mostly forward (downscale, `Πₖ > 0`) along the sharpening edges of the
-# spikes and bubbles, with patches of backscatter (`Πₖ < 0`). The bottom panel shows the
-# volume-integrated sub-filter-scale kinetic-energy budget. Of the two sources, the larger one here is
-# the sub-filter buoyancy flux `∫τ(w,b) dV`: buoyancy injects kinetic energy directly at small scales,
-# rather than only at large ones. That is what we should expect, since the initial interface is about one
-# grid spacing thick, so most of the buoyancy variance already sits below the filter scale. The
-# cross-scale flux `∫Πₖ dV` is weak and even slightly negative (net backscatter) while the interface is
-# still smooth, and only becomes a genuine downscale source once the mixing layer turns turbulent. The
-# modeled dissipation `∫εˢ dV` grows to match the two sources, and once it overtakes them the sub-filter
-# energy decays (`d(∫Kˢ)/dt < 0`). The small residual shows how well the budget closes.
+# As the heavy fluid falls in spikes and the light fluid rises in bubbles, the flow rolls up and
+# breaks into a turbulent mixing layer. The bottom panel shows the volume-integrated SFS KE budget.
+# The sub-filter buoyancy flux `∫τ(w,b) dV` and dissipation `∫εˢ dV` are the dominant terms, with the
+# tendency `d(∫Kˢ)/dt` in third place. The residual is small, which shows that the budget closes well
+# and that the coarse-graining analysis is consistent with the simulation.
