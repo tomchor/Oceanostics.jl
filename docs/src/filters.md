@@ -169,6 +169,55 @@ julia> (Field(gf_wide(c)) isa Field, Field(gf_perdim(c)) isa Field)
 (true, true)
 ```
 
+### Performance notes
+
+The staged (separable) evaluation only fires when the filter operation is the direct operand of a
+`Field`. Composing it into another `AbstractOperation` hides it from that dispatch, and the filter
+silently falls back to the fused, single-kernel path:
+
+```julia
+Field(gf(ψ))         # staged: d one-dimensional passes
+Field(gf(ψ) - φ)     # fused:  one Nᵈ-point kernel
+```
+
+Both forms produce the same result, so the only symptom is speed. The penalty has two parts. First, the
+read count per output cell grows from `d × N` to `Nᵈ`, and, more importantly, the filtered operand is
+re-evaluated at every one of those `Nᵈ` stencil points instead of once per cell.
+
+Second, filtering a stored `Field` is comparatively cheap either way, because reading
+an array element is cheap. Filtering an expensive `KernelFunctionOperation` is not, because the
+operation is recomputed from scratch at every stencil point.
+
+The sub-filter dissipation `filter(ε) - ε̄` illustrates this, since
+[`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) is a nine-term
+viscous-flux contraction rather than a stored array. On a `48×24×48` grid with a horizontal filter of
+width `ℓ = 8Δx` (a 15-point stencil along each filtered direction):
+
+| expression | time per `compute!` | allocations |
+|:--|--:|--:|
+| `Integral(gf(ε) - ε̄)` | 7.31 s | 1.02 M |
+| `Integral(Field(gf(ε)) - ε̄)` | 1.23 s | 254 k |
+
+Identical results, roughly six times the work. Materializing the filtered field first costs one array
+and pays for itself immediately:
+
+```julia
+εˢ = Field(gf(ε)) - ε̄    # do this
+εˢ = gf(ε) - ε̄           # not this
+```
+
+Absolute timings depend on the machine; the ratio is the point. You can tell which path an expression
+takes without timing anything, by asking which `compute!` method it dispatches to:
+
+```julia
+which(compute!, Tuple{typeof(Field(gf(ε))),      Nothing})   # Oceanostics, staged
+which(compute!, Tuple{typeof(Field(gf(ε) - ε̄)), Nothing})   # Oceananigans, generic (fused)
+```
+
+The same reasoning applies to any filtered quantity assembled from operations rather than stored fields.
+Wrap the filtered velocities in `Field`s before forming `½(ū² + v̄² + w̄²)`, for instance. This is also why
+[`subfilter_stress_tensor`](@ref) materializes its filtered velocities and momentum fluxes internally.
+
 ### API reference
 
 ```@docs
