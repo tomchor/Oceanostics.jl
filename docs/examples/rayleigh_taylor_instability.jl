@@ -247,10 +247,10 @@ wbˢ_pair = @. 0.5 * (∫wbˢ_t[i1] + ∫wbˢ_t[i2])
 
 resid = @. dKˢdt - (Πₖ_pair + wbˢ_pair - εˢ_pair)
 
-using Test                                              #hide
-rms(x) = √(sum(abs2, x) / length(x))                    #hide
-budget_terms = (dKˢdt, Πₖ_pair, wbˢ_pair, εˢ_pair)      #hide
-@test rms(resid) < 0.2 * minimum(rms, budget_terms);    #hide
+using Test                                                          #hide
+rms(x) = √(sum(abs2, x) / length(x))                                #hide
+budget_scale = rms(@. abs(Πₖ_pair) + abs(wbˢ_pair) + abs(εˢ_pair))  #hide
+@test rms(resid) < 0.02 * budget_scale;                             #hide
 
 # ## Plotting
 #
