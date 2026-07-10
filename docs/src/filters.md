@@ -188,31 +188,44 @@ Second, filtering a stored `Field` is comparatively cheap either way, because re
 an array element is cheap. Filtering an expensive `KernelFunctionOperation` is not, because the
 operation is recomputed from scratch at every stencil point.
 
-The sub-filter dissipation `filter(ε) - ε̄` illustrates this, since
+A quick calculation of the sub-filter scale dissipation `filter(ε) - ε̄` illustrates this, since
 [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) is a nine-term
-viscous-flux contraction rather than a stored array. On a `48×24×48` grid with a horizontal filter of
-width `ℓ = 8Δx` (a 15-point stencil along each filtered direction):
+viscous-flux contraction rather than a stored array. We build a small LES and filter it horizontally
+with a width of `ℓ = 8Δx`, which is a 15-point stencil along each filtered direction:
 
-| expression | time per `compute!` | allocations |
-|:--|--:|--:|
-| `Integral(gf(ε) - ε̄)` | 7.31 s | 1.02 M |
-| `Integral(Field(gf(ε)) - ε̄)` | 1.23 s | 254 k |
+```@example filters_perf
+using Oceananigans, Oceanostics
 
-Identical results, roughly six times the work. Materializing the filtered field first costs one array
-and pays for itself immediately:
+grid  = RectilinearGrid(size=(32, 32, 32), extent = (1, 1, 1))
+model = NonhydrostaticModel(grid; closure = SmagorinskyLilly())
 
-```julia
-εˢ = Field(gf(ε)) - ε̄    # do this
-εˢ = gf(ε) - ε̄           # not this
+Δx = minimum_xspacing(grid)
+gf = GaussianFilter(; dims=(1, 2), σ = 8Δx / (2 * sqrt(2 * log(2))))
+
+ε  = KineticEnergyDissipationRate(model)                   # an expensive KernelFunctionOperation
+εˡ = CoarseGrainedKineticEnergyDissipationRate(model, gf)  # dissipation of the filtered flow
+nothing # hide
 ```
 
-Absolute timings depend on the machine; the ratio is the point. You can tell which path an expression
-takes without timing anything, by asking which `compute!` method it dispatches to:
+`Oceanostics.SpatialFilters` is the staged path, `Oceananigans.AbstractOperations` the generic fused one.
+Timing both, after a warm-up call so that compilation is not counted:
 
-```julia
-which(compute!, Tuple{typeof(Field(gf(ε))),      Nothing})   # Oceanostics, staged
-which(compute!, Tuple{typeof(Field(gf(ε) - ε̄)), Nothing})   # Oceananigans, generic (fused)
+```@example filters_perf
+julia> ∫εˢ_fused  = Field(Integral(      gf(ε)  - εˡ));
+
+julia> ∫εˢ_staged = Field(Integral(Field(gf(ε)) - εˡ));
+
+julia> compute!(∫εˢ_fused); compute!(∫εˢ_staged); # warm up
+
+julia> t_fused  = @elapsed compute!(∫εˢ_fused)
+5.271968313
+
+julia> t_staged = @elapsed compute!(∫εˢ_staged)
+0.755095503
 ```
+
+Absolute timings depend on the machine, and the ratio grows with the stencil width; the point is
+that materializing the filtered field first speeds at calculation at the cost of one array.
 
 The same reasoning applies to any filtered quantity assembled from operations rather than stored fields.
 Wrap the filtered velocities in `Field`s before forming `½(ū² + v̄² + w̄²)`, for instance. This is also why
