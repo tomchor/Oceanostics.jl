@@ -440,6 +440,8 @@ Mixed-spacing filters stage the same way — each direction's 1D pass uses its o
 stretched) kernel. If the filtered field is composed into another `AbstractOperation` (e.g.
 `2 * gf(c)`) it falls back to the fused, single-kernel evaluation.
 
+See [Performance notes](@ref filter_performance) in the documentation for what that costs and how to avoid it.
+
 ## Examples
 
 ```jldoctest

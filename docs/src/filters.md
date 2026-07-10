@@ -169,7 +169,7 @@ julia> (Field(gf_wide(c)) isa Field, Field(gf_perdim(c)) isa Field)
 (true, true)
 ```
 
-### Performance notes
+### [Performance notes](@id filter_performance)
 
 The staged (separable) evaluation only fires when the filter operation is the direct operand of a
 `Field`. Composing it into another `AbstractOperation` hides it from that dispatch, and the filter
