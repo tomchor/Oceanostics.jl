@@ -210,22 +210,16 @@ nothing # hide
 `Oceanostics.SpatialFilters` is the staged path, `Oceananigans.AbstractOperations` the generic fused one.
 Timing both, after a warm-up call so that compilation is not counted:
 
-```@example filters_perf
-julia> ∫εˢ_fused  = Field(Integral(      gf(ε)  - εˡ));
-
-julia> ∫εˢ_staged = Field(Integral(Field(gf(ε)) - εˡ));
-
-julia> compute!(∫εˢ_fused); compute!(∫εˢ_staged); # warm up
-
-julia> t_fused  = @elapsed compute!(∫εˢ_fused)
-5.271968313
-
-julia> t_staged = @elapsed compute!(∫εˢ_staged)
-0.755095503
+```@repl filters_perf
+∫εˢ_fused  = Field(Integral(      gf(ε)  - εˡ));
+∫εˢ_staged = Field(Integral(Field(gf(ε)) - εˡ));
+compute!(∫εˢ_fused); compute!(∫εˢ_staged);   # warm up so compilation is not timed
+t_fused  = @elapsed compute!(∫εˢ_fused)
+t_staged = @elapsed compute!(∫εˢ_staged)
 ```
 
 Absolute timings depend on the machine, and the ratio grows with the stencil width; the point is
-that materializing the filtered field first speeds at calculation at the cost of one array.
+that materializing the filtered field first speeds up the calculation at the cost of one array.
 
 The same reasoning applies to any filtered quantity assembled from operations rather than stored fields.
 Wrap the filtered velocities in `Field`s before forming `½(ū² + v̄² + w̄²)`, for instance. This is also why
