@@ -167,7 +167,7 @@ wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux �
 # the scales it removes:
 
 ū, v̄, w̄ = gfilter(u), gfilter(v), gfilter(w)
-Kˡ = Oceanostics.KineticEnergy(ū, v̄, w̄)  #  kinetic energy of the coarse-grained flow
+Kˡ = Oceanostics.KineticEnergy(model, ū, v̄, w̄)  #  kinetic energy of the coarse-grained flow
 
 # ## Output
 #
