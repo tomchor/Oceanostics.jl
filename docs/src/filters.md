@@ -169,6 +169,62 @@ julia> (Field(gf_wide(c)) isa Field, Field(gf_perdim(c)) isa Field)
 (true, true)
 ```
 
+### [Performance notes](@id filter_performance)
+
+The staged (separable) evaluation only fires when the filter operation is the direct operand of a
+`Field`. Composing it into another `AbstractOperation` hides it from that dispatch, and the filter
+silently falls back to the fused, single-kernel path:
+
+```julia
+Field(gf(ψ))         # staged: d one-dimensional passes
+Field(gf(ψ) - φ)     # fused:  one Nᵈ-point kernel
+```
+
+Both forms produce the same result, so the only symptom is speed. The penalty has two parts. First, the
+read count per output cell grows from `d × N` to `Nᵈ`, and, more importantly, the filtered operand is
+re-evaluated at every one of those `Nᵈ` stencil points instead of once per cell.
+
+Second, filtering a stored `Field` is comparatively cheap either way, because reading
+an array element is cheap. Filtering an expensive `KernelFunctionOperation` is not, because the
+operation is recomputed from scratch at every stencil point.
+
+A quick calculation of the sub-filter scale dissipation `filter(ε) - ε̄` illustrates this, since
+[`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) is a nine-term
+viscous-flux contraction rather than a stored array. We build a small LES and filter it horizontally
+with a width of `ℓ = 8Δx`, which is a 15-point stencil along each filtered direction:
+
+```@example filters_perf
+using Oceananigans, Oceanostics
+
+grid  = RectilinearGrid(size=(32, 32, 32), extent = (1, 1, 1))
+model = NonhydrostaticModel(grid; closure = SmagorinskyLilly())
+
+Δx = minimum_xspacing(grid)
+gf = GaussianFilter(; dims=(1, 2), σ = 8Δx / (2 * sqrt(2 * log(2))))
+
+ε  = KineticEnergyDissipationRate(model)                   # an expensive KernelFunctionOperation
+εˡ = CoarseGrainedKineticEnergyDissipationRate(model, gf)  # dissipation of the filtered flow
+nothing # hide
+```
+
+`Oceanostics.SpatialFilters` is the staged path, `Oceananigans.AbstractOperations` the generic fused one.
+Timing both, after a warm-up call so that compilation is not counted:
+
+```@repl filters_perf
+∫εˢ_fused  = Field(Integral(      gf(ε)  - εˡ));
+∫εˢ_staged = Field(Integral(Field(gf(ε)) - εˡ));
+compute!(∫εˢ_fused); compute!(∫εˢ_staged);   # warm up so compilation is not timed
+t_fused  = @elapsed compute!(∫εˢ_fused)
+t_staged = @elapsed compute!(∫εˢ_staged)
+```
+
+Absolute timings depend on the machine, and the ratio grows with the stencil width; the point is
+that materializing the filtered field first speeds up the calculation at the cost of one array.
+
+The same reasoning applies to any filtered quantity assembled from operations rather than stored fields.
+Wrap the filtered velocities in `Field`s before forming `½(ū² + v̄² + w̄²)`, for instance. This is also why
+[`subfilter_stress_tensor`](@ref) materializes its filtered velocities and momentum fluxes internally.
+
 ### API reference
 
 ```@docs
