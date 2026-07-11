@@ -203,11 +203,9 @@ function test_kfo_input(grid, Filter, fkw)
     @test location(outer) == (Center, Center, Center)
 end
 
-# A windowed output field — e.g. an output writer's `indices=(:, :, Nz)` surface
-# slice — must compute through the staged multi-direction path without writing
-# out of bounds, and must agree with the matching slice of the full field.
-# Regression test for a heap corruption where the staged compute used the full
-# operand size as its iteration space instead of the windowed destination size.
+# Regression test: a windowed output field (e.g. an output writer's `indices=(:, :, Nz)`
+# slice) must compute through the staged path without writing out of bounds, and must agree
+# with the matching slice of the full field.
 function test_windowed_output_matches_full(grid, Filter, fkw)
     c = center_field_from(grid, (x, y, z) -> sin(2π*x) * cos(2π*y) + sin(2π*z))
     Nx, Ny, Nz = size(grid)

@@ -268,14 +268,9 @@ using Oceananigans.Utils: KernelParameters, launch!
 @inline _single_dim_kfo(loc, grid, kern, valw, pol, input) =
     KernelFunctionOperation{loc...}(kern, grid, valw, pol, input)
 
-# Evaluate `kfo` over the destination field's iteration space and write the
-# result into it. Reuses Oceananigans' trivial copy kernel `_compute!`
-# (`data[i,j,k] = operand[i,j,k]`). The iteration space is taken from `dest`
-# (its windowed size and index offsets), *not* from `kfo`: when `dest` is a
-# windowed output field (e.g. an output writer's `indices=(:, :, Nz)` slice)
-# its data holds only the window, so iterating over the full `size(kfo)` would
-# write out of bounds. This mirrors Oceananigans' own `compute_computed_field!`,
-# which launches with `KernelParameters(size(comp), map(offset_index, comp.indices))`.
+# Evaluate `kfo` into `dest` via Oceananigans' copy kernel. The iteration space comes from
+# `dest`, not `kfo`: a windowed `dest` (e.g. an output writer's `indices=(:, :, Nz)` slice)
+# holds only the window, so sizing the launch from `kfo` would write out of bounds.
 function _launch_compute_into!(dest, grid, kfo)
     arch = architecture(grid)
     params = KernelParameters(size(dest), map(offset_index, dest.indices))
