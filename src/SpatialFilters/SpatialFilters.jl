@@ -268,13 +268,13 @@ using Oceananigans.Utils: KernelParameters, launch!
 @inline _single_dim_kfo(loc, grid, kern, valw, pol, input) =
     KernelFunctionOperation{loc...}(kern, grid, valw, pol, input)
 
-# Run `kfo` over its iteration space and write the result into `data`.
-# Reuses Oceananigans' trivial copy kernel `_compute!`
-# (`data[i,j,k] = operand[i,j,k]`).
-function _launch_compute_into!(data, indices, grid, kfo)
+# Evaluate `kfo` into `dest` via Oceananigans' copy kernel. The iteration space comes from
+# `dest`, not `kfo`: a windowed `dest` (e.g. an output writer's `indices=(:, :, Nz)` slice)
+# holds only the window, so sizing the launch from `kfo` would write out of bounds.
+function _launch_compute_into!(dest, grid, kfo)
     arch = architecture(grid)
-    params = KernelParameters(size(kfo), map(offset_index, indices))
-    launch!(arch, grid, params, _compute!, data, kfo)
+    params = KernelParameters(size(dest), map(offset_index, dest.indices))
+    launch!(arch, grid, params, _compute!, dest.data, kfo)
     return nothing
 end
 
@@ -286,7 +286,7 @@ end
 function _stage_into_temp(loc, grid, kern, valw, pol, input)
     kfo = _single_dim_kfo(loc, grid, kern, valw, pol, input)
     temp = Field(kfo, compute=false)
-    _launch_compute_into!(temp.data, temp.indices, grid, kfo)
+    _launch_compute_into!(temp, grid, kfo)
     return temp
 end
 
@@ -320,7 +320,7 @@ function _compute_staged_filter!(comp, time)
         final = _single_dim_kfo(loc, grid, kern3, valw3, pol3, temp2)
     end
 
-    _launch_compute_into!(comp.data, comp.indices, grid, final)
+    _launch_compute_into!(comp, grid, final)
     fill_halo_regions!(comp)
     set_status!(comp.status, time)
     return comp
