@@ -1,10 +1,10 @@
 # Filtered kinetic energy equation
 
 The `FilteredKineticEnergyEquation` module provides diagnostics for the kinetic energy budget of the
-coarse-grained (filtered) flow, in which a low-pass spatial filter ``\widetilde{(\,\cdot\,)}`` separates a
+filtered flow, in which a low-pass spatial filter ``\widetilde{(\,\cdot\,)}`` separates a
 filtered from a subfilter scale. The section below derives that budget.
 
-## Deriving the coarse-grained kinetic energy budget
+## Deriving the filtered-flow kinetic energy budget
 
 Oceananigans' [`NonhydrostaticModel`](https://clima.github.io/OceananigansDocumentation/stable/physics/nonhydrostatic_model/)
 evolves the velocity ``v_i`` with the momentum equation (here without the background-flow, surface-wave,
@@ -84,7 +84,7 @@ These diagnostics take a `filter` argument: any callable mapping a field to its 
 counterpart, typically a [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The directions the
 filter acts in (set inside `filter`) are independent of how each diagnostic contracts: the stress tensor
 and cross-scale flux take a `dims` argument selecting the directions they contract over — so you can
-filter horizontally yet contract the full 3D tensor — while the coarse-grained dissipation always forms
+filter horizontally yet contract the full 3D tensor — while the filtered dissipation always forms
 the full viscous contraction.
 
 ## Example
@@ -111,7 +111,7 @@ FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center,
 ├── grid: 16×16×16 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
-└── computes: coarse-grained kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ
+└── computes: filtered kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ
 ```
 
 ## Filtered kinetic energy
