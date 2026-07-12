@@ -38,11 +38,11 @@ jobs:
           cache-name: docs
           include-matrix: false
       - name: Install dependencies
-        run: julia --color=yes --project -e 'using Pkg; Pkg.instantiate()'
+        run: julia -O0 --color=yes --project -e 'using Pkg; Pkg.instantiate()'
       - name: Run example
         env:
           OCEANOSTICS_DOCS_EXAMPLE: ${{ matrix.example }}
-        run: julia --color=yes --project=docs/ docs/make.jl
+        run: julia -O0 --color=yes --project=docs/ docs/make.jl
       - name: Upload generated page and media
         uses: actions/upload-artifact@v4
         with:
@@ -74,7 +74,7 @@ jobs:
         with:
           cache-name: docs
       - name: Install dependencies
-        run: julia --color=yes --project -e 'using Pkg; Pkg.instantiate()'
+        run: julia -O0 --color=yes --project -e 'using Pkg; Pkg.instantiate()'
       - name: Collect pre-built example pages
         uses: actions/download-artifact@v4
         with:
@@ -85,4 +85,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
-        run: julia --color=yes --project=docs/ docs/make.jl
+        run: julia -O0 --color=yes --project=docs/ docs/make.jl
