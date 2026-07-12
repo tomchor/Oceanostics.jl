@@ -43,10 +43,12 @@ jobs:
           include-matrix: false
       - name: Install dependencies
         run: julia --color=yes --project -e 'using Pkg; Pkg.instantiate()'
+      # -O2 plus multithreading (folded in from #264): the example simulations are
+      # runtime-bound, so both optimized code and multithreaded Oceananigans kernels help.
       - name: Run example
         env:
           OCEANOSTICS_DOCS_EXAMPLE: ${{ matrix.example }}
-        run: julia --color=yes --project=docs/ docs/make.jl
+        run: julia --color=yes --threads=auto --project=docs/ docs/make.jl
       - name: Upload generated page and media
         uses: actions/upload-artifact@v4
         with:
