@@ -57,11 +57,32 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # Assemble: collect the pre-built example pages, run makedocs (doctests + site) without
-  # re-executing the examples, and deploy.
+  # Run the doctests in parallel with the examples (they don't depend on them). This keeps
+  # the doctests off the assemble job's critical path.
+  doctests:
+    name: Doctests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'
+      - uses: julia-actions/cache@v2
+        with:
+          cache-name: docs
+      - name: Install dependencies
+        run: julia --color=yes --project -e 'using Pkg; Pkg.instantiate()'
+      - name: Run doctests
+        env:
+          OCEANOSTICS_DOCS_DOCTESTS: 'true'
+        run: julia --color=yes --project=docs/ docs/make.jl
+
+  # Assemble: collect the pre-built example pages, run makedocs (site only, no doctests)
+  # without re-executing the examples, and deploy. Needs doctests too, so a doctest failure
+  # blocks the deploy.
   build_docs:
     name: Assemble and deploy
-    needs: examples
+    needs: [examples, doctests]
     runs-on: ubuntu-latest
     permissions:
       contents: write
