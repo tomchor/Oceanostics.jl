@@ -72,30 +72,22 @@ if single_example != ""
     exit(0)
 end
 
-# Doctests-only mode (OCEANOSTICS_DOCS_DOCTESTS=true): run just the doctests, in a separate
-# CI job that runs in parallel with the examples. No example pages are generated (they carry
-# no doctests) and no simulations run here.
-run_doctests = get(ENV, "OCEANOSTICS_DOCS_DOCTESTS", "") == "true"
-
 # Assemble mode: generate any example page that isn't already present, then build the site.
 # A plain `julia docs/make.jl` (nothing pre-generated) builds every example serially, so
 # local builds keep working; in CI the matrix jobs pre-generate the pages and drop them in
 # `OUTPUT_DIR`, so these are skipped.
-if !run_doctests
-    for (_, slug) in examples
-        if isfile(joinpath(OUTPUT_DIR, slug * ".md"))
-            @info "Reusing pre-built example page: $slug"
-        else
-            @info "Building example: $slug"
-            generate_example(slug)
-        end
+for (_, slug) in examples
+    if isfile(joinpath(OUTPUT_DIR, slug * ".md"))
+        @info "Reusing pre-built example page: $slug"
+    else
+        @info "Building example: $slug"
+        generate_example(slug)
     end
 end
 #---
 
 
 #+++ Organize pages and HTML format
-example_section = "Examples" => example_pages
 pages = ["Home" => "index.md",
          "Budget equations" => ["Tracer equation"                        => "tracer_equation.md",
                                 "Momentum equation"                      => "momentum_equation.md",
@@ -108,13 +100,9 @@ pages = ["Home" => "index.md",
          "Flow diagnostics" => "flow_diagnostics.md",
          "Progress messengers" => "progress_messengers.md",
          "Spatial filters" => "filters.md",
-         example_section,
+         "Examples" => example_pages,
          "Function library" => "library.md",
         ]
-
-# The doctests-only job doesn't generate the example pages (and they carry no doctests), so
-# drop them here to avoid makedocs referencing missing files.
-run_doctests && (pages = filter(!=(example_section), pages))
 
 CI = get(ENV, "CI", nothing) == "true"
 
@@ -130,8 +118,7 @@ makedocs(sitename = "Oceanostics.jl",
          authors = "Tomas Chor and contributors",
          pages = pages,
          modules = [Oceanostics],
-         # Doctests run in their own parallel CI job (`:only`); the assemble job skips them.
-         doctest = run_doctests ? :only : false,
+         doctest = true,
          clean = true,
          format = format,
          checkdocs = :none,
@@ -161,7 +148,7 @@ end
 #---
 
 #+++ Deploy thedocs
-if CI && !run_doctests
+if CI
     deploydocs(repo = "github.com/tomchor/Oceanostics.jl.git",
                versions = ["stable" => "v^", "v#.#.#", "dev" => "dev"],
                devbranch = "main",
