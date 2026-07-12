@@ -1,10 +1,7 @@
 # # [Kelvin-Helmholtz instability](@id kelvin_helmholtz_example)
 #
-# This example simulates a simple 2D Kelvin-Helmholtz instability and is based on the similar
-# [Oceananigans
-# example](https://clima.github.io/OceananigansDocumentation/stable/literated/kelvin_helmholtz_instability/).
-# We then use Oceanostics to close the volume-integrated *coarse-grained* (filtered-flow) kinetic-energy
-# budget of the developing billows.
+# In this example we simulate a simple 2D Kelvin-Helmholtz instability and then use
+# Oceanostics to close the volume-integrated kinetic-energy budget of the filtered flow.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -35,7 +32,7 @@ Pr  = 1     # Prandtl number
 ν = U * h / Re   # viscosity
 κ = ν / Pr       # buoyancy diffusivity
 
-# We begin by creating a model with this isotropic diffusivity and fifth-order advection on a `xz`
+# We begin by creating a model with this isotropic diffusivity and centered advection on a `xz`
 # grid, using a buoyancy `b` as the active scalar. We make the box one wavelength of the most
 # unstable Kelvin-Helmholtz mode wide (`k_max = 0.4446 / h`; [Michalke,
 # 1964](https://doi.org/10.1017/S0022112064000908)), so that the perturbation we seed below fits
@@ -48,7 +45,7 @@ Lz = 10
 grid = RectilinearGrid(size=(N, N), x=(-Lx/2, +Lx/2), z=(-Lz/2, +Lz/2), topology=(Periodic, Flat, Bounded))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
-                            advection = UpwindBiased(order=5),
+                            advection = Centered(order=4), # A centered scheme is used here to minimize numerical dissipation
                             closure = ScalarDiffusivity(; ν, κ),
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
@@ -79,10 +76,7 @@ set!(model, u=shear_flow, b=stratification, w=perturbation)
 
 Δx = minimum_xspacing(grid)
 simulation = Simulation(model, Δt = 0.1 * Δx / U, stop_time=120)
-
-wizard = TimeStepWizard(cfl=0.8, max_Δt=1)
-simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
-
+conjure_time_step_wizard!(simulation, IterationInterval(2), cfl=0.8, max_Δt=1)
 
 # ## Model diagnostics
 #
