@@ -92,6 +92,9 @@ jobs:
           merge-multiple: true
       - name: Build and deploy
         env:
+          # Reuse the pre-built example pages downloaded above; never re-run a simulation
+          # here (and fail loudly if a page is missing).
+          OCEANOSTICS_DOCS_ASSEMBLE: 'true'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
         run: julia -O0 --color=yes --project=docs/ docs/make.jl

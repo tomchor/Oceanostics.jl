@@ -75,16 +75,24 @@ if single_example != ""
     exit(0)
 end
 
-# Assemble mode: generate any example page that is missing or older than its source, then
-# build the site. A plain `julia docs/make.jl` (nothing pre-generated) builds every example
-# serially, so local builds keep working and pick up edits to the example `.jl`; in CI the
-# matrix jobs pre-generate the pages and drop them in `OUTPUT_DIR` (freshly downloaded, so
-# newer than the checked-out sources), so these are reused.
+# Reuse-vs-regenerate policy for the example pages:
+#  - CI assemble job (OCEANOSTICS_DOCS_ASSEMBLE=true): the pages were built by the parallel
+#    example jobs and their media downloaded into `OUTPUT_DIR`. Reuse them exactly as-is and
+#    never run a simulation here (that would be slow and at -O0). Error loudly if one is
+#    missing, since that means a broken or expired artifact, not "build it now". This keeps
+#    the CI path from depending on artifact-vs-checkout mtime ordering.
+#  - Local build (no flag): reuse a page only if it is newer than its `.jl` source, else
+#    regenerate it. Delete `OUTPUT_DIR` (or edit the example) to force a rebuild.
+reuse_pages = get(ENV, "OCEANOSTICS_DOCS_ASSEMBLE", "") == "true"
 for (_, slug) in examples
     page   = joinpath(OUTPUT_DIR, slug * ".md")
     source = joinpath(EXAMPLES_DIR, slug * ".jl")
-    if isfile(page) && mtime(page) >= mtime(source)
+    if reuse_pages
+        isfile(page) || error("Assemble mode: pre-built page $(page) is missing; " *
+                              "expected it from the example jobs' artifacts.")
         @info "Reusing pre-built example page: $slug"
+    elseif isfile(page) && mtime(page) >= mtime(source)
+        @info "Reusing up-to-date example page: $slug"
     else
         @info "Building example: $slug"
         generate_example(slug)
