@@ -8,7 +8,9 @@ using Oceananigans.Fields: Field
 
 using ..KineticEnergyEquation: KineticEnergyDissipationRate
 using ..FilteredKineticEnergyEquation: subfilter_stress_tensor, CoarseGrainedKineticEnergyDissipationRate
-using ..SpatialFilters: GaussianFilter, BoxFilter   # GaussianFilter is used by the convenience methods; BoxFilter is imported only so its docstring `@ref` resolves in-module
+# `GaussianFilter` is used by the convenience methods; `BoxFilter` is imported only so its docstring
+# `@ref` resolves in-module.
+using ..SpatialFilters: GaussianFilter, BoxFilter
 
 #+++ Sub-filter kinetic energy
 """

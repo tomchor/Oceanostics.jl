@@ -2,6 +2,7 @@ using Test
 using CUDA: has_cuda_gpu
 using Oceananigans
 using Oceananigans.Fields: location
+using Oceananigans.AbstractOperations: compute_at!
 
 using Oceanostics
 using Oceanostics: subfilter_kinetic_energy, subfilter_kinetic_energy_dissipation_rate
@@ -65,6 +66,42 @@ function test_subfilter_dissipation_convenience(model)
           interior(Field(subfilter_kinetic_energy_dissipation_rate(model, filt)))
     return nothing
 end
+
+# Both diagnostics hold internally materialized filtered `Field`s (Kˢ via `subfilter_stress_tensor`, εˢ via
+# the nested `Field(filter(Field(ε)))`); recomputing at a new time — as an `OutputWriter` does each output —
+# must reflect the updated flow through those nested fields, not stay frozen at construction. This mutates
+# the model, so both are called last for their model.
+function test_subfilter_kinetic_energy_recomputes(model, filt)
+    Kf = Field(subfilter_kinetic_energy(model, filt))
+    compute_at!(Kf, 0.0)
+    snapshot = Array(interior(Kf))
+
+    set!(model, u=(x, y, z) -> 2randn(), v=(x, y, z) -> 2randn(), w=(x, y, z) -> 2randn())
+    compute_at!(Kf, 1.0)
+
+    fresh = Field(subfilter_kinetic_energy(model, filt))
+    compute_at!(fresh, 2.0)
+
+    @test !(Array(interior(Kf)) ≈ snapshot)   # tracked the change in the flow
+    @test interior(Kf) ≈ interior(fresh)      # equals a Kˢ built fresh on the new state
+    return nothing
+end
+
+function test_subfilter_dissipation_recomputes(model, filt)
+    εf = Field(subfilter_kinetic_energy_dissipation_rate(model, filt))
+    compute_at!(εf, 0.0)
+    snapshot = Array(interior(εf))
+
+    set!(model, u=(x, y, z) -> 2randn(), v=(x, y, z) -> 2randn(), w=(x, y, z) -> 2randn())
+    compute_at!(εf, 1.0)
+
+    fresh = Field(subfilter_kinetic_energy_dissipation_rate(model, filt))
+    compute_at!(fresh, 2.0)
+
+    @test !(Array(interior(εf)) ≈ snapshot)   # tracked the change in the flow
+    @test interior(εf) ≈ interior(fresh)      # equals an εˢ built fresh on the new state
+    return nothing
+end
 #---
 
 @testset "Sub-filter kinetic energy equation" begin
@@ -84,10 +121,16 @@ end
     @info "    Uniform flow vanishes (Kˢ)"
     test_subfilter_kinetic_energy_uniform_vanishes(grid, ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1))
 
+    @info "    Kˢ recomputes as the flow evolves"
+    test_subfilter_kinetic_energy_recomputes(model, filt) # mutates model; keep after the other `model` tests
+
     # εˢ needs a dissipative closure so the full- and filtered-flow dissipations are defined.
     @info "    Sub-filter KE dissipation εˢ = filter(ε) - εˡ matches manual"
     model_ν = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-3))
     set!(model_ν, u=(x, y, z) -> randn(), v=(x, y, z) -> randn(), w=(x, y, z) -> randn())
     test_subfilter_dissipation_matches_manual(model_ν, filt)
     test_subfilter_dissipation_convenience(model_ν)
+
+    @info "    εˢ recomputes as the flow evolves"
+    test_subfilter_dissipation_recomputes(model_ν, filt) # mutates model_ν; keep last
 end
