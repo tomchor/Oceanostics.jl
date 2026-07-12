@@ -67,17 +67,23 @@ generate_example(slug) =
 # uploaded as an artifact and later collected by the assemble/`makedocs` job.
 single_example = get(ENV, "OCEANOSTICS_DOCS_EXAMPLE", "")
 if single_example != ""
+    single_example in last.(examples) ||
+        error("OCEANOSTICS_DOCS_EXAMPLE = \"$single_example\" is not a known example; " *
+              "expected one of $(last.(examples))")
     @info "Building single example: $single_example"
     generate_example(single_example)
     exit(0)
 end
 
-# Assemble mode: generate any example page that isn't already present, then build the site.
-# A plain `julia docs/make.jl` (nothing pre-generated) builds every example serially, so
-# local builds keep working; in CI the matrix jobs pre-generate the pages and drop them in
-# `OUTPUT_DIR`, so these are skipped.
+# Assemble mode: generate any example page that is missing or older than its source, then
+# build the site. A plain `julia docs/make.jl` (nothing pre-generated) builds every example
+# serially, so local builds keep working and pick up edits to the example `.jl`; in CI the
+# matrix jobs pre-generate the pages and drop them in `OUTPUT_DIR` (freshly downloaded, so
+# newer than the checked-out sources), so these are reused.
 for (_, slug) in examples
-    if isfile(joinpath(OUTPUT_DIR, slug * ".md"))
+    page   = joinpath(OUTPUT_DIR, slug * ".md")
+    source = joinpath(EXAMPLES_DIR, slug * ".jl")
+    if isfile(page) && mtime(page) >= mtime(source)
         @info "Reusing pre-built example page: $slug"
     else
         @info "Building example: $slug"
