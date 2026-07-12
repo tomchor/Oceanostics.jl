@@ -44,6 +44,10 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
         include("test_filtered_kinetic_energy_equation.jl")
     end
 
+    if group == :subfilter_ke_diagnostics || group == :all
+        include("test_subfilter_kinetic_energy_equation.jl")
+    end
+
     if group == :tke_diagnostics || group == :all
         include("test_turbulent_kinetic_energy_equation.jl")
     end

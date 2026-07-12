@@ -5,7 +5,7 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, F}
 
 #+++ Module export
-export TracerEquation, KineticEnergyEquation, FilteredKineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
+export TracerEquation, KineticEnergyEquation, FilteredKineticEnergyEquation, SubFilterKineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
        UMomentumEquation, VMomentumEquation, WMomentumEquation
 #---
 
@@ -42,6 +42,10 @@ export KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyB
 
 #+++ FilteredKineticEnergyEquation exports
 export subfilter_stress_tensor, KineticEnergyCrossScaleFlux, CoarseGrainedKineticEnergyDissipationRate
+#---
+
+#+++ SubFilterKineticEnergyEquation exports
+export subfilter_kinetic_energy, subfilter_kinetic_energy_dissipation_rate
 #---
 
 #+++ TurbulentKineticEnergyEquation exports
@@ -191,12 +195,14 @@ include("PotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
 include("SpatialFilters/SpatialFilters.jl")
 include("FilteredKineticEnergyEquation.jl")
+include("SubFilterKineticEnergyEquation.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
 using .FlowDiagnostics
 using .SpatialFilters
 using .FilteredKineticEnergyEquation
+using .SubFilterKineticEnergyEquation
 using .ProgressMessengers
 
 #+++ Custom `show` for diagnostics

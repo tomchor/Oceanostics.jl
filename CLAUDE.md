@@ -16,7 +16,7 @@ julia --project -e 'using Pkg; Pkg.test()'
 TEST_GROUP=vel_diagnostics julia --project -e 'using Pkg; Pkg.test()'
 ```
 
-Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `u_momentum_diagnostics`, `v_momentum_diagnostics`, `w_momentum_diagnostics`, `ke_diagnostics`, `filtered_ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `spatial_filters`, `perf_invariants`.
+Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `u_momentum_diagnostics`, `v_momentum_diagnostics`, `w_momentum_diagnostics`, `ke_diagnostics`, `filtered_ke_diagnostics`, `subfilter_ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `spatial_filters`, `perf_invariants`.
 
 ```bash
 # Instantiate/build the package
@@ -46,6 +46,7 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 - **`SpatialFilters`** (submodule): Spatial filters (`box_filter.jl`, `gaussian_filter.jl`) for diagnostics that need scale separation.
 - **`KineticEnergyEquation`**: KE, its tendency, advection, stress, forcing, pressure redistribution, buoyancy production, dissipation rate (general and isotropic)
 - **`FilteredKineticEnergyEquation`**: Filtered (coarse-grained) KE budget terms — `subfilter_stress_tensor` (τⁱʲ = filter(uⁱuʲ) − ūⁱūʲ), `KineticEnergyCrossScaleFlux` (Πₖ = −τⁱʲS̄ⁱʲ, Aluie et al. 2018), and `CoarseGrainedKineticEnergyDissipationRate` (εˡ, dissipation of the filtered flow). Built on `FlowDiagnostics`' `StressTensor`/`StrainRateTensor` and the `Filters` submodule, so it is included after both.
+- **`SubFilterKineticEnergyEquation`**: Sub-filter KE budget terms — `subfilter_kinetic_energy` (Kˢ = ½τⁱⁱ) and `subfilter_kinetic_energy_dissipation_rate` (εˢ = filter(ε) − εˡ). Composite `AbstractOperation`s built on `FilteredKineticEnergyEquation` and `KineticEnergyEquation`, so it is included after both.
 - **`TurbulentKineticEnergyEquation`**: TKE, isotropic dissipation, shear production rates (X/Y/Z and total)
 - **`TracerVarianceEquation`**: Tendency, dissipation rate, diffusion of tracer variance
 - **`PotentialEnergyEquation`**: Potential energy for BuoyancyTracer, linear/nonlinear SeawaterBuoyancy

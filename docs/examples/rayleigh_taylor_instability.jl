@@ -102,7 +102,8 @@ add_callback!(simulation, progress, IterationInterval(100))
 # \tau^{ij} = \overline{u^i u^j} - \overline{u}^i\,\overline{u}^j ,
 # ```
 #
-# where ``\tau^{ij}`` is the sub-filter stress ([`subfilter_stress_tensor`](@ref)). We apply a Gaussian
+# where ``\tau^{ij}`` is the sub-filter stress ([`subfilter_stress_tensor`](@ref)), so ``K^s`` itself is
+# computed by [`subfilter_kinetic_energy`](@ref). We apply a Gaussian
 # filter of width `ℓ` in the two horizontal directions, which are statistically
 # homogeneous; the vertical direction is left unfiltered.
 #
@@ -123,8 +124,8 @@ add_callback!(simulation, progress, IterationInterval(100))
 #   down to the sub-filter scales.
 # - ``\tau(w, b) = \overline{wb} - \overline{w}\,\overline{b}`` is the sub-filter buoyancy flux (a
 #   `subfilter_covariance`), which converts sub-filter potential energy into sub-filter kinetic energy.
-# - ``\varepsilon_K^s = \overline{\varepsilon} - \varepsilon^{\ell}`` is the sub-filter dissipation: the
-#   filtered total dissipation ``\varepsilon``
+# - ``\varepsilon_K^s = \overline{\varepsilon} - \varepsilon^{\ell}`` is the sub-filter dissipation
+#   ([`subfilter_kinetic_energy_dissipation_rate`](@ref)): the filtered total dissipation ``\varepsilon``
 #   ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) minus the
 #   dissipation ``\varepsilon^{\ell}`` of the filtered flow
 #   ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)). For a constant viscosity it reduces to
@@ -143,16 +144,10 @@ gfilter = GaussianFilter(dims=(1, 2), σ=σℓ)
 u, v, w = model.velocities
 b = model.tracers.b
 
-## `collocate_diagonals` puts τ₁₁, τ₂₂ and τ₃₃ at cell centers so we can trace them into Kˢ = ½τⁱⁱ
-τᵢⱼ = subfilter_stress_tensor(model, gfilter; collocate_diagonals=true)
-
-Kˢ  = (τᵢⱼ.τ₁₁ + τᵢⱼ.τ₂₂ + τᵢⱼ.τ₃₃) / 2            # sub-filter kinetic energy ½τⁱⁱ
+Kˢ  = subfilter_kinetic_energy(model, gfilter)     # sub-filter kinetic energy ½τⁱⁱ
 Πₖ  = KineticEnergyCrossScaleFlux(model, gfilter)  # cross-scale flux from filtered scales
 wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux τ(w, b)
-
-ε   = KineticEnergyDissipationRate(model)                        # dissipation of the full flow
-εˡ  = CoarseGrainedKineticEnergyDissipationRate(model, gfilter)  # dissipation of the filtered flow
-εˢ  = Field(gfilter(ε)) - εˡ                                     # sub-filter dissipation
+εˢ  = subfilter_kinetic_energy_dissipation_rate(model, gfilter)  # sub-filter dissipation ε̄ − εˡ
 
 # The budget needs only the (cheap) volume integrals of these terms:
 
