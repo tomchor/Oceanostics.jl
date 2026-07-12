@@ -1,7 +1,7 @@
 module SpatialFilters
 using DocStringExtensions
 
-export BoxFilter, GaussianFilter
+export BoxFilter, GaussianFilter, ShrinkingBoundaryCondition
 
 using Oceananigans: location
 using Oceananigans.Grids: topology, Periodic,
@@ -9,7 +9,10 @@ using Oceananigans.Grids: topology, Periodic,
                           xspacings, yspacings, zspacings,
                           xnode, ynode, znode
 using Oceananigans.Operators: xspacing, yspacing, zspacing
-using Oceananigans.AbstractOperations: KernelFunctionOperation
+using Oceananigans.AbstractOperations: KernelFunctionOperation, AbstractOperation
+using Oceananigans.BoundaryConditions: BoundaryCondition, FieldBoundaryConditions,
+                                       AbstractBoundaryConditionClassification, DefaultBoundaryCondition,
+                                       Value, Gradient, Flux
 
 using Oceanostics: CustomKFO
 
@@ -50,6 +53,40 @@ struct ConstantBoundary{T} <: AbstractBoundaryPolicy
     ConstantBoundary{T}(l, r) where {T} = new{T}(l, r)
 end
 ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), typeof(right))}(promote(left, right)...)
+
+"""
+    SplitBoundary(left, right)
+
+Apply a different `AbstractBoundaryPolicy` to each side of a `Bounded` direction: `left` to offsets
+past the low-index end, `right` to offsets past the high-index end. Built automatically from a
+`FieldBoundaryConditions` whose two sides differ.
+"""
+struct SplitBoundary{L<:AbstractBoundaryPolicy, R<:AbstractBoundaryPolicy} <: AbstractBoundaryPolicy
+    left::L
+    right::R
+end
+#---
+
+#+++ Filter boundary conditions (Oceananigans BoundaryCondition interface)
+"""
+    Shrink <: AbstractBoundaryConditionClassification
+
+Boundary-condition classification marking a wall where a filter stencil should shrink. See
+[`ShrinkingBoundaryCondition`](@ref).
+"""
+struct Shrink <: AbstractBoundaryConditionClassification end
+
+"""
+    ShrinkingBoundaryCondition()
+
+Boundary condition telling a spatial filter to *shrink* its stencil at a wall, averaging only over
+the interior cells the stencil actually covers (the filter analog of the default `:shrink` policy).
+Unlike the symbol API it composes with Oceananigans' boundary-condition types, e.g.
+
+    boundary_conditions = FieldBoundaryConditions(west = ShrinkingBoundaryCondition(),
+                                                  east = GradientBoundaryCondition(0))
+"""
+ShrinkingBoundaryCondition() = BoundaryCondition(Shrink, nothing)
 #---
 
 #+++ Stencil value readers
@@ -89,6 +126,22 @@ end
     return ifelse(in_bounds, @inbounds(ψ[i, j, clamp(k, 1, N)]), zero(eltype(ψ))), Int(in_bounds)
 end
 
+@inline function x_stencil_fetch(b::SplitBoundary, ψ, i, j, k, N)
+    i < 1 && return x_stencil_fetch(b.left, ψ, i, j, k, N)
+    i > N && return x_stencil_fetch(b.right, ψ, i, j, k, N)
+    return (@inbounds(ψ[i, j, k]), 1)
+end
+@inline function y_stencil_fetch(b::SplitBoundary, ψ, i, j, k, N)
+    j < 1 && return y_stencil_fetch(b.left, ψ, i, j, k, N)
+    j > N && return y_stencil_fetch(b.right, ψ, i, j, k, N)
+    return (@inbounds(ψ[i, j, k]), 1)
+end
+@inline function z_stencil_fetch(b::SplitBoundary, ψ, i, j, k, N)
+    k < 1 && return z_stencil_fetch(b.left, ψ, i, j, k, N)
+    k > N && return z_stencil_fetch(b.right, ψ, i, j, k, N)
+    return (@inbounds(ψ[i, j, k]), 1)
+end
+
 @inline x_stencil_call(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(wrap_periodic_index(i, N), j, k, grid, fargs...), 1)
 @inline y_stencil_call(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, wrap_periodic_index(j, N), k, grid, fargs...), 1)
 @inline z_stencil_call(::PeriodicBoundary, f, i, j, k, N, grid, fargs...) = (f(i, j, wrap_periodic_index(k, N), grid, fargs...), 1)
@@ -113,39 +166,35 @@ end
     in_bounds = (1 <= k) & (k <= N)
     return ifelse(in_bounds, f(i, j, clamp(k, 1, N), grid, fargs...), zero(grid)), Int(in_bounds)
 end
+
+@inline function x_stencil_call(b::SplitBoundary, f, i, j, k, N, grid, fargs...)
+    i < 1 && return x_stencil_call(b.left, f, i, j, k, N, grid, fargs...)
+    i > N && return x_stencil_call(b.right, f, i, j, k, N, grid, fargs...)
+    return (f(i, j, k, grid, fargs...), 1)
+end
+@inline function y_stencil_call(b::SplitBoundary, f, i, j, k, N, grid, fargs...)
+    j < 1 && return y_stencil_call(b.left, f, i, j, k, N, grid, fargs...)
+    j > N && return y_stencil_call(b.right, f, i, j, k, N, grid, fargs...)
+    return (f(i, j, k, grid, fargs...), 1)
+end
+@inline function z_stencil_call(b::SplitBoundary, f, i, j, k, N, grid, fargs...)
+    k < 1 && return z_stencil_call(b.left, f, i, j, k, N, grid, fargs...)
+    k > N && return z_stencil_call(b.right, f, i, j, k, N, grid, fargs...)
+    return (f(i, j, k, grid, fargs...), 1)
+end
 #---
 
 #+++ Shared filter infrastructure
-function resolve_filter_policies(ψ, dims, boundary)
+function resolve_filter_policies(ψ, dims, boundary_conditions)
     validate_dims(dims)
 
     grid = ψ.grid
     loc = location(ψ)
-
-    per_user_dim_specs = if boundary isa Tuple
-        error_message = "`boundary` must be a single spec or a tuple with one entry per dim in `dims`; got length $(length(boundary)) for dims=$dims"
-        length(boundary) == length(dims) || throw(ArgumentError(error_message))
-        boundary
-    else
-        ntuple(_ -> boundary, length(dims))
-    end
-
-    foreach(parse_boundary_spec, per_user_dim_specs)
-
+    field_bcs = ψ.boundary_conditions
     sorted_dims = Tuple(d for d in (1, 2, 3) if d in dims)
-    sorted_specs = ntuple(i -> begin
-        user_idx = findfirst(==(sorted_dims[i]), dims)
-        per_user_dim_specs[user_idx]
-    end, length(sorted_dims))
 
-    policies = ntuple(i -> begin
-        d = sorted_dims[i]
-        if topology(grid, d) === Periodic
-            PeriodicBoundary()
-        else
-            parse_boundary_spec(sorted_specs[i])
-        end
-    end, length(sorted_dims))
+    policies = ntuple(i -> direction_policy(grid, sorted_dims[i], boundary_conditions, field_bcs),
+                      length(sorted_dims))
 
     return grid, loc, sorted_dims, policies
 end
@@ -205,19 +254,71 @@ function validate_periodic_widths(grid, sorted_dims, policies, widths)
     end
 end
 
-parse_boundary_spec(s::Symbol) =
-    s === :shrink ? ShrinkBoundary() :
-    s === :edge   ? EdgeBoundary()   :
-    throw(ArgumentError("`boundary` symbol must be :shrink or :edge; got :$s"))
+# `boundary_conditions` may be `nothing` (inherit every side from the filtered field), a single
+# `BoundaryCondition` (applied to every filtered side), or a `FieldBoundaryConditions` (per side;
+# sides left at their `DefaultBoundaryCondition` inherit from the field). These are kept separate
+# from the field's own boundary conditions.
+validate_boundary_conditions(::Nothing) = nothing
+validate_boundary_conditions(::BoundaryCondition) = nothing
+validate_boundary_conditions(::FieldBoundaryConditions) = nothing
+validate_boundary_conditions(x) = throw(ArgumentError(
+    "`boundary_conditions` must be `nothing`, an Oceananigans `BoundaryCondition`, or a `FieldBoundaryConditions`; " *
+    "got $(repr(x)). Symbol/NamedTuple specs (:shrink, :edge, (left=, right=)) were removed — use " *
+    "ShrinkingBoundaryCondition(), GradientBoundaryCondition(0), or ValueBoundaryCondition(v)."))
 
-function parse_boundary_spec(nt::NamedTuple)
-    ((length(nt) == 2) & haskey(nt, :left) & haskey(nt, :right)) ||
-        throw(ArgumentError("`boundary` NamedTuple must have exactly keys `:left` and `:right`; got keys $(keys(nt))"))
-    return ConstantBoundary(nt.left, nt.right)
+# Deprecated `boundary` keyword (the old symbol API).
+no_boundary_keyword(::Nothing) = nothing
+no_boundary_keyword(b) = throw(ArgumentError(
+    "the `boundary` keyword and its symbol specs (:shrink, :edge, (left=, right=)) were removed; pass " *
+    "`boundary_conditions` with Oceananigans boundary conditions instead (ShrinkingBoundaryCondition(), " *
+    "GradientBoundaryCondition(0), ValueBoundaryCondition(v), or a FieldBoundaryConditions). Got boundary=$(repr(b))."))
+
+# Materialize an `AbstractOperation` operand into a computed `Field` (carrying Oceananigans' default
+# boundary conditions, which the filter then inherits); a `Field` is passed through unchanged.
+function materialize_operand(ψ::AbstractOperation)
+    field = Field(ψ)
+    compute!(field)
+    return field
+end
+materialize_operand(ψ) = ψ
+
+# Effective boundary condition for one side: the user's, unless unset (`nothing`, or a
+# `DefaultBoundaryCondition` within a `FieldBoundaryConditions`), in which case the field's is used.
+user_side_bc(::Nothing, side) = nothing
+user_side_bc(bc::BoundaryCondition, side) = bc
+user_side_bc(fbc::FieldBoundaryConditions, side) =
+    (s = getproperty(fbc, side); s isa DefaultBoundaryCondition ? nothing : s)
+
+effective_side_bc(user_bcs, field_bcs, side) =
+    (u = user_side_bc(user_bcs, side); u === nothing ? getproperty(field_bcs, side) : u)
+
+side_names(d) = d == 1 ? (:west, :east) : d == 2 ? (:south, :north) : (:bottom, :top)
+
+# Translate one boundary condition into a stencil policy. `:edge` was the zero-gradient (homogeneous
+# Neumann) case, so a zero `Gradient`/`Flux` (incl. `NoFlux`) maps onto it; a `Value(v)` is constant
+# padding with `v`. Anything without a discrete analog (non-zero gradient/flux, `Open`, `nothing`, …)
+# falls back to a shrinking stencil — an honest local average that assumes nothing about the wall.
+bc_to_policy(::Nothing) = ShrinkBoundary()
+bc_to_policy(bc::DefaultBoundaryCondition) = bc_to_policy(bc.boundary_condition)
+bc_to_policy(::BoundaryCondition{<:Shrink}) = ShrinkBoundary()
+bc_to_policy(bc::BoundaryCondition{<:Gradient}) = bc.condition isa Number && iszero(bc.condition) ? EdgeBoundary() : ShrinkBoundary()
+bc_to_policy(bc::BoundaryCondition{<:Flux}) = (bc.condition === nothing || (bc.condition isa Number && iszero(bc.condition))) ? EdgeBoundary() : ShrinkBoundary()
+bc_to_policy(bc::BoundaryCondition{<:Value}) = bc.condition isa Number ? ConstantBoundary(bc.condition, bc.condition) : ShrinkBoundary()
+bc_to_policy(::BoundaryCondition) = ShrinkBoundary()
+
+# Per-direction policy: `Periodic` topology always wraps; otherwise the two sides are resolved and
+# translated independently, collapsing to one policy when they agree, or a `SplitBoundary` when not.
+function direction_policy(grid, d, user_bcs, field_bcs)
+    topology(grid, d) === Periodic && return PeriodicBoundary()
+    lo, hi = side_names(d)
+    left  = bc_to_policy(effective_side_bc(user_bcs, field_bcs, lo))
+    right = bc_to_policy(effective_side_bc(user_bcs, field_bcs, hi))
+    return left === right ? left : SplitBoundary(left, right)
 end
 
-parse_boundary_spec(p::AbstractBoundaryPolicy) = p
-parse_boundary_spec(x) = throw(ArgumentError("`boundary` must be :shrink, :edge, or (left=a, right=b); got $(repr(x))"))
+# Compact one-line rendering of a stored `boundary_conditions` value for `show`.
+bc_summary(bc) = bc
+bc_summary(::FieldBoundaryConditions) = "FieldBoundaryConditions(…)"
 #---
 
 #+++ Shared staged-compute infrastructure

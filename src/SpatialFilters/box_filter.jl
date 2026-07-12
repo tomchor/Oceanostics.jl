@@ -83,15 +83,18 @@ end
     $(SIGNATURES)
 
 One-step form: apply a box filter to `ψ` directly, returning the `KernelFunctionOperation` that
-computes its local box-average. Equivalent to `BoxFilter(; dims, N, boundary)(ψ)`.
+computes its local box-average. Equivalent to `BoxFilter(; dims, N, boundary_conditions)(ψ)`.
 
-Refer to [`BoxFilter`](@ref)`(; dims, N, boundary)` for the full description of the
+Refer to [`BoxFilter`](@ref)`(; dims, N, boundary_conditions)` for the full description of the
 keyword arguments and boundary handling.
 """
-function BoxFilter(ψ; dims, N, boundary=:shrink)
+function BoxFilter(ψ; dims, N, boundary_conditions=nothing, boundary=nothing)
+    no_boundary_keyword(boundary)
     dims = tuplefy_dims(dims)
     validate_N(N)
-    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary)
+    validate_boundary_conditions(boundary_conditions)
+    ψ = materialize_operand(ψ)
+    grid, loc, sorted_dims, policies = resolve_filter_policies(ψ, dims, boundary_conditions)
     width = (N - 1) ÷ 2
     widths = ntuple(_ -> width, length(sorted_dims))
     validate_periodic_widths(grid, sorted_dims, policies, widths)
@@ -103,17 +106,17 @@ end
 """
     BoxFilterOperator{D, NN, B}
 
-Returns a reusable box filter. Stores the `BoxFilter` parameters (`dims`,
-`N`, `boundary`) and, when called on a field `ψ`, returns `BoxFilter(ψ; dims, N, boundary)`.
-Construct one once with [`BoxFilter`](@ref)`(; …)` and apply it to many fields.
+Returns a reusable box filter. Stores the `BoxFilter` parameters (`dims`, `N`, `boundary_conditions`)
+and, when called on a field `ψ`, returns `BoxFilter(ψ; dims, N, boundary_conditions)`. Construct one
+once with [`BoxFilter`](@ref)`(; …)` and apply it to many fields.
 """
 struct BoxFilterOperator{D, NN, B}
     dims::D
     N::NN
-    boundary::B
+    boundary_conditions::B
 end
 
-(F::BoxFilterOperator)(ψ) = BoxFilter(ψ; dims=F.dims, N=F.N, boundary=F.boundary)
+(F::BoxFilterOperator)(ψ) = BoxFilter(ψ; dims=F.dims, N=F.N, boundary_conditions=F.boundary_conditions)
 
 """
     $(SIGNATURES)
@@ -145,40 +148,39 @@ See [Performance notes](@ref filter_performance) in the documentation for what t
 
 ## Boundary handling
 
-Stencil offsets that leave the interior `1:Nd_grid` of a direction (where `Nd_grid` is the number of
-cells along that direction) are handled per-direction. For `Periodic` directions offsets are always
-wrapped periodically, independent of the `boundary` keyword. For `Bounded` directions the `boundary`
-keyword picks the policy (default: `:shrink`):
+Stencil offsets that leave the interior `1:Nd_grid` of a direction are handled per-direction using
+Oceananigans boundary conditions, supplied via `boundary_conditions` and kept **separate** from the
+filtered field's own boundary conditions:
 
-  - `:shrink` — drop out-of-bounds offsets from *both* the sum and the count, so the filter is an
-    honest local average whose effective stencil shrinks near a wall. **This is the default for
-    `Bounded` directions.**
-  - `:edge` — replicate the boundary-cell value (reads `ψ[1]` or `ψ[Nd_grid]` for offsets past either
-    end).
-  - `(left=a, right=b)` — pad with constant `a` on the low-index side and `b` on the high-index side
-    (`a` and `b` are promoted to a common type).
+  - `nothing` (default) — every side inherits the filtered field's own boundary condition for that
+    direction.
+  - a single `BoundaryCondition` — applied to every filtered side.
+  - a `FieldBoundaryConditions` — one condition per side; any side left unset
+    (`DefaultBoundaryCondition`) inherits the field's.
 
-`boundary` may be a single spec applied to every filtered dim, or a tuple with one entry per dim in
-`dims` (in the order the user passed them):
+Each boundary condition maps to a stencil rule:
 
-    BoxFilter(; dims=(1, 2), N=7, boundary=:edge)
-    BoxFilter(; dims=(1, 2), N=7, boundary=(:shrink, :edge))
-    BoxFilter(; dims=(1,),   N=7, boundary=(left=0.0, right=1.0))
+  - `ShrinkingBoundaryCondition()` — drop out-of-bounds offsets from *both* the sum and the count, so
+    the filter is an honest local average whose effective stencil shrinks near a wall.
+  - a zero `GradientBoundaryCondition` / `FluxBoundaryCondition` (incl. `NoFluxBoundaryCondition`) —
+    replicate the boundary-cell value (reads `ψ[1]` or `ψ[Nd_grid]` past either end).
+  - `ValueBoundaryCondition(v)` — pad with the constant `v`.
+  - anything without a discrete analog (a non-zero gradient/flux, an `OpenBoundaryCondition`, …) falls
+    back to the shrinking stencil.
 
-Because every policy wraps, clamps, or skips indices up front, `halo_size(grid)` does not constrain
-`N`: a small halo on a bounded direction is fine. The output location matches the location of the
-field the filter is applied to, which can be any input that supports the standard Oceananigans
-`ψ[i, j, k]` indexing contract (e.g. a `Field` or any `AbstractOperation`).
+For `Periodic` directions offsets are always wrapped, independent of `boundary_conditions`. When an
+`AbstractOperation` is filtered it is first materialized into a `Field` (carrying Oceananigans'
+default boundary conditions), which then supplies the inherited conditions.
 
-For `Periodic` directions the stencil must span at most one period: `N ≤ 2*Nd_grid + 1`, where
-`Nd_grid` is the number of cells along that direction. This is enforced when the filter is applied.
+Because every rule wraps, clamps, or skips indices up front, `halo_size(grid)` does not constrain `N`:
+a small halo on a bounded direction is fine. The output location matches the location of the filtered
+field. For `Periodic` directions the stencil must span at most one period: `N ≤ 2*Nd_grid + 1`.
 
 ## Examples
 
 Build a box filter and apply it on a 2D (xz) grid that is periodic in `x` and bounded in `z`. The
-`boundary=:edge` keyword explicitly overrides the default `:shrink` policy for the bounded
-`z`-direction; `x` is `Periodic` so the `boundary` spec is silently ignored for that direction
-regardless.
+`GradientBoundaryCondition(0)` (≡ edge replication) applies to the bounded `z`-direction; `x` is
+`Periodic` so it is wrapped regardless.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -188,24 +190,30 @@ julia> grid = RectilinearGrid(size=(8, 8), x=(0, 1), z=(0, 1),
 
 julia> c = CenterField(grid);
 
-julia> bf = BoxFilter(; dims=(1, 3), N=5, boundary=:edge)
-BoxFilter(dims=(1, 3), N=5, boundary=:edge)
+julia> bf = BoxFilter(; dims=(1, 3), N=5, boundary_conditions=GradientBoundaryCondition(0))
+BoxFilter(dims=(1, 3), N=5, boundary_conditions=GradientBoundaryCondition: 0)
 
 julia> bf(c) isa KernelFunctionOperation
 true
 ```
 
-A one-step shortcut `BoxFilter(ψ; dims, N, boundary)` is also accepted, which applies the filter to
-`ψ` immediately (equivalent to `BoxFilter(; dims, N, boundary)(ψ)`).
+A one-step shortcut `BoxFilter(ψ; dims, N, boundary_conditions)` is also accepted, which applies the
+filter to `ψ` immediately (equivalent to `BoxFilter(; dims, N, boundary_conditions)(ψ)`).
 """
-function BoxFilter(; dims, N, boundary=:shrink)
+function BoxFilter(; dims, N, boundary_conditions=nothing, boundary=nothing)
+    no_boundary_keyword(boundary)
     dims = tuplefy_dims(dims)
     validate_dims(dims)
     validate_N(N)
-    return BoxFilterOperator(dims, N, boundary)
+    validate_boundary_conditions(boundary_conditions)
+    return BoxFilterOperator(dims, N, boundary_conditions)
 end
 
-Base.show(io::IO, F::BoxFilterOperator) = print(io, "BoxFilter(dims=", F.dims, ", N=", F.N, ", boundary=", repr(F.boundary), ")")
+function Base.show(io::IO, F::BoxFilterOperator)
+    print(io, "BoxFilter(dims=", F.dims, ", N=", F.N)
+    F.boundary_conditions === nothing || print(io, ", boundary_conditions=", bc_summary(F.boundary_conditions))
+    print(io, ")")
+end
 #---
 
 #+++ Staged multi-direction evaluation
