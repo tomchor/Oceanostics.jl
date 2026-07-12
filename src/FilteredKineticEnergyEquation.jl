@@ -105,7 +105,7 @@ FilteredKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothi
     FilteredKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N))
 #---
 
-#+++ Subfilter (sub-grid) stress tensor
+#+++ Subfilter stress tensor
 """
     $(SIGNATURES)
 
@@ -264,7 +264,7 @@ KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N =
     KineticEnergyCrossScaleFlux(model, GaussianFilter(; dims, σ, boundary, N); dims)
 #---
 
-#+++ Coarse-grained (filtered-flow) kinetic-energy dissipation
+#+++ Filtered-flow kinetic-energy dissipation
 # εˡ = ∂ⱼūᵢ·F̄ᵢⱼ, the dissipation of the filtered flow: the filtered velocity gradient ∂ⱼūᵢ contracted with
 # the *filtered* viscous flux F̄ᵢⱼ = filter(Fᵢⱼ(u)). Fᵢⱼ(u) is the model's viscous momentum flux built from
 # the FULL velocities and closure (the same `viscous_flux_uᵢxⱼ` that `KineticEnergyDissipationRate`
