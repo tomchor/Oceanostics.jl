@@ -164,8 +164,8 @@ jobs:
         env:
           TEST_GROUP: "ke_diagnostics"
 
-  coarse_grained_ke_diagnostics:
-    name: Coarse-grained KE diagnostics - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+  filtered_ke_diagnostics:
+    name: Filtered KE diagnostics - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     strategy:
@@ -187,7 +187,7 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
         env:
-          TEST_GROUP: "coarse_grained_ke_diagnostics"
+          TEST_GROUP: "filtered_ke_diagnostics"
 
   tke_diagnostics:
     name: TKE diagnostics - Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}

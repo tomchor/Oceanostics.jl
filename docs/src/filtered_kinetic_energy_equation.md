@@ -1,6 +1,6 @@
-# Coarse-grained kinetic energy equation
+# Filtered kinetic energy equation
 
-The `CoarseGrainedKineticEnergyEquation` module provides diagnostics for the kinetic energy budget of the
+The `FilteredKineticEnergyEquation` module provides diagnostics for the kinetic energy budget of the
 coarse-grained (filtered) flow, in which a low-pass spatial filter ``\widetilde{(\,\cdot\,)}`` separates a
 filtered from a subfilter scale. The section below derives that budget.
 
@@ -116,17 +116,17 @@ CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Ce
 ## Subfilter-scale stress tensor
 
 ```@docs
-Oceanostics.CoarseGrainedKineticEnergyEquation.subfilter_stress_tensor
+Oceanostics.FilteredKineticEnergyEquation.subfilter_stress_tensor
 ```
 
 ## Cross-scale kinetic energy flux
 
 ```@docs
-Oceanostics.CoarseGrainedKineticEnergyEquation.KineticEnergyCrossScaleFlux
+Oceanostics.FilteredKineticEnergyEquation.KineticEnergyCrossScaleFlux
 ```
 
 ## Coarse-grained kinetic energy dissipation
 
 ```@docs
-Oceanostics.CoarseGrainedKineticEnergyEquation.CoarseGrainedKineticEnergyDissipationRate
+Oceanostics.FilteredKineticEnergyEquation.CoarseGrainedKineticEnergyDissipationRate
 ```

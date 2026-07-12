@@ -1,4 +1,4 @@
-module CoarseGrainedKineticEnergyEquation
+module FilteredKineticEnergyEquation
 
 using DocStringExtensions
 

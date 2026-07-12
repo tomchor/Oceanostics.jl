@@ -74,9 +74,9 @@ function test_cross_scale_ke_flux_matches_manual(model, filt)
     @test occursin("KineticEnergyCrossScaleFlux", sprint(show, Π))
     @test occursin("computes:", sprint(show, MIME("text/plain"), Π))
 
-    # reachable by the short name CoarseGrainedKineticEnergyEquation.CrossScaleFlux too (same type alias)
-    @test CoarseGrainedKineticEnergyEquation.CrossScaleFlux === KineticEnergyCrossScaleFlux
-    @test CoarseGrainedKineticEnergyEquation.CrossScaleFlux(model, filt) isa KineticEnergyCrossScaleFlux
+    # reachable by the short name FilteredKineticEnergyEquation.CrossScaleFlux too (same type alias)
+    @test FilteredKineticEnergyEquation.CrossScaleFlux === KineticEnergyCrossScaleFlux
+    @test FilteredKineticEnergyEquation.CrossScaleFlux(model, filt) isa KineticEnergyCrossScaleFlux
 
     # invalid `dims` are rejected here too
     @test_throws ArgumentError KineticEnergyCrossScaleFlux(model, filt; dims=(1, 1))
@@ -157,9 +157,9 @@ function test_coarse_grained_dissipation_matches_filtered_flow(model, filt)
     @test occursin("CoarseGrainedKineticEnergyDissipationRate", sprint(show, ε))
     @test occursin("computes:", sprint(show, MIME("text/plain"), ε))
 
-    # reachable by the short name CoarseGrainedKineticEnergyEquation.DissipationRate (same alias)
-    @test CoarseGrainedKineticEnergyEquation.DissipationRate === CoarseGrainedKineticEnergyDissipationRate
-    @test CoarseGrainedKineticEnergyEquation.DissipationRate(model, filt) isa CoarseGrainedKineticEnergyDissipationRate
+    # reachable by the short name FilteredKineticEnergyEquation.DissipationRate (same alias)
+    @test FilteredKineticEnergyEquation.DissipationRate === CoarseGrainedKineticEnergyDissipationRate
+    @test FilteredKineticEnergyEquation.DissipationRate(model, filt) isa CoarseGrainedKineticEnergyDissipationRate
     return nothing
 end
 
@@ -200,8 +200,8 @@ function test_coarse_grained_dissipation_recomputes(model, filt)
 end
 #---
 
-@testset "Coarse-grained kinetic energy equation" begin
-    @info "  Testing coarse-grained kinetic energy diagnostics"
+@testset "Filtered kinetic energy equation" begin
+    @info "  Testing filtered kinetic energy diagnostics"
     grid = RectilinearGrid(arch, size=(8, 8, 8), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
     model = NonhydrostaticModel(grid)
     set!(model, u=(x, y, z) -> randn(), v=(x, y, z) -> randn(), w=(x, y, z) -> randn())
