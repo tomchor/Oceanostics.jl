@@ -33,16 +33,20 @@ jobs:
           version: '1.12'
       - uses: julia-actions/cache@v2
         with:
-          # Share one compiled cache across all examples (identical Manifest) instead of
-          # storing a near-duplicate per example, so we stay under the 10 GB Actions cache.
-          cache-name: docs
+          # Examples run at -O2 (the default): they are runtime-bound (they step real
+          # simulations), so optimized code matters more than fast codegen. All examples
+          # share one cache (identical Manifest) rather than a near-duplicate per example.
+          # It is kept separate from the assemble cache because the two jobs use different
+          # -O levels and Julia keys pkgimages on the optimization level, so a shared cache
+          # would thrash.
+          cache-name: docs-examples
           include-matrix: false
       - name: Install dependencies
-        run: julia -O0 --color=yes --project -e 'using Pkg; Pkg.instantiate()'
+        run: julia --color=yes --project -e 'using Pkg; Pkg.instantiate()'
       - name: Run example
         env:
           OCEANOSTICS_DOCS_EXAMPLE: ${{ matrix.example }}
-        run: julia -O0 --color=yes --project=docs/ docs/make.jl
+        run: julia --color=yes --project=docs/ docs/make.jl
       - name: Upload generated page and media
         uses: actions/upload-artifact@v4
         with:
@@ -72,7 +76,10 @@ jobs:
           version: '1.12'
       - uses: julia-actions/cache@v2
         with:
-          cache-name: docs
+          # Assemble is compile-bound (doctests + rendering), so it runs at -O0 for fast
+          # codegen. Separate cache from the examples' -O2 cache, since pkgimages are keyed
+          # on the optimization level.
+          cache-name: docs-assemble
       - name: Install dependencies
         run: julia -O0 --color=yes --project -e 'using Pkg; Pkg.instantiate()'
       - name: Collect pre-built example pages
