@@ -2,6 +2,7 @@ module FilteredKineticEnergyEquation
 
 using DocStringExtensions
 
+export FilteredKineticEnergy
 export subfilter_stress_tensor, KineticEnergyCrossScaleFlux, CrossScaleFlux
 export FilteredKineticEnergyDissipationRate, DissipationRate
 
@@ -18,6 +19,7 @@ using Oceanostics: CustomKFO
 using ..FlowDiagnostics: StressTensor, StrainRateTensor
 import ..FlowDiagnostics            # for the (unexported) `validate_dims`
 using ..SpatialFilters: GaussianFilter, BoxFilter   # BoxFilter is imported so its docstring `@ref` resolves in-module
+using ..KineticEnergyEquation: kinetic_energy_ccc   # reuse the ½uᵢuᵢ kernel, applied to the filtered velocities
 
 #+++ Shared helpers
 # Filter only the velocities that the requested `dims` actually use: component τᵢⱼ / S̄ᵢⱼ needs uᵢ and
@@ -44,6 +46,63 @@ function subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, coll
     ks = keys(flux_full)
     return NamedTuple{ks}(map(subfilter, values(flux_full), values(flux_filt)))
 end
+#---
+
+#+++ Filtered (coarse-grained) kinetic energy
+# Kˡ = ½ ūᵢūᵢ, the kinetic energy of the filtered velocity field ūᵢ = filter(uᵢ). It reuses
+# `KineticEnergyEquation`'s `kinetic_energy_ccc` kernel (½uᵢuᵢ interpolated to ccc); wrapping it under a
+# distinct kernel name gives `FilteredKineticEnergy` its own type alias and `@diagnostic_show` display.
+@inline filtered_kinetic_energy_ccc(i, j, k, grid, ū, v̄, w̄) = kinetic_energy_ccc(i, j, k, grid, ū, v̄, w̄)
+
+const FilteredKineticEnergy = CustomKFO{<:typeof(filtered_kinetic_energy_ccc)}
+
+"""
+    $(SIGNATURES)
+
+Return the kinetic energy of the filtered (coarse-grained) flow `Kˡ`, the kinetic energy carried by the
+scales that a low-pass `filter` keeps:
+
+```
+    Kˡ = ½ ūⁱ ūⁱ = ½ (ū² + v̄² + w̄²) ,   ūⁱ = filter(uⁱ)
+```
+
+It is the filtered counterpart of the sub-filter kinetic energy `Kˢ = ½τⁱⁱ` (`subfilter_kinetic_energy`):
+the filter splits the flow's kinetic energy into the part it keeps (`Kˡ`) and the part it removes (`Kˢ`).
+
+`filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
+[`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The filtered velocities are materialized as `Field`s (so
+the separable filter takes its fast staged path) and the result lives at `(Center, Center, Center)`, per
+unit mass (units `m² s⁻²`):
+
+```jldoctest
+using Oceananigans, Oceanostics
+
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid)
+
+filter = GaussianFilter(; dims=(1, 2, 3), σ=0.1)
+FilteredKineticEnergy(model, filter)
+
+# output
+
+FilteredKineticEnergy KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: filtered_kinetic_energy_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field")
+└── computes: kinetic energy of the filtered flow  Kˡ = ½ūᵢūᵢ
+```
+
+A convenience method `FilteredKineticEnergy(model; σ, dims, boundary, N)` builds the Gaussian `filter`
+for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
+"""
+function FilteredKineticEnergy(model, filter)
+    u, v, w = model.velocities
+    ū, v̄, w̄ = filtered_velocities(filter, (1, 2, 3), u, v, w)   # materialize all three filtered velocities
+    return KernelFunctionOperation{Center, Center, Center}(filtered_kinetic_energy_ccc, model.grid, ū, v̄, w̄)
+end
+
+FilteredKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
+    FilteredKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N))
 #---
 
 #+++ Subfilter (sub-grid) stress tensor

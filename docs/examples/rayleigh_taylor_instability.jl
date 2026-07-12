@@ -157,12 +157,11 @@ wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux �
 ∫εˢ  = Integral(εˢ)
 
 # For the movie we also keep the coarse-grained kinetic energy
-# ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i``, the filtered counterpart of ``K^s``.
-# Together the two show how the filter splits the flow's kinetic energy between the scales it keeps and
-# the scales it removes:
+# ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i`` ([`FilteredKineticEnergy`](@ref)), the
+# filtered counterpart of ``K^s``. Together the two show how the filter splits the flow's kinetic energy
+# between the scales it keeps and the scales it removes:
 
-ū, v̄, w̄ = gfilter(u), gfilter(v), gfilter(w)
-Kˡ = Oceanostics.KineticEnergy(model, ū, v̄, w̄)  #  kinetic energy of the coarse-grained flow
+Kˡ = FilteredKineticEnergy(model, gfilter)  # kinetic energy of the coarse-grained (filtered) flow
 
 # ## Output
 #

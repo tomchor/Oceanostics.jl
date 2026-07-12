@@ -118,6 +118,29 @@ function test_reusable_filter_object(model)
     return nothing
 end
 
+# Kˡ = ½ūᵢūᵢ must equal `KineticEnergy` evaluated on the hand-filtered velocities, and carry its own type.
+function test_filtered_kinetic_energy(model, filt)
+    u, v, w = model.velocities
+    ū = Field(filt(u)); v̄ = Field(filt(v)); w̄ = Field(filt(w))
+    ref = Oceanostics.KineticEnergy(model, ū, v̄, w̄)
+
+    Kˡ = FilteredKineticEnergy(model, filt)
+    @test location(Kˡ) == (Center, Center, Center)
+    @test interior(Field(Kˡ)) ≈ interior(Field(ref))
+
+    # its own type/display, distinct from the unfiltered `KineticEnergy`
+    @test Kˡ isa FilteredKineticEnergy
+    @test occursin("FilteredKineticEnergy", sprint(show, Kˡ))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), Kˡ))
+
+    # the Gaussian convenience method reproduces the explicit filter-factory call
+    σ = 0.12
+    filt2 = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
+    @test interior(Field(FilteredKineticEnergy(model; σ))) ≈
+          interior(Field(FilteredKineticEnergy(model, filt2)))
+    return nothing
+end
+
 # The diagnostic holds internally materialized filtered `Field`s; recomputing it at a new time — as an
 # `OutputWriter` does each output — must reflect the updated flow, not stay frozen at construction.
 function test_recomputes_on_evolution(model, filt)
@@ -222,6 +245,9 @@ end
 
     @info "    Reusable filter object as `filter`"
     test_reusable_filter_object(model)
+
+    @info "    Filtered kinetic energy Kˡ = ½ūᵢūᵢ"
+    test_filtered_kinetic_energy(model, filt)
 
     @info "    Recomputes as the flow evolves"
     test_recomputes_on_evolution(model, filt)
