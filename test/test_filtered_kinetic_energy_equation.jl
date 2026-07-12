@@ -6,7 +6,7 @@ using Oceananigans.AbstractOperations: compute_at!
 
 using Oceanostics
 using Oceanostics: subfilter_stress_tensor, KineticEnergyCrossScaleFlux, GaussianFilter
-using Oceanostics: CoarseGrainedKineticEnergyDissipationRate, KineticEnergyDissipationRate
+using Oceanostics: FilteredKineticEnergyDissipationRate, KineticEnergyDissipationRate
 using Oceanostics: StressTensor, StrainRateTensor
 
 arch = has_cuda_gpu() ? GPU() : CPU()
@@ -145,21 +145,21 @@ function test_coarse_grained_dissipation_matches_filtered_flow(model, filt)
     u, v, w = model.velocities
     ū = Field(filt(u)); v̄ = Field(filt(v)); w̄ = Field(filt(w))
 
-    ε     = CoarseGrainedKineticEnergyDissipationRate(model, filt)
+    ε     = FilteredKineticEnergyDissipationRate(model, filt)
     ε_ref = KineticEnergyDissipationRate(model; U=Field(u - ū), V=Field(v - v̄), W=Field(w - w̄))
 
     @test location(ε) == (Center, Center, Center)
     @test interior(Field(ε)) ≈ interior(Field(ε_ref))
 
     # its own type/display, distinct from KineticEnergyDissipationRate even though it reuses the contraction
-    @test ε isa CoarseGrainedKineticEnergyDissipationRate
+    @test ε isa FilteredKineticEnergyDissipationRate
     @test !(ε isa KineticEnergyDissipationRate)
-    @test occursin("CoarseGrainedKineticEnergyDissipationRate", sprint(show, ε))
+    @test occursin("FilteredKineticEnergyDissipationRate", sprint(show, ε))
     @test occursin("computes:", sprint(show, MIME("text/plain"), ε))
 
     # reachable by the short name FilteredKineticEnergyEquation.DissipationRate (same alias)
-    @test FilteredKineticEnergyEquation.DissipationRate === CoarseGrainedKineticEnergyDissipationRate
-    @test FilteredKineticEnergyEquation.DissipationRate(model, filt) isa CoarseGrainedKineticEnergyDissipationRate
+    @test FilteredKineticEnergyEquation.DissipationRate === FilteredKineticEnergyDissipationRate
+    @test FilteredKineticEnergyEquation.DissipationRate(model, filt) isa FilteredKineticEnergyDissipationRate
     return nothing
 end
 
@@ -167,8 +167,8 @@ end
 function test_coarse_grained_dissipation_convenience(model)
     σ = 0.12
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
-    @test interior(Field(CoarseGrainedKineticEnergyDissipationRate(model; σ))) ≈
-          interior(Field(CoarseGrainedKineticEnergyDissipationRate(model, filt)))
+    @test interior(Field(FilteredKineticEnergyDissipationRate(model; σ))) ≈
+          interior(Field(FilteredKineticEnergyDissipationRate(model, filt)))
     return nothing
 end
 
@@ -176,7 +176,7 @@ end
 function test_coarse_grained_dissipation_uniform_vanishes(grid, filt; ν=1e-3, U=2, V=-3)
     model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(; ν))
     set!(model, u=U, v=V) # w ≡ 0; a uniform horizontal flow is divergence-free
-    @test all(abs.(interior(Field(CoarseGrainedKineticEnergyDissipationRate(model, filt)))) .< 1e-10)
+    @test all(abs.(interior(Field(FilteredKineticEnergyDissipationRate(model, filt)))) .< 1e-10)
     return nothing
 end
 
@@ -184,14 +184,14 @@ end
 # frozen. The filtered velocities and the filtered fluxes sit in NamedTuple arguments, so this also
 # checks that `compute_at!` refreshes them through those NamedTuples.
 function test_coarse_grained_dissipation_recomputes(model, filt)
-    εf = Field(CoarseGrainedKineticEnergyDissipationRate(model, filt))
+    εf = Field(FilteredKineticEnergyDissipationRate(model, filt))
     compute_at!(εf, 0.0)
     snapshot = Array(interior(εf))
 
     set!(model, u=(x, y, z) -> 2randn(), v=(x, y, z) -> 2randn(), w=(x, y, z) -> 2randn())
     compute_at!(εf, 1.0)
 
-    fresh = Field(CoarseGrainedKineticEnergyDissipationRate(model, filt))
+    fresh = Field(FilteredKineticEnergyDissipationRate(model, filt))
     compute_at!(fresh, 2.0)
 
     @test !(Array(interior(εf)) ≈ snapshot)   # tracked the change in the flow

@@ -128,7 +128,7 @@ add_callback!(simulation, progress, IterationInterval(100))
 #   ([`subfilter_kinetic_energy_dissipation_rate`](@ref)): the filtered total dissipation ``\varepsilon``
 #   ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) minus the
 #   dissipation ``\varepsilon^{\ell}`` of the filtered flow
-#   ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)). For a constant viscosity it reduces to
+#   ([`FilteredKineticEnergyDissipationRate`](@ref)). For a constant viscosity it reduces to
 #   ``2\nu[\overline{S^{ij}S^{ij}} - \overline{S}^{ij}\overline{S}^{ij}] \ge 0``, a strictly positive
 #   sink; with an LES closure it is the dissipation that the modeled stress carries out on the sub-filter scales.
 #

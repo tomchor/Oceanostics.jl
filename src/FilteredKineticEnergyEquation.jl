@@ -3,7 +3,7 @@ module FilteredKineticEnergyEquation
 using DocStringExtensions
 
 export subfilter_stress_tensor, KineticEnergyCrossScaleFlux, CrossScaleFlux
-export CoarseGrainedKineticEnergyDissipationRate, DissipationRate
+export FilteredKineticEnergyDissipationRate, DissipationRate
 
 using Oceananigans: fields
 using Oceananigans.Grids: Center, Face
@@ -242,8 +242,8 @@ KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N =
      ℑyzᵃᶜᶜ(i, j, k, grid, δw̄_F̄₃₂, fv.w, ff.F₃₂) +
      δw̄_F̄₃₃(i, j, k, grid, fv.w, ff.F₃₃)) / Vᶜᶜᶜ(i, j, k, grid)
 
-const CoarseGrainedKineticEnergyDissipationRate = CustomKFO{<:typeof(coarse_grained_dissipation_rate_ccc)}
-const DissipationRate = CoarseGrainedKineticEnergyDissipationRate
+const FilteredKineticEnergyDissipationRate = CustomKFO{<:typeof(coarse_grained_dissipation_rate_ccc)}
+const DissipationRate = FilteredKineticEnergyDissipationRate
 
 """
     $(SIGNATURES)
@@ -281,11 +281,11 @@ model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4))
 ℓ = 0.2  # filter scale (full width at half maximum)
 filter = GaussianFilter(; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))))
 
-CoarseGrainedKineticEnergyDissipationRate(model, filter)
+FilteredKineticEnergyDissipationRate(model, filter)
 
 # output
 
-CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
+FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
@@ -303,11 +303,11 @@ forms the full viscous contraction (matching
 [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)). The directions
 the filter acts in are set inside `filter`.
 
-A convenience method `CoarseGrainedKineticEnergyDissipationRate(model; σ, dims, boundary, N)` builds the
+A convenience method `FilteredKineticEnergyDissipationRate(model; σ, dims, boundary, N)` builds the
 Gaussian `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`);
 `dims` here selects the directions the Gaussian filter acts in.
 """
-function CoarseGrainedKineticEnergyDissipationRate(model, filter)
+function FilteredKineticEnergyDissipationRate(model, filter)
     grid = model.grid
     u, v, w = model.velocities
 
@@ -332,8 +332,8 @@ function CoarseGrainedKineticEnergyDissipationRate(model, filter)
     return KernelFunctionOperation{Center, Center, Center}(coarse_grained_dissipation_rate_ccc, grid, fv, ff)
 end
 
-CoarseGrainedKineticEnergyDissipationRate(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
-    CoarseGrainedKineticEnergyDissipationRate(model, GaussianFilter(; dims, σ, boundary, N))
+FilteredKineticEnergyDissipationRate(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
+    FilteredKineticEnergyDissipationRate(model, GaussianFilter(; dims, σ, boundary, N))
 #---
 
 end # module
