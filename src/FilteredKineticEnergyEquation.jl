@@ -48,7 +48,7 @@ function subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, coll
 end
 #---
 
-#+++ Filtered (coarse-grained) kinetic energy
+#+++ Filtered kinetic energy
 # Kˡ = ½ ūᵢūᵢ, the kinetic energy of the filtered velocity field ūᵢ = filter(uᵢ). It reuses
 # `KineticEnergyEquation`'s `kinetic_energy_ccc` kernel (½uᵢuᵢ interpolated to ccc); wrapping it under a
 # distinct kernel name gives `FilteredKineticEnergy` its own type alias and `@diagnostic_show` display.
@@ -59,7 +59,7 @@ const FilteredKineticEnergy = CustomKFO{<:typeof(filtered_kinetic_energy_ccc)}
 """
     $(SIGNATURES)
 
-Return the kinetic energy of the filtered (coarse-grained) flow `Kˡ`, the kinetic energy carried by the
+Return the kinetic energy of the filtered flow `Kˡ`, the kinetic energy carried by the
 scales that a low-pass `filter` keeps:
 
 ```
@@ -307,7 +307,7 @@ const DissipationRate = FilteredKineticEnergyDissipationRate
 """
     $(SIGNATURES)
 
-Return the coarse-grained (filtered-flow) kinetic-energy dissipation rate `εˡ`, the rate at which
+Return the filtered-flow kinetic-energy dissipation rate `εˡ`, the rate at which
 viscosity removes kinetic energy from the *filtered* velocity field `ūᵢ = filter(uᵢ)`:
 
 ```
@@ -348,7 +348,7 @@ FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center,
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
-└── computes: coarse-grained kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ
+└── computes: filtered kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ
 ```
 
 The viscosity and fluxes come from `model.closure`/`model.closure_fields`, exactly as in
