@@ -6,26 +6,83 @@ on:
     tags: '*'
   pull_request:
 
+# Cancel superseded runs on the same ref (replaces the old styfle/cancel-workflow step).
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build_docs:
-    permissions:
-      contents: write
+  # Fan-out: build each example in its own runner, in parallel. Each job runs one example
+  # through Literate (execute=true) and uploads the generated page + its figures/movie.
+  examples:
+    name: "Example: ${{ matrix.example }}"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example:
+          - two_dimensional_turbulence
+          - kelvin_helmholtz
+          - rayleigh_taylor_instability
+          - tilted_bottom_boundary_layer
+          - spatial_filtering
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.11.0
-        with:
-          access_token: ${{ github.token }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1.12'
       - uses: julia-actions/cache@v2
+        with:
+          # Share one compiled cache across all examples (identical Manifest) instead of
+          # storing a near-duplicate per example, so we stay under the 10 GB Actions cache.
+          cache-name: docs
+          include-matrix: false
       - name: Install dependencies
         run: julia --color=yes --project -e 'using Pkg; Pkg.instantiate()'
+      - name: Run example
+        env:
+          OCEANOSTICS_DOCS_EXAMPLE: ${{ matrix.example }}
+        run: julia --color=yes --project=docs/ docs/make.jl
+      - name: Upload generated page and media
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-${{ matrix.example }}
+          # The example page plus its figures (<name>-<n>.png) and movie (<name>.mp4).
+          # Exclude the intermediate NetCDF/JLD2 output (large, and only read back
+          # in-job during plotting).
+          path: |
+            docs/src/generated/${{ matrix.example }}*
+            !docs/src/generated/*.nc
+            !docs/src/generated/*.jld2
+          if-no-files-found: error
+          retention-days: 1
+
+  # Assemble: collect the pre-built example pages, run makedocs (doctests + site) without
+  # re-executing the examples, and deploy.
+  build_docs:
+    name: Assemble and deploy
+    needs: examples
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'
+      - uses: julia-actions/cache@v2
+        with:
+          cache-name: docs
+      - name: Install dependencies
+        run: julia --color=yes --project -e 'using Pkg; Pkg.instantiate()'
+      - name: Collect pre-built example pages
+        uses: actions/download-artifact@v4
+        with:
+          path: docs/src/generated
+          pattern: generated-*
+          merge-multiple: true
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
-          JULIA_DEBUG: Documenter
         run: julia --color=yes --project=docs/ docs/make.jl

@@ -7,7 +7,7 @@ using Literate
 using Oceananigans
 using Oceanostics
 
-#+++ Run examples
+#+++ Examples
 EXAMPLES_DIR = joinpath(@__DIR__, "examples")
 OUTPUT_DIR   = joinpath(@__DIR__, "src/generated")
 
@@ -18,12 +18,43 @@ examples = ["Two-dimensional turbulence"   => "two_dimensional_turbulence",
             "Spatial filtering"            => "spatial_filtering",
             ]
 
-example_codes = [ v * ".jl" for (k, v) in examples ]
 example_pages = [ k => "generated/$v.md" for (k, v) in examples ]
 
-for example in example_codes
-    example_filepath = joinpath(EXAMPLES_DIR, example)
-    Literate.markdown(example_filepath, OUTPUT_DIR; flavor = Literate.DocumenterFlavor())
+"""
+    generate_example(slug)
+
+Run `examples/\$slug.jl` through Literate with `execute = true`. This runs the example
+here (simulation, figures, movie, and the hidden budget-closure `@test`s) and bakes the
+outputs into the generated Markdown, so Documenter includes the page without re-executing
+it. Because execution no longer happens inside `makedocs`, the examples can be built one
+per CI job in parallel instead of serially. `#hide` lines are still executed but omitted
+from the rendered code, exactly as under the previous Documenter-executed `@example` path.
+"""
+generate_example(slug) =
+    Literate.markdown(joinpath(EXAMPLES_DIR, slug * ".jl"), OUTPUT_DIR;
+                      execute = true, flavor = Literate.DocumenterFlavor())
+
+# Single-example mode: when OCEANOSTICS_DOCS_EXAMPLE names one example, build only that
+# page and stop. This is what each parallel CI job runs; the resulting page and media are
+# uploaded as an artifact and later collected by the assemble/`makedocs` job.
+single_example = get(ENV, "OCEANOSTICS_DOCS_EXAMPLE", "")
+if single_example != ""
+    @info "Building single example: $single_example"
+    generate_example(single_example)
+    exit(0)
+end
+
+# Assemble mode: generate any example page that isn't already present, then build the site.
+# A plain `julia docs/make.jl` (nothing pre-generated) builds every example serially, so
+# local builds keep working; in CI the matrix jobs pre-generate the pages and drop them in
+# `OUTPUT_DIR`, so these are skipped.
+for (_, slug) in examples
+    if isfile(joinpath(OUTPUT_DIR, slug * ".md"))
+        @info "Reusing pre-built example page: $slug"
+    else
+        @info "Building example: $slug"
+        generate_example(slug)
+    end
 end
 #---
 
