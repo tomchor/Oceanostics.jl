@@ -8,7 +8,7 @@ using Oceananigans.Fields: Field
 
 using ..KineticEnergyEquation: KineticEnergyDissipationRate
 using ..FilteredKineticEnergyEquation: subfilter_stress_tensor, CoarseGrainedKineticEnergyDissipationRate
-using ..SpatialFilters: GaussianFilter   # for the docstring `@ref`s and the Gaussian convenience methods
+using ..SpatialFilters: GaussianFilter, BoxFilter   # GaussianFilter is used by the convenience methods; BoxFilter is imported only so its docstring `@ref` resolves in-module
 
 #+++ Sub-filter kinetic energy
 """
@@ -82,10 +82,11 @@ coarse-graining framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.11
 a constant viscosity it reduces to `2ν[filter(SⁱʲSⁱʲ) - S̄ⁱʲ S̄ⁱʲ] ≥ 0`, a strictly positive sink.
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
-[`GaussianFilter`](@ref). The full-flow dissipation is materialized as a `Field` before it is filtered
-(so the separable filter takes its fast staged path), and the result lives at `(Center, Center, Center)`,
-per unit mass (units `m² s⁻³`). The model needs a closure whose viscous fluxes are defined, exactly as
-[`CoarseGrainedKineticEnergyDissipationRate`](@ref) requires:
+[`GaussianFilter`](@ref). The full-flow dissipation `ε` is materialized as a `Field` before it is
+filtered (so it is not recomputed at every filter tap), and the filtered result is itself wrapped in a
+`Field` so the separable filter takes its fast staged path; the result lives at `(Center, Center,
+Center)`, per unit mass (units `m² s⁻³`). The model needs a closure whose viscous fluxes are defined,
+exactly as [`CoarseGrainedKineticEnergyDissipationRate`](@ref) requires:
 
 ```jldoctest
 using Oceananigans, Oceanostics
@@ -110,7 +111,7 @@ Gaussian `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√
 function subfilter_kinetic_energy_dissipation_rate(model, filter)
     ε  = KineticEnergyDissipationRate(model)                      # dissipation of the full flow
     εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filter) # dissipation of the filtered flow
-    return Field(filter(ε)) - εˡ                                  # εˢ = filter(ε) - εˡ
+    return Field(filter(Field(ε))) - εˡ   # εˢ = filter(ε) - εˡ; ε materialized so it is filtered via the fast staged path
 end
 
 subfilter_kinetic_energy_dissipation_rate(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
