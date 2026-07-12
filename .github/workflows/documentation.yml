@@ -6,26 +6,95 @@ on:
     tags: '*'
   pull_request:
 
+# Cancel superseded runs on the same ref (replaces the old styfle/cancel-workflow step).
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build_docs:
-    permissions:
-      contents: write
+  # Fan-out: build each example in its own runner, in parallel. Each job runs one example
+  # through Literate (execute=true) and uploads the generated page + its figures/movie.
+  examples:
+    name: "Example: ${{ matrix.example }}"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example:
+          - two_dimensional_turbulence
+          - kelvin_helmholtz
+          - rayleigh_taylor_instability
+          - tilted_bottom_boundary_layer
+          - spatial_filtering
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.11.0
-        with:
-          access_token: ${{ github.token }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1.12'
       - uses: julia-actions/cache@v2
+        with:
+          # Examples run at -O2 (the default): they are runtime-bound (they step real
+          # simulations), so optimized code matters more than fast codegen. All examples
+          # share one cache (identical Manifest) rather than a near-duplicate per example.
+          # It is kept separate from the assemble cache because the two jobs use different
+          # -O levels and Julia keys pkgimages on the optimization level, so a shared cache
+          # would thrash.
+          cache-name: docs-examples
+          include-matrix: false
       - name: Install dependencies
         run: julia --color=yes --project -e 'using Pkg; Pkg.instantiate()'
+      # -O2 plus multithreading (folded in from #264): the example simulations are
+      # runtime-bound, so both optimized code and multithreaded Oceananigans kernels help.
+      - name: Run example
+        env:
+          OCEANOSTICS_DOCS_EXAMPLE: ${{ matrix.example }}
+        run: julia --color=yes --threads=auto --project=docs/ docs/make.jl
+      - name: Upload generated page and media
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-${{ matrix.example }}
+          # The example page plus its figures (<name>-<n>.png) and movie (<name>.mp4).
+          # Exclude the intermediate NetCDF/JLD2 output (large, and only read back
+          # in-job during plotting).
+          path: |
+            docs/src/generated/${{ matrix.example }}*
+            !docs/src/generated/*.nc
+            !docs/src/generated/*.jld2
+          if-no-files-found: error
+          retention-days: 1
+
+  # Assemble: collect the pre-built example pages, run makedocs (doctests + site) without
+  # re-executing the examples, and deploy.
+  build_docs:
+    name: Assemble and deploy
+    needs: examples
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.12'
+      - uses: julia-actions/cache@v2
+        with:
+          # Assemble is compile-bound (doctests + rendering), so it runs at -O0 for fast
+          # codegen. Separate cache from the examples' -O2 cache, since pkgimages are keyed
+          # on the optimization level.
+          cache-name: docs-assemble
+      - name: Install dependencies
+        run: julia -O0 --color=yes --project -e 'using Pkg; Pkg.instantiate()'
+      - name: Collect pre-built example pages
+        uses: actions/download-artifact@v4
+        with:
+          path: docs/src/generated
+          pattern: generated-*
+          merge-multiple: true
       - name: Build and deploy
         env:
+          # Reuse the pre-built example pages downloaded above; never re-run a simulation
+          # here (and fail loudly if a page is missing).
+          OCEANOSTICS_DOCS_ASSEMBLE: 'true'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # If authenticating with GitHub Actions token
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }} # If authenticating with SSH deploy key
-          JULIA_DEBUG: Documenter
-        run: julia --color=yes --threads=auto --project=docs/ docs/make.jl
+        run: julia -O0 --color=yes --project=docs/ docs/make.jl

@@ -1,13 +1,15 @@
 pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..")) # add Oceanostics environment
 using Pkg; Pkg.instantiate()
 
+using Base64
+
 using Documenter
 using Literate
 
 using Oceananigans
 using Oceanostics
 
-#+++ Run examples
+#+++ Examples
 EXAMPLES_DIR = joinpath(@__DIR__, "examples")
 OUTPUT_DIR   = joinpath(@__DIR__, "src/generated")
 
@@ -18,12 +20,83 @@ examples = ["Two-dimensional turbulence"   => "two_dimensional_turbulence",
             "Spatial filtering"            => "spatial_filtering",
             ]
 
-example_codes = [ v * ".jl" for (k, v) in examples ]
 example_pages = [ k => "generated/$v.md" for (k, v) in examples ]
 
-for example in example_codes
-    example_filepath = joinpath(EXAMPLES_DIR, example)
-    Literate.markdown(example_filepath, OUTPUT_DIR; flavor = Literate.DocumenterFlavor())
+"""
+    externalize_images(name)
+
+Return a Literate `postprocess` function that moves inlined figures out of the page. For
+Makie figures, Literate's `DocumenterFlavor` embeds the `text/html` representation, which
+is a base64 PNG inside an `<img>` tag, directly into the Markdown via `@raw html`. A page
+with several figures then blows past Documenter's `size_threshold`. This rewrites each such
+block into a standalone `\$(name)-figN.png` file (next to the page, so it travels with the
+artifact) referenced with `![](...)`, matching the lean pages Documenter produced when it
+executed the `@example` blocks itself.
+"""
+function externalize_images(name)
+    return function (content::AbstractString)
+        counter = Ref(0)
+        pattern = r"```@raw html\s*\n<img[^>]*src=\"data:image/png;base64,\s*([A-Za-z0-9+/=]+)\"[^>]*>\s*\n```"
+        return replace(content, pattern => function (block)
+            b64 = match(pattern, block).captures[1]
+            counter[] += 1
+            file = "$(name)-fig$(counter[]).png"
+            write(joinpath(OUTPUT_DIR, file), base64decode(b64))
+            return "![]($(file))"
+        end)
+    end
+end
+
+"""
+    generate_example(slug)
+
+Run `examples/\$slug.jl` through Literate with `execute = true`. This runs the example
+here (simulation, figures, movie, and the hidden budget-closure `@test`s) and bakes the
+outputs into the generated Markdown, so Documenter includes the page without re-executing
+it. Because execution no longer happens inside `makedocs`, the examples can be built one
+per CI job in parallel instead of serially. `#hide` lines are still executed but omitted
+from the rendered code, exactly as under the previous Documenter-executed `@example` path.
+"""
+generate_example(slug) =
+    Literate.markdown(joinpath(EXAMPLES_DIR, slug * ".jl"), OUTPUT_DIR;
+                      execute = true, flavor = Literate.DocumenterFlavor(),
+                      postprocess = externalize_images(slug))
+
+# Single-example mode: when OCEANOSTICS_DOCS_EXAMPLE names one example, build only that
+# page and stop. This is what each parallel CI job runs; the resulting page and media are
+# uploaded as an artifact and later collected by the assemble/`makedocs` job.
+single_example = get(ENV, "OCEANOSTICS_DOCS_EXAMPLE", "")
+if single_example != ""
+    single_example in last.(examples) ||
+        error("OCEANOSTICS_DOCS_EXAMPLE = \"$single_example\" is not a known example; " *
+              "expected one of $(last.(examples))")
+    @info "Building single example: $single_example"
+    generate_example(single_example)
+    exit(0)
+end
+
+# Reuse-vs-regenerate policy for the example pages:
+#  - CI assemble job (OCEANOSTICS_DOCS_ASSEMBLE=true): the pages were built by the parallel
+#    example jobs and their media downloaded into `OUTPUT_DIR`. Reuse them exactly as-is and
+#    never run a simulation here (that would be slow and at -O0). Error loudly if one is
+#    missing, since that means a broken or expired artifact, not "build it now". This keeps
+#    the CI path from depending on artifact-vs-checkout mtime ordering.
+#  - Local build (no flag): reuse a page only if it is newer than its `.jl` source, else
+#    regenerate it. Delete `OUTPUT_DIR` (or edit the example) to force a rebuild.
+reuse_pages = get(ENV, "OCEANOSTICS_DOCS_ASSEMBLE", "") == "true"
+for (_, slug) in examples
+    page   = joinpath(OUTPUT_DIR, slug * ".md")
+    source = joinpath(EXAMPLES_DIR, slug * ".jl")
+    if reuse_pages
+        isfile(page) || error("Assemble mode: pre-built page $(page) is missing; " *
+                              "expected it from the example jobs' artifacts.")
+        @info "Reusing pre-built example page: $slug"
+    elseif isfile(page) && mtime(page) >= mtime(source)
+        @info "Reusing up-to-date example page: $slug"
+    else
+        @info "Building example: $slug"
+        generate_example(slug)
+    end
 end
 #---
 
