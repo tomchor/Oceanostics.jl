@@ -125,7 +125,7 @@ add_callback!(simulation, progress, IterationInterval(100))
 # - ``\tau(w, b) = \overline{wb} - \overline{w}\,\overline{b}`` is the sub-filter buoyancy flux (a
 #   `subfilter_covariance`), which converts sub-filter potential energy into sub-filter kinetic energy.
 # - ``\varepsilon_K^s = \overline{\varepsilon} - \varepsilon^{\ell}`` is the sub-filter dissipation
-#   ([`subfilter_kinetic_energy_dissipation_rate`](@ref)): the filtered total dissipation ``\varepsilon``
+#   ([`SubFilterKineticEnergyDissipationRate`](@ref)): the filtered total dissipation ``\varepsilon``
 #   ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) minus the
 #   dissipation ``\varepsilon^{\ell}`` of the filtered flow
 #   ([`FilteredKineticEnergyDissipationRate`](@ref)). For a constant viscosity it reduces to
@@ -147,7 +147,7 @@ b = model.tracers.b
 Kˢ  = subfilter_kinetic_energy(model, gfilter)     # sub-filter kinetic energy ½τⁱⁱ
 Πₖ  = KineticEnergyCrossScaleFlux(model, gfilter)  # cross-scale flux from filtered scales
 wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux τ(w, b)
-εˢ  = subfilter_kinetic_energy_dissipation_rate(model, gfilter)  # sub-filter dissipation ε̄ − εˡ
+εˢ  = SubFilterKineticEnergyDissipationRate(model, gfilter)  # sub-filter dissipation ε̄ − εˡ
 
 # The budget needs only the (cheap) volume integrals of these terms:
 

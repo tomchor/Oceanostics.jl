@@ -5,7 +5,7 @@ using Oceananigans.Fields: location
 using Oceananigans.AbstractOperations: compute_at!
 
 using Oceanostics
-using Oceanostics: subfilter_kinetic_energy, subfilter_kinetic_energy_dissipation_rate
+using Oceanostics: subfilter_kinetic_energy, SubFilterKineticEnergyDissipationRate
 using Oceanostics: subfilter_stress_tensor, KineticEnergyDissipationRate,
                    FilteredKineticEnergyDissipationRate, GaussianFilter
 
@@ -52,9 +52,14 @@ function test_subfilter_dissipation_matches_manual(model, filt)
     εˡ = FilteredKineticEnergyDissipationRate(model, filt)
     εˢ_manual = Field(filt(ε)) - εˡ
 
-    εˢ = subfilter_kinetic_energy_dissipation_rate(model, filt)
+    εˢ = SubFilterKineticEnergyDissipationRate(model, filt)
     @test location(εˢ) == (Center, Center, Center)
     @test interior(Field(εˢ)) ≈ interior(Field(εˢ_manual))
+
+    # it is a single KernelFunctionOperation with its own type/display
+    @test εˢ isa SubFilterKineticEnergyDissipationRate
+    @test occursin("SubFilterKineticEnergyDissipationRate", sprint(show, εˢ))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), εˢ))
     return nothing
 end
 
@@ -62,8 +67,8 @@ end
 function test_subfilter_dissipation_convenience(model)
     σ = 0.12
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
-    @test interior(Field(subfilter_kinetic_energy_dissipation_rate(model; σ))) ≈
-          interior(Field(subfilter_kinetic_energy_dissipation_rate(model, filt)))
+    @test interior(Field(SubFilterKineticEnergyDissipationRate(model; σ))) ≈
+          interior(Field(SubFilterKineticEnergyDissipationRate(model, filt)))
     return nothing
 end
 
@@ -88,14 +93,14 @@ function test_subfilter_kinetic_energy_recomputes(model, filt)
 end
 
 function test_subfilter_dissipation_recomputes(model, filt)
-    εf = Field(subfilter_kinetic_energy_dissipation_rate(model, filt))
+    εf = Field(SubFilterKineticEnergyDissipationRate(model, filt))
     compute_at!(εf, 0.0)
     snapshot = Array(interior(εf))
 
     set!(model, u=(x, y, z) -> 2randn(), v=(x, y, z) -> 2randn(), w=(x, y, z) -> 2randn())
     compute_at!(εf, 1.0)
 
-    fresh = Field(subfilter_kinetic_energy_dissipation_rate(model, filt))
+    fresh = Field(SubFilterKineticEnergyDissipationRate(model, filt))
     compute_at!(fresh, 2.0)
 
     @test !(Array(interior(εf)) ≈ snapshot)   # tracked the change in the flow

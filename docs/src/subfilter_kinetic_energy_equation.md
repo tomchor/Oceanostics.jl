@@ -34,7 +34,7 @@ with two sources and one sink:
   - ``\tau(w, b) = \widetilde{wb} - \tilde w\,\tilde b`` is the sub-filter buoyancy flux (a
     `subfilter_covariance`), which converts sub-filter potential energy into sub-filter kinetic energy.
   - ``\varepsilon^s = \widetilde{\varepsilon} - \varepsilon^l`` is the sub-filter dissipation
-    ([`subfilter_kinetic_energy_dissipation_rate`](@ref)): the filtered total dissipation
+    ([`SubFilterKineticEnergyDissipationRate`](@ref)): the filtered total dissipation
     ``\widetilde{\varepsilon}``
     ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) minus the
     dissipation ``\varepsilon^l`` of the filtered flow
@@ -52,5 +52,5 @@ Oceanostics.SubFilterKineticEnergyEquation.subfilter_kinetic_energy
 ## Sub-filter kinetic energy dissipation
 
 ```@docs
-Oceanostics.SubFilterKineticEnergyEquation.subfilter_kinetic_energy_dissipation_rate
+Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate
 ```
