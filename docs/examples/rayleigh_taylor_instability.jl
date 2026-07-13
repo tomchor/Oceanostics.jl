@@ -232,7 +232,8 @@ dKˢdt    = (∫Kˢ_t[i2] .- ∫Kˢ_t[i1]) ./ Δt_pair
 wbˢ_pair = @. 0.5 * (∫wbˢ_t[i1] + ∫wbˢ_t[i2])
 εˢ_pair  = @. 0.5 * (∫εˢ_t[i1] + ∫εˢ_t[i2])
 
-resid = @. dKˢdt - (Πₖ_pair + wbˢ_pair - εˢ_pair)
+# Residual in sum-to-zero form: the negative tendency plus the sources, so the plotted curves add to it
+resid = @. -dKˢdt + Πₖ_pair + wbˢ_pair - εˢ_pair
 
 using Test                                                          #hide
 rms(x) = √(sum(abs2, x) / length(x))                                #hide
@@ -285,13 +286,14 @@ Colorbar(fig[3, 2], hmKˡ)
 hmKˢ = heatmap!(axKˢ, x_caa, z_aac, Kˢₙ; colormap=:magma, colorrange=(0, Kˢlim))
 Colorbar(fig[3, 4], hmKˢ)
 
-# The bottom panel shows the volume-integrated sub-filter-scale kinetic-energy budget: `d(∫Kˢ)/dt`
-# against the two sources that feed it, the cross-scale flux `∫Πₖ dV` handed down from the filtered
-# scales and the sub-filter buoyancy flux `∫τ(w,b) dV`, and the single sink that drains it, the
-# sub-filter dissipation `−∫εˢ dV`, together with the residual.
+# The bottom panel shows the volume-integrated sub-filter-scale kinetic-energy budget. We plot the
+# negative tendency `−d(∫Kˢ)/dt` together with the two sources that feed it, the cross-scale flux
+# `∫Πₖ dV` handed down from the filtered scales and the sub-filter buoyancy flux `∫τ(w,b) dV`, and the
+# single sink that drains it, the sub-filter dissipation `−∫εˢ dV`. With the tendency negated, the four
+# curves sum to the residual.
 
 ax_bud = Axis(fig[4, 1:4]; xlabel="time [free-fall units]", title="Sub-filter-scale KE budget")
-lines!(ax_bud, t_pair ./ τ, dKˢdt,    label="d(∫Kˢ)/dt")
+lines!(ax_bud, t_pair ./ τ, -dKˢdt,   label="−d(∫Kˢ)/dt")
 lines!(ax_bud, t_pair ./ τ, Πₖ_pair,  label="∫Πₖ dV  (flux from filtered scales)")
 lines!(ax_bud, t_pair ./ τ, wbˢ_pair, label="∫τ(w,b) dV  (sub-filter buoyancy flux)")
 lines!(ax_bud, t_pair ./ τ, -εˢ_pair, label="−∫εˢ dV  (sub-filter dissipation)")
@@ -313,5 +315,5 @@ end
 # As the heavy fluid falls in spikes and the light fluid rises in bubbles, the flow rolls up and
 # breaks into a turbulent mixing layer. The bottom panel shows the volume-integrated SFS KE budget.
 # The sub-filter buoyancy flux `∫τ(w,b) dV` and dissipation `∫εˢ dV` are the dominant terms, with the
-# tendency `d(∫Kˢ)/dt` in third place. The residual is small, which shows that the budget closes well
+# tendency `−d(∫Kˢ)/dt` in third place. The residual is small, which shows that the budget closes well
 # and that the coarse-graining analysis is consistent with the simulation.

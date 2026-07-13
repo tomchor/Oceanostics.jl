@@ -74,7 +74,7 @@ N² = 1e-5/second^2;
 # from the constant density stratification by imposing a constant stratification as a
 # `BackgroundField`,
 
-B_field = BackgroundField(constant_stratification, parameters=(; ĝ, N²))
+B_field = BackgroundField(constant_stratification, parameters=(; ĝ=Tuple(ĝ), N²)) # Tuple (bitstype) so ĝ can be captured into GPU kernels
 
 # ## Bottom drag
 #
@@ -84,7 +84,7 @@ B_field = BackgroundField(constant_stratification, parameters=(; ĝ, N²))
 V∞ = 0.1meters/second
 z₀ = 0.1meters # (roughness length)
 κ = 0.4 # von Karman constant
-z₁ = znodes(grid, Center())[1] # Closest grid center to the bottom
+z₁ = Array(znodes(grid, Center()))[1] # Closest grid center to the bottom (`Array` so the scalar read works on GPU too)
 cᴰ = (κ / log(z₁ / z₀))^2 # Drag coefficient
 
 drag_bc = BulkDrag(coefficient=cᴰ, background_velocities=(0, V∞, 0))

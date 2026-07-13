@@ -207,7 +207,8 @@ w̄b̄_pair = @. 0.5 * (∫w̄b̄_t[i1] + ∫w̄b̄_t[i2])
 Πₖ_pair = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2])
 εˡ_pair = @. 0.5 * (∫εˡ_t[i1] + ∫εˡ_t[i2])
 
-resid = @. dKˡdt - (w̄b̄_pair - Πₖ_pair - εˡ_pair)
+# Residual in sum-to-zero form: the negative tendency plus the three sources, so the plotted curves add to it
+resid = @. -dKˡdt + w̄b̄_pair - Πₖ_pair - εˡ_pair
 
 using Test                              #hide
 rms(x) = √(sum(abs2, x) / length(x))    #hide
@@ -269,12 +270,13 @@ Colorbar(fig[5, 2], hm5, vertical=false, height=8)
 hm6 = heatmap!(ax6, εˡₙ; colormap=:magma, colorrange=(0, ε_lim))
 Colorbar(fig[5, 3], hm6, vertical=false, height=8);
 
-# The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget: `d(∫Kˡ)/dt`
-# against its three sources — buoyancy production `∫w̄b̄ dV`, minus the cross-scale flux `−∫Πₖ dV`, and
-# minus the coarse-grained dissipation `−∫εˡ dV` — with the residual.
+# The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget. We plot the negative
+# tendency `−d(∫Kˡ)/dt` together with its three sources: buoyancy production `∫w̄b̄ dV`, the cross-scale
+# flux `−∫Πₖ dV`, and the coarse-grained dissipation `−∫εˡ dV`. With the tendency negated, the four curves
+# sum to the residual.
 
 ax_bud = Axis(fig[6, 1:3]; xlabel="Time", title="Coarse-grained KE budget", height=140)
-lines!(ax_bud, t_pair, dKˡdt, label="d(∫Kˡ)/dt")
+lines!(ax_bud, t_pair, -dKˡdt, label="−d(∫Kˡ)/dt")
 lines!(ax_bud, t_pair, w̄b̄_pair, label="∫w̄b̄ dV")
 lines!(ax_bud, t_pair, -Πₖ_pair, label="−∫Πₖ dV")
 lines!(ax_bud, t_pair, -εˡ_pair, label="−∫εˡ dV")
@@ -303,8 +305,8 @@ end
 # The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget. As the billows
 # grow and overturn, the filtered flow mostly loses kinetic energy to potential energy (`∫w̄b̄ dV < 0`) and
 # feeds the subfilter scales through the cross-scale flux (`−∫Πₖ dV`), while the coarse-grained viscous
-# dissipation `∫εˡ dV` stays comparatively small at this Reynolds number. The residual (dashed) is the
-# gap between `d(∫Kˡ)/dt` and the sum of the three terms. Unlike the centered-advection
+# dissipation `∫εˡ dV` stays comparatively small at this Reynolds number. The residual (dashed), the
+# sum of the negative tendency `−d(∫Kˡ)/dt` and the three source terms, stays small. Unlike the centered-advection
 # [Two-dimensional turbulence example](@ref two_d_turbulence_example), the upwind scheme here adds some
 # numerical dissipation, but because it acts mostly at the grid scale it barely projects onto the
 # smooth filtered budget, which still closes to within a few percent.
