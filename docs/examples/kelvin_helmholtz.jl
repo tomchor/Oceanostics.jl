@@ -136,7 +136,10 @@ filter = GaussianFilter(; dims=(1, 3), σ=h / 2, boundary=:shrink)  # FWHM ≈ h
 
 u, w = model.velocities.u, model.velocities.w
 b = model.tracers.b
-ū, w̄, b̄ = filter(u), filter(w), filter(b)
+## Materialize each filtered field so the multi-direction filter takes its fast staged (separable)
+## path; composing the raw `filter(u)` into `ū^2 + w̄^2` below would instead run it fused (see the
+## filter performance notes and `check_filter_staging`).
+ū, w̄, b̄ = Field(filter(u)), Field(filter(w)), Field(filter(b))
 
 Kˡ = @at (Center, Center, Center) (ū^2 + w̄^2) / 2   # filtered kinetic energy ½ūᵢūᵢ
 w̄b̄ = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy production of the filtered flow
