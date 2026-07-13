@@ -66,7 +66,7 @@ function test_velocity_only_flow_diagnostics(model)
     @test location(Sij.S₁₂) == (Face, Face, Center)
     @test location(Sij.S₁₃) == (Face, Center, Face)
     @test location(Sij.S₂₃) == (Center, Face, Face)
-    @test Sij == StrainRateTensor(model.grid, model.velocities...) # field-based constructor agrees
+    @allowscalar @test Sij == StrainRateTensor(model.grid, model.velocities...) # field-based constructor agrees
     for Sᵢⱼ in Sij
         @test all(interior(Field(Sᵢⱼ)) .≈ 0)
     end
@@ -83,8 +83,8 @@ function test_velocity_only_flow_diagnostics(model)
 
     # selected components are the very same KFOs as in the full tensor, and `dims` is forwarded
     Sxz = StrainRateTensor(model; dims=(1, 3))
-    @test (Sxz.S₁₁, Sxz.S₃₃, Sxz.S₁₃) == (Sij.S₁₁, Sij.S₃₃, Sij.S₁₃)
-    @test Sxz == StrainRateTensor(model.grid, model.velocities...; dims=(1, 3))
+    @allowscalar @test (Sxz.S₁₁, Sxz.S₃₃, Sxz.S₁₃) == (Sij.S₁₁, Sij.S₃₃, Sij.S₁₃)
+    @allowscalar @test Sxz == StrainRateTensor(model.grid, model.velocities...; dims=(1, 3))
 
     # invalid `dims` are rejected
     @test_throws ArgumentError StrainRateTensor(model; dims=(1, 4))
@@ -102,8 +102,8 @@ function test_velocity_only_flow_diagnostics(model)
     @test location(τij.τ₁₂) == (Face, Face, Center)
     @test location(τij.τ₁₃) == (Face, Center, Face)
     @test location(τij.τ₂₃) == (Center, Face, Face)
-    @test τij == StressTensor(model.grid, model.velocities...) # field-based constructor agrees
-    @test τij == StressTensor(model; collocate_diagonals=false) # the default
+    @allowscalar @test τij == StressTensor(model.grid, model.velocities...) # field-based constructor agrees
+    @allowscalar @test τij == StressTensor(model; collocate_diagonals=false) # the default
     for τᵢⱼ in τij
         @test Field(τᵢⱼ) isa Field # every component is computable
     end
@@ -118,7 +118,7 @@ function test_velocity_only_flow_diagnostics(model)
     # off-diagonals are unaffected by `collocate_diagonals`
     @test (location(τij_c.τ₁₂), location(τij_c.τ₁₃), location(τij_c.τ₂₃)) ==
           (location(τij.τ₁₂),   location(τij.τ₁₃),   location(τij.τ₂₃))
-    @test τij_c == StressTensor(model.grid, model.velocities...; collocate_diagonals=true) # field-based agrees
+    @allowscalar @test τij_c == StressTensor(model.grid, model.velocities...; collocate_diagonals=true) # field-based agrees
     for τᵢⱼ in τij_c
         @test Field(τᵢⱼ) isa Field # every component is computable
     end
@@ -144,8 +144,8 @@ function test_velocity_only_flow_diagnostics(model)
 
     # selected components are the very same KFOs as in the full tensor, and `dims` is forwarded
     τxz = StressTensor(model; dims=(1, 3))
-    @test (τxz.τ₁₁, τxz.τ₃₃, τxz.τ₁₃) == (τij.τ₁₁, τij.τ₃₃, τij.τ₁₃)
-    @test τxz == StressTensor(model.grid, model.velocities...; dims=(1, 3))
+    @allowscalar @test (τxz.τ₁₁, τxz.τ₃₃, τxz.τ₁₃) == (τij.τ₁₁, τij.τ₃₃, τij.τ₁₃)
+    @allowscalar @test τxz == StressTensor(model.grid, model.velocities...; dims=(1, 3))
 
     # invalid `dims` are rejected
     @test_throws ArgumentError StressTensor(model; dims=(1, 4))
@@ -164,7 +164,7 @@ function test_velocity_only_flow_diagnostics(model)
     @test location(Ωij.Ω₁₂) == (Face, Face, Center)
     @test location(Ωij.Ω₁₃) == (Face, Center, Face)
     @test location(Ωij.Ω₂₃) == (Center, Face, Face)
-    @test Ωij == VorticityTensor(model.grid, model.velocities...) # field-based constructor agrees
+    @allowscalar @test Ωij == VorticityTensor(model.grid, model.velocities...) # field-based constructor agrees
     for Ωᵢⱼ in Ωij
         @test all(interior(Field(Ωᵢⱼ)) .≈ 0)
     end
@@ -182,8 +182,8 @@ function test_velocity_only_flow_diagnostics(model)
 
     # selected components are the very same KFOs as in the full tensor, and `dims` is forwarded
     Ωxz = VorticityTensor(model; dims=(1, 3))
-    @test Ωxz.Ω₁₃ == Ωij.Ω₁₃
-    @test Ωxz == VorticityTensor(model.grid, model.velocities...; dims=(1, 3))
+    @allowscalar @test Ωxz.Ω₁₃ == Ωij.Ω₁₃
+    @allowscalar @test Ωxz == VorticityTensor(model.grid, model.velocities...; dims=(1, 3))
 
     # invalid `dims` are rejected
     @test_throws ArgumentError VorticityTensor(model; dims=(1, 4))

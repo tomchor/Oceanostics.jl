@@ -514,9 +514,9 @@ end
 function direction_coords_and_spacings(grid, d, loc)
     N = size(grid, d)
     ℓ = map(L -> L(), loc)
-    d == 1 && return ([xnode(m, 1, 1, grid, ℓ...) for m in 1:N], [xspacing(m, 1, 1, grid, ℓ...) for m in 1:N])
-    d == 2 && return ([ynode(1, m, 1, grid, ℓ...) for m in 1:N], [yspacing(1, m, 1, grid, ℓ...) for m in 1:N])
-    return ([znode(1, 1, m, grid, ℓ...) for m in 1:N], [zspacing(1, 1, m, grid, ℓ...) for m in 1:N])
+    d == 1 && return @allowscalar ([xnode(m, 1, 1, grid, ℓ...) for m in 1:N], [xspacing(m, 1, 1, grid, ℓ...) for m in 1:N])
+    d == 2 && return @allowscalar ([ynode(1, m, 1, grid, ℓ...) for m in 1:N], [yspacing(1, m, 1, grid, ℓ...) for m in 1:N])
+    return @allowscalar ([znode(1, 1, m, grid, ℓ...) for m in 1:N], [zspacing(1, 1, m, grid, ℓ...) for m in 1:N])
 end
 
 # Independent reference for a 1D stretched Gaussian filter: the discrete quadrature
@@ -710,13 +710,13 @@ function test_reusable_box_filter(grid)
     @test F isa BoxFilterOperator
 
     # Same KFO as the field-first constructor (identically assembled).
-    @test F(c) == BoxFilter(c; dims=(1, 2), N=5)
+    @allowscalar @test F(c) == BoxFilter(c; dims=(1, 2), N=5)
 
     # Computed interiors match too.
     @test Array(interior(Field(F(c)))) ≈ Array(interior(Field(BoxFilter(c; dims=(1, 2), N=5))))
 
     # Reusing the operator on a second field gives that field's own result.
-    @test F(d) == BoxFilter(d; dims=(1, 2), N=5)
+    @allowscalar @test F(d) == BoxFilter(d; dims=(1, 2), N=5)
     @test Array(interior(Field(F(d)))) ≈ Array(interior(Field(BoxFilter(d; dims=(1, 2), N=5))))
 
     # The two filtered fields differ (the operator did not capture the field).
@@ -724,7 +724,7 @@ function test_reusable_box_filter(grid)
 
     # The boundary keyword is threaded through.
     Fb = BoxFilter(; dims=(1,), N=5, boundary=:edge)
-    @test Fb(c) == BoxFilter(c; dims=(1,), N=5, boundary=:edge)
+    @allowscalar @test Fb(c) == BoxFilter(c; dims=(1,), N=5, boundary=:edge)
 
     # show prints something tidy.
     @test occursin("BoxFilter(dims=", sprint(show, F))
@@ -741,17 +741,17 @@ function test_reusable_gaussian_filter(grid)
     F = GaussianFilter(; dims=(1, 2), σ=0.1)
     @test F isa GaussianFilterOperator
 
-    @test F(c) == GaussianFilter(c; dims=(1, 2), σ=0.1)
+    @allowscalar @test F(c) == GaussianFilter(c; dims=(1, 2), σ=0.1)
     @test Array(interior(Field(F(c)))) ≈ Array(interior(Field(GaussianFilter(c; dims=(1, 2), σ=0.1))))
 
-    @test F(d) == GaussianFilter(d; dims=(1, 2), σ=0.1)
+    @allowscalar @test F(d) == GaussianFilter(d; dims=(1, 2), σ=0.1)
     @test Array(interior(Field(F(d)))) ≈ Array(interior(Field(GaussianFilter(d; dims=(1, 2), σ=0.1))))
 
     @test !(Array(interior(Field(F(c)))) ≈ Array(interior(Field(F(d)))))
 
     # The N and boundary keywords are threaded through.
     FN = GaussianFilter(; dims=(1,), σ=0.1, N=5, boundary=:edge)
-    @test FN(c) == GaussianFilter(c; dims=(1,), σ=0.1, N=5, boundary=:edge)
+    @allowscalar @test FN(c) == GaussianFilter(c; dims=(1,), σ=0.1, N=5, boundary=:edge)
 
     @test occursin("GaussianFilter(dims=", sprint(show, F))
 
