@@ -480,9 +480,9 @@ const DissipationRate = KineticEnergyDissipationRate
 
 Calculate the Kinetic Energy Dissipation Rate, defined as
 
-    ε = ∂ⱼuᵢ ⋅ Fᵢⱼ
+    ε = ∂ⱼuᵢ ⋅ τᵢⱼ
 
-where ∂ⱼuᵢ is the velocity gradient tensor and Fᵢⱼ is the stress tensor.
+where ∂ⱼuᵢ is the velocity gradient tensor and τᵢⱼ is the stress tensor.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -496,7 +496,7 @@ KineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Nothing", "NamedTuple", "NamedTuple")
-└── computes: kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ
+└── computes: kinetic energy dissipation rate  ε = ∂ⱼuᵢ·τᵢⱼ
 ```
 """
 function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
