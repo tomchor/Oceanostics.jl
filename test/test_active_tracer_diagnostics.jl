@@ -167,8 +167,8 @@ function test_mixed_layer_depth(grid, buoyancy; zₘₓₗ = 0.5, δb = -1e-4 * 
         mld_ρ = MixedLayerDepth(grid, buoyancy, C; criterion)
     end 
 
-    @test isinf(mld_b[1, 1])
-    density_is_defined && (@test isinf(mld_ρ[1, 1]) | (mld_ρ[1, 1] < znode(1, 1, 1, grid, Center(), Center(), Face()))) # for TEOS10 we don't get -Inf just a really deep depth
+    @allowscalar @test isinf(mld_b[1, 1])
+    density_is_defined && (@allowscalar @test isinf(mld_ρ[1, 1]) | (mld_ρ[1, 1] < znode(1, 1, 1, grid, Center(), Center(), Face()))) # for TEOS10 we don't get -Inf just a really deep depth
 
     if buoyancy isa BuoyancyTracer
         set!(C.b, (x, y, z) -> z * ∂z_b)
@@ -179,8 +179,8 @@ function test_mixed_layer_depth(grid, buoyancy; zₘₓₗ = 0.5, δb = -1e-4 * 
 
     fill_halo_regions!(C)
 
-    @test isapprox(mld_b[1, 1], -zₘₓₗ + znode(1, 1, grid.Nz+1, grid, Center(), Center(), Face()), atol=0.02) # high tollerance from the approximation in ∂z_T
-    density_is_defined && (@test isapprox(mld_ρ[1, 1], -zₘₓₗ + znode(1, 1, grid.Nz+1, grid, Center(), Center(), Face()), atol=0.02)) # high tollerance from the approximation in ∂z_T
+    @allowscalar @test isapprox(mld_b[1, 1], -zₘₓₗ + znode(1, 1, grid.Nz+1, grid, Center(), Center(), Face()), atol=0.02) # high tollerance from the approximation in ∂z_T
+    density_is_defined && (@allowscalar @test isapprox(mld_ρ[1, 1], -zₘₓₗ + znode(1, 1, grid.Nz+1, grid, Center(), Center(), Face()), atol=0.02)) # high tollerance from the approximation in ∂z_T
 end
 #---
 
