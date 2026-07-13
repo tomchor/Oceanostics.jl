@@ -128,7 +128,7 @@ add_callback!(simulation, progress, IterationInterval(100))
 #   ([`subfilter_kinetic_energy_dissipation_rate`](@ref)): the filtered total dissipation ``\varepsilon``
 #   ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) minus the
 #   dissipation ``\varepsilon^{\ell}`` of the filtered flow
-#   ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)). For a constant viscosity it reduces to
+#   ([`FilteredKineticEnergyDissipationRate`](@ref)). For a constant viscosity it reduces to
 #   ``2\nu[\overline{S^{ij}S^{ij}} - \overline{S}^{ij}\overline{S}^{ij}] \ge 0``, a strictly positive
 #   sink; with an LES closure it is the dissipation that the modeled stress carries out on the sub-filter scales.
 #
@@ -157,12 +157,11 @@ wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux �
 ∫εˢ  = Integral(εˢ)
 
 # For the movie we also keep the coarse-grained kinetic energy
-# ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i``, the filtered counterpart of ``K^s``.
-# Together the two show how the filter splits the flow's kinetic energy between the scales it keeps and
-# the scales it removes:
+# ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i`` ([`FilteredKineticEnergy`](@ref)), the
+# filtered counterpart of ``K^s``. Together the two show how the filter splits the flow's kinetic energy
+# between the scales it keeps and the scales it removes:
 
-ū, v̄, w̄ = gfilter(u), gfilter(v), gfilter(w)
-Kˡ = Oceanostics.KineticEnergy(model, ū, v̄, w̄)  #  kinetic energy of the coarse-grained flow
+Kˡ = FilteredKineticEnergy(model, gfilter)  # kinetic energy of the coarse-grained (filtered) flow
 
 # ## Output
 #

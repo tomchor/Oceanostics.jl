@@ -38,7 +38,7 @@ with two sources and one sink:
     ``\widetilde{\varepsilon}``
     ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) minus the
     dissipation ``\varepsilon^l`` of the filtered flow
-    ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)).
+    ([`FilteredKineticEnergyDissipationRate`](@ref)).
 
 The [Rayleigh-Taylor instability](@ref rayleigh_taylor_example) example closes this budget for a
 large-eddy simulation.

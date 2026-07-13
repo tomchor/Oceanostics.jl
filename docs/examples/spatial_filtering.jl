@@ -225,7 +225,7 @@ fig_Π
 
 # ## Coarse-grained kinetic energy dissipation
 #
-# We can also calculate the dissipation acting on the *filtered* flow using [`CoarseGrainedKineticEnergyDissipationRate`](@ref):
+# We can also calculate the dissipation acting on the *filtered* flow using [`FilteredKineticEnergyDissipationRate`](@ref):
 #
 # ```math
 # \varepsilon^l = \frac{\partial \overline{u}_i}{\partial x_j}\,\overline{F}_{ij},
@@ -235,7 +235,7 @@ fig_Π
 # is the filtered viscous stress tensor. In our case (width a constant-viscosity run)
 # ``\overline{F}_{ij}`` simplifies to ``\nu\,\partial_j\overline{u}_i\,\partial_\overline{u}_i``:
 
-εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filter)
+εˡ = FilteredKineticEnergyDissipationRate(model, filter)
 
 fig_ε = Figure()
 ax_ε = Axis(fig_ε[1, 1]; title = "Coarse-grained KE dissipation εˡ", axis_kwargs...)

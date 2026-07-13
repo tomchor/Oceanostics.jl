@@ -7,7 +7,7 @@ using Oceananigans.AbstractOperations: compute_at!
 using Oceanostics
 using Oceanostics: subfilter_kinetic_energy, subfilter_kinetic_energy_dissipation_rate
 using Oceanostics: subfilter_stress_tensor, KineticEnergyDissipationRate,
-                   CoarseGrainedKineticEnergyDissipationRate, GaussianFilter
+                   FilteredKineticEnergyDissipationRate, GaussianFilter
 
 arch = has_cuda_gpu() ? GPU() : CPU()
 
@@ -49,7 +49,7 @@ end
 # εˢ = filter(ε) - εˡ must equal the hand-built difference of the full-flow and filtered-flow dissipations.
 function test_subfilter_dissipation_matches_manual(model, filt)
     ε  = KineticEnergyDissipationRate(model)
-    εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filt)
+    εˡ = FilteredKineticEnergyDissipationRate(model, filt)
     εˢ_manual = Field(filt(ε)) - εˡ
 
     εˢ = subfilter_kinetic_energy_dissipation_rate(model, filt)

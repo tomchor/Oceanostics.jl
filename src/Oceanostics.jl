@@ -41,7 +41,7 @@ export KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyB
 #---
 
 #+++ FilteredKineticEnergyEquation exports
-export subfilter_stress_tensor, KineticEnergyCrossScaleFlux, CoarseGrainedKineticEnergyDissipationRate
+export subfilter_stress_tensor, KineticEnergyCrossScaleFlux, FilteredKineticEnergyDissipationRate, FilteredKineticEnergy
 #---
 
 #+++ SubFilterKineticEnergyEquation exports
@@ -374,8 +374,9 @@ end
 #+++ FilteredKineticEnergyEquation
 # The single-`KernelFunctionOperation` diagnostics get a custom display; `subfilter_stress_tensor`
 # returns a `NamedTuple` of components, like `StressTensor`/`StrainRateTensor`, so it has none.
-@diagnostic_show FilteredKineticEnergyEquation.KineticEnergyCrossScaleFlux               "KineticEnergyCrossScaleFlux"               "cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ"
-@diagnostic_show FilteredKineticEnergyEquation.CoarseGrainedKineticEnergyDissipationRate "CoarseGrainedKineticEnergyDissipationRate" "coarse-grained kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ"
+@diagnostic_show FilteredKineticEnergyEquation.FilteredKineticEnergy                "FilteredKineticEnergy"                "kinetic energy of the filtered flow  Kˡ = ½ūᵢūᵢ"
+@diagnostic_show FilteredKineticEnergyEquation.KineticEnergyCrossScaleFlux          "KineticEnergyCrossScaleFlux"          "cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ"
+@diagnostic_show FilteredKineticEnergyEquation.FilteredKineticEnergyDissipationRate "FilteredKineticEnergyDissipationRate" "filtered kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ"
 #---
 
 #+++ TurbulentKineticEnergyEquation

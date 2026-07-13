@@ -1,10 +1,10 @@
 # Filtered kinetic energy equation
 
 The `FilteredKineticEnergyEquation` module provides diagnostics for the kinetic energy budget of the
-coarse-grained (filtered) flow, in which a low-pass spatial filter ``\widetilde{(\,\cdot\,)}`` separates a
+filtered flow, in which a low-pass spatial filter ``\widetilde{(\,\cdot\,)}`` separates a
 filtered from a subfilter scale. The section below derives that budget.
 
-## Deriving the coarse-grained kinetic energy budget
+## Deriving the filtered-flow kinetic energy budget
 
 Oceananigans' [`NonhydrostaticModel`](https://clima.github.io/OceananigansDocumentation/stable/physics/nonhydrostatic_model/)
 evolves the velocity ``v_i`` with the momentum equation (here without the background-flow, surface-wave,
@@ -42,7 +42,8 @@ and re-write the filtered momentum equation as:
 ```
 
 Multiplying by the filtered velocity ``\tilde v_i`` gives the budget for the kinetic energy
-of the filtered flow ``K^l = \tfrac{1}{2}\,\tilde v_i\,\tilde v_i``. Advection, pressure, and the two stress terms
+of the filtered flow ``K^l = \tfrac{1}{2}\,\tilde v_i\,\tilde v_i`` ([`FilteredKineticEnergy`](@ref)).
+Advection, pressure, and the two stress terms
 each split into a transport divergence plus a local term; Coriolis does no work
 (``\tilde v_i\,\epsilon_{ijk}\,f_j\,\tilde v_k = 0``), leaving
 
@@ -71,7 +72,7 @@ the rate at which the filter transfers kinetic energy from the filtered to the s
 (downscale) transfer, and ``\widetilde{S}_{ij}`` is the strain rate tensor of the filtered velocity. The
 residual stress ``\tau^r_{ij}`` itself is available as [`subfilter_stress_tensor`](@ref).
 
-``\varepsilon^l`` ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)) is the viscous dissipation
+``\varepsilon^l`` ([`FilteredKineticEnergyDissipationRate`](@ref)) is the viscous dissipation
 of the filtered flow: the filtered velocity gradient contracted with the *filtered* stress
 ``\tilde\tau_{ij}``. The stress is filtered, not recomputed from ``\tilde v_i``:
 ``\widetilde{\tau_{ij}(v_i)}`` and ``\tau_{ij}(\tilde v_i)`` agree only for a constant, uniform
@@ -83,7 +84,7 @@ These diagnostics take a `filter` argument: any callable mapping a field to its 
 counterpart, typically a [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The directions the
 filter acts in (set inside `filter`) are independent of how each diagnostic contracts: the stress tensor
 and cross-scale flux take a `dims` argument selecting the directions they contract over — so you can
-filter horizontally yet contract the full 3D tensor — while the coarse-grained dissipation always forms
+filter horizontally yet contract the full 3D tensor — while the filtered dissipation always forms
 the full viscous contraction.
 
 ## Example
@@ -99,18 +100,24 @@ filter = GaussianFilter(; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(le
 
 τ  = subfilter_stress_tensor(model, filter)                  # the subfilter stress tensor components
 Πₖ = KineticEnergyCrossScaleFlux(model, filter)              # the cross-scale KE flux, at (Center, Center, Center)
-εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filter) # dissipation of the filtered flow
+εˡ = FilteredKineticEnergyDissipationRate(model, filter) # dissipation of the filtered flow
 
 # equivalently, the convenience methods build the Gaussian filter from σ for you:
-εˡ = CoarseGrainedKineticEnergyDissipationRate(model; σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
+εˡ = FilteredKineticEnergyDissipationRate(model; σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
 # output
 
-CoarseGrainedKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
+FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 16×16×16 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
-└── computes: coarse-grained kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ
+└── computes: filtered kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ
+```
+
+## Filtered kinetic energy
+
+```@docs
+Oceanostics.FilteredKineticEnergyEquation.FilteredKineticEnergy
 ```
 
 ## Subfilter-scale stress tensor
@@ -128,5 +135,5 @@ Oceanostics.FilteredKineticEnergyEquation.KineticEnergyCrossScaleFlux
 ## Coarse-grained kinetic energy dissipation
 
 ```@docs
-Oceanostics.FilteredKineticEnergyEquation.CoarseGrainedKineticEnergyDissipationRate
+Oceanostics.FilteredKineticEnergyEquation.FilteredKineticEnergyDissipationRate
 ```
