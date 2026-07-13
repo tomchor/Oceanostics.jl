@@ -186,8 +186,10 @@ dc²dt    = (∫c²_t[idx2] .- ∫c²_t[idx1]) ./ Δt_pair
 ε_pair   = @. 0.5 * (∫ε_t[idx1] + ∫ε_t[idx2])
 χ_pair   = @. 0.5 * (∫χ_t[idx1] + ∫χ_t[idx2])
 
-KE_resid = @. dKEdt - (-ε_pair)
-c²_resid = @. dc²dt - (-χ_pair)
+# Budget residuals in sum-to-zero form: the negative tendency plus the source term. Plotting every
+# curve with these signs makes them add up to the residual, which stays near zero.
+KE_resid = @. -dKEdt - ε_pair
+c²_resid = @. -dc²dt - χ_pair
 
 using Test                                #hide
 rms(x) = √(sum(abs2, x) / length(x))      #hide
@@ -237,20 +239,20 @@ Colorbar(fig[3, 3], hm_KE; vertical=false, height=8, ticklabelsize=12)
 hm_c = heatmap!(ax_c, cₙ, colormap = :balance, colorrange=(-1.5, 1.5))
 Colorbar(fig[3, 4], hm_c; vertical=false, height=8, ticklabelsize=12)
 
-# Volume-integrated KE budget — `d(∫KE)/dt` against `-∫ε dV`, with the residual.
+# Volume-integrated KE budget: the negative tendency `-d(∫KE)/dt` and `-∫ε dV`, which sum to the residual.
 
 budget_kwargs = (height = 180, width = 1080)
 
 ax_KEbud = Axis(fig[4, 1:4]; title = "Volume-integrated KE budget", budget_kwargs...)
-lines!(ax_KEbud, t_pair, dKEdt,   label = "d(∫KE)/dt")
+lines!(ax_KEbud, t_pair, -dKEdt,  label = "-d(∫KE)/dt")
 lines!(ax_KEbud, t_pair, -ε_pair, label = "-∫ε dV")
 lines!(ax_KEbud, t_pair, KE_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_KEbud; labelsize = 10, position = :rb)
 
-# Volume-integrated c² budget — `d(∫c²)/dt` against `-∫χ dV`, with the residual.
+# Volume-integrated c² budget: the negative tendency `-d(∫c²)/dt` and `-∫χ dV`, which sum to the residual.
 
 ax_c²bud = Axis(fig[5, 1:4]; title = "Volume-integrated ∫c² budget", xlabel = "Time", budget_kwargs...)
-lines!(ax_c²bud, t_pair, dc²dt,   label = "d(∫c²)/dt")
+lines!(ax_c²bud, t_pair, -dc²dt,  label = "-d(∫c²)/dt")
 lines!(ax_c²bud, t_pair, -χ_pair, label = "-∫χ dV")
 lines!(ax_c²bud, t_pair, c²_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_c²bud; labelsize = 10, position = :rb)
@@ -275,7 +277,8 @@ nothing #hide
 
 # ![](two_dimensional_turbulence.mp4)
 #
-# The two bottom panels show the volume-integrated KE and ``c^2`` budgets: ``d/dt`` of the
-# integrated quantity is compared against ``-\int \varepsilon\, dV`` (respectively
-# ``-\int \chi\, dV``), the only term that survives volume-integration for a periodic
-# incompressible flow with a centered advection scheme. The residual shows the gap between them.
+# The two bottom panels show the volume-integrated KE and ``c^2`` budgets. Each plots the negative
+# tendency ``-d/dt`` of the integrated quantity alongside ``-\int \varepsilon\, dV`` (respectively
+# ``-\int \chi\, dV``), the only source term that survives volume-integration for a periodic
+# incompressible flow with a centered advection scheme. With the tendency negated, the two curves add
+# up to the residual, which stays near zero.
