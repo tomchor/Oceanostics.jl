@@ -2,9 +2,12 @@ module SubFilterKineticEnergyEquation
 
 using DocStringExtensions
 
-export subfilter_kinetic_energy, subfilter_kinetic_energy_dissipation_rate
+export subfilter_kinetic_energy, SubFilterKineticEnergyDissipationRate
 
 using Oceananigans.Fields: Field
+using Oceananigans.Grids: Center
+using Oceananigans.AbstractOperations: KernelFunctionOperation
+using Oceanostics: CustomKFO
 
 using ..KineticEnergyEquation: KineticEnergyDissipationRate
 using ..FilteredKineticEnergyEquation: subfilter_stress_tensor, FilteredKineticEnergyDissipationRate
@@ -66,58 +69,68 @@ subfilter_kinetic_energy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = no
 #---
 
 #+++ Sub-filter kinetic energy dissipation
+# Exposed as a single `KernelFunctionOperation` using the same wrapper trick as `KineticEnergyCrossScaleFlux`:
+# the kernel just indexes the pre-assembled operation εˢ = filter(ε) - εˡ, whose leaves are the materialized
+# filtered `Field`s, so per-cell evaluation only reads those fields and subtracts (it never re-filters).
+@inline subfilter_ke_dissipation_rate_ccc(i, j, k, grid, εˢ) = @inbounds εˢ[i, j, k]
+
+const SubFilterKineticEnergyDissipationRate = CustomKFO{<:typeof(subfilter_ke_dissipation_rate_ccc)}
+
 """
     $(SIGNATURES)
 
-Return a lazy `AbstractOperation` for the sub-filter-scale (SFS) kinetic-energy dissipation rate `εˢ`,
-the viscous dissipation carried by the scales that a low-pass `filter` removes:
+Return the sub-filter-scale (SFS) kinetic-energy dissipation rate `εˢ`, the viscous dissipation carried
+by the scales that a low-pass `filter` removes:
 
 ```
     εˢ = filter(ε) - εˡ
 ```
 
 where `ε` is the dissipation rate of the full flow
-([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) and `εˡ` is
-the dissipation rate of the filtered flow ([`FilteredKineticEnergyDissipationRate`](@ref)). It is
-the viscous sink in the budget of the sub-filter kinetic energy `Kˢ` ([`subfilter_kinetic_energy`](@ref);
-coarse-graining framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). For
-a constant viscosity it reduces to `2ν[filter(SⁱʲSⁱʲ) - S̄ⁱʲ S̄ⁱʲ] ≥ 0`, a strictly positive sink.
+([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) and `εˡ` is the
+dissipation rate of the filtered flow ([`FilteredKineticEnergyDissipationRate`](@ref)). It is the viscous
+sink in the budget of the sub-filter kinetic energy `Kˢ` ([`subfilter_kinetic_energy`](@ref);
+coarse-graining framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). For a
+constant viscosity it reduces to `2ν[filter(SⁱʲSⁱʲ) - S̄ⁱʲ S̄ⁱʲ] ≥ 0`, a strictly positive sink.
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
-[`GaussianFilter`](@ref). The full-flow dissipation `ε` is materialized as a `Field` before it is
-filtered (so it is not recomputed at every filter tap), and the filtered result is itself wrapped in a
-`Field` so the separable filter takes its fast staged path; the result lives at `(Center, Center,
-Center)`, per unit mass (units `m² s⁻³`). The model needs a closure whose viscous fluxes are defined,
-exactly as [`FilteredKineticEnergyDissipationRate`](@ref) requires:
+[`GaussianFilter`](@ref) or [`BoxFilter`](@ref). Following the `KineticEnergyCrossScaleFlux` pattern, the
+result is a single `KernelFunctionOperation` whose kernel indexes a pre-assembled operation with
+materialized filtered `Field` leaves (the full-flow dissipation `ε` is materialized before it is filtered,
+and the filtered result is wrapped in a `Field` so the separable filter takes its fast staged path). It
+lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`). The model needs a closure whose
+viscous fluxes are defined, exactly as [`FilteredKineticEnergyDissipationRate`](@ref) requires:
 
 ```jldoctest
 using Oceananigans, Oceanostics
-using Oceananigans.Fields: location
 
 grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
 model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4))
 
 filter = GaussianFilter(; dims=(1, 2, 3), σ=0.1)
-εˢ = subfilter_kinetic_energy_dissipation_rate(model, filter)
-
-location(εˢ)
+SubFilterKineticEnergyDissipationRate(model, filter)
 
 # output
 
-(Center, Center, Center)
+SubFilterKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: subfilter_ke_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
+└── computes: sub-filter kinetic energy dissipation rate  εˢ = filter(ε) - εˡ
 ```
 
-A convenience method `subfilter_kinetic_energy_dissipation_rate(model; σ, dims, boundary, N)` builds the
+A convenience method `SubFilterKineticEnergyDissipationRate(model; σ, dims, boundary, N)` builds the
 Gaussian `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
 """
-function subfilter_kinetic_energy_dissipation_rate(model, filter)
-    ε  = KineticEnergyDissipationRate(model)                      # dissipation of the full flow
+function SubFilterKineticEnergyDissipationRate(model, filter)
+    ε  = KineticEnergyDissipationRate(model)                 # dissipation of the full flow
     εˡ = FilteredKineticEnergyDissipationRate(model, filter) # dissipation of the filtered flow
-    return Field(filter(Field(ε))) - εˡ   # εˢ = filter(ε) - εˡ; ε materialized so it is filtered via the fast staged path
+    εˢ = Field(filter(Field(ε))) - εˡ                        # εˢ = filter(ε) - εˡ; leaves are materialized Fields
+    return KernelFunctionOperation{Center, Center, Center}(subfilter_ke_dissipation_rate_ccc, model.grid, εˢ)
 end
 
-subfilter_kinetic_energy_dissipation_rate(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
-    subfilter_kinetic_energy_dissipation_rate(model, GaussianFilter(; dims, σ, boundary, N))
+SubFilterKineticEnergyDissipationRate(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
+    SubFilterKineticEnergyDissipationRate(model, GaussianFilter(; dims, σ, boundary, N))
 #---
 
 end # module
