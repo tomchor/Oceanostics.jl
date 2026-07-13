@@ -285,21 +285,21 @@ KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N =
 δw̄_τ̄₃₂(i, j, k, grid, w̄, τ̄) = -Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, w̄) * @inbounds(τ̄[i, j, k])
 δw̄_τ̄₃₃(i, j, k, grid, w̄, τ̄) = -Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, w̄) * @inbounds(τ̄[i, j, k])
 
-# fv = (u=ū, v=v̄, w=w̄) filtered velocities; ff = (F₁₁, …, F₃₃) pre-filtered full-flow viscous fluxes. Each
+# fv = (u=ū, v=v̄, w=w̄) filtered velocities; ff = (τ̄₁₁, …, τ̄₃₃) pre-filtered full-flow viscous fluxes. Each
 # off-diagonal term is interpolated from its flux location to ccc exactly as in
 # `viscous_dissipation_rate_ccc`; the /V paired with the A·δ makes the gradient a proper derivative.
 @inline coarse_grained_dissipation_rate_ccc(i, j, k, grid, fv, ff) =
-    (δū_τ̄₁₁(i, j, k, grid, fv.u, ff.F₁₁) +
-     ℑxyᶜᶜᵃ(i, j, k, grid, δū_τ̄₁₂, fv.u, ff.F₁₂) +
-     ℑxzᶜᵃᶜ(i, j, k, grid, δū_τ̄₁₃, fv.u, ff.F₁₃) +
+    (δū_τ̄₁₁(i, j, k, grid, fv.u, ff.τ̄₁₁) +
+     ℑxyᶜᶜᵃ(i, j, k, grid, δū_τ̄₁₂, fv.u, ff.τ̄₁₂) +
+     ℑxzᶜᵃᶜ(i, j, k, grid, δū_τ̄₁₃, fv.u, ff.τ̄₁₃) +
 
-     ℑxyᶜᶜᵃ(i, j, k, grid, δv̄_τ̄₂₁, fv.v, ff.F₂₁) +
-     δv̄_τ̄₂₂(i, j, k, grid, fv.v, ff.F₂₂) +
-     ℑyzᵃᶜᶜ(i, j, k, grid, δv̄_τ̄₂₃, fv.v, ff.F₂₃) +
+     ℑxyᶜᶜᵃ(i, j, k, grid, δv̄_τ̄₂₁, fv.v, ff.τ̄₂₁) +
+     δv̄_τ̄₂₂(i, j, k, grid, fv.v, ff.τ̄₂₂) +
+     ℑyzᵃᶜᶜ(i, j, k, grid, δv̄_τ̄₂₃, fv.v, ff.τ̄₂₃) +
 
-     ℑxzᶜᵃᶜ(i, j, k, grid, δw̄_τ̄₃₁, fv.w, ff.F₃₁) +
-     ℑyzᵃᶜᶜ(i, j, k, grid, δw̄_τ̄₃₂, fv.w, ff.F₃₂) +
-     δw̄_τ̄₃₃(i, j, k, grid, fv.w, ff.F₃₃)) / Vᶜᶜᶜ(i, j, k, grid)
+     ℑxzᶜᵃᶜ(i, j, k, grid, δw̄_τ̄₃₁, fv.w, ff.τ̄₃₁) +
+     ℑyzᵃᶜᶜ(i, j, k, grid, δw̄_τ̄₃₂, fv.w, ff.τ̄₃₂) +
+     δw̄_τ̄₃₃(i, j, k, grid, fv.w, ff.τ̄₃₃)) / Vᶜᶜᶜ(i, j, k, grid)
 
 const FilteredKineticEnergyDissipationRate = CustomKFO{<:typeof(coarse_grained_dissipation_rate_ccc)}
 const DissipationRate = FilteredKineticEnergyDissipationRate
@@ -379,15 +379,15 @@ function FilteredKineticEnergyDissipationRate(model, filter)
     # model fields, so both `fv` and `ff` refresh when the diagnostic is recomputed.
     flux_args = (model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
     filtered_flux(f, LX, LY, LZ) = Field(filter(KernelFunctionOperation{LX, LY, LZ}(f, grid, flux_args...)))
-    ff = (F₁₁ = filtered_flux(viscous_flux_ux, Center, Center, Center),
-          F₁₂ = filtered_flux(viscous_flux_uy, Face,   Face,   Center),
-          F₁₃ = filtered_flux(viscous_flux_uz, Face,   Center, Face),
-          F₂₁ = filtered_flux(viscous_flux_vx, Face,   Face,   Center),
-          F₂₂ = filtered_flux(viscous_flux_vy, Center, Center, Center),
-          F₂₃ = filtered_flux(viscous_flux_vz, Center, Face,   Face),
-          F₃₁ = filtered_flux(viscous_flux_wx, Face,   Center, Face),
-          F₃₂ = filtered_flux(viscous_flux_wy, Center, Face,   Face),
-          F₃₃ = filtered_flux(viscous_flux_wz, Center, Center, Center))
+    ff = (τ̄₁₁ = filtered_flux(viscous_flux_ux, Center, Center, Center),
+          τ̄₁₂ = filtered_flux(viscous_flux_uy, Face,   Face,   Center),
+          τ̄₁₃ = filtered_flux(viscous_flux_uz, Face,   Center, Face),
+          τ̄₂₁ = filtered_flux(viscous_flux_vx, Face,   Face,   Center),
+          τ̄₂₂ = filtered_flux(viscous_flux_vy, Center, Center, Center),
+          τ̄₂₃ = filtered_flux(viscous_flux_vz, Center, Face,   Face),
+          τ̄₃₁ = filtered_flux(viscous_flux_wx, Face,   Center, Face),
+          τ̄₃₂ = filtered_flux(viscous_flux_wy, Center, Face,   Face),
+          τ̄₃₃ = filtered_flux(viscous_flux_wz, Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(coarse_grained_dissipation_rate_ccc, grid, fv, ff)
 end
 
