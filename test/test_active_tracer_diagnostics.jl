@@ -45,14 +45,14 @@ function test_buoyancy_diagnostics(model)
         @test Ri isa RichardsonNumber
         Ri_field = Field(Ri)
         @test Ri_field isa Field
-        @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+        @test Array(interior(Ri_field))[3, 3, 3] ≈ N² / S^2
 
         b = buoyancy_operation(model)
         Ri = RichardsonNumber(model, u, v, w, b)
         @test Ri isa RichardsonNumber
         Ri_field = Field(Ri)
         @test Ri_field isa Field
-        @test interior(Ri_field, 3, 3, 3)[1] ≈ N² / S^2
+        @test Array(interior(Ri_field))[3, 3, 3] ≈ N² / S^2
 
     else
         b = model.tracers.b # b in this case is passive
@@ -63,21 +63,21 @@ function test_buoyancy_diagnostics(model)
         @test EPV isa ErtelPotentialVorticity
         EPV_field = Field(EPV)
         @test EPV_field isa Field
-        @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S) / (g * α)
+        @test Array(interior(EPV_field))[3, 3, 3] ≈ N² * (fz - S) / (g * α)
 
     else
         EPV = ErtelPotentialVorticity(model)
         @test EPV isa ErtelPotentialVorticity
         EPV_field = Field(EPV)
         @test EPV_field isa Field
-        @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
+        @test Array(interior(EPV_field))[3, 3, 3] ≈ N² * (fz - S)
     end
 
     EPV = ErtelPotentialVorticity(model, u, v, w, b, model.coriolis)
     @test EPV isa ErtelPotentialVorticity
     EPV_field = Field(EPV)
     @test EPV_field isa Field
-    @test interior(EPV_field, 3, 3, 3)[1] ≈ N² * (fz - S)
+    @test Array(interior(EPV_field))[3, 3, 3] ≈ N² * (fz - S)
 
     PVtw = ErtelPotentialVorticity(model; thermal_wind = true)
     @test PVtw isa ThermalWindPotentialVorticity
