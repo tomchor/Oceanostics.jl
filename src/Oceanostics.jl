@@ -67,7 +67,7 @@ export BottomCellValue
 #---
 
 #+++ SpatialFilters exports
-export BoxFilter, GaussianFilter
+export BoxFilter, GaussianFilter, check_filter_staging
 #---
 
 #+++ PotentialEnergyEquationTerms exports

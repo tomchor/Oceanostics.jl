@@ -1,7 +1,7 @@
 module SpatialFilters
 using DocStringExtensions
 
-export BoxFilter, GaussianFilter
+export BoxFilter, GaussianFilter, check_filter_staging
 
 using Oceananigans: location
 using Oceananigans.Grids: topology, Periodic,
@@ -256,7 +256,7 @@ macro unroll_full(expr)
 end
 
 import Oceananigans.Fields: compute!
-using Oceananigans.Fields: Field, offset_index, set_status!
+using Oceananigans.Fields: Field, AbstractField, offset_index, set_status!
 using Oceananigans.AbstractOperations: compute_at!, _compute!
 using Oceananigans.BoundaryConditions: fill_halo_regions!
 using Oceananigans.Architectures: architecture
@@ -329,5 +329,121 @@ end
 
 include("box_filter.jl")
 include("gaussian_filter.jl")
+
+#+++ Staged-vs-fused diagnostic
+# A multi-direction `BoxFilter`/`GaussianFilter` is evaluated by its fast staged
+# (separable) kernel only when it is the *direct operand of a `Field`* — that is
+# the sole shape the `compute!` overrides in `box_filter.jl`/`gaussian_filter.jl`
+# match. Nesting it inside any other operation (`Field(f(ψ) - φ)`, `2 * f(ψ)`,
+# `Integral(f(ψ))`, …) hides it from that dispatch, so it silently falls back to
+# the fused single-kernel path (`Nᵈ` reads per output cell instead of `d × N`).
+# `check_filter_staging` walks an operation tree and flags every such fused case.
+#
+# The walk is structural and filter-agnostic: a node runs staged only if it is the
+# direct operand of a `Field`. We descend into struct fields by index (`getfield`)
+# and keep only the operation/field-typed ones, so no operation type needs
+# special-casing beyond `Field` and the four multi-direction filter aliases. Note
+# that in Oceananigans `AbstractOperation <: AbstractField`, so a *materialized*
+# field is matched as exactly `Field` while lazy operations are the other
+# `AbstractField`s. Reductions (`Integral`/`Average`) are a plain `Scan` wrapper,
+# reached through a `Field`'s `operand` and traversed by the same field walk.
+
+const _MultiDirFilter = Union{_BoxFilter2D, _BoxFilter3D, _GaussianFilter2D, _GaussianFilter3D}
+
+@inline _push_filter_child!(children, x::AbstractField) = (push!(children, x); nothing)
+@inline _push_filter_child!(children, x::Tuple) = (foreach(el -> _push_filter_child!(children, el), x); nothing)
+@inline _push_filter_child!(children, x) = nothing
+
+# Operation/field-typed fields of `node` (a lazy operation or a `Scan`-like wrapper).
+function _operation_children(node)
+    children = Any[]
+    for i in 1:nfields(node)
+        _push_filter_child!(children, getfield(node, i))
+    end
+    return children
+end
+
+function _collect_fused_filters!(found, seen, node, staged_ok)
+    (node in seen) && return found
+    push!(seen, node)
+
+    if node isa Field
+        # A `Field` materializes its direct operand, so that operand runs staged.
+        op = node.operand
+        op === nothing || _collect_fused_filters!(found, seen, op, true)
+        return found
+    end
+
+    # Not a direct `Field` operand ⇒ a multi-direction filter here runs fused.
+    (node isa _MultiDirFilter) && !staged_ok && push!(found, node)
+
+    # Anything nested below `node` is, by construction, not a direct `Field` operand.
+    for child in _operation_children(node)
+        _collect_fused_filters!(found, seen, child, false)
+    end
+    return found
+end
+
+"""
+    check_filter_staging(op; warn=true)
+
+Inspect the operation tree `op` (an `AbstractOperation`, a `Field`, or a reduction such as
+`Integral(...)`) for multi-direction Oceanostics filters — a [`BoxFilter`](@ref) or
+[`GaussianFilter`](@ref) over two or three directions — that will evaluate on the slow *fused*
+single-kernel path instead of the fast staged (separable) path.
+
+A multi-direction filter is evaluated by its staged kernel only when it is the **direct operand of a
+`Field`**, e.g. `Field(filter(ψ))`. Composing the filter into any other operation — `Field(filter(ψ)
+- φ)`, `2 * filter(ψ)`, `Integral(filter(ψ))`, and so on — hides it from that dispatch and it silently
+falls back to the fused path (`Nᵈ` reads per output cell instead of `d × N`, with the filtered operand
+recomputed at every stencil point). Both paths return the same values; only the speed differs. See
+[Performance notes](@ref filter_performance).
+
+The fix is to materialize the filtered field first: wrap `filter(ψ)` in its own `Field(...)` before
+composing it, e.g. write `Field(filter(ψ)) - φ` rather than `filter(ψ) - φ`.
+
+`op` is analyzed as if it were about to be wrapped in a `Field` and computed. Returns `true` when
+every multi-direction filter in `op` is positioned to run staged (nothing to fix), and `false` when
+at least one will run fused. When `warn = true` (the default), a `false` result also emits a `@warn`
+describing the problem. One-direction filters always use the single unrolled kernel (staged and fused
+coincide) and are never flagged.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(8, 8, 8), extent=(1, 1, 1));
+
+julia> c = CenterField(grid); φ = CenterField(grid);
+
+julia> gf = GaussianFilter(; dims=(1, 2), σ=0.1);
+
+julia> check_filter_staging(Field(gf(c)))          # staged: direct Field operand
+true
+
+julia> check_filter_staging(Field(gf(c)) - φ)      # staged: filtered field materialized first
+true
+
+julia> check_filter_staging(gf(c) - φ; warn=false) # fused: filter nested in a larger operation
+false
+```
+"""
+function check_filter_staging(op; warn=true)
+    fused = _collect_fused_filters!(Any[], Base.IdSet{Any}(), op, true)
+    all_staged = isempty(fused)
+    if warn && !all_staged
+        n = length(fused)
+        @warn string(
+            "check_filter_staging found ", n, " multi-direction filter", (n == 1 ? "" : "s"),
+            " that will run on the slow fused path. A multi-direction `BoxFilter`/`GaussianFilter` ",
+            "is evaluated by its fast staged (separable) kernel only when it is the direct operand ",
+            "of a `Field`. Nesting it inside another operation (e.g. `Field(filter(ψ) - φ)`, ",
+            "`2 * filter(ψ)`, `Integral(filter(ψ))`) falls back to the fused single-kernel path ",
+            "(Nᵈ reads per cell instead of d×N). Materialize the filtered field first — wrap ",
+            "`filter(ψ)` in its own `Field(...)` before composing it. See the \"Spatial filters\" ",
+            "documentation, section \"Performance notes\", for details.")
+    end
+    return all_staged
+end
+#---
 
 end # module
