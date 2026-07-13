@@ -265,41 +265,41 @@ KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N =
 #---
 
 #+++ Filtered-flow kinetic-energy dissipation
-# εˡ = ∂ⱼūᵢ·F̄ᵢⱼ, the dissipation of the filtered flow: the filtered velocity gradient ∂ⱼūᵢ contracted with
-# the *filtered* viscous flux F̄ᵢⱼ = filter(Fᵢⱼ(u)). Fᵢⱼ(u) is the model's viscous momentum flux built from
+# εˡ = ∂ⱼūᵢ·τ̄ᵢⱼ, the dissipation of the filtered flow: the filtered velocity gradient ∂ⱼūᵢ contracted with
+# the *filtered* viscous flux τ̄ᵢⱼ = filter(τᵢⱼ(u)). τᵢⱼ(u) is the model's viscous momentum flux built from
 # the FULL velocities and closure (the same `viscous_flux_uᵢxⱼ` that `KineticEnergyDissipationRate`
 # contracts), and it is low-pass filtered. Filtering the flux — rather than recomputing it from ūᵢ — is
 # what makes this correct when the viscosity is non-uniform; the two coincide only for a constant
 # viscosity, where the filter commutes with the (then-linear) flux.
 #
-# Per-component -Aⱼ·δⱼūᵢ·F̄ᵢⱼ at each flux location, mirroring the `KineticEnergyDissipationRate` helpers
-# but with the filtered velocity ūᵢ in the gradient and the pre-filtered flux field F̄ᵢⱼ (read directly)
+# Per-component -Aⱼ·δⱼūᵢ·τ̄ᵢⱼ at each flux location, mirroring the `KineticEnergyDissipationRate` helpers
+# but with the filtered velocity ūᵢ in the gradient and the pre-filtered flux field τ̄ᵢⱼ (read directly)
 # in place of the inline `viscous_flux_uᵢxⱼ` call.
-δū_F̄₁₁(i, j, k, grid, ū, F̄) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, ū) * @inbounds(F̄[i, j, k])
-δū_F̄₁₂(i, j, k, grid, ū, F̄) = -Ayᶠᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, ū) * @inbounds(F̄[i, j, k])
-δū_F̄₁₃(i, j, k, grid, ū, F̄) = -Azᶠᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, ū) * @inbounds(F̄[i, j, k])
-δv̄_F̄₂₁(i, j, k, grid, v̄, F̄) = -Axᶠᶠᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, v̄) * @inbounds(F̄[i, j, k])
-δv̄_F̄₂₂(i, j, k, grid, v̄, F̄) = -Ayᶜᶜᶜ(i, j, k, grid) * δyᵃᶜᵃ(i, j, k, grid, v̄) * @inbounds(F̄[i, j, k])
-δv̄_F̄₂₃(i, j, k, grid, v̄, F̄) = -Azᶜᶠᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, v̄) * @inbounds(F̄[i, j, k])
-δw̄_F̄₃₁(i, j, k, grid, w̄, F̄) = -Axᶠᶜᶠ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, w̄) * @inbounds(F̄[i, j, k])
-δw̄_F̄₃₂(i, j, k, grid, w̄, F̄) = -Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, w̄) * @inbounds(F̄[i, j, k])
-δw̄_F̄₃₃(i, j, k, grid, w̄, F̄) = -Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, w̄) * @inbounds(F̄[i, j, k])
+δū_τ̄₁₁(i, j, k, grid, ū, τ̄) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, ū) * @inbounds(τ̄[i, j, k])
+δū_τ̄₁₂(i, j, k, grid, ū, τ̄) = -Ayᶠᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, ū) * @inbounds(τ̄[i, j, k])
+δū_τ̄₁₃(i, j, k, grid, ū, τ̄) = -Azᶠᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, ū) * @inbounds(τ̄[i, j, k])
+δv̄_τ̄₂₁(i, j, k, grid, v̄, τ̄) = -Axᶠᶠᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, v̄) * @inbounds(τ̄[i, j, k])
+δv̄_τ̄₂₂(i, j, k, grid, v̄, τ̄) = -Ayᶜᶜᶜ(i, j, k, grid) * δyᵃᶜᵃ(i, j, k, grid, v̄) * @inbounds(τ̄[i, j, k])
+δv̄_τ̄₂₃(i, j, k, grid, v̄, τ̄) = -Azᶜᶠᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, v̄) * @inbounds(τ̄[i, j, k])
+δw̄_τ̄₃₁(i, j, k, grid, w̄, τ̄) = -Axᶠᶜᶠ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, w̄) * @inbounds(τ̄[i, j, k])
+δw̄_τ̄₃₂(i, j, k, grid, w̄, τ̄) = -Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, w̄) * @inbounds(τ̄[i, j, k])
+δw̄_τ̄₃₃(i, j, k, grid, w̄, τ̄) = -Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, w̄) * @inbounds(τ̄[i, j, k])
 
 # fv = (u=ū, v=v̄, w=w̄) filtered velocities; ff = (F₁₁, …, F₃₃) pre-filtered full-flow viscous fluxes. Each
 # off-diagonal term is interpolated from its flux location to ccc exactly as in
 # `viscous_dissipation_rate_ccc`; the /V paired with the A·δ makes the gradient a proper derivative.
 @inline coarse_grained_dissipation_rate_ccc(i, j, k, grid, fv, ff) =
-    (δū_F̄₁₁(i, j, k, grid, fv.u, ff.F₁₁) +
-     ℑxyᶜᶜᵃ(i, j, k, grid, δū_F̄₁₂, fv.u, ff.F₁₂) +
-     ℑxzᶜᵃᶜ(i, j, k, grid, δū_F̄₁₃, fv.u, ff.F₁₃) +
+    (δū_τ̄₁₁(i, j, k, grid, fv.u, ff.F₁₁) +
+     ℑxyᶜᶜᵃ(i, j, k, grid, δū_τ̄₁₂, fv.u, ff.F₁₂) +
+     ℑxzᶜᵃᶜ(i, j, k, grid, δū_τ̄₁₃, fv.u, ff.F₁₃) +
 
-     ℑxyᶜᶜᵃ(i, j, k, grid, δv̄_F̄₂₁, fv.v, ff.F₂₁) +
-     δv̄_F̄₂₂(i, j, k, grid, fv.v, ff.F₂₂) +
-     ℑyzᵃᶜᶜ(i, j, k, grid, δv̄_F̄₂₃, fv.v, ff.F₂₃) +
+     ℑxyᶜᶜᵃ(i, j, k, grid, δv̄_τ̄₂₁, fv.v, ff.F₂₁) +
+     δv̄_τ̄₂₂(i, j, k, grid, fv.v, ff.F₂₂) +
+     ℑyzᵃᶜᶜ(i, j, k, grid, δv̄_τ̄₂₃, fv.v, ff.F₂₃) +
 
-     ℑxzᶜᵃᶜ(i, j, k, grid, δw̄_F̄₃₁, fv.w, ff.F₃₁) +
-     ℑyzᵃᶜᶜ(i, j, k, grid, δw̄_F̄₃₂, fv.w, ff.F₃₂) +
-     δw̄_F̄₃₃(i, j, k, grid, fv.w, ff.F₃₃)) / Vᶜᶜᶜ(i, j, k, grid)
+     ℑxzᶜᵃᶜ(i, j, k, grid, δw̄_τ̄₃₁, fv.w, ff.F₃₁) +
+     ℑyzᵃᶜᶜ(i, j, k, grid, δw̄_τ̄₃₂, fv.w, ff.F₃₂) +
+     δw̄_τ̄₃₃(i, j, k, grid, fv.w, ff.F₃₃)) / Vᶜᶜᶜ(i, j, k, grid)
 
 const FilteredKineticEnergyDissipationRate = CustomKFO{<:typeof(coarse_grained_dissipation_rate_ccc)}
 const DissipationRate = FilteredKineticEnergyDissipationRate
@@ -311,17 +311,17 @@ Return the filtered-flow kinetic-energy dissipation rate `εˡ`, the rate at whi
 viscosity removes kinetic energy from the *filtered* velocity field `ūᵢ = filter(uᵢ)`:
 
 ```
-    εˡ = ∂ⱼūᵢ · F̄ᵢⱼ ,   F̄ᵢⱼ = filter(Fᵢⱼ(u))
+    εˡ = ∂ⱼūᵢ · τ̄ᵢⱼ ,   τ̄ᵢⱼ = filter(τᵢⱼ(u))
 ```
 
-Here `Fᵢⱼ(u)` is the model's viscous momentum-flux tensor built from the **full** velocities and closure
+Here `τᵢⱼ(u)` is the model's viscous momentum-flux tensor built from the **full** velocities and closure
 (the same fluxes [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)
-contracts), and `F̄ᵢⱼ = filter(Fᵢⱼ(u))` is that flux low-pass filtered. Contracting the filtered flux with
+contracts), and `τ̄ᵢⱼ = filter(τᵢⱼ(u))` is that flux low-pass filtered. Contracting the filtered flux with
 the filtered velocity gradient gives the viscous sink in the budget of the filtered kinetic energy
 `Kˡ = ½ūᵢūᵢ` (coarse-graining framework of Aluie et al., 2018, *J. Phys. Oceanogr.*,
 doi:10.1175/JPO-D-17-0100.1).
 
-Note the flux is filtered, `filter(Fᵢⱼ(u))`, not recomputed from the filtered velocity, `Fᵢⱼ(ū)`. The two
+Note the flux is filtered, `filter(τᵢⱼ(u))`, not recomputed from the filtered velocity, `τᵢⱼ(ū)`. The two
 agree only for a constant, uniform viscosity, where the filter commutes with the flux; they differ once
 the viscosity varies in space (e.g. an eddy viscosity), and only the filtered-flux form is the
 dissipation that appears in the filtered KE budget. For a constant-viscosity `ScalarDiffusivity` it
@@ -348,7 +348,7 @@ FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center,
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
-└── computes: filtered kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ
+└── computes: filtered kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·τ̄ᵢⱼ
 ```
 
 The viscosity and fluxes come from `model.closure`/`model.closure_fields`, exactly as in
@@ -374,7 +374,7 @@ function FilteredKineticEnergyDissipationRate(model, filter)
     # staged path.
     fv = (u = Field(filter(u)), v = Field(filter(v)), w = Field(filter(w)))
 
-    # F̄ᵢⱼ = filter(Fᵢⱼ(u)): the model's full-flow viscous fluxes (from the FULL velocities and closure),
+    # τ̄ᵢⱼ = filter(τᵢⱼ(u)): the model's full-flow viscous fluxes (from the FULL velocities and closure),
     # each low-pass filtered and materialized at its staggered location. The flux operation reads the live
     # model fields, so both `fv` and `ff` refresh when the diagnostic is recomputed.
     flux_args = (model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
