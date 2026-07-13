@@ -163,6 +163,11 @@ end
 
 StretchedGaussianFilterKernel{D}(σ::S, loc::L, period::S) where {D, S, L} = StretchedGaussianFilterKernel{D, S, L}(σ, loc, period)
 
+# `StretchedGaussianFilterKernel` has as many type params as fields, which trips Adapt heuristics
+# for `<:Function` structs (it drops the `D` param); adapt_structure keeps `D` on the GPU.
+Adapt.adapt_structure(to, k::StretchedGaussianFilterKernel{D}) where {D} =
+    StretchedGaussianFilterKernel{D}(Adapt.adapt(to, k.σ), Adapt.adapt(to, k.loc), Adapt.adapt(to, k.period))
+
 # `(coordinate, cell width)` of the stencil cell at the (possibly out-of-range)
 # index `m` along a filtered direction, honoring the boundary policy's geometry.
 # Only *interior* nodes/spacings are read (the index is wrapped or clamped into
