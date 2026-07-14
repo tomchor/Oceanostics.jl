@@ -1,7 +1,7 @@
 module SpatialFilters
 using DocStringExtensions
 
-export BoxFilter, GaussianFilter
+export BoxFilter, GaussianFilter, check_filter_staging
 
 using Oceananigans: location
 using Oceananigans.Grids: topology, Periodic,
@@ -257,7 +257,7 @@ macro unroll_full(expr)
 end
 
 import Oceananigans.Fields: compute!
-using Oceananigans.Fields: Field, offset_index, set_status!
+using Oceananigans.Fields: Field, AbstractField, offset_index, set_status!
 using Oceananigans.AbstractOperations: compute_at!, _compute!
 using Oceananigans.BoundaryConditions: fill_halo_regions!
 using Oceananigans.Architectures: architecture
@@ -330,5 +330,105 @@ end
 
 include("box_filter.jl")
 include("gaussian_filter.jl")
+
+#+++ Staged-vs-fused diagnostic
+# A multi-direction filter takes its fast staged (separable) path only as the direct operand of a
+# `Field`; nesting it in any other operation falls back to the slow fused kernel. `check_filter_staging`
+# walks an operation tree structurally (a node is staged only if it is a `Field`'s direct operand) and
+# flags every filter that will run fused. See the "Spatial filters" docs ("Performance notes") for why.
+
+const _MultiDirFilter = Union{_BoxFilter2D, _BoxFilter3D, _GaussianFilter2D, _GaussianFilter3D}
+
+@inline _push_filter_child!(children, x::AbstractField) = (push!(children, x); nothing)
+@inline _push_filter_child!(children, x::Tuple) = (foreach(el -> _push_filter_child!(children, el), x); nothing)
+@inline _push_filter_child!(children, x) = nothing
+
+function _operation_children(node)
+    children = Any[]
+    for i in 1:nfields(node)
+        _push_filter_child!(children, getfield(node, i))
+    end
+    return children
+end
+
+function _collect_fused_filters!(found, seen, node, staged_ok)
+    (node in seen) && return found
+    push!(seen, node)
+
+    if node isa Field
+        op = node.operand
+        op === nothing || _collect_fused_filters!(found, seen, op, true)
+        return found
+    end
+
+    (node isa _MultiDirFilter) && !staged_ok && push!(found, node)
+
+    for child in _operation_children(node)
+        _collect_fused_filters!(found, seen, child, false)
+    end
+    return found
+end
+
+"""
+    check_filter_staging(op; warn=true)
+
+Inspect the operation tree `op` (an `AbstractOperation`, a `Field`, or a reduction such as
+`Integral(...)`) for multi-direction Oceanostics filters — a [`BoxFilter`](@ref) or
+[`GaussianFilter`](@ref) over two or three directions — that will evaluate on the slow *fused*
+single-kernel path instead of the fast staged (separable) path.
+
+A multi-direction filter is evaluated by its staged kernel only when it is the **direct operand of a
+`Field`**, e.g. `Field(filter(ψ))`. Composing the filter into any other operation — `Field(filter(ψ)
+- φ)`, `2 * filter(ψ)`, `Integral(filter(ψ))`, and so on — hides it from that dispatch and it silently
+falls back to the fused path (`Nᵈ` reads per output cell instead of `d × N`, with the filtered operand
+recomputed at every stencil point). Both paths return the same values; only the speed differs. See
+[Performance notes](@ref filter_performance).
+
+The fix is to materialize the filtered field first: wrap `filter(ψ)` in its own `Field(...)` before
+composing it, e.g. write `Field(filter(ψ)) - φ` rather than `filter(ψ) - φ`.
+
+`op` is analyzed as if it were about to be wrapped in a `Field` and computed. Returns `true` when
+every multi-direction filter in `op` is positioned to run staged (nothing to fix), and `false` when
+at least one will run fused. When `warn = true` (the default), a `false` result also emits a `@warn`
+describing the problem. One-direction filters always use the single unrolled kernel (staged and fused
+coincide) and are never flagged.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(8, 8, 8), extent=(1, 1, 1));
+
+julia> c = CenterField(grid); φ = CenterField(grid);
+
+julia> gf = GaussianFilter(; dims=(1, 2), σ=0.1);
+
+julia> check_filter_staging(Field(gf(c)))          # staged: direct Field operand
+true
+
+julia> check_filter_staging(Field(gf(c)) - φ)      # staged: filtered field materialized first
+true
+
+julia> check_filter_staging(gf(c) - φ; warn=false) # fused: filter nested in a larger operation
+false
+```
+"""
+function check_filter_staging(op; warn=true)
+    fused = _collect_fused_filters!(Any[], Base.IdSet{Any}(), op, true)
+    all_staged = isempty(fused)
+    if warn && !all_staged
+        n = length(fused)
+        @warn string(
+            "check_filter_staging found ", n, " multi-direction filter", (n == 1 ? "" : "s"),
+            " that will run on the slow fused path. A multi-direction `BoxFilter`/`GaussianFilter` ",
+            "is evaluated by its fast staged (separable) kernel only when it is the direct operand ",
+            "of a `Field`. Nesting it inside another operation (e.g. `Field(filter(ψ) - φ)`, ",
+            "`2 * filter(ψ)`, `Integral(filter(ψ))`) falls back to the fused single-kernel path ",
+            "(Nᵈ reads per cell instead of d×N). Materialize the filtered field first — wrap ",
+            "`filter(ψ)` in its own `Field(...)` before composing it. See the \"Spatial filters\" ",
+            "documentation, section \"Performance notes\", for details.")
+    end
+    return all_staged
+end
+#---
 
 end # module

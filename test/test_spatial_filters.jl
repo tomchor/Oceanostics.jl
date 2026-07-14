@@ -1,4 +1,5 @@
 using Test
+import Logging
 using CUDA: has_cuda_gpu, @allowscalar
 using Oceananigans
 using Oceananigans: fill_halo_regions!, location
@@ -765,6 +766,46 @@ function test_reusable_gaussian_filter(grid)
 end
 #---
 
+#+++ Staged-vs-fused detection (`check_filter_staging`)
+# A multi-direction filter runs on its fast staged path only as the *direct* operand of a `Field`;
+# nesting it in any other operation silently falls back to the slow fused path. `check_filter_staging`
+# flags that, returning `true` when everything is staged and `false` (plus a `@warn`) when some filter
+# will run fused. 1D filters always use the single unrolled kernel, so they are never flagged.
+function test_check_filter_staging()
+    grid = make_grid()
+    c = center_field_from(grid, (x, y, z) -> sin(2π*x) + cos(2π*z))
+    φ = center_field_from(grid, (x, y, z) -> cos(2π*y))
+
+    gf2 = GaussianFilter(; dims=(1, 2), σ=0.1)      # multi-direction (2D)
+    bf3 = BoxFilter(; dims=(1, 2, 3), N=3)          # multi-direction (3D)
+    gf1 = GaussianFilter(; dims=1, σ=0.1)           # single direction — always staged
+
+    # Positioned to run staged: returns `true` and stays silent.
+    staged = (gf2(c),                               # a bare filter is staged once wrapped in a `Field`
+              Field(gf2(c)),                        # the canonical staged form
+              Field(gf2(c)) - φ,                    # filtered field materialized before composing
+              2 * Field(gf2(c)),
+              Field(Integral(Field(bf3(c)))),       # materialized before the reduction
+              gf1(c) - φ,                           # 1D filters never fuse, even when nested
+              Field(gf1(c) - φ))
+    for op in staged
+        @test check_filter_staging(op; warn=false) == true
+        @test_logs min_level=Logging.Warn check_filter_staging(op)   # warn=true stays silent
+    end
+
+    # Will run fused: returns `false` and warns.
+    fused = (gf2(c) - φ,
+             Field(gf2(c) - φ),
+             2 * gf2(c),
+             bf3(c) * φ,
+             Field(Integral(gf2(c))))               # filter nested inside the reduction
+    for op in fused
+        @test check_filter_staging(op; warn=false) == false
+        @test_logs (:warn,) check_filter_staging(op)                 # exactly one warning
+    end
+end
+#---
+
 #+++ Run tests
 # Reference weights are computed in cells; the GaussianFilter API takes σ in
 # physical units. The shared test grid is uniform with Δ = 1/8, so a physical
@@ -847,6 +888,10 @@ filter_configs = [
     @testset "Reusable (field-less) filter objects" begin
         test_reusable_box_filter(make_grid())
         test_reusable_gaussian_filter(make_grid())
+    end
+
+    @testset "check_filter_staging (staged vs fused)" begin
+        test_check_filter_staging()
     end
 end
 #---

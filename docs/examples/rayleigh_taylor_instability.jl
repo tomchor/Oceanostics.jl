@@ -161,6 +161,8 @@ wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux �
 # filtered counterpart of ``K^s``. Together the two show how the filter splits the flow's kinetic energy
 # between the scales it keeps and the scales it removes:
 
+## `FilteredKineticEnergy` materializes the filtered velocities internally, so the multi-direction filter
+## runs on its fast staged path (see the filter performance notes and `check_filter_staging`).
 Kˡ = FilteredKineticEnergy(model, gfilter)  # kinetic energy of the coarse-grained (filtered) flow
 
 # ## Output

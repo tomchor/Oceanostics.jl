@@ -225,8 +225,18 @@ The same reasoning applies to any filtered quantity assembled from operations ra
 Wrap the filtered velocities in `Field`s before forming `½(ū² + v̄² + w̄²)`, for instance. This is also why
 [`subfilter_stress_tensor`](@ref) materializes its filtered velocities and momentum fluxes internally.
 
+To check whether a given expression is affected, pass it to [`check_filter_staging`](@ref). It walks the
+operation tree and warns (returning `false`) if any multi-direction filter is positioned to run fused,
+so the fused path does not go unnoticed:
+
+```@repl filters_perf
+check_filter_staging(Field(gf(ε)) - εˡ)         # staged: filtered field materialized first
+check_filter_staging(gf(ε) - εˡ; warn=false)    # fused: filter nested in the subtraction
+```
+
 ### API reference
 
 ```@docs
 GaussianFilter
+check_filter_staging
 ```
