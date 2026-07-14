@@ -331,22 +331,10 @@ include("box_filter.jl")
 include("gaussian_filter.jl")
 
 #+++ Staged-vs-fused diagnostic
-# A multi-direction `BoxFilter`/`GaussianFilter` is evaluated by its fast staged
-# (separable) kernel only when it is the *direct operand of a `Field`* — that is
-# the sole shape the `compute!` overrides in `box_filter.jl`/`gaussian_filter.jl`
-# match. Nesting it inside any other operation (`Field(f(ψ) - φ)`, `2 * f(ψ)`,
-# `Integral(f(ψ))`, …) hides it from that dispatch, so it silently falls back to
-# the fused single-kernel path (`Nᵈ` reads per output cell instead of `d × N`).
-# `check_filter_staging` walks an operation tree and flags every such fused case.
-#
-# The walk is structural and filter-agnostic: a node runs staged only if it is the
-# direct operand of a `Field`. We descend into struct fields by index (`getfield`)
-# and keep only the operation/field-typed ones, so no operation type needs
-# special-casing beyond `Field` and the four multi-direction filter aliases. Note
-# that in Oceananigans `AbstractOperation <: AbstractField`, so a *materialized*
-# field is matched as exactly `Field` while lazy operations are the other
-# `AbstractField`s. Reductions (`Integral`/`Average`) are a plain `Scan` wrapper,
-# reached through a `Field`'s `operand` and traversed by the same field walk.
+# A multi-direction filter takes its fast staged (separable) path only as the direct operand of a
+# `Field`; nesting it in any other operation falls back to the slow fused kernel. `check_filter_staging`
+# walks an operation tree structurally (a node is staged only if it is a `Field`'s direct operand) and
+# flags every filter that will run fused. See the "Spatial filters" docs ("Performance notes") for why.
 
 const _MultiDirFilter = Union{_BoxFilter2D, _BoxFilter3D, _GaussianFilter2D, _GaussianFilter3D}
 
@@ -354,7 +342,6 @@ const _MultiDirFilter = Union{_BoxFilter2D, _BoxFilter3D, _GaussianFilter2D, _Ga
 @inline _push_filter_child!(children, x::Tuple) = (foreach(el -> _push_filter_child!(children, el), x); nothing)
 @inline _push_filter_child!(children, x) = nothing
 
-# Operation/field-typed fields of `node` (a lazy operation or a `Scan`-like wrapper).
 function _operation_children(node)
     children = Any[]
     for i in 1:nfields(node)
@@ -368,16 +355,13 @@ function _collect_fused_filters!(found, seen, node, staged_ok)
     push!(seen, node)
 
     if node isa Field
-        # A `Field` materializes its direct operand, so that operand runs staged.
         op = node.operand
         op === nothing || _collect_fused_filters!(found, seen, op, true)
         return found
     end
 
-    # Not a direct `Field` operand ⇒ a multi-direction filter here runs fused.
     (node isa _MultiDirFilter) && !staged_ok && push!(found, node)
 
-    # Anything nested below `node` is, by construction, not a direct `Field` operand.
     for child in _operation_children(node)
         _collect_fused_filters!(found, seen, child, false)
     end
