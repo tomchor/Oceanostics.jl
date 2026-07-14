@@ -166,7 +166,10 @@ wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux �
 # Together the two show how the filter splits the flow's kinetic energy between the scales it keeps and
 # the scales it removes:
 
-ū, v̄, w̄ = gfilter(u), gfilter(v), gfilter(w)
+## Materialize the filtered velocities so the multi-direction filter runs on its fast staged path;
+## feeding the raw `gfilter(u)` into `KineticEnergy` would run the filter fused (see the filter
+## performance notes and `check_filter_staging`).
+ū, v̄, w̄ = Field(gfilter(u)), Field(gfilter(v)), Field(gfilter(w))
 Kˡ = Oceanostics.KineticEnergy(model, ū, v̄, w̄)  #  kinetic energy of the coarse-grained flow
 
 # ## Output
