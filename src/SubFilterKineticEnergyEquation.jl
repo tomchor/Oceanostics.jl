@@ -3,6 +3,9 @@ module SubFilterKineticEnergyEquation
 using DocStringExtensions
 
 export subfilter_kinetic_energy, SubFilterKineticEnergyDissipationRate
+# Πₖ is a source term of the sub-filter KE budget (and a sink of the filtered budget), so it is
+# re-exported here from `FilteredKineticEnergyEquation`, where it is defined.
+export KineticEnergyCrossScaleFlux
 
 using Oceananigans.Fields: Field
 using Oceananigans.Grids: Center
@@ -10,7 +13,7 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceanostics: CustomKFO
 
 using ..KineticEnergyEquation: KineticEnergyDissipationRate
-using ..FilteredKineticEnergyEquation: subfilter_stress_tensor, FilteredKineticEnergyDissipationRate
+using ..FilteredKineticEnergyEquation: subfilter_stress_tensor, FilteredKineticEnergyDissipationRate, KineticEnergyCrossScaleFlux
 # `GaussianFilter` is used by the convenience methods; `BoxFilter` is imported only so its docstring
 # `@ref` resolves in-module.
 using ..SpatialFilters: GaussianFilter, BoxFilter
