@@ -13,7 +13,8 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceanostics: CustomKFO
 
 using ..KineticEnergyEquation: KineticEnergyDissipationRate, KineticEnergy
-using ..FilteredKineticEnergyEquation: FilteredKineticEnergy, FilteredKineticEnergyDissipationRate, KineticEnergyCrossScaleFlux
+using ..FilteredKineticEnergyEquation: FilteredKineticEnergy, FilteredKineticEnergyDissipationRate,
+                                       KineticEnergyCrossScaleFlux, filtered_kinetic_energy_ccc, filtered_velocities
 # `GaussianFilter` is used by the convenience methods; `BoxFilter` is imported only so its docstring
 # `@ref` resolves in-module.
 using ..SpatialFilters: GaussianFilter, BoxFilter
@@ -22,9 +23,9 @@ using ..SpatialFilters: GaussianFilter, BoxFilter
 # Kˢ = filter(K) - Kˡ: the filtered full kinetic energy minus the kinetic energy of the filtered flow.
 # Because `KineticEnergy` and `FilteredKineticEnergy` use the same interpolate-the-square (½⟨uᵢ²⟩)
 # discretization, the discrete decomposition filter(K) = Kˡ + Kˢ then holds exactly, by construction, on
-# any grid. Exposed as a single `KernelFunctionOperation` whose kernel indexes that pre-assembled
-# `filter(K) - Kˡ` operation (its leaves are materialized `Field`s), like `KineticEnergyCrossScaleFlux`.
-@inline subfilter_kinetic_energy_ccc(i, j, k, grid, Kˢ) = @inbounds Kˢ[i, j, k]
+# any grid. The kernel reads the materialized filtered full KE `k̄ = filter(K)` and recomputes Kˡ in place
+# via `filtered_kinetic_energy_ccc` on the materialized filtered velocities `ūᵢ = filter(uᵢ)`.
+@inline subfilter_kinetic_energy_ccc(i, j, k, grid, k̄, ū, v̄, w̄) = @inbounds k̄[i, j, k] - filtered_kinetic_energy_ccc(i, j, k, grid, ū, v̄, w̄)
 
 const SubFilterKineticEnergy = CustomKFO{<:typeof(subfilter_kinetic_energy_ccc)}
 
@@ -64,7 +65,7 @@ SubFilterKineticEnergy(model, filter)
 SubFilterKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_kinetic_energy_ccc (generic function with 1 method)
-└── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
+└── arguments: ("Field", "Field", "Field", "Field")
 └── computes: sub-filter kinetic energy  Kˢ = ½τⁱⁱ
 ```
 
@@ -73,10 +74,10 @@ for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a F
 """
 function SubFilterKineticEnergy(model, filter)
     u, v, w = model.velocities
-    K  = KineticEnergy(model, u, v, w)          # full kinetic energy ½uᵢuᵢ (kinetic_energy_ccc)
-    Kˡ = FilteredKineticEnergy(model, filter)   # kinetic energy of the filtered flow ½ūᵢūᵢ (filtered_kinetic_energy_ccc)
-    Kˢ = Field(filter(Field(K))) - Kˡ           # filter(K) - Kˡ; K materialized so the filter takes its staged path
-    return KernelFunctionOperation{Center, Center, Center}(subfilter_kinetic_energy_ccc, model.grid, Kˢ)
+    k  = KineticEnergy(model, u, v, w)           # full kinetic energy ½uᵢuᵢ (kinetic_energy_ccc)
+    k̄ = Field(filter(Field(k)))                  # filter(K) materialized so the filter takes its staged path
+    ū, v̄, w̄ = filtered_velocities(filter, (1, 2, 3), u, v, w) # ūᵢ = filter(uᵢ), materialized as `Field`s
+    return KernelFunctionOperation{Center, Center, Center}(subfilter_kinetic_energy_ccc, model.grid, k̄, ū, v̄, w̄)
 end
 
 SubFilterKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
