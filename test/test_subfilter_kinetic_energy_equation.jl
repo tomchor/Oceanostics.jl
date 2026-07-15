@@ -112,6 +112,14 @@ function test_subfilter_dissipation_recomputes(model, filt)
     @test interior(εf) ≈ interior(fresh)      # equals an εˢ built fresh on the new state
     return nothing
 end
+
+# The module re-exports Πₖ (a source term of this budget) from `FilteredKineticEnergyEquation`, and
+# aliases its dissipation rate as `DissipationRate`.
+function test_subfilter_module_reexports()
+    @test SubFilterKineticEnergyEquation.KineticEnergyCrossScaleFlux === KineticEnergyCrossScaleFlux
+    @test SubFilterKineticEnergyEquation.DissipationRate === SubFilterKineticEnergyDissipationRate
+    return nothing
+end
 #---
 
 @testset "Sub-filter kinetic energy equation" begin
@@ -143,4 +151,7 @@ end
 
     @info "    εˢ recomputes as the flow evolves"
     test_subfilter_dissipation_recomputes(model_ν, filt) # mutates model_ν; keep last
+
+    @info "    Module re-exports (Πₖ) and aliases (DissipationRate)"
+    test_subfilter_module_reexports()
 end
