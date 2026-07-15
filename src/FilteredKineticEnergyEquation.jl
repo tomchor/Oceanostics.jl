@@ -66,7 +66,7 @@ scales that a low-pass `filter` keeps:
     Kˡ = ½ ūⁱ ūⁱ = ½ (ū² + v̄² + w̄²) ,   ūⁱ = filter(uⁱ)
 ```
 
-It is the filtered counterpart of the sub-filter kinetic energy `Kˢ = ½τⁱⁱ` (`subfilter_kinetic_energy`):
+It is the filtered counterpart of the sub-filter kinetic energy `Kˢ = ½τⁱⁱ` (`SubFilterKineticEnergy`):
 the filter splits the flow's kinetic energy into the part it keeps (`Kˡ`) and the part it removes (`Kˢ`).
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable

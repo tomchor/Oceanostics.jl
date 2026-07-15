@@ -2,7 +2,7 @@ module SubFilterKineticEnergyEquation
 
 using DocStringExtensions
 
-export subfilter_kinetic_energy, SubFilterKineticEnergyDissipationRate, DissipationRate
+export SubFilterKineticEnergy, SubFilterKineticEnergyDissipationRate, DissipationRate
 # Πₖ is a source term of the sub-filter KE budget (and a sink of the filtered budget), so it is
 # re-exported here from `FilteredKineticEnergyEquation`, where it is defined.
 export KineticEnergyCrossScaleFlux
@@ -19,11 +19,18 @@ using ..FilteredKineticEnergyEquation: subfilter_stress_tensor, FilteredKineticE
 using ..SpatialFilters: GaussianFilter, BoxFilter
 
 #+++ Sub-filter kinetic energy
+# Exposed as a single `KernelFunctionOperation` using the same wrapper trick as `KineticEnergyCrossScaleFlux`:
+# the kernel indexes the pre-assembled operation Kˢ = ½τⁱⁱ, whose leaves are the materialized filtered
+# `Field`s of `subfilter_stress_tensor`, so per-cell evaluation only reads those fields and sums.
+@inline subfilter_kinetic_energy_ccc(i, j, k, grid, Kˢ) = @inbounds Kˢ[i, j, k]
+
+const SubFilterKineticEnergy = CustomKFO{<:typeof(subfilter_kinetic_energy_ccc)}
+
 """
     $(SIGNATURES)
 
-Return a lazy `AbstractOperation` for the sub-filter-scale (SFS) kinetic energy `Kˢ`, the kinetic
-energy carried by the scales that a low-pass `filter` removes from the flow:
+Return the sub-filter-scale (SFS) kinetic energy `Kˢ`, the kinetic energy carried by the scales that a
+low-pass `filter` removes from the flow:
 
 ```
     Kˢ = ½ τⁱⁱ = ½ (τ₁₁ + τ₂₂ + τ₃₃) ,   τⁱʲ = filter(uⁱuʲ) - ūⁱ ūʲ ,   ūⁱ = filter(uⁱ)
@@ -34,40 +41,44 @@ counterpart of the filtered (coarse-grained) kinetic energy `Kˡ = ½ ūⁱ ū�
 Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1).
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
-[`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The diagonal stress components are formed at cell
-centers (`collocate_diagonals = true`), so the result lives at `(Center, Center, Center)` and is per unit
-mass (units `m² s⁻²`):
+[`GaussianFilter`](@ref) or [`BoxFilter`](@ref). Following the `KineticEnergyCrossScaleFlux` pattern, the
+result is a single `KernelFunctionOperation` whose kernel indexes a pre-assembled operation with
+materialized filtered `Field` leaves (the diagonal stress components are formed at cell centers with
+`collocate_diagonals = true`). It lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻²`):
 
 ```jldoctest
 using Oceananigans, Oceanostics
-using Oceananigans.Fields: location
 
 grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
 model = NonhydrostaticModel(grid)
 
 filter = GaussianFilter(; dims=(1, 2, 3), σ=0.1)
-Kˢ = subfilter_kinetic_energy(model, filter)
-
-location(Kˢ)
+SubFilterKineticEnergy(model, filter)
 
 # output
 
-(Center, Center, Center)
+SubFilterKineticEnergy KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: subfilter_kinetic_energy_ccc (generic function with 1 method)
+└── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
+└── computes: sub-filter kinetic energy  Kˢ = ½τⁱⁱ
 ```
 
 `dims` selects which directions enter the stress tensor, exactly as in [`subfilter_stress_tensor`](@ref):
 `Kˢ` sums the diagonal components the choice keeps (the default `dims = (1, 2, 3)` uses all three, while
 `dims = (1, 3)` gives `½(τ₁₁ + τ₃₃)`). A convenience method
-`subfilter_kinetic_energy(model; σ, dims, boundary, N)` builds the Gaussian `filter` for you from a
+`SubFilterKineticEnergy(model; σ, dims, boundary, N)` builds the Gaussian `filter` for you from a
 standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
 """
-function subfilter_kinetic_energy(model, filter; dims = (1, 2, 3))
+function SubFilterKineticEnergy(model, filter; dims = (1, 2, 3))
     τ = subfilter_stress_tensor(model, filter; dims, collocate_diagonals = true)
     diagonals = (τ[k] for k in (:τ₁₁, :τ₂₂, :τ₃₃) if haskey(τ, k))   # keep only the diagonals `dims` retains
-    return sum(diagonals) / 2
+    Kˢ = sum(diagonals) / 2
+    return KernelFunctionOperation{Center, Center, Center}(subfilter_kinetic_energy_ccc, model.grid, Kˢ)
 end
 
-subfilter_kinetic_energy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) = subfilter_kinetic_energy(model, GaussianFilter(; dims, σ, boundary, N); dims)
+SubFilterKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
+    SubFilterKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N); dims)
 #---
 
 #+++ Sub-filter kinetic energy dissipation
@@ -92,7 +103,7 @@ by the scales that a low-pass `filter` removes:
 where `ε` is the dissipation rate of the full flow
 ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) and `εˡ` is the
 dissipation rate of the filtered flow ([`FilteredKineticEnergyDissipationRate`](@ref)). It is the viscous
-sink in the budget of the sub-filter kinetic energy `Kˢ` ([`subfilter_kinetic_energy`](@ref);
+sink in the budget of the sub-filter kinetic energy `Kˢ` ([`SubFilterKineticEnergy`](@ref);
 coarse-graining framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). For a
 constant viscosity it reduces to `2ν[filter(SⁱʲSⁱʲ) - S̄ⁱʲ S̄ⁱʲ] ≥ 0`, a strictly positive sink.
 

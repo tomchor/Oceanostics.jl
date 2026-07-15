@@ -5,7 +5,7 @@ using Oceananigans.Fields: location
 using Oceananigans.AbstractOperations: compute_at!
 
 using Oceanostics
-using Oceanostics: subfilter_kinetic_energy, SubFilterKineticEnergyDissipationRate
+using Oceanostics: SubFilterKineticEnergy, SubFilterKineticEnergyDissipationRate
 using Oceanostics: subfilter_stress_tensor, KineticEnergyDissipationRate,
                    FilteredKineticEnergyDissipationRate, GaussianFilter
 
@@ -18,13 +18,18 @@ function test_subfilter_kinetic_energy_matches_manual(model, filt)
     τ = subfilter_stress_tensor(model, filt; collocate_diagonals=true)
     Kˢ_manual = (τ.τ₁₁ + τ.τ₂₂ + τ.τ₃₃) / 2
 
-    Kˢ = subfilter_kinetic_energy(model, filt)
+    Kˢ = SubFilterKineticEnergy(model, filt)
     @test location(Kˢ) == (Center, Center, Center)
     @test interior(Field(Kˢ)) ≈ interior(Field(Kˢ_manual))
 
+    # it is a single KernelFunctionOperation with its own type/display
+    @test Kˢ isa SubFilterKineticEnergy
+    @test occursin("SubFilterKineticEnergy", sprint(show, Kˢ))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), Kˢ))
+
     # a `dims` subset keeps only the diagonals it retains: ½(τ₁₁ + τ₃₃)
     τ13 = subfilter_stress_tensor(model, filt; dims=(1, 3), collocate_diagonals=true)
-    Kˢ13 = subfilter_kinetic_energy(model, filt; dims=(1, 3))
+    Kˢ13 = SubFilterKineticEnergy(model, filt; dims=(1, 3))
     @test interior(Field(Kˢ13)) ≈ interior(Field((τ13.τ₁₁ + τ13.τ₃₃) / 2))
     return nothing
 end
@@ -33,7 +38,7 @@ end
 function test_subfilter_kinetic_energy_uniform_vanishes(grid, filt; U=2, V=-3)
     model = NonhydrostaticModel(grid)
     set!(model, u=U, v=V) # w ≡ 0; a uniform horizontal flow is divergence-free
-    @test all(abs.(interior(Field(subfilter_kinetic_energy(model, filt)))) .< 1e-10)
+    @test all(abs.(interior(Field(SubFilterKineticEnergy(model, filt)))) .< 1e-10)
     return nothing
 end
 
@@ -41,8 +46,8 @@ end
 function test_subfilter_kinetic_energy_convenience(model)
     σ = 0.12
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
-    @test interior(Field(subfilter_kinetic_energy(model; σ))) ≈
-          interior(Field(subfilter_kinetic_energy(model, filt)))
+    @test interior(Field(SubFilterKineticEnergy(model; σ))) ≈
+          interior(Field(SubFilterKineticEnergy(model, filt)))
     return nothing
 end
 
@@ -77,14 +82,14 @@ end
 # must reflect the updated flow through those nested fields, not stay frozen at construction. This mutates
 # the model, so both are called last for their model.
 function test_subfilter_kinetic_energy_recomputes(model, filt)
-    Kf = Field(subfilter_kinetic_energy(model, filt))
+    Kf = Field(SubFilterKineticEnergy(model, filt))
     compute_at!(Kf, 0.0)
     snapshot = Array(interior(Kf))
 
     set!(model, u=(x, y, z) -> 2randn(), v=(x, y, z) -> 2randn(), w=(x, y, z) -> 2randn())
     compute_at!(Kf, 1.0)
 
-    fresh = Field(subfilter_kinetic_energy(model, filt))
+    fresh = Field(SubFilterKineticEnergy(model, filt))
     compute_at!(fresh, 2.0)
 
     @test !(Array(interior(Kf)) ≈ snapshot)   # tracked the change in the flow

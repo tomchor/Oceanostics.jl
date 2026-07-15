@@ -103,7 +103,7 @@ add_callback!(simulation, progress, IterationInterval(100))
 # ```
 #
 # where ``\tau^{ij}`` is the sub-filter stress ([`subfilter_stress_tensor`](@ref)), so ``K^s`` itself is
-# computed by [`subfilter_kinetic_energy`](@ref). We apply a Gaussian
+# computed by [`SubFilterKineticEnergy`](@ref). We apply a Gaussian
 # filter of width `ℓ` in the two horizontal directions, which are statistically
 # homogeneous; the vertical direction is left unfiltered.
 #
@@ -144,7 +144,7 @@ gfilter = GaussianFilter(dims=(1, 2), σ=σℓ)
 u, v, w = model.velocities
 b = model.tracers.b
 
-Kˢ  = subfilter_kinetic_energy(model, gfilter)     # sub-filter kinetic energy ½τⁱⁱ
+Kˢ  = SubFilterKineticEnergy(model, gfilter)     # sub-filter kinetic energy ½τⁱⁱ
 Πₖ  = KineticEnergyCrossScaleFlux(model, gfilter)  # cross-scale flux from filtered scales
 wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux τ(w, b)
 εˢ  = SubFilterKineticEnergyDissipationRate(model, gfilter)  # sub-filter dissipation ε̄ − εˡ

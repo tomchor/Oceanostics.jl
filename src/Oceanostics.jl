@@ -45,7 +45,7 @@ export subfilter_stress_tensor, KineticEnergyCrossScaleFlux, FilteredKineticEner
 #---
 
 #+++ SubFilterKineticEnergyEquation exports
-export subfilter_kinetic_energy, SubFilterKineticEnergyDissipationRate
+export SubFilterKineticEnergy, SubFilterKineticEnergyDissipationRate
 #---
 
 #+++ TurbulentKineticEnergyEquation exports
@@ -380,8 +380,8 @@ end
 #---
 
 #+++ SubFilterKineticEnergyEquation
-# `subfilter_kinetic_energy` returns a bare operation, so it has no custom display; the KFO dissipation does.
-@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate "SubFilterKineticEnergyDissipationRate" "sub-filter kinetic energy dissipation rate  εˢ = filter(ε) - εˡ"
+@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergy                 "SubFilterKineticEnergy"                 "sub-filter kinetic energy  Kˢ = ½τⁱⁱ"
+@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate  "SubFilterKineticEnergyDissipationRate"  "sub-filter kinetic energy dissipation rate  εˢ = filter(ε) - εˡ"
 #---
 
 #+++ TurbulentKineticEnergyEquation
