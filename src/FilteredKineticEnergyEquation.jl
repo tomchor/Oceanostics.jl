@@ -101,8 +101,7 @@ function FilteredKineticEnergy(model, filter)
     return KernelFunctionOperation{Center, Center, Center}(filtered_kinetic_energy_ccc, model.grid, ū, v̄, w̄)
 end
 
-FilteredKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
-    FilteredKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N))
+FilteredKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) = FilteredKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N))
 #---
 
 #+++ Subfilter stress tensor

@@ -80,8 +80,7 @@ function SubFilterKineticEnergy(model, filter; dims = (1, 2, 3))
     return KernelFunctionOperation{Center, Center, Center}(subfilter_kinetic_energy_ccc, model.grid, Kˢ)
 end
 
-SubFilterKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
-    SubFilterKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N); dims)
+SubFilterKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) = SubFilterKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N); dims)
 #---
 
 #+++ Sub-filter kinetic energy dissipation
