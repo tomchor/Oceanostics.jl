@@ -6,17 +6,16 @@ using Oceananigans.AbstractOperations: compute_at!
 
 using Oceanostics
 using Oceanostics: SubFilterKineticEnergy, SubFilterKineticEnergyDissipationRate
-using Oceanostics: subfilter_stress_tensor, KineticEnergyDissipationRate,
+using Oceanostics: KineticEnergyDissipationRate,
                    FilteredKineticEnergyDissipationRate, GaussianFilter
 
 arch = has_cuda_gpu() ? GPU() : CPU()
 
 #+++ Test functions
-# Kˢ = ½τⁱⁱ must equal the hand-built sum of the collocated diagonal sub-filter stresses (the way the
-# Rayleigh-Taylor example builds it).
+# Kˢ = filter(K) - Kˡ: the filtered full kinetic energy minus the filtered-flow kinetic energy.
 function test_subfilter_kinetic_energy_matches_manual(model, filt)
-    τ = subfilter_stress_tensor(model, filt; collocate_diagonals=true)
-    Kˢ_manual = (τ.τ₁₁ + τ.τ₂₂ + τ.τ₃₃) / 2
+    u, v, w = model.velocities
+    Kˢ_manual = Field(filt(Field(Oceanostics.KineticEnergy(model, u, v, w)))) - FilteredKineticEnergy(model, filt)
 
     Kˢ = SubFilterKineticEnergy(model, filt)
     @test location(Kˢ) == (Center, Center, Center)
@@ -26,11 +25,18 @@ function test_subfilter_kinetic_energy_matches_manual(model, filt)
     @test Kˢ isa SubFilterKineticEnergy
     @test occursin("SubFilterKineticEnergy", sprint(show, Kˢ))
     @test occursin("computes:", sprint(show, MIME("text/plain"), Kˢ))
+    return nothing
+end
 
-    # a `dims` subset keeps only the diagonals it retains: ½(τ₁₁ + τ₃₃)
-    τ13 = subfilter_stress_tensor(model, filt; dims=(1, 3), collocate_diagonals=true)
-    Kˢ13 = SubFilterKineticEnergy(model, filt; dims=(1, 3))
-    @test interior(Field(Kˢ13)) ≈ interior(Field((τ13.τ₁₁ + τ13.τ₃₃) / 2))
+# The discrete energy decomposition filter(½uᵢuᵢ) = Kˡ + Kˢ holds exactly by construction — Kˢ is defined
+# as filter(K) - Kˡ — on any grid (here a bounded one), not just where the filter and interpolation commute.
+function test_subfilter_kinetic_energy_decomposition(grid, filt)
+    model = NonhydrostaticModel(grid)
+    set!(model, u=(x, y, z) -> randn(), v=(x, y, z) -> randn(), w=(x, y, z) -> randn())
+    filtered_K = Field(filt(Oceanostics.KineticEnergy(model)))
+    Kˡ = Field(FilteredKineticEnergy(model, filt))
+    Kˢ = Field(SubFilterKineticEnergy(model, filt))
+    @test interior(filtered_K) ≈ interior(Kˡ) .+ interior(Kˢ)
     return nothing
 end
 
@@ -141,6 +147,9 @@ end
 
     @info "    Kˢ recomputes as the flow evolves"
     test_subfilter_kinetic_energy_recomputes(model, filt) # mutates model; keep after the other `model` tests
+
+    @info "    Discrete decomposition filter(K) = Kˡ + Kˢ (bounded grid)"
+    test_subfilter_kinetic_energy_decomposition(grid, filt)
 
     # εˢ needs a dissipative closure so the full- and filtered-flow dissipations are defined.
     @info "    Sub-filter KE dissipation εˢ = filter(ε) - εˡ matches manual"

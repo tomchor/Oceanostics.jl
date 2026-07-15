@@ -12,17 +12,18 @@ using Oceananigans.Grids: Center
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceanostics: CustomKFO
 
-using ..KineticEnergyEquation: KineticEnergyDissipationRate
-using ..FilteredKineticEnergyEquation: subfilter_stress_tensor, FilteredKineticEnergyDissipationRate, KineticEnergyCrossScaleFlux
-using ..FlowDiagnostics: validate_dims   # to validate `dims` before the per-direction diagonal loop
+using ..KineticEnergyEquation: KineticEnergyDissipationRate, KineticEnergy
+using ..FilteredKineticEnergyEquation: FilteredKineticEnergy, FilteredKineticEnergyDissipationRate, KineticEnergyCrossScaleFlux
 # `GaussianFilter` is used by the convenience methods; `BoxFilter` is imported only so its docstring
 # `@ref` resolves in-module.
 using ..SpatialFilters: GaussianFilter, BoxFilter
 
 #+++ Sub-filter kinetic energy
-# Exposed as a single `KernelFunctionOperation` using the same wrapper trick as `KineticEnergyCrossScaleFlux`:
-# the kernel indexes the pre-assembled operation Kˢ = ½τⁱⁱ, whose leaves are the materialized filtered
-# `Field`s of `subfilter_stress_tensor`, so per-cell evaluation only reads those fields and sums.
+# Kˢ = filter(K) - Kˡ: the filtered full kinetic energy minus the kinetic energy of the filtered flow.
+# Because `KineticEnergy` and `FilteredKineticEnergy` use the same interpolate-the-square (½⟨uᵢ²⟩)
+# discretization, the discrete decomposition filter(K) = Kˡ + Kˢ then holds exactly, by construction, on
+# any grid. Exposed as a single `KernelFunctionOperation` whose kernel indexes that pre-assembled
+# `filter(K) - Kˡ` operation (its leaves are materialized `Field`s), like `KineticEnergyCrossScaleFlux`.
 @inline subfilter_kinetic_energy_ccc(i, j, k, grid, Kˢ) = @inbounds Kˢ[i, j, k]
 
 const SubFilterKineticEnergy = CustomKFO{<:typeof(subfilter_kinetic_energy_ccc)}
@@ -31,21 +32,23 @@ const SubFilterKineticEnergy = CustomKFO{<:typeof(subfilter_kinetic_energy_ccc)}
     $(SIGNATURES)
 
 Return the sub-filter-scale (SFS) kinetic energy `Kˢ`, the kinetic energy carried by the scales that a
-low-pass `filter` removes from the flow:
+low-pass `filter` removes from the flow — the filtered full kinetic energy minus the kinetic energy of the
+filtered flow:
 
 ```
-    Kˢ = ½ τⁱⁱ = ½ (τ₁₁ + τ₂₂ + τ₃₃) ,   τⁱʲ = filter(uⁱuʲ) - ūⁱ ūʲ ,   ūⁱ = filter(uⁱ)
+    Kˢ = filter(K) - Kˡ ,   K = ½ uᵢuᵢ ,   Kˡ = ½ ūᵢūᵢ ,   ūᵢ = filter(uᵢ)
 ```
 
-where `τⁱʲ` is the sub-filter stress tensor ([`subfilter_stress_tensor`](@ref)). This is the sub-filter
-counterpart of the filtered (coarse-grained) kinetic energy `Kˡ = ½ ūⁱ ūⁱ` (coarse-graining framework of
-Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1).
+equivalently `Kˢ = ½ τⁱⁱ` with the sub-filter stress `τⁱʲ = filter(uⁱuʲ) - ūⁱūʲ` (coarse-graining
+framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). It is assembled from
+the full kinetic energy `K` and [`FilteredKineticEnergy`](@ref) `Kˡ`, which share the same
+interpolate-the-square (`½⟨uᵢ²⟩`) discretization, so the discrete decomposition `filter(K) = Kˡ + Kˢ` holds
+exactly by construction (on any grid, not just where the filter and interpolation commute).
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
-[`GaussianFilter`](@ref) or [`BoxFilter`](@ref). Following the `KineticEnergyCrossScaleFlux` pattern, the
-result is a single `KernelFunctionOperation` whose kernel indexes a pre-assembled operation with
-materialized filtered `Field` leaves (the diagonal stress components are formed at cell centers with
-`collocate_diagonals = true`). It lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻²`):
+[`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The full kinetic energy is materialized as a `Field`
+before it is filtered (so the separable filter takes its fast staged path); the result lives at
+`(Center, Center, Center)`, per unit mass (units `m² s⁻²`):
 
 ```jldoctest
 using Oceananigans, Oceanostics
@@ -65,22 +68,19 @@ SubFilterKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 └── computes: sub-filter kinetic energy  Kˢ = ½τⁱⁱ
 ```
 
-`dims` selects which directions enter the stress tensor, exactly as in [`subfilter_stress_tensor`](@ref):
-`Kˢ` sums the diagonal components the choice keeps (the default `dims = (1, 2, 3)` uses all three, while
-`dims = (1, 3)` gives `½(τ₁₁ + τ₃₃)`). A convenience method
-`SubFilterKineticEnergy(model; σ, dims, boundary, N)` builds the Gaussian `filter` for you from a
-standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
+A convenience method `SubFilterKineticEnergy(model; σ, dims, boundary, N)` builds the Gaussian `filter`
+for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
 """
-function SubFilterKineticEnergy(model, filter; dims = (1, 2, 3))
-    validate_dims(dims)
-    # Build only the diagonal sub-filter stresses τᵈᵈ, one call per direction, so no off-diagonal fluxes
-    # are ever materialized; Kˢ = ½ Σ_d τᵈᵈ.
-    diagonals = (only(subfilter_stress_tensor(model, filter; dims=(d,), collocate_diagonals = true)) for d in dims)
-    Kˢ = sum(diagonals) / 2
+function SubFilterKineticEnergy(model, filter)
+    u, v, w = model.velocities
+    K  = KineticEnergy(model, u, v, w)          # full kinetic energy ½uᵢuᵢ (kinetic_energy_ccc)
+    Kˡ = FilteredKineticEnergy(model, filter)   # kinetic energy of the filtered flow ½ūᵢūᵢ (filtered_kinetic_energy_ccc)
+    Kˢ = Field(filter(Field(K))) - Kˡ           # filter(K) - Kˡ; K materialized so the filter takes its staged path
     return KernelFunctionOperation{Center, Center, Center}(subfilter_kinetic_energy_ccc, model.grid, Kˢ)
 end
 
-SubFilterKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) = SubFilterKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N); dims)
+SubFilterKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
+    SubFilterKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N))
 #---
 
 #+++ Sub-filter kinetic energy dissipation
