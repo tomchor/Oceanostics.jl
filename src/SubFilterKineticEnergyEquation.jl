@@ -15,6 +15,7 @@ using Oceanostics: CustomKFO
 using ..KineticEnergyEquation: KineticEnergyDissipationRate, KineticEnergy
 using ..FilteredKineticEnergyEquation: FilteredKineticEnergy, FilteredKineticEnergyDissipationRate,
                                        KineticEnergyCrossScaleFlux, filtered_kinetic_energy_ccc, filtered_velocities
+using ..FilteredKineticEnergyEquation: subfilter_stress_tensor # re-exported for convenience
 # `GaussianFilter` is used by the convenience methods; `BoxFilter` is imported only so its docstring
 # `@ref` resolves in-module.
 using ..SpatialFilters: GaussianFilter, BoxFilter
