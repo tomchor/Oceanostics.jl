@@ -14,6 +14,7 @@ using Oceanostics: CustomKFO
 
 using ..KineticEnergyEquation: KineticEnergyDissipationRate
 using ..FilteredKineticEnergyEquation: subfilter_stress_tensor, FilteredKineticEnergyDissipationRate, KineticEnergyCrossScaleFlux
+using ..FlowDiagnostics: validate_dims   # to validate `dims` before the per-direction diagonal loop
 # `GaussianFilter` is used by the convenience methods; `BoxFilter` is imported only so its docstring
 # `@ref` resolves in-module.
 using ..SpatialFilters: GaussianFilter, BoxFilter
@@ -71,8 +72,10 @@ SubFilterKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
 """
 function SubFilterKineticEnergy(model, filter; dims = (1, 2, 3))
-    τ = subfilter_stress_tensor(model, filter; dims, collocate_diagonals = true)
-    diagonals = (τ[k] for k in (:τ₁₁, :τ₂₂, :τ₃₃) if haskey(τ, k))   # keep only the diagonals `dims` retains
+    validate_dims(dims)
+    # Build only the diagonal sub-filter stresses τᵈᵈ, one call per direction, so no off-diagonal fluxes
+    # are ever materialized; Kˢ = ½ Σ_d τᵈᵈ.
+    diagonals = (only(subfilter_stress_tensor(model, filter; dims=(d,), collocate_diagonals = true)) for d in dims)
     Kˢ = sum(diagonals) / 2
     return KernelFunctionOperation{Center, Center, Center}(subfilter_kinetic_energy_ccc, model.grid, Kˢ)
 end
