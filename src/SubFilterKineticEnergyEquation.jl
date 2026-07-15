@@ -2,7 +2,7 @@ module SubFilterKineticEnergyEquation
 
 using DocStringExtensions
 
-export subfilter_kinetic_energy, SubFilterKineticEnergyDissipationRate
+export subfilter_kinetic_energy, SubFilterKineticEnergyDissipationRate, DissipationRate
 # Πₖ is a source term of the sub-filter KE budget (and a sink of the filtered budget), so it is
 # re-exported here from `FilteredKineticEnergyEquation`, where it is defined.
 export KineticEnergyCrossScaleFlux
@@ -67,8 +67,7 @@ function subfilter_kinetic_energy(model, filter; dims = (1, 2, 3))
     return sum(diagonals) / 2
 end
 
-subfilter_kinetic_energy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
-    subfilter_kinetic_energy(model, GaussianFilter(; dims, σ, boundary, N); dims)
+subfilter_kinetic_energy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) = subfilter_kinetic_energy(model, GaussianFilter(; dims, σ, boundary, N); dims)
 #---
 
 #+++ Sub-filter kinetic energy dissipation
@@ -78,6 +77,7 @@ subfilter_kinetic_energy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = no
 @inline subfilter_ke_dissipation_rate_ccc(i, j, k, grid, εˢ) = @inbounds εˢ[i, j, k]
 
 const SubFilterKineticEnergyDissipationRate = CustomKFO{<:typeof(subfilter_ke_dissipation_rate_ccc)}
+const DissipationRate = SubFilterKineticEnergyDissipationRate
 
 """
     $(SIGNATURES)
