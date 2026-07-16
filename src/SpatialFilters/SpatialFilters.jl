@@ -10,6 +10,7 @@ using Oceananigans.Grids: topology, Periodic,
                           xnode, ynode, znode
 using Oceananigans.Operators: xspacing, yspacing, zspacing
 using Oceananigans.AbstractOperations: KernelFunctionOperation
+using Oceananigans.Architectures: Adapt
 
 using Oceanostics: CustomKFO
 

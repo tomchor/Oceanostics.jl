@@ -443,33 +443,33 @@ end
 #---
 
 #+++ KineticEnergyDissipationRate
-# ∂ⱼu₁ ⋅ F₁ⱼ
-Axᶜᶜᶜ_δuᶜᶜᶜ_F₁₁ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, fields.u) * viscous_flux_ux(i, j, k, grid, closure, K_fields, clo, fields, b)
-Ayᶠᶠᶜ_δuᶠᶠᶜ_F₁₂ᶠᶠᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶠᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, fields.u) * viscous_flux_uy(i, j, k, grid, closure, K_fields, clo, fields, b)
-Azᶠᶜᶠ_δuᶠᶜᶠ_F₁₃ᶠᶜᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Azᶠᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, fields.u) * viscous_flux_uz(i, j, k, grid, closure, K_fields, clo, fields, b)
+# ∂ⱼu₁ ⋅ τ₁ⱼ
+Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, fields.u) * viscous_flux_ux(i, j, k, grid, closure, K_fields, clo, fields, b)
+Ayᶠᶠᶜ_δuᶠᶠᶜ_τ₁₂ᶠᶠᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶠᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, fields.u) * viscous_flux_uy(i, j, k, grid, closure, K_fields, clo, fields, b)
+Azᶠᶜᶠ_δuᶠᶜᶠ_τ₁₃ᶠᶜᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Azᶠᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, fields.u) * viscous_flux_uz(i, j, k, grid, closure, K_fields, clo, fields, b)
 
-# ∂ⱼu₂ ⋅ F₂ⱼ
-Axᶠᶠᶜ_δvᶠᶠᶜ_F₂₁ᶠᶠᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶠᶠᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, fields.v) * viscous_flux_vx(i, j, k, grid, closure, K_fields, clo, fields, b)
-Ayᶜᶜᶜ_δvᶜᶜᶜ_F₂₂ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶜᶜᶜ(i, j, k, grid) * δyᵃᶜᵃ(i, j, k, grid, fields.v) * viscous_flux_vy(i, j, k, grid, closure, K_fields, clo, fields, b)
-Azᶜᶠᶠ_δvᶜᶠᶠ_F₂₃ᶜᶠᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Azᶜᶠᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, fields.v) * viscous_flux_vz(i, j, k, grid, closure, K_fields, clo, fields, b)
+# ∂ⱼu₂ ⋅ τ₂ⱼ
+Axᶠᶠᶜ_δvᶠᶠᶜ_τ₂₁ᶠᶠᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶠᶠᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, fields.v) * viscous_flux_vx(i, j, k, grid, closure, K_fields, clo, fields, b)
+Ayᶜᶜᶜ_δvᶜᶜᶜ_τ₂₂ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶜᶜᶜ(i, j, k, grid) * δyᵃᶜᵃ(i, j, k, grid, fields.v) * viscous_flux_vy(i, j, k, grid, closure, K_fields, clo, fields, b)
+Azᶜᶠᶠ_δvᶜᶠᶠ_τ₂₃ᶜᶠᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Azᶜᶠᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, fields.v) * viscous_flux_vz(i, j, k, grid, closure, K_fields, clo, fields, b)
 
-# ∂ⱼu₃ ⋅ F₃ⱼ
-Axᶠᶜᶠ_δwᶠᶜᶠ_F₃₁ᶠᶜᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶠᶜᶠ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, fields.w) * viscous_flux_wx(i, j, k, grid, closure, K_fields, clo, fields, b)
-Ayᶜᶠᶠ_δwᶜᶠᶠ_F₃₂ᶜᶠᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, fields.w) * viscous_flux_wy(i, j, k, grid, closure, K_fields, clo, fields, b)
-Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, fields.w) * viscous_flux_wz(i, j, k, grid, closure, K_fields, clo, fields, b)
+# ∂ⱼu₃ ⋅ τ₃ⱼ
+Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶠᶜᶠ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, fields.w) * viscous_flux_wx(i, j, k, grid, closure, K_fields, clo, fields, b)
+Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, fields.w) * viscous_flux_wy(i, j, k, grid, closure, K_fields, clo, fields, b)
+Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, fields.w) * viscous_flux_wz(i, j, k, grid, closure, K_fields, clo, fields, b)
 
 @inline viscous_dissipation_rate_ccc(i, j, k, grid, closure_fields, fields, p) =
-    (Axᶜᶜᶜ_δuᶜᶜᶜ_F₁₁ᶜᶜᶜ(i, j, k, grid,         p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, C, C
-     ℑxyᶜᶜᵃ(i, j, k, grid, Ayᶠᶠᶜ_δuᶠᶠᶜ_F₁₂ᶠᶠᶜ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
-     ℑxzᶜᵃᶜ(i, j, k, grid, Azᶠᶜᶠ_δuᶠᶜᶠ_F₁₃ᶠᶜᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
+    (Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid,         p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, C, C
+     ℑxyᶜᶜᵃ(i, j, k, grid, Ayᶠᶠᶜ_δuᶠᶠᶜ_τ₁₂ᶠᶠᶜ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
+     ℑxzᶜᵃᶜ(i, j, k, grid, Azᶠᶜᶠ_δuᶠᶜᶠ_τ₁₃ᶠᶜᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
 
-     ℑxyᶜᶜᵃ(i, j, k, grid, Axᶠᶠᶜ_δvᶠᶠᶜ_F₂₁ᶠᶠᶜ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
-     Ayᶜᶜᶜ_δvᶜᶜᶜ_F₂₂ᶜᶜᶜ(i, j, k, grid,         p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, C, C
-     ℑyzᵃᶜᶜ(i, j, k, grid, Azᶜᶠᶠ_δvᶜᶠᶠ_F₂₃ᶜᶠᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
+     ℑxyᶜᶜᵃ(i, j, k, grid, Axᶠᶠᶜ_δvᶠᶠᶜ_τ₂₁ᶠᶠᶜ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
+     Ayᶜᶜᶜ_δvᶜᶜᶜ_τ₂₂ᶜᶜᶜ(i, j, k, grid,         p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, C, C
+     ℑyzᵃᶜᶜ(i, j, k, grid, Azᶜᶠᶠ_δvᶜᶠᶠ_τ₂₃ᶜᶠᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
 
-     ℑxzᶜᵃᶜ(i, j, k, grid, Axᶠᶜᶠ_δwᶠᶜᶠ_F₃₁ᶠᶜᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
-     ℑyzᵃᶜᶜ(i, j, k, grid, Ayᶜᶠᶠ_δwᶜᶠᶠ_F₃₂ᶜᶠᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
-     Azᶜᶜᶜ_δwᶜᶜᶜ_F₃₃ᶜᶜᶜ(i, j, k, grid,         p.closure, closure_fields, p.clock, fields, p.buoyancy)   # C, C, C
+     ℑxzᶜᵃᶜ(i, j, k, grid, Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
+     ℑyzᵃᶜᶜ(i, j, k, grid, Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
+     Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid,         p.closure, closure_fields, p.clock, fields, p.buoyancy)   # C, C, C
      ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δuᵢ above, ensures a derivative operation
 
 const KineticEnergyDissipationRate = CustomKFO{<:typeof(viscous_dissipation_rate_ccc)}
@@ -480,9 +480,9 @@ const DissipationRate = KineticEnergyDissipationRate
 
 Calculate the Kinetic Energy Dissipation Rate, defined as
 
-    ε = ∂ⱼuᵢ ⋅ Fᵢⱼ
+    ε = ∂ⱼuᵢ ⋅ τᵢⱼ
 
-where ∂ⱼuᵢ is the velocity gradient tensor and Fᵢⱼ is the stress tensor.
+where ∂ⱼuᵢ is the velocity gradient tensor and τᵢⱼ is the stress tensor.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -496,7 +496,7 @@ KineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Nothing", "NamedTuple", "NamedTuple")
-└── computes: kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ
+└── computes: kinetic energy dissipation rate  ε = ∂ⱼuᵢ·τᵢⱼ
 ```
 """
 function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),

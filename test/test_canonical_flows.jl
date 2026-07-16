@@ -130,7 +130,7 @@ function test_solid_body_rotation_flow(grid; model_type=NonhydrostaticModel, clo
     @allowscalar begin
         ν = ν_field isa Number ? ν_field : getindex(ν_field, idxs...)
 
-        @test getindex(S, idxs...) ≈ 0
+        @test ≈(getindex(S, idxs...), 0, atol=1e-12) # atol: GPU roundoff ~1e-16, not exact 0
         @test getindex(Ω, idxs...) ≈ ζ/√2
         @test getindex(q, idxs...) ≈ (getindex(Ω, idxs...)^2 - getindex(S, idxs...)^2)/2 ≈ ζ^2/4
         @test getindex(ε, idxs...) ≈ 0

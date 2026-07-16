@@ -102,7 +102,8 @@ add_callback!(simulation, progress, IterationInterval(100))
 # \tau^{ij} = \overline{u^i u^j} - \overline{u}^i\,\overline{u}^j ,
 # ```
 #
-# where ``\tau^{ij}`` is the sub-filter stress ([`subfilter_stress_tensor`](@ref)). We apply a Gaussian
+# where ``\tau^{ij}`` is the sub-filter stress ([`subfilter_stress_tensor`](@ref)), so ``K^s`` itself is
+# computed by [`SubFilterKineticEnergy`](@ref). We apply a Gaussian
 # filter of width `ℓ` in the two horizontal directions, which are statistically
 # homogeneous; the vertical direction is left unfiltered.
 #
@@ -123,11 +124,11 @@ add_callback!(simulation, progress, IterationInterval(100))
 #   down to the sub-filter scales.
 # - ``\tau(w, b) = \overline{wb} - \overline{w}\,\overline{b}`` is the sub-filter buoyancy flux (a
 #   `subfilter_covariance`), which converts sub-filter potential energy into sub-filter kinetic energy.
-# - ``\varepsilon_K^s = \overline{\varepsilon} - \varepsilon^{\ell}`` is the sub-filter dissipation: the
-#   filtered total dissipation ``\varepsilon``
+# - ``\varepsilon_K^s = \overline{\varepsilon} - \varepsilon^{\ell}`` is the sub-filter dissipation
+#   ([`SubFilterKineticEnergyDissipationRate`](@ref)): the filtered total dissipation ``\varepsilon``
 #   ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) minus the
 #   dissipation ``\varepsilon^{\ell}`` of the filtered flow
-#   ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)). For a constant viscosity it reduces to
+#   ([`FilteredKineticEnergyDissipationRate`](@ref)). For a constant viscosity it reduces to
 #   ``2\nu[\overline{S^{ij}S^{ij}} - \overline{S}^{ij}\overline{S}^{ij}] \ge 0``, a strictly positive
 #   sink; with an LES closure it is the dissipation that the modeled stress carries out on the sub-filter scales.
 #
@@ -143,16 +144,10 @@ gfilter = GaussianFilter(dims=(1, 2), σ=σℓ)
 u, v, w = model.velocities
 b = model.tracers.b
 
-## `collocate_diagonals` puts τ₁₁, τ₂₂ and τ₃₃ at cell centers so we can trace them into Kˢ = ½τⁱⁱ
-τᵢⱼ = subfilter_stress_tensor(model, gfilter; collocate_diagonals=true)
-
-Kˢ  = (τᵢⱼ.τ₁₁ + τᵢⱼ.τ₂₂ + τᵢⱼ.τ₃₃) / 2            # sub-filter kinetic energy ½τⁱⁱ
+Kˢ  = SubFilterKineticEnergy(model, gfilter)     # sub-filter kinetic energy ½τⁱⁱ
 Πₖ  = KineticEnergyCrossScaleFlux(model, gfilter)  # cross-scale flux from filtered scales
 wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux τ(w, b)
-
-ε   = KineticEnergyDissipationRate(model)                        # dissipation of the full flow
-εˡ  = CoarseGrainedKineticEnergyDissipationRate(model, gfilter)  # dissipation of the filtered flow
-εˢ  = Field(gfilter(ε)) - εˡ                                     # sub-filter dissipation
+εˢ  = SubFilterKineticEnergyDissipationRate(model, gfilter)  # sub-filter dissipation ε̄ − εˡ
 
 # The budget needs only the (cheap) volume integrals of these terms:
 
@@ -162,15 +157,13 @@ wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux �
 ∫εˢ  = Integral(εˢ)
 
 # For the movie we also keep the coarse-grained kinetic energy
-# ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i``, the filtered counterpart of ``K^s``.
-# Together the two show how the filter splits the flow's kinetic energy between the scales it keeps and
-# the scales it removes:
+# ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i`` ([`FilteredKineticEnergy`](@ref)), the
+# filtered counterpart of ``K^s``. Together the two show how the filter splits the flow's kinetic energy
+# between the scales it keeps and the scales it removes:
 
-## Materialize the filtered velocities so the multi-direction filter runs on its fast staged path;
-## feeding the raw `gfilter(u)` into `KineticEnergy` would run the filter fused (see the filter
-## performance notes and `check_filter_staging`).
-ū, v̄, w̄ = Field(gfilter(u)), Field(gfilter(v)), Field(gfilter(w))
-Kˡ = Oceanostics.KineticEnergy(model, ū, v̄, w̄)  #  kinetic energy of the coarse-grained flow
+## `FilteredKineticEnergy` materializes the filtered velocities internally, so the multi-direction filter
+## runs on its fast staged path (see the filter performance notes and `check_filter_staging`).
+Kˡ = FilteredKineticEnergy(model, gfilter)  # kinetic energy of the coarse-grained (filtered) flow
 
 # ## Output
 #

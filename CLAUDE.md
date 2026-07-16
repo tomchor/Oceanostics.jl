@@ -16,7 +16,7 @@ julia --project -e 'using Pkg; Pkg.test()'
 TEST_GROUP=vel_diagnostics julia --project -e 'using Pkg; Pkg.test()'
 ```
 
-Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `u_momentum_diagnostics`, `v_momentum_diagnostics`, `w_momentum_diagnostics`, `ke_diagnostics`, `coarse_grained_ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `spatial_filters`, `perf_invariants`.
+Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `u_momentum_diagnostics`, `v_momentum_diagnostics`, `w_momentum_diagnostics`, `ke_diagnostics`, `filtered_ke_diagnostics`, `subfilter_ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `spatial_filters`, `perf_invariants`.
 
 ```bash
 # Instantiate/build the package
@@ -45,7 +45,8 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 - **`UMomentumEquation` / `VMomentumEquation` / `WMomentumEquation`**: Per-component momentum-budget terms (advection, stress, pressure gradient, Coriolis, buoyancy, forcing). Tested as separate `*_momentum_diagnostics` groups.
 - **`SpatialFilters`** (submodule): Spatial filters (`box_filter.jl`, `gaussian_filter.jl`) for diagnostics that need scale separation.
 - **`KineticEnergyEquation`**: KE, its tendency, advection, stress, forcing, pressure redistribution, buoyancy production, dissipation rate (general and isotropic)
-- **`CoarseGrainedKineticEnergyEquation`**: Filtered (coarse-grained) KE budget terms — `subfilter_stress_tensor` (τⁱʲ = filter(uⁱuʲ) − ūⁱūʲ) and `KineticEnergyCrossScaleFlux` (Πₖ = −τⁱʲS̄ⁱʲ, Aluie et al. 2018). Built on `FlowDiagnostics`' `StressTensor`/`StrainRateTensor` and the `Filters` submodule, so it is included after both.
+- **`FilteredKineticEnergyEquation`**: Filtered (coarse-grained) KE budget terms — `FilteredKineticEnergy` (Kˡ = ½ūᵢūᵢ, KE of the filtered flow; reuses `KineticEnergyEquation`'s `kinetic_energy_ccc` kernel), `subfilter_stress_tensor` (τⁱʲ = filter(uⁱuʲ) − ūⁱūʲ), `KineticEnergyCrossScaleFlux` (Πₖ = −τⁱʲS̄ⁱʲ, Aluie et al. 2018), and `FilteredKineticEnergyDissipationRate` (εˡ, dissipation of the filtered flow; kernel still named `coarse_grained_dissipation_rate_ccc`). Built on `FlowDiagnostics`' `StressTensor`/`StrainRateTensor` and the `Filters` submodule, so it is included after both.
+- **`SubFilterKineticEnergyEquation`**: Sub-filter KE budget terms — `SubFilterKineticEnergy` (Kˢ = ½τⁱⁱ, computed as `filter(K) − Kˡ` from `KineticEnergy` and `FilteredKineticEnergy`, which share the same interpolate-the-square discretization, so the discrete decomposition `filter(K) = Kˡ + Kˢ` holds exactly by construction on any grid) and `SubFilterKineticEnergyDissipationRate` (εˢ = filter(ε) − εˡ). Both are `KernelFunctionOperation`s wrapping the underlying composite op (à la `KineticEnergyCrossScaleFlux`). Also re-exports `KineticEnergyCrossScaleFlux` (a source term of this budget). Built on `FilteredKineticEnergyEquation` and `KineticEnergyEquation`, so it is included after both.
 - **`TurbulentKineticEnergyEquation`**: TKE, isotropic dissipation, shear production rates (X/Y/Z and total)
 - **`TracerVarianceEquation`**: Tendency, dissipation rate, diffusion of tracer variance
 - **`PotentialEnergyEquation`**: Potential energy for BuoyancyTracer, linear/nonlinear SeawaterBuoyancy

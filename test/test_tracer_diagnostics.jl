@@ -62,7 +62,7 @@ function test_tracer_terms(model)
     ADV_field = Field(ADV)
     @test ADV_field isa Field
 
-    DIFF = TracerEquation.TracerDiffusion(model, :a, model.tracers.a, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
+    DIFF = TracerEquation.TracerDiffusion(model, Val(:a), model.tracers.a, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
     DIFF_field = Field(DIFF)
     @test DIFF isa TracerEquation.Diffusion
     @test DIFF isa TracerDiffusion

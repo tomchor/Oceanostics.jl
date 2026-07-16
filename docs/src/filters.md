@@ -203,7 +203,7 @@ model = NonhydrostaticModel(grid; closure = SmagorinskyLilly())
 gf = GaussianFilter(; dims=(1, 2), σ = 8Δx / (2 * sqrt(2 * log(2))))
 
 ε  = KineticEnergyDissipationRate(model)                   # an expensive KernelFunctionOperation
-εˡ = CoarseGrainedKineticEnergyDissipationRate(model, gf)  # dissipation of the filtered flow
+εˡ = FilteredKineticEnergyDissipationRate(model, gf)  # dissipation of the filtered flow
 nothing # hide
 ```
 

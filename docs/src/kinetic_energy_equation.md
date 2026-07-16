@@ -25,7 +25,7 @@ where ``\tau_{ij}`` is the viscous/subgrid stress tensor, ``p`` is pressure,
 This decomposition is essential for understanding how kinetic energy is generated
 (e.g. by buoyancy production or forcing), redistributed (by advection or pressure work),
 and removed (by viscous dissipation). The module also provides two formulations of the
-dissipation rate: a general one based on the full stress tensor (``\varepsilon = \partial_j u_i \cdot F_{ij}``),
+dissipation rate: a general one based on the full stress tensor (``\varepsilon = \partial_j u_i \cdot \tau_{ij}``),
 and an isotropic version (``\varepsilon = 2\nu S_{ij} S_{ij}``) valid when the
 turbulence closure uses a single scalar viscosity.
 
