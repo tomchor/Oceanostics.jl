@@ -74,8 +74,8 @@ export BottomCellValue
 export BoxFilter, GaussianFilter, check_filter_staging
 #---
 
-#+++ PotentialEnergyEquationTerms exports
-export PotentialEnergy
+#+++ PotentialEnergyEquation exports
+export PotentialEnergy, BackgroundPotentialEnergy, AvailablePotentialEnergy, sorted_reference_height
 #---
 
 #+++ ProgressMessengers
@@ -393,7 +393,9 @@ end
 #---
 
 #+++ PotentialEnergyEquation
-@diagnostic_show PotentialEnergyEquation.PotentialEnergy "PotentialEnergy" "potential energy per unit volume  Eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.PotentialEnergy           "PotentialEnergy"           "potential energy per unit volume  Eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  E_b = -bz✶"
+@diagnostic_show PotentialEnergyEquation.AvailablePotentialEnergy  "AvailablePotentialEnergy"  "available potential energy per unit volume  Eₐ = -b(z - z✶)"
 #---
 
 #+++ FlowDiagnostics

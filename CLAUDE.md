@@ -50,6 +50,12 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 - **`TurbulentKineticEnergyEquation`**: TKE, isotropic dissipation, shear production rates (X/Y/Z and total)
 - **`TracerVarianceEquation`**: Tendency, dissipation rate, diffusion of tracer variance
 - **`PotentialEnergyEquation`**: Potential energy for BuoyancyTracer, linear/nonlinear SeawaterBuoyancy
+  (`PotentialEnergy`, Eₚ = -bz), plus the Winters et al. (1995) split into `BackgroundPotentialEnergy`
+  (E_b = -bz✶) and `AvailablePotentialEnergy` (Eₐ = -b(z - z✶)). The reference height z✶ comes from
+  `sorted_reference_height`, which returns a `Field` whose operand is a `SortedReferenceState` rather
+  than a `KernelFunctionOperation`: sorting is a whole-domain operation, so it hooks into `compute!`
+  the way `Oceananigans.Fields.Scan` does for `Integral`/`Average`, and is re-sorted on every
+  `compute!` so the diagnostic tracks the flow when written out during a simulation
 - **`FlowDiagnostics`**: Richardson/Rossby numbers, Ertel/ThermalWind potential vorticity, strain rate & vorticity tensor moduli, Q-criterion, `subfilter_covariance` (generalized subfilter covariance `τ(a,b) = filter(a·b) − filter(a)·filter(b)`, unifying subfilter tracer flux and momentum stress), MixedLayerDepth, BottomCellValue
 - **`ProgressMessengers`** (submodule): Composable simulation progress reporters using `+` (comma-separated) and `*` (concatenation) operators
 

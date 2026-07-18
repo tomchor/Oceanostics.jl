@@ -2,7 +2,7 @@ using Test
 using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
-using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ
+using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: seawater_density, model_geopotential_height
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
@@ -12,11 +12,21 @@ using Oceanostics
 # Include common test utilities
 include("test_utils.jl")
 
+# The geopotential height as a plain operation, used below to check that sorting only rearranges cells.
+@inline z_ccc(i, j, k, grid) = Zᶜᶜᶜ(i, j, k, grid)
+height_operation(grid) = KernelFunctionOperation{Center, Center, Center}(z_ccc, grid)
+
+volume_integral(op) = sum(Field(Integral(op))) # a scalar, without scalar indexing on GPUs
+volume_mean(op)     = sum(Field(Average(op)))  # ditto, volume-weighted over the whole domain
+
 #+++ Test functions
 function test_potential_energy_equation_terms_errors(model)
 
     @test_throws ArgumentError PotentialEnergyEquation.PotentialEnergy(model)
     @test_throws ArgumentError PotentialEnergyEquation.PotentialEnergy(model, geopotential_height = 0)
+    @test_throws ArgumentError PotentialEnergyEquation.BackgroundPotentialEnergy(model)
+    @test_throws ArgumentError PotentialEnergyEquation.AvailablePotentialEnergy(model)
+    @test_throws ArgumentError PotentialEnergyEquation.sorted_reference_height(model)
 
     return nothing
 end
@@ -64,6 +74,129 @@ function test_PEbuoyancytracer_equals_PElineareos(grid)
 
     return nothing
 end
+
+#+++ Background and available potential energy
+function test_background_and_available_pe(model; geopotential_height = nothing)
+
+    kwargs = isnothing(geopotential_height) ? (;) : (; geopotential_height)
+
+    z✶  = PotentialEnergyEquation.sorted_reference_height(model; kwargs...)
+    Eₚ  = PotentialEnergyEquation.PotentialEnergy(model; kwargs...)
+    E_b = PotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)
+    E_a = PotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)
+
+    @test E_b isa PotentialEnergyEquation.BackgroundPotentialEnergy
+    @test E_a isa PotentialEnergyEquation.AvailablePotentialEnergy
+
+    Eₚ_field, E_b_field, E_a_field = Field(Eₚ), Field(E_b), Field(E_a)
+    @test E_b_field isa Field
+    @test E_a_field isa Field
+
+    # The decomposition Eₚ = E_b + Eₐ holds cell by cell, since Eₐ is built from the same buoyancy
+    @test interior(Eₚ_field) ≈ interior(E_b_field) .+ interior(E_a_field)
+
+    # Sorting only rearranges cells between heights, so it moves no volume and leaves the
+    # volume-weighted mean height where it was. The comparison needs an absolute tolerance because
+    # that mean is zero on a grid whose z is symmetric about the origin.
+    grid = model.grid
+    FT = eltype(grid)
+    @test volume_mean(z✶) ≈ volume_mean(height_operation(grid)) atol = sqrt(eps(FT)) * grid.Lz
+
+    # The sorted state is the state of minimum potential energy, so ∫Eₐ = ∫Eₚ - ∫E_b ≥ 0
+    ∫Eₚ, ∫E_b, ∫E_a = volume_integral(Eₚ), volume_integral(E_b), volume_integral(E_a)
+    @test ∫E_a ≈ ∫Eₚ - ∫E_b
+    @test ∫E_a ≥ -sqrt(eps(FT)) * max(abs(∫Eₚ), abs(∫E_b))
+
+    return nothing
+end
+
+"""
+A two-cell column with the dense parcel sitting on top of the light one, where every term can be
+worked out by hand. The column is 1 m deep with 0.5 m cells, so z = (-0.75, -0.25) and, once sorted,
+z✶ = (-0.25, -0.75): the light parcel rises, the dense one sinks.
+"""
+function test_available_pe_analytic()
+
+    grid = RectilinearGrid(arch, size=2, z=(-1, 0), topology=(Flat, Flat, Bounded))
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = reshape([1.0, -1.0], 1, 1, 2)) # statically unstable: light below, dense above
+
+    z✶ = PotentialEnergyEquation.sorted_reference_height(model)
+    @allowscalar @test interior(z✶)[1, 1, :] ≈ [-0.25, -0.75]
+
+    @test volume_integral(PotentialEnergyEquation.PotentialEnergy(model))               ≈ +0.25
+    @test volume_integral(PotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)) ≈ -0.25
+    @test volume_integral(PotentialEnergyEquation.AvailablePotentialEnergy(model, z✶))  ≈ +0.50
+
+    # Flipping the column makes it statically stable, hence already sorted, hence free of available PE
+    set!(model, b = reshape([-1.0, 1.0], 1, 1, 2))
+    z✶ = PotentialEnergyEquation.sorted_reference_height(model)
+    @allowscalar @test interior(z✶)[1, 1, :] ≈ [-0.75, -0.25]
+    @test volume_integral(PotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)) ≈
+          volume_integral(PotentialEnergyEquation.PotentialEnergy(model))
+    @test volume_integral(PotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)) ≈ 0 atol=1e-14
+
+    return nothing
+end
+
+"A horizontally uniform, statically stable stratification is its own sorted state, so it holds no APE."
+function test_available_pe_vanishes_when_sorted(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = (x, y, z) -> 3z)
+
+    ∫E_a = volume_integral(PotentialEnergyEquation.AvailablePotentialEnergy(model))
+    ∫Eₚ  = volume_integral(PotentialEnergyEquation.PotentialEnergy(model))
+
+    @test ∫E_a ≈ 0 atol=sqrt(eps(eltype(grid))) * abs(∫Eₚ)
+    @test volume_integral(PotentialEnergyEquation.BackgroundPotentialEnergy(model)) ≈ ∫Eₚ
+
+    return nothing
+end
+
+"""
+The sorted reference state depends on every cell in the domain, so it has to be re-sorted on
+every `compute!` rather than baked in when the diagnostic is constructed. Mixing the flow completely
+(which conserves `∫b dV`) has to raise `∫E_b` to `∫Eₚ`, and a frozen reference state would not notice.
+"""
+function test_reference_state_is_recomputed(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = (x, y, z) -> z + 0.5 * sin(6z)) # statically unstable in places, so unsorted
+
+    z✶   = PotentialEnergyEquation.sorted_reference_height(model)
+    ∫E_b = Field(Integral(PotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)))
+    ∫Eₚ  = Field(Integral(PotentialEnergyEquation.PotentialEnergy(model)))
+
+    stirred_E_b = sum(∫E_b)
+    @test stirred_E_b < sum(∫Eₚ) # an unsorted field holds available potential energy
+
+    set!(model, b = sum(Field(Average(model.tracers.b)))) # mix completely, conserving ∫b dV
+    compute!(∫E_b)
+    compute!(∫Eₚ)
+
+    @test sum(∫E_b) != stirred_E_b # the reference state was re-sorted rather than reused
+    @test sum(∫E_b) > stirred_E_b  # mixing is irreversible: it can only raise the background PE
+    # A uniform field is its own sorted state. Both energies are proportional to ∫z dV here, which
+    # vanishes on a grid whose z is symmetric about the origin, so compare on the stirred scale.
+    @test sum(∫E_b) ≈ sum(∫Eₚ) atol = sqrt(eps(eltype(grid))) * abs(stirred_E_b)
+
+    return nothing
+end
+
+"An `ImmersedBoundaryGrid` has a depth-dependent horizontal area, which the sorting does not support."
+function test_sorting_rejects_immersed_boundaries(grid)
+
+    immersed_grid = ImmersedBoundaryGrid(grid, GridFittedBottom((x, y) -> -0.5))
+    model = NonhydrostaticModel(immersed_grid; buoyancy=BuoyancyTracer(), tracers=:b)
+
+    @test_throws ArgumentError PotentialEnergyEquation.sorted_reference_height(model)
+    @test_throws ArgumentError PotentialEnergyEquation.BackgroundPotentialEnergy(model)
+    @test_throws ArgumentError PotentialEnergyEquation.AvailablePotentialEnergy(model)
+
+    return nothing
+end
+#---
 #---
 
 @testset "Diagnostics tests" begin
@@ -86,9 +219,25 @@ end
                     @info "          Testing `PotentialEnergy`"
                     test_potential_energy_equation_terms(model)
                     test_potential_energy_equation_terms(model, geopotential_height = 0)
+
+                    @info "          Testing `BackgroundPotentialEnergy` and `AvailablePotentialEnergy`"
+                    # The shared setup sets a uniform buoyancy, whose sorted state is degenerate; give
+                    # each cell a distinct value so the sorting is actually exercised.
+                    buoyancy isa BuoyancyTracer ? set!(model, b = grid_noise) :
+                                                  set!(model, S = grid_noise, T = grid_noise)
+                    test_background_and_available_pe(model)
+                    test_background_and_available_pe(model, geopotential_height = 0)
                 end
             end
             test_PEbuoyancytracer_equals_PElineareos(grid)
         end
+
+        @info "      Testing the adiabatically sorted reference state"
+        test_available_pe_vanishes_when_sorted(grid)
+        test_reference_state_is_recomputed(grid)
+        test_sorting_rejects_immersed_boundaries(grid)
     end
+
+    @info "  Testing `AvailablePotentialEnergy` against an analytic two-cell column"
+    test_available_pe_analytic()
 end
