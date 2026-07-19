@@ -6,7 +6,7 @@ const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, 
 
 #+++ Module export
 export TracerEquation, KineticEnergyEquation, FilteredKineticEnergyEquation, SubFilterKineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
-       UMomentumEquation, VMomentumEquation, WMomentumEquation
+       AvailablePotentialEnergyEquation, UMomentumEquation, VMomentumEquation, WMomentumEquation
 #---
 
 #+++ TracerEquation exports
@@ -75,7 +75,11 @@ export BoxFilter, GaussianFilter, check_filter_staging
 #---
 
 #+++ PotentialEnergyEquation exports
-export PotentialEnergy, BackgroundPotentialEnergy, AvailablePotentialEnergy, sorted_reference_height
+export PotentialEnergy
+#---
+
+#+++ AvailablePotentialEnergyEquation exports
+export BackgroundPotentialEnergy, AvailablePotentialEnergy, sorted_reference_height
 export ThreeDimensionalSort, HeavisideIntegral, OneDimensionalSort
 #---
 
@@ -193,6 +197,7 @@ include("TracerVarianceEquation.jl")
 include("KineticEnergyEquation.jl")
 include("TurbulentKineticEnergyEquation.jl")
 include("PotentialEnergyEquation.jl")
+include("AvailablePotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
 include("SpatialFilters/SpatialFilters.jl")
 include("FilteredKineticEnergyEquation.jl")
@@ -200,6 +205,7 @@ include("SubFilterKineticEnergyEquation.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
+using .AvailablePotentialEnergyEquation
 using .FlowDiagnostics
 using .SpatialFilters
 using .FilteredKineticEnergyEquation
@@ -394,9 +400,12 @@ end
 #---
 
 #+++ PotentialEnergyEquation
-@diagnostic_show PotentialEnergyEquation.PotentialEnergy           "PotentialEnergy"           "potential energy per unit volume  Eₚ = -bz"
-@diagnostic_show PotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  E_b = -bz✶"
-@diagnostic_show PotentialEnergyEquation.AvailablePotentialEnergy  "AvailablePotentialEnergy"  "available potential energy per unit volume  Eₐ = -b(z - z✶)"
+@diagnostic_show PotentialEnergyEquation.PotentialEnergy "PotentialEnergy" "potential energy per unit volume  Eₚ = -bz"
+#---
+
+#+++ AvailablePotentialEnergyEquation
+@diagnostic_show AvailablePotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  E_b = -bz✶"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy  "AvailablePotentialEnergy"  "available potential energy per unit volume  Eₐ = -b(z - z✶)"
 #---
 
 #+++ FlowDiagnostics
