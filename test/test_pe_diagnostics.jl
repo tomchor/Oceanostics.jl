@@ -19,6 +19,20 @@ height_operation(grid) = KernelFunctionOperation{Center, Center, Center}(z_ccc, 
 volume_integral(op) = sum(Field(Integral(op))) # a scalar, without scalar indexing on GPUs
 volume_mean(op)     = sum(Field(Average(op)))  # ditto, volume-weighted over the whole domain
 
+"""
+The reference profile a sorting method describes, as `(z✶, b✶)` ordered from the bottom of the sorted
+column up. `OneDimensionalSort` already stores it that way; the two model-grid methods hold `z✶` and
+`b` cell by cell, so pairing them and ordering by `z✶` recovers the same profile.
+"""
+function reference_profile(z✶)
+
+    heights   = Array(vec(interior(z✶)))
+    buoyancy  = Array(vec(interior(PotentialEnergyEquation.sorted_buoyancy(z✶.operand))))
+    ascending = sortperm(heights)
+
+    return heights[ascending], buoyancy[ascending]
+end
+
 #+++ Test functions
 function test_potential_energy_equation_terms_errors(model)
 
@@ -274,6 +288,77 @@ function test_one_dimensional_sort_rejects_stretched_grids(grid)
     return nothing
 end
 
+"""
+A synthetic buoyancy field whose sorted state is known in closed form, used to check that the three
+methods really do describe the same reference state rather than merely the same integrals.
+
+The field is built backwards from the answer: a `tanh` profile is evaluated at the cell centers the
+sorted column will have, then scattered over the domain by a stride permutation, so that no two cells
+share a buoyancy and the spatial arrangement bears no relation to the sorted one. Every method then
+has to recover that `tanh` and the background potential energy that goes with it.
+
+The second half coarsens the same field into repeated buoyancy levels, where the methods genuinely
+part ways: they place tied cells differently, so their profiles only have to agree to within the
+thickness of a tied layer, while `∫E_b dV` still has to agree exactly.
+"""
+function test_sorting_methods_reproduce_a_known_profile()
+
+    Nx, Ny, Nz = 4, 3, 5
+    N = Nx * Ny * Nz
+    Lx, Ly, Lz = 2, 3, 1
+    grid = RectilinearGrid(arch, size=(Nx, Ny, Nz), x=(0, Lx), y=(0, Ly), z=(-Lz, 0))
+
+    B₀, h, z_mid = 0.1, 0.2, -Lz/2
+    Δz✶ = Lz / N                                   # the sorted column's cell thickness
+    ΔV  = Lx * Ly * Lz / N                         # ... and the volume each of its cells holds
+    z✶_expected = @. -Lz + ((1:N) - 0.5) * Δz✶     # the column's cell centers, densest at the bottom
+    b✶_expected = @. B₀ * tanh((z✶_expected - z_mid) / h)
+
+    # Send the m-th densest parcel to cell 1 + mod(7(m-1), N), a bijection since gcd(7, N) = 1
+    scrambled = zeros(N)
+    for m in 1:N
+        scrambled[1 + mod(7 * (m - 1), N)] = b✶_expected[m]
+    end
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = reshape(scrambled, Nx, Ny, Nz))
+
+    ∫E_b_expected = sum(@. -b✶_expected * z✶_expected * ΔV)
+
+    for method in (ThreeDimensionalSort(), HeavisideIntegral(), OneDimensionalSort())
+        z✶ = PotentialEnergyEquation.sorted_reference_height(model; method)
+        heights, buoyancies = reference_profile(z✶)
+
+        @test heights ≈ z✶_expected
+        @test buoyancies ≈ b✶_expected
+        @test volume_integral(PotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)) ≈ ∫E_b_expected
+    end
+
+    # Now coarsen the distribution onto repeated levels so the methods have ties to disagree over
+    levels = 12
+    tied = @. B₀ * round(tanh((z✶_expected - z_mid) / h) * levels) / levels
+    for m in 1:N
+        scrambled[1 + mod(7 * (m - 1), N)] = tied[m]
+    end
+    set!(model, b = reshape(scrambled, Nx, Ny, Nz))
+
+    tied_depth = maximum(v -> count(==(v), tied), unique(tied)) * Δz✶
+    profiles, energies = [], Float64[]
+    for method in (ThreeDimensionalSort(), HeavisideIntegral(), OneDimensionalSort())
+        z✶ = PotentialEnergyEquation.sorted_reference_height(model; method)
+        push!(profiles, reference_profile(z✶))
+        push!(energies, volume_integral(PotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)))
+    end
+
+    for (heights, buoyancies) in profiles[2:end]
+        @test buoyancies ≈ profiles[1][2]                          # the same sequence of buoyancies
+        @test maximum(abs, heights .- profiles[1][1]) ≤ tied_depth # placed within a tied layer of each other
+    end
+    @test all(energy -> energy ≈ energies[1], energies)             # and exactly the same ∫E_b dV
+
+    return nothing
+end
+
 "An `ImmersedBoundaryGrid` has a depth-dependent horizontal area, which the sorting does not support."
 function test_sorting_rejects_immersed_boundaries(grid)
 
@@ -339,4 +424,7 @@ end
 
     @info "  Testing `AvailablePotentialEnergy` against an analytic two-cell column"
     test_available_pe_analytic()
+
+    @info "  Testing the sorting methods against a synthetic profile with a known sorted state"
+    test_sorting_methods_reproduce_a_known_profile()
 end
