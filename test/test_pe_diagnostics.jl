@@ -184,6 +184,96 @@ function test_reference_state_is_recomputed(grid)
     return nothing
 end
 
+"""
+The three sorting methods differ in how they place cells of equal buoyancy and in what grid they land
+on, but they all describe the same reference state, so every volume integral built from `z✶` has to
+agree between them.
+"""
+function test_sorting_methods_agree(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = (x, y, z) -> z + 0.4 * sin(9x) * cos(7z))
+
+    reference = nothing
+    for method in (CellRanking(), HeavisideIntegral(), OneDimensionalSort())
+
+        # `OneDimensionalSort` bakes the sorted column into a grid, so it only accepts uniform volumes
+        uniform_volumes = minimum(zspacings(grid)) ≈ maximum(zspacings(grid))
+        method isa OneDimensionalSort && !uniform_volumes && continue
+
+        z✶  = PotentialEnergyEquation.sorted_reference_height(model; method)
+        ∫E_b = volume_integral(PotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶))
+        ∫E_a = volume_integral(PotentialEnergyEquation.AvailablePotentialEnergy(model, z✶))
+
+        if isnothing(reference)
+            reference = (∫E_b, ∫E_a)
+            @test ∫E_a > 0
+            @test ∫E_b + ∫E_a ≈ volume_integral(PotentialEnergyEquation.PotentialEnergy(model))
+        else
+            @test ∫E_b ≈ reference[1]
+            @test ∫E_a ≈ reference[2]
+        end
+    end
+
+    return nothing
+end
+
+"""
+Under `HeavisideIntegral` the reference height is a function of buoyancy alone (eq. 11 weights equal
+densities by 1/2), so a horizontally uniform stratification, whose cells are tied level by level, gets
+`z✶ = z` and `Eₐ = 0` cell by cell. `CellRanking` gives the tied cells consecutive slots instead, which
+spreads `z✶` over the cell they share without moving the integral.
+"""
+function test_heaviside_is_constant_on_isopycnals(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = (x, y, z) -> 3z)
+
+    heights = interior(Field(height_operation(grid)))
+    Δz_max = maximum(zspacings(grid))
+
+    z✶ = PotentialEnergyEquation.sorted_reference_height(model, method=HeavisideIntegral())
+    @test interior(z✶) ≈ heights
+    @test maximum(abs, interior(Field(PotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)))) <
+          sqrt(eps(eltype(grid)))
+
+    # The ranked heights stay within half a cell of the parcel's own height, and no closer
+    z✶_ranked = PotentialEnergyEquation.sorted_reference_height(model, method=CellRanking())
+    @test maximum(abs, interior(z✶_ranked) .- heights) ≤ Δz_max / 2
+
+    return nothing
+end
+
+"""
+`OneDimensionalSort` returns the sorted column on its own `1×1×N` grid: the same cells, reshaped to
+span the domain's horizontal area, stacked in order of increasing buoyancy.
+"""
+function test_one_dimensional_sort_column(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = (x, y, z) -> z + 0.4 * sin(9x) * cos(7z))
+
+    z✶ = PotentialEnergyEquation.sorted_reference_height(model, method=OneDimensionalSort())
+    b✶ = z✶.operand.method.sorted_buoyancy
+
+    @test size(z✶) == (1, 1, prod(size(grid)))
+    @test issorted(Array(vec(interior(b✶))))  # densest at the bottom
+    @test issorted(Array(vec(interior(z✶))))
+    # Reshaping the cells conserves volume, so the column integrates like the model grid does
+    @test volume_integral(b✶) ≈ volume_integral(model.tracers.b)
+
+    return nothing
+end
+
+"`OneDimensionalSort` bakes the sorted column's cell boundaries into a grid, so volumes must be equal."
+function test_one_dimensional_sort_rejects_stretched_grids(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    @test_throws ArgumentError PotentialEnergyEquation.sorted_reference_height(model, method=OneDimensionalSort())
+
+    return nothing
+end
+
 "An `ImmersedBoundaryGrid` has a depth-dependent horizontal area, which the sorting does not support."
 function test_sorting_rejects_immersed_boundaries(grid)
 
@@ -236,6 +326,15 @@ end
         test_available_pe_vanishes_when_sorted(grid)
         test_reference_state_is_recomputed(grid)
         test_sorting_rejects_immersed_boundaries(grid)
+
+        @info "      Testing the `CellRanking`, `HeavisideIntegral` and `OneDimensionalSort` methods"
+        test_sorting_methods_agree(grid)
+        test_heaviside_is_constant_on_isopycnals(grid)
+        if grid_class == "regular grid"
+            test_one_dimensional_sort_column(grid)
+        else
+            test_one_dimensional_sort_rejects_stretched_grids(grid)
+        end
     end
 
     @info "  Testing `AvailablePotentialEnergy` against an analytic two-cell column"

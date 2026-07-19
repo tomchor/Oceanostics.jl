@@ -84,12 +84,47 @@ z✶ = sorted_reference_height(model)                  # share one sort between 
 ∫E_a = Integral(AvailablePotentialEnergy(model, z✶))
 ```
 
-Two caveats follow from doing the sort on a grid. The domain's horizontal cross-sectional area is
-assumed independent of depth, so an `ImmersedBoundaryGrid` is rejected. And cells of exactly equal
-buoyancy take consecutive slots in the sorted column instead of a shared height, which spreads
-``z^\star`` over a grid cell where the stratification is horizontally uniform; that spread cancels
-in the volume integrals these diagnostics are meant for, but it does make a cell-by-cell map of
-``E_a`` noisy in such regions.
+The domain's horizontal cross-sectional area is assumed independent of depth, so an
+`ImmersedBoundaryGrid` is rejected.
+
+### Choosing how the reference state is built
+
+`method` selects one of three strategies. They describe the same reference state and agree on every
+volume integral, so ``\int E_b \, \mathrm{d}V`` and ``\int E_a \, \mathrm{d}V`` do not depend on the
+choice. What differs is how cells of *equal* buoyancy are placed, and what grid the answer lands on.
+
+[`CellRanking`](@ref) (the default) ranks the cells and gives each one the height of its own slot in
+the sorted column, on the model grid. Tied cells take consecutive slots rather than a shared height,
+so ``z^\star`` spreads over a grid cell wherever the stratification is horizontally uniform. The
+spread is the volume-weighted mean of what the next method assigns, so it cancels in the integrals,
+but it does make a cell-by-cell map noisy in such regions.
+
+[`HeavisideIntegral`](@ref) is eq. (11) of Winters et al. verbatim,
+
+```math
+z^\star(\boldsymbol{x}) = \frac{1}{A} \int H\!\left(\rho(\boldsymbol{x}') - \rho(\boldsymbol{x})\right) \mathrm{d}V' ,
+```
+
+with the Heaviside step function ``H`` taking the value ``1/2`` where the two densities are equal.
+That half-weight gives every cell of a given buoyancy the same ``z^\star``, the mid-height of the
+layer that buoyancy class fills in the sorted column, which makes ``z^\star`` a function of buoyancy
+alone and constant on isopycnals, exactly as the paper describes it. A horizontally uniform,
+statically stable stratification then gives ``z^\star = z`` and ``E_a = 0`` cell by cell rather than
+only in the integral, so this is the method to use for local maps. It costs a couple of extra passes
+over the sorted cells to find the tied runs.
+
+[`OneDimensionalSort`](@ref) returns the sorted column itself, on a ``1 \times 1 \times N`` grid whose
+``N = N_x N_y N_z`` cells span the domain's full horizontal area. The cells are reshaped rather than
+re-counted, so each still holds the volume of a model-grid cell and volume integrals over the column
+match those over the model grid. This is the form to reach for when you want the reference state as a
+profile, to plot ``b^\star(z^\star)`` or differentiate it into a reference stratification. It needs
+every cell of the model grid to hold the same volume, since otherwise the column's cell boundaries
+would move as the flow evolves.
+
+```julia
+z✶ = sorted_reference_height(model, method=HeavisideIntegral()) # clean cell-by-cell maps
+z✶ = sorted_reference_height(model, method=OneDimensionalSort()) # the reference profile itself
+```
 
 The [Kelvin-Helmholtz instability](@ref kelvin_helmholtz_example) example tracks the three energy
 reservoirs through a mixing event.
@@ -116,4 +151,8 @@ Oceanostics.PotentialEnergyEquation.AvailablePotentialEnergy
 
 ```@docs
 Oceanostics.PotentialEnergyEquation.sorted_reference_height
+Oceanostics.PotentialEnergyEquation.AbstractSortingMethod
+Oceanostics.PotentialEnergyEquation.CellRanking
+Oceanostics.PotentialEnergyEquation.HeavisideIntegral
+Oceanostics.PotentialEnergyEquation.OneDimensionalSort
 ```

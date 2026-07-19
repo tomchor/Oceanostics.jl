@@ -76,6 +76,7 @@ export BoxFilter, GaussianFilter, check_filter_staging
 
 #+++ PotentialEnergyEquation exports
 export PotentialEnergy, BackgroundPotentialEnergy, AvailablePotentialEnergy, sorted_reference_height
+export CellRanking, HeavisideIntegral, OneDimensionalSort
 #---
 
 #+++ ProgressMessengers

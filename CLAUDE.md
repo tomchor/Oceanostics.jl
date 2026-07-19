@@ -55,7 +55,12 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `sorted_reference_height`, which returns a `Field` whose operand is a `SortedReferenceState` rather
   than a `KernelFunctionOperation`: sorting is a whole-domain operation, so it hooks into `compute!`
   the way `Oceananigans.Fields.Scan` does for `Integral`/`Average`, and is re-sorted on every
-  `compute!` so the diagnostic tracks the flow when written out during a simulation
+  `compute!` so the diagnostic tracks the flow when written out during a simulation. The `method`
+  keyword picks one of three `AbstractSortingMethod`s, which agree on every volume integral:
+  `CellRanking` (default; each cell gets its own slot, so tied cells spread over a grid cell),
+  `HeavisideIntegral` (Winters eq. 11, tied cells share their layer's mid-height, so z✶ is a function
+  of buoyancy alone and local maps are clean), and `OneDimensionalSort` (the sorted column on its own
+  `1×1×N` grid of equal-volume cells; needs uniform cell volumes)
 - **`FlowDiagnostics`**: Richardson/Rossby numbers, Ertel/ThermalWind potential vorticity, strain rate & vorticity tensor moduli, Q-criterion, `subfilter_covariance` (generalized subfilter covariance `τ(a,b) = filter(a·b) − filter(a)·filter(b)`, unifying subfilter tracer flux and momentum stress), MixedLayerDepth, BottomCellValue
 - **`ProgressMessengers`** (submodule): Composable simulation progress reporters using `+` (comma-separated) and `*` (concatenation) operators
 
