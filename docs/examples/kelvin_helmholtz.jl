@@ -26,7 +26,7 @@ using Oceananigans
 U   = 1     # velocity scale (half the velocity difference across the shear layer)
 h   = 1     # length scale (shear-layer half-width)
 Ri₀ = 0.1   # Richardson number
-Re  = 2e3   # Reynolds number (bounded by the grid; see the resolution note below)
+Re  = 4e3   # Reynolds number (bounded by the grid; see the resolution note below)
 Pr  = 1     # Prandtl number
 
 ν = U * h / Re   # viscosity
@@ -38,7 +38,7 @@ Pr  = 1     # Prandtl number
 # 1964](https://doi.org/10.1017/S0022112064000908)), so that the perturbation we seed below fits
 # periodically:
 
-N = 128
+N = 256
 k_max = 0.4446 / h   # most unstable KH wavenumber (Michalke, 1964)
 Lx = 2π / k_max      # one most-unstable wavelength
 Lz = 10
@@ -84,7 +84,7 @@ set!(model, u=shear_flow, b=stratification, w=perturbation)
 # adapts it as the flow evolves:
 
 Δx = minimum_xspacing(grid)
-simulation = Simulation(model, Δt = 0.1 * Δx / U, stop_time=120)
+simulation = Simulation(model, Δt = 0.2 * Δx / U, stop_time=120)
 conjure_time_step_wizard!(simulation, IterationInterval(2), cfl=0.8, max_Δt=1)
 
 # ## Model diagnostics
