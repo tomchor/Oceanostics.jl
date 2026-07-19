@@ -26,7 +26,7 @@ using Oceananigans
 U   = 1     # velocity scale (half the velocity difference across the shear layer)
 h   = 1     # length scale (shear-layer half-width)
 Ri₀ = 0.1   # Richardson number
-Re  = 5e4   # Reynolds number
+Re  = 2e3   # Reynolds number (bounded by the grid; see the resolution note below)
 Pr  = 1     # Prandtl number
 
 ν = U * h / Re   # viscosity
@@ -49,6 +49,14 @@ model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             closure = ScalarDiffusivity(; ν, κ),
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
+# The centered scheme is what makes the budget below meaningful: it carries no numerical dissipation, so
+# every sink in the kinetic-energy budget is one we compute explicitly. The price is that nothing damps
+# the grid scale for us, which is what caps `Re` at the value set above. In a stratified shear layer the
+# sharpest feature is the braid between billows, a sheet the strain thins until diffusion arrests it at
+# `δ ∼ h / √Re`; resolving it takes a few cells, so `Re` and `N` are not independent knobs. At `N = 128`
+# over this domain (`Δx ≈ 0.11 h`), that lands near `Re ∼ 10³`. Raising `Re` without also raising `N`
+# leaves the braid unresolved, and it then shows up in the budget as grid-scale noise.
+#
 # We use hyperbolic tangent profiles with the same length scale `h` for both the shear flow and
 # the stratification. The buoyancy jump `B₀ = U² Ri₀ / h` is chosen so that the gradient Richardson
 # number `N² / (∂u/∂z)²` reaches its minimum value `Ri₀ = 0.1` — below the classical stability
@@ -366,10 +374,10 @@ end
 # grow and overturn, the filtered flow mostly loses kinetic energy to potential energy (`∫w̄b̄ dV < 0`) and
 # feeds the subfilter scales through the cross-scale flux (`−∫Πₖ dV`), while the coarse-grained viscous
 # dissipation `∫εˡ dV` stays comparatively small at this Reynolds number. The residual (dashed), the
-# sum of the negative tendency `−d(∫Kˡ)/dt` and the three source terms, stays small. Unlike the centered-advection
-# [Two-dimensional turbulence example](@ref two_d_turbulence_example), the upwind scheme here adds some
-# numerical dissipation, but because it acts mostly at the grid scale it barely projects onto the
-# smooth filtered budget, which still closes to within a few percent.
+# sum of the negative tendency `−d(∫Kˡ)/dt` and the three source terms, stays small. As in the
+# [Two-dimensional turbulence example](@ref two_d_turbulence_example), the centered scheme contributes no
+# numerical dissipation of its own, so the budget closes against the explicit `∫εˡ dV` alone rather than
+# against a scheme-dependent sink we would have no way to measure.
 #
 # The last panel follows the same event through the three energy reservoirs, and shows where that
 # potential energy goes. Kinetic energy drains away and available potential energy takes its place
@@ -380,11 +388,12 @@ end
 # across density surfaces, and by the end of the run it has absorbed a good fraction of the available
 # potential energy the instability produced.
 #
-# `∫E_b dV` does dip below its initial value between `t ≈ 35` and `t ≈ 75`, which no amount of physical
-# mixing can do. The culprit is the centered advection scheme: it carries no numerical dissipation, so
-# it is also free to overshoot, and by `t ≈ 60` it has manufactured buoyancy extrema about 2.5 times
-# the initial range `±B₀`. Sorting reads those extrema as fluid that is denser and lighter than
-# anything the flow started with, so the reference state comes out over-stratified and `E_b` drops.
-# Being sensitive to that is exactly why the background potential energy is the standard way to measure
-# spurious diapycnal transport in a numerical scheme. Here it exposes an artifact that the
-# kinetic-energy budget above is entirely blind to.
+# `∫E_b dV` is worth watching for its own sake, because it is the standard way to measure spurious
+# diapycnal transport in a numerical scheme. Only irreversible mixing can change the sorted state, so
+# `∫E_b dV` may never fall below its initial value, and at this resolution it does not. Buoyancy extrema
+# still creep past the initial range `±B₀` by around 15% while the billow overturns, since the centered
+# scheme carries no numerical dissipation and is free to overshoot where the braid is thinnest. Sorting
+# reads such extrema as fluid denser and lighter than anything the flow started with, which
+# over-stratifies the reference state and pushes `E_b` down. At `Re = 5×10⁴` on this same grid the
+# overshoot reaches a factor of three and is enough to drive `∫E_b dV` below where it began, an
+# unphysical result that the kinetic-energy budget above is entirely blind to.
