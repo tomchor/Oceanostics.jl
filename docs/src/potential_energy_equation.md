@@ -92,12 +92,14 @@ The domain's horizontal cross-sectional area is assumed independent of depth, so
 `method` selects one of three strategies. They describe the same reference state and agree on every
 volume integral, so ``\int E_b \, \mathrm{d}V`` and ``\int E_a \, \mathrm{d}V`` do not depend on the
 choice. What differs is how cells of *equal* buoyancy are placed, and what grid the answer lands on.
+Those are two separate axes: only [`OneDimensionalSort`](@ref) moves the answer off the model grid,
+while the other two both stay on it and part ways over ties.
 
-[`CellRanking`](@ref) (the default) ranks the cells and gives each one the height of its own slot in
-the sorted column, on the model grid. Tied cells take consecutive slots rather than a shared height,
-so ``z^\star`` spreads over a grid cell wherever the stratification is horizontally uniform. The
-spread is the volume-weighted mean of what the next method assigns, so it cancels in the integrals,
-but it does make a cell-by-cell map noisy in such regions.
+[`ThreeDimensionalSort`](@ref) (the default) ranks the cells and gives each one the height of its
+own slot in the sorted column, on the model grid. Tied cells take consecutive slots rather than a
+shared height, so ``z^\star`` spreads over a grid cell wherever the stratification is horizontally
+uniform. The spread is the volume-weighted mean of what the next method assigns, so it cancels in
+the integrals, but it does make a cell-by-cell map noisy in such regions.
 
 [`HeavisideIntegral`](@ref) is eq. (11) of Winters et al. verbatim,
 
@@ -152,7 +154,7 @@ Oceanostics.PotentialEnergyEquation.AvailablePotentialEnergy
 ```@docs
 Oceanostics.PotentialEnergyEquation.sorted_reference_height
 Oceanostics.PotentialEnergyEquation.AbstractSortingMethod
-Oceanostics.PotentialEnergyEquation.CellRanking
+Oceanostics.PotentialEnergyEquation.ThreeDimensionalSort
 Oceanostics.PotentialEnergyEquation.HeavisideIntegral
 Oceanostics.PotentialEnergyEquation.OneDimensionalSort
 ```

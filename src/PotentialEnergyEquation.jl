@@ -3,7 +3,7 @@ module PotentialEnergyEquation
 using DocStringExtensions
 
 export PotentialEnergy, BackgroundPotentialEnergy, AvailablePotentialEnergy, sorted_reference_height
-export CellRanking, HeavisideIntegral, OneDimensionalSort
+export ThreeDimensionalSort, HeavisideIntegral, OneDimensionalSort
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Architectures: architecture, on_architecture
@@ -260,9 +260,11 @@ const SortedReferenceHeightField = Field{<:Any, <:Any, <:Any, <:SortedReferenceS
     $(TYPEDEF)
 
 Supertype of the three strategies [`sorted_reference_height`](@ref) offers for turning a buoyancy
-field into a reference height: [`CellRanking`](@ref), [`HeavisideIntegral`](@ref) and
-[`OneDimensionalSort`](@ref). They agree on every volume integral built from `z✶` and differ in how
-they treat cells of equal buoyancy and in what grid the answer lands on.
+field into a reference height: [`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref) and
+[`OneDimensionalSort`](@ref). They agree on every volume integral built from `z✶`, and differ along
+two axes rather than one. [`OneDimensionalSort`](@ref) is the only one that moves the answer off the
+model grid, onto a sorted column; the other two both leave `z✶` on the model grid and differ instead
+in where they place cells of equal buoyancy.
 """
 abstract type AbstractSortingMethod end
 
@@ -271,7 +273,9 @@ abstract type AbstractSortingMethod end
 
 Give every cell the height of its own slot in the sorted column: rank the cells by buoyancy, stack
 them from the bottom of the domain, and read off where each one lands. `z✶` comes back on the model
-grid. This is the default.
+grid, which is what the name contrasts with [`OneDimensionalSort`](@ref); note that
+[`HeavisideIntegral`](@ref) also answers on the model grid and differs over ties instead. This is the
+default.
 
 Cells that share a buoyancy take consecutive slots rather than a shared height, so `z✶` spreads over
 the depth the tied group fills, which is half a cell either side of `z` for a horizontally uniform
@@ -279,7 +283,7 @@ stratification. That spread is the volume-weighted mean of what [`HeavisideInteg
 so every volume integral agrees with it exactly, but it does make a cell-by-cell map of `z✶` noisy at
 the grid scale wherever the buoyancy is uniform.
 """
-struct CellRanking <: AbstractSortingMethod end
+struct ThreeDimensionalSort <: AbstractSortingMethod end
 
 """
     $(TYPEDEF)
@@ -296,7 +300,7 @@ That half-weight makes every cell of a given buoyancy share one `z✶`, the mid-
 that buoyancy class occupies in the sorted column, so `z✶` is a function of buoyancy alone and is
 constant on isopycnals. `z✶` comes back on the model grid.
 
-Prefer this to [`CellRanking`](@ref) when you want a cell-by-cell map: a horizontally uniform,
+Prefer this to [`ThreeDimensionalSort`](@ref) when you want a cell-by-cell map: a horizontally uniform,
 statically stable stratification gives `z✶ = z` exactly here, hence `Eₐ = 0` cell by cell rather than
 only in the integral. It costs a couple of extra passes over the sorted cells to find the tied runs.
 """
@@ -324,7 +328,7 @@ end
 
 OneDimensionalSort() = OneDimensionalSort(nothing, nothing, nothing)
 
-Base.summary(::CellRanking) = "CellRanking"
+Base.summary(::ThreeDimensionalSort) = "ThreeDimensionalSort"
 Base.summary(::HeavisideIntegral) = "HeavisideIntegral"
 Base.summary(::OneDimensionalSort) = "OneDimensionalSort"
 
@@ -369,7 +373,7 @@ exactly the same volume as the original one and `z✶` covers the full depth of 
 """
 sort_buoyancy!(z✶_field, s::SortedReferenceState) = sort_buoyancy!(z✶_field, s, s.method)
 
-function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::CellRanking)
+function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::ThreeDimensionalSort)
 
     sz   = size(z✶_field)
     work = s.workspace
@@ -481,7 +485,7 @@ that reason.
 `method` picks how the sorted state is built. All three agree on every volume integral, so `∫E_b dV`
 and `∫Eₐ dV` do not depend on the choice:
 
-  - [`CellRanking`](@ref) (the default) gives each cell the height of its own slot in the sorted
+  - [`ThreeDimensionalSort`](@ref) (the default) gives each cell the height of its own slot in the sorted
     column, on the model grid. Tied cells take consecutive slots, which spreads `z✶` over a grid cell
     wherever the buoyancy is uniform.
   - [`HeavisideIntegral`](@ref) is eq. (11) of Winters et al. verbatim, also on the model grid. Tied
@@ -533,7 +537,7 @@ maximum(abs, interior(z✶) .- reshape(znodes(grid, Center()), 1, 1, 4)) <= 0.5 
 true
 ```
 """
-function sorted_reference_height(model; method = CellRanking(),
+function sorted_reference_height(model; method = ThreeDimensionalSort(),
                                  geopotential_height = model_geopotential_height(model))
 
     isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
@@ -542,7 +546,7 @@ function sorted_reference_height(model; method = CellRanking(),
     return sorted_reference_height(buoyancy_field(model, model.buoyancy, geopotential_height); method)
 end
 
-function sorted_reference_height(b::Field; method = CellRanking())
+function sorted_reference_height(b::Field; method = ThreeDimensionalSort())
 
     grid = b.grid
     validate_sortable_grid(grid)
@@ -577,7 +581,7 @@ function flat_grid_metric(grid, metric)
     return flat
 end
 
-# `CellRanking` and `HeavisideIntegral` write `z✶` onto the model grid; `OneDimensionalSort` writes it
+# `ThreeDimensionalSort` and `HeavisideIntegral` write `z✶` onto the model grid; `OneDimensionalSort` writes it
 # onto the sorted column it allocates below.
 sorting_grid(::AbstractSortingMethod, grid) = grid
 sorting_grid(method::OneDimensionalSort, grid) = method.sorted_buoyancy.grid
@@ -591,7 +595,7 @@ function build_sorting_method(::OneDimensionalSort, grid, cell_volume, horizonta
     ΔV_max, ΔV_min = maximum(cell_volume), minimum(cell_volume)
     ΔV_max - ΔV_min > sqrt(eps(eltype(cell_volume))) * ΔV_max &&
         throw(ArgumentError("`OneDimensionalSort` needs every cell of the grid to hold the same volume, but they \
-                             range over [$ΔV_min, $ΔV_max]. Use `CellRanking()` or `HeavisideIntegral()` on a \
+                             range over [$ΔV_min, $ΔV_max]. Use `ThreeDimensionalSort()` or `HeavisideIntegral()` on a \
                              grid with variable spacing."))
 
     N = length(cell_volume)
@@ -632,7 +636,7 @@ minimum potential energy ([Winters et al., 1995](https://doi.org/10.1017/S002211
 `z✶` is the reference height that rearrangement assigns to each parcel, computed by
 [`sorted_reference_height`](@ref); pass one explicitly to share a single sort with
 [`AvailablePotentialEnergy`](@ref), or pass `method` through to choose how it is built
-([`CellRanking`](@ref), [`HeavisideIntegral`](@ref) or [`OneDimensionalSort`](@ref); `Integral(E_b)` is
+([`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref) or [`OneDimensionalSort`](@ref); `Integral(E_b)` is
 the same either way).
 
 `E_b` responds only to irreversible changes in the buoyancy field, so in a closed domain the continuous
@@ -660,7 +664,7 @@ BackgroundPotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 └── computes: background potential energy per unit volume  E_b = -bz✶
 ```
 """
-function BackgroundPotentialEnergy(model; location = (Center, Center, Center), method = CellRanking(),
+function BackgroundPotentialEnergy(model; location = (Center, Center, Center), method = ThreeDimensionalSort(),
                                    geopotential_height = model_geopotential_height(model))
 
     validate_location(location, "BackgroundPotentialEnergy")
@@ -690,7 +694,7 @@ The decomposition `Eₚ = E_b + Eₐ` holds cell by cell, so up to roundoff `Int
 statically stable, horizontally uniform stratification. Only the volume integral is guaranteed
 non-negative: cell by cell, `Eₐ` goes negative wherever a parcel sits below its reference height. It
 also vanishes cell by cell in that uniform case only under [`HeavisideIntegral`](@ref), since
-[`CellRanking`](@ref) spreads tied cells over a grid cell. The result lives at
+[`ThreeDimensionalSort`](@ref) spreads tied cells over a grid cell. The result lives at
 `(Center, Center, Center)`, per unit mass (units `m² s⁻²`), and is defined for the same buoyancy
 formulations as [`PotentialEnergy`](@ref). Under [`OneDimensionalSort`](@ref) it lands on the sorted
 column, indexed by rank rather than by position in the flow.
@@ -712,7 +716,7 @@ AvailablePotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 └── computes: available potential energy per unit volume  Eₐ = -b(z - z✶)
 ```
 """
-function AvailablePotentialEnergy(model; location = (Center, Center, Center), method = CellRanking(),
+function AvailablePotentialEnergy(model; location = (Center, Center, Center), method = ThreeDimensionalSort(),
                                   geopotential_height = model_geopotential_height(model))
 
     validate_location(location, "AvailablePotentialEnergy")

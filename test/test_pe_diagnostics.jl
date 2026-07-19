@@ -195,7 +195,7 @@ function test_sorting_methods_agree(grid)
     set!(model, b = (x, y, z) -> z + 0.4 * sin(9x) * cos(7z))
 
     reference = nothing
-    for method in (CellRanking(), HeavisideIntegral(), OneDimensionalSort())
+    for method in (ThreeDimensionalSort(), HeavisideIntegral(), OneDimensionalSort())
 
         # `OneDimensionalSort` bakes the sorted column into a grid, so it only accepts uniform volumes
         uniform_volumes = minimum(zspacings(grid)) ≈ maximum(zspacings(grid))
@@ -221,7 +221,7 @@ end
 """
 Under `HeavisideIntegral` the reference height is a function of buoyancy alone (eq. 11 weights equal
 densities by 1/2), so a horizontally uniform stratification, whose cells are tied level by level, gets
-`z✶ = z` and `Eₐ = 0` cell by cell. `CellRanking` gives the tied cells consecutive slots instead, which
+`z✶ = z` and `Eₐ = 0` cell by cell. `ThreeDimensionalSort` gives the tied cells consecutive slots instead, which
 spreads `z✶` over the cell they share without moving the integral.
 """
 function test_heaviside_is_constant_on_isopycnals(grid)
@@ -238,7 +238,7 @@ function test_heaviside_is_constant_on_isopycnals(grid)
           sqrt(eps(eltype(grid)))
 
     # The ranked heights stay within half a cell of the parcel's own height, and no closer
-    z✶_ranked = PotentialEnergyEquation.sorted_reference_height(model, method=CellRanking())
+    z✶_ranked = PotentialEnergyEquation.sorted_reference_height(model, method=ThreeDimensionalSort())
     @test maximum(abs, interior(z✶_ranked) .- heights) ≤ Δz_max / 2
 
     return nothing
@@ -327,7 +327,7 @@ end
         test_reference_state_is_recomputed(grid)
         test_sorting_rejects_immersed_boundaries(grid)
 
-        @info "      Testing the `CellRanking`, `HeavisideIntegral` and `OneDimensionalSort` methods"
+        @info "      Testing the `ThreeDimensionalSort`, `HeavisideIntegral` and `OneDimensionalSort` methods"
         test_sorting_methods_agree(grid)
         test_heaviside_is_constant_on_isopycnals(grid)
         if grid_class == "regular grid"
