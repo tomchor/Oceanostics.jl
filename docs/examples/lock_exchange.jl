@@ -157,11 +157,12 @@ b✶_1d, z✶_1d = profiles["OneDimensionalSort"][end]                          
 
 # ## Timing the three methods
 #
-# Sorting couples every cell in the domain to every other one, so it is the one diagnostic in
-# Oceanostics whose cost grows faster than linearly in the number of cells. All three methods pay for
-# the same `N log N` sort; what separates them is what they do afterwards.
-# [`HeavisideIntegral`](@ref) makes a few extra passes over the sorted cells to find the tied runs, and
-# [`OneDimensionalSort`](@ref) carries the buoyancy and the original heights along into the column.
+# Sorting couples every cell in the domain to every other one, so its cost grows faster than
+# linearly in the number of cells. All three methods pay for
+# the same `N log N` sort, so we do not expect large differences in timing between them.
+# That said, [`HeavisideIntegral`](@ref) makes a few extra passes over the sorted cells to
+# find the tied runs, and [`OneDimensionalSort`](@ref) carries the buoyancy and the original
+# heights along into the column, both of which add some overhead.
 # We time a `compute!` of `z✶` on the final snapshot, taking the best of several runs after a warm-up:
 
 using Printf

@@ -163,6 +163,33 @@ Base.summary(::HeavisideIntegral) = "HeavisideIntegral"
 Base.summary(::OneDimensionalSort) = "OneDimensionalSort"
 
 """
+    $(TYPEDEF)
+
+Operand of the `Field` [`sorted_buoyancy`](@ref) returns for [`OneDimensionalSort`](@ref). The column's
+buoyancy is filled as part of sorting `z✶`, not by a computation of its own, so this exists to make
+that dependency explicit: `compute!` on the buoyancy delegates to the parent reference height, which
+does the sort and writes both. Without it the buoyancy would be a bare `Field` that `compute!` silently
+ignores, and an output writer handed it on its own would keep writing the previous sort's profile.
+"""
+struct SortedBuoyancyState{Z}
+    reference_height :: Z
+end
+
+Base.summary(s::SortedBuoyancyState) = string("SortedBuoyancyState of ", summary(s.reference_height))
+
+const SortedBuoyancyField = Field{<:Any, <:Any, <:Any, <:SortedBuoyancyState}
+
+function compute!(b✶::SortedBuoyancyField, time=nothing)
+
+    # Sorting the parent writes this field's data as a side effect, and is status-gated, so a `z✶` that
+    # has already been computed at this `time` is not sorted twice.
+    compute_at!(b✶.operand.reference_height, time)
+    set_status!(b✶.status, time)
+
+    return b✶
+end
+
+"""
     $(SIGNATURES)
 
 Return the buoyancy `Field` that pairs with the reference height `z✶` cell by cell, so that
@@ -172,8 +199,22 @@ Under [`OneDimensionalSort`](@ref) that is the sorted profile `b✶` living on t
 `z✶`. Under [`ThreeDimensionalSort`](@ref) and [`HeavisideIntegral`](@ref) it is the model's own
 buoyancy, which already pairs with `z✶` cell by cell since both live on the model grid; ordering
 those pairs by `z✶` recovers the same profile the column stores directly.
+
+The returned field recomputes itself, so it is safe to hand straight to an output writer: computing it
+sorts the parent `z✶` if that has not already happened at this time. It shares its data with the column
+the sort fills, so it costs no extra memory and stays consistent with `z✶` by construction.
 """
-sorted_buoyancy(z✶::SortedReferenceHeightField) = sorted_buoyancy(z✶.operand)
+sorted_buoyancy(z✶::SortedReferenceHeightField) =
+    sorted_buoyancy(z✶, z✶.operand.method, sorted_buoyancy(z✶.operand))
+
+# On the model grid the buoyancy is the model's own field, which already recomputes itself, so it is
+# handed back untouched. On the sorted column it is storage the sort writes into, so it is wrapped in a
+# field that shares that storage and knows to trigger the sort.
+sorted_buoyancy(z✶, ::AbstractSortingMethod, buoyancy) = buoyancy
+
+sorted_buoyancy(z✶, ::OneDimensionalSort, buoyancy) =
+    Field{Center, Center, Center}(buoyancy.grid; data = buoyancy.data,
+                                  operand = SortedBuoyancyState(z✶), status = FieldStatus())
 
 # The buoyancy the diagnostics read, and the height they measure a parcel's displacement from. On the
 # model grid both come straight from the flow (`nothing` height means "use the grid's own `Zᶜᶜᶜ`");

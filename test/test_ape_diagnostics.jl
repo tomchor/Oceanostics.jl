@@ -3,6 +3,7 @@ using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
 using Oceananigans.BuoyancyFormulations: Zᶜᶜᶜ
+using Oceananigans.Fields: compute_at!
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
 
 using Oceanostics
@@ -231,6 +232,37 @@ function test_one_dimensional_sort_column(grid)
     return nothing
 end
 
+"""
+The column's buoyancy is filled as a side effect of sorting `z✶`, not by a computation of its own, so
+the field [`sorted_buoyancy`](@ref) hands back has to know to trigger that sort. Otherwise an output
+writer given it on its own would silently keep writing the previous output's profile, which looks
+entirely plausible: it is a real sorted profile, just of the wrong step. Fetching it is what a writer
+does, so that is what is exercised here.
+"""
+function test_sorted_buoyancy_triggers_the_sort(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = (x, y, z) -> z + 0.3 * sin(9x))
+
+    z✶ = AvailablePotentialEnergyEquation.sorted_reference_height(model, method=OneDimensionalSort())
+    b✶ = sorted_buoyancy(z✶)
+
+    # Move the flow on and fetch `b✶` alone, never touching `z✶`, exactly as a writer would
+    set!(model, b = (x, y, z) -> 2z - 0.4 * cos(7x))
+    compute_at!(b✶, 1.0)
+
+    sorted_b = sort(Array(vec(interior(b✶))))
+    live_b   = sort(Array(vec(interior(model.tracers.b))))
+    @test sorted_b ≈ live_b   # a permutation of the *current* buoyancy, not the previous one
+
+    # The model-grid methods already hand back a field that recomputes itself, so it is passed through
+    for method in (ThreeDimensionalSort(), HeavisideIntegral())
+        @test sorted_buoyancy(AvailablePotentialEnergyEquation.sorted_reference_height(model; method)) === model.tracers.b
+    end
+
+    return nothing
+end
+
 "`OneDimensionalSort` bakes the sorted column's cell boundaries into a grid, so volumes must be equal."
 function test_one_dimensional_sort_rejects_stretched_grids(grid)
 
@@ -360,6 +392,7 @@ end
         test_heaviside_is_constant_on_isopycnals(grid)
         if grid_class == "regular grid"
             test_one_dimensional_sort_column(grid)
+            test_sorted_buoyancy_triggers_the_sort(grid)
         else
             test_one_dimensional_sort_rejects_stretched_grids(grid)
         end
