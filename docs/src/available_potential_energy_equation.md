@@ -44,6 +44,108 @@ z✶ = sorted_reference_height(model)                  # share one sort between 
 The domain's horizontal cross-sectional area is assumed independent of depth, so an
 `ImmersedBoundaryGrid` is rejected.
 
+## The background potential energy and the sorted state
+
+Sorting is what turns ``E_p`` into ``E_b``. Rank every cell in the domain by buoyancy and stack the
+cells from the bottom of the domain up, densest first. Each cell keeps its own volume, so it becomes
+a slab of thickness ``\Delta V / A`` spanning the domain's horizontal area ``A``, and the height its
+middle lands at is that cell's reference height ``z^\star``. Nothing is added or removed, only
+rearranged, which is why the stack fills exactly the depth of the domain and why the rearrangement
+counts as adiabatic. Weighting the buoyancy by ``z^\star`` instead of by ``z`` gives ``E_b``, the
+potential energy the fluid would still hold once every parcel had been let down to its own level.
+
+A small synthetic case makes that concrete. Take a two-layer fluid of buoyancy ``0`` and ``1`` on a
+2×4 grid, with the middle of the interface overturned so that the field is not already its own sorted
+state. The grid is chosen so the arithmetic stays visible: cells hold a volume of 2 against a
+horizontal area of 2, so each becomes a slab one unit thick and ``z^\star`` lands on half-integers.
+
+```jldoctest sorted_state
+using Oceananigans, Oceanostics
+
+grid = RectilinearGrid(size=(2, 4), x=(0, 2), z=(-8, 0), topology=(Periodic, Flat, Bounded))
+model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+
+# rows are the two columns of cells in x; entries run from the bottom of the domain up
+b₀ = [0 0 1 1
+      0 1 0 1]
+set!(model, b = reshape(b₀, 2, 1, 4))
+
+∫dV(op) = sum(Field(Integral(op)))
+∫dV(PotentialEnergy(model)), ∫dV(BackgroundPotentialEnergy(model)), ∫dV(AvailablePotentialEnergy(model))
+
+# output
+
+(20.0, 16.0, 4.0)
+```
+
+Four units of the twenty are available: that is what the two overturned cells could release by
+swapping back. The other sixteen are locked in the sorted state and only irreversible mixing can
+touch them.
+
+The three methods below all describe that same sorted state, and each returns ``E_b = 16``. What
+differs is where the eight ``z^\star`` values live and how the *tied* cells are placed, and here every
+cell is tied with three others, since there are only two distinct buoyancies.
+
+[`ThreeDimensionalSort`](@ref) hands each cell its own slab, so the four dense cells take the four
+slots between ``-8`` and ``-4`` and the four light cells take those between ``-4`` and ``0``. Which
+tied cell gets which slot is arbitrary, and the spread over each layer is visible here:
+
+```jldoctest sorted_state
+z✶ = sorted_reference_height(model, method=ThreeDimensionalSort())
+Array(reshape(interior(z✶), 2, 4))
+
+# output
+
+2×4 Matrix{Float64}:
+ -7.5  -5.5  -2.5  -1.5
+ -6.5  -3.5  -4.5  -0.5
+```
+
+[`HeavisideIntegral`](@ref) instead gives every cell of a given buoyancy the mid-height of the layer
+that buoyancy fills, which is the ``1/2`` weight eq. (11) puts on equal densities. The dense layer
+occupies ``[-8, -4]`` and the light layer ``[-4, 0]``, so ``z^\star`` collapses onto ``-6`` and
+``-2``. The result is a function of buoyancy alone, constant on each isopycnal, and reads as a map
+rather than as a ranking:
+
+```jldoctest sorted_state
+z✶ = sorted_reference_height(model, method=HeavisideIntegral())
+Array(reshape(interior(z✶), 2, 4))
+
+# output
+
+2×4 Matrix{Float64}:
+ -6.0  -6.0  -2.0  -2.0
+ -6.0  -2.0  -6.0  -2.0
+```
+
+[`OneDimensionalSort`](@ref) returns the stack itself rather than a map of it: a `1×1×8` column of
+unit-thick slabs, carrying the sorted buoyancy profile ``b^\star`` alongside the heights it belongs
+to. This is the form to use when you want the reference stratification as a profile:
+
+```jldoctest sorted_state
+z✶ = sorted_reference_height(model, method=OneDimensionalSort())
+Array(vec(interior(sorted_buoyancy(z✶)))), Array(vec(interior(z✶)))
+
+# output
+
+([0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0], [-7.5, -6.5, -5.5, -4.5, -3.5, -2.5, -1.5, -0.5])
+```
+
+So the three disagree cell by cell but agree on the integral. They have to: the heights
+[`ThreeDimensionalSort`](@ref) spreads across a layer average out, over that layer's volume, to the
+single height [`HeavisideIntegral`](@ref) assigns it, and every cell in the layer carries the same
+buoyancy for that average to act on:
+
+```jldoctest sorted_state
+map((ThreeDimensionalSort(), HeavisideIntegral(), OneDimensionalSort())) do method
+    ∫dV(BackgroundPotentialEnergy(model; method))
+end
+
+# output
+
+(16.0, 16.0, 16.0)
+```
+
 ## Choosing how the reference state is built
 
 `method` selects one of three strategies. They describe the same reference state and agree on every
@@ -104,6 +206,7 @@ Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy
 
 ```@docs
 Oceanostics.AvailablePotentialEnergyEquation.sorted_reference_height
+Oceanostics.AvailablePotentialEnergyEquation.sorted_buoyancy
 Oceanostics.AvailablePotentialEnergyEquation.AbstractSortingMethod
 Oceanostics.AvailablePotentialEnergyEquation.ThreeDimensionalSort
 Oceanostics.AvailablePotentialEnergyEquation.HeavisideIntegral

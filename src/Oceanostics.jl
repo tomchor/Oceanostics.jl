@@ -79,7 +79,7 @@ export PotentialEnergy
 #---
 
 #+++ AvailablePotentialEnergyEquation exports
-export BackgroundPotentialEnergy, AvailablePotentialEnergy, sorted_reference_height
+export BackgroundPotentialEnergy, AvailablePotentialEnergy, sorted_reference_height, sorted_buoyancy
 export ThreeDimensionalSort, HeavisideIntegral, OneDimensionalSort
 #---
 

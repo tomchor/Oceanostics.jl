@@ -25,7 +25,7 @@ column up. `OneDimensionalSort` already stores it that way; the two model-grid m
 function reference_profile(z✶)
 
     heights   = Array(vec(interior(z✶)))
-    buoyancy  = Array(vec(interior(AvailablePotentialEnergyEquation.sorted_buoyancy(z✶.operand))))
+    buoyancy  = Array(vec(interior(sorted_buoyancy(z✶))))
     ascending = sortperm(heights)
 
     return heights[ascending], buoyancy[ascending]
@@ -220,7 +220,7 @@ function test_one_dimensional_sort_column(grid)
     set!(model, b = (x, y, z) -> z + 0.4 * sin(9x) * cos(7z))
 
     z✶ = AvailablePotentialEnergyEquation.sorted_reference_height(model, method=OneDimensionalSort())
-    b✶ = z✶.operand.method.sorted_buoyancy
+    b✶ = sorted_buoyancy(z✶)
 
     @test size(z✶) == (1, 1, prod(size(grid)))
     @test issorted(Array(vec(interior(b✶))))  # densest at the bottom

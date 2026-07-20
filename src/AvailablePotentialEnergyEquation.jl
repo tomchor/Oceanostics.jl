@@ -2,7 +2,7 @@ module AvailablePotentialEnergyEquation
 
 using DocStringExtensions
 
-export BackgroundPotentialEnergy, AvailablePotentialEnergy, sorted_reference_height
+export BackgroundPotentialEnergy, AvailablePotentialEnergy, sorted_reference_height, sorted_buoyancy
 export ThreeDimensionalSort, HeavisideIntegral, OneDimensionalSort
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -161,6 +161,19 @@ OneDimensionalSort() = OneDimensionalSort(nothing, nothing, nothing)
 Base.summary(::ThreeDimensionalSort) = "ThreeDimensionalSort"
 Base.summary(::HeavisideIntegral) = "HeavisideIntegral"
 Base.summary(::OneDimensionalSort) = "OneDimensionalSort"
+
+"""
+    $(SIGNATURES)
+
+Return the buoyancy `Field` that pairs with the reference height `z✶` cell by cell, so that
+`(z✶, sorted_buoyancy(z✶))` is the reference profile the sort produced.
+
+Under [`OneDimensionalSort`](@ref) that is the sorted profile `b✶` living on the column alongside
+`z✶`. Under [`ThreeDimensionalSort`](@ref) and [`HeavisideIntegral`](@ref) it is the model's own
+buoyancy, which already pairs with `z✶` cell by cell since both live on the model grid; ordering
+those pairs by `z✶` recovers the same profile the column stores directly.
+"""
+sorted_buoyancy(z✶::SortedReferenceHeightField) = sorted_buoyancy(z✶.operand)
 
 # The buoyancy the diagnostics read, and the height they measure a parcel's displacement from. On the
 # model grid both come straight from the flow (`nothing` height means "use the grid's own `Zᶜᶜᶜ`");
