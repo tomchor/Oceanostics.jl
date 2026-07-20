@@ -63,23 +63,36 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
 
 # ## Diagnostics
 #
-# The reference state is a *global* property of the buoyancy field, so it can be rebuilt after the fact
-# from saved snapshots. We therefore only write `b` here, plus the volume-integrated energies, and do
-# all the sorting in post-processing where we can compare the three methods side by side.
+# We build one `z✶` per method and write all of them, so the reference state comes out of the run
+# rather than being rebuilt afterwards. They are ordinary `Field`s that re-sort themselves whenever
+# they are computed, so an output writer can simply be handed them.
+#
+# What each method gives you to write differs, and that difference is the same one the figures below
+# show. The two model-grid methods produce a *map* of the reference height, one value per cell, on the
+# model grid. [`OneDimensionalSort`](@ref) instead produces the sorted column itself, so its `z✶` and
+# the buoyancy that goes with it are already the profile, in order, and need no post-processing at all.
 
-# Both energies are built from the same reference height, so we compute `z✶` once and share it rather
-# than letting each diagnostic sort the domain for itself.
+b = model.tracers.b
 
-b  = model.tracers.b
-z✶ = sorted_reference_height(model)
+z✶_ranked    = sorted_reference_height(model, method = ThreeDimensionalSort())
+z✶_heaviside = sorted_reference_height(model, method = HeavisideIntegral())
+z✶_column    = sorted_reference_height(model, method = OneDimensionalSort())
+b✶_column    = sorted_buoyancy(z✶_column)
 
-∫E_b = Integral(BackgroundPotentialEnergy(model, z✶))
-∫E_a = Integral(AvailablePotentialEnergy(model, z✶))
+# Both energies are built from the same reference height, so we share one rather than letting each
+# diagnostic sort the domain for itself.
+
+∫E_b = Integral(BackgroundPotentialEnergy(model, z✶_ranked))
+∫E_a = Integral(AvailablePotentialEnergy(model, z✶_ranked))
 
 using NCDatasets
 filename = "lock_exchange"
 
-simulation.output_writers[:fields] = NetCDFWriter(model, (; b),
+# A single `NetCDFWriter` copes with the two grids: the model-grid fields are written against `x` and
+# `z`, and the column's against its own `N`-cell vertical axis.
+
+simulation.output_writers[:fields] = NetCDFWriter(model,
+                                                  (; b, z✶_ranked, z✶_heaviside, z✶_column, b✶_column),
                                                   filename = joinpath(@__DIR__, filename),
                                                   schedule = TimeInterval(0.5),
                                                   overwrite_existing = true)
@@ -101,46 +114,56 @@ run!(simulation)
 # with it gives the reference profile ``b^\star(z^\star)`` — the stratification the flow would have if
 # all of its available potential energy were released.
 #
-# [`sorted_reference_height`](@ref) takes a `Field` as readily as it takes a model, so we can hand it
-# each saved snapshot. `sorted_buoyancy` then returns the buoyancy that pairs with `z✶` cell by cell,
-# and ordering those pairs by `z✶` gives the profile:
+# Everything needed is already in the file. For the column the profile is written as it stands. For the
+# two model-grid methods, `z✶` and `b` are both maps over the cells, so pairing them and ordering by
+# `z✶` recovers the same profile; that reordering is all the "post-processing" amounts to.
 
 using Oceananigans.Fields: interior
 
-function reference_profile(z✶)
-    heights   = Array(vec(interior(z✶)))
-    buoyancy  = Array(vec(interior(sorted_buoyancy(z✶))))
-    ascending = sortperm(heights)
-    return buoyancy[ascending], heights[ascending]
-end
-
-# Now read the snapshots back and build the profile at a few times with each method.
-
 filepath = simulation.output_writers[:fields].filepath
-b_t = FieldTimeSeries(filepath, "b")
-times = b_t.times
+b_t = FieldTimeSeries(filepath, "b")     # for the heatmaps below
 
-methods = ("ThreeDimensionalSort" => ThreeDimensionalSort(),
-           "HeavisideIntegral"    => HeavisideIntegral(),
-           "OneDimensionalSort"   => OneDimensionalSort())
+ds = NCDataset(filepath)
+times = ds["time"][:]
+B  = ds["b"][:, :, :]                    # (x, z, time); y is Flat, so it is dropped
+Z3 = ds["z✶_ranked"][:, :, :]
+ZH = ds["z✶_heaviside"][:, :, :]
+Z1 = ds["z✶_column"][:, :, :, :]         # (1, 1, N, time) on the column's own grid
+B1 = ds["b✶_column"][:, :, :, :]
+close(ds)
+
+## pair a reference-height map with the buoyancy map and order by z✶
+mapped_profile(Z, n) = (h = vec(Float64.(Z[:, :, n])); p = sortperm(h);
+                        (vec(Float64.(B[:, :, n]))[p], h[p]))
+
+## the column is already ordered, so it is read straight off
+column_profile(n) = (vec(Float64.(B1[:, :, :, n])), vec(Float64.(Z1[:, :, :, n])))
 
 snapshot_times = [0, 2, 5, 10, 20]
 snapshots = [argmin(abs.(times .- t)) for t in snapshot_times]
 
+methods = ("ThreeDimensionalSort" => n -> mapped_profile(Z3, n),
+           "HeavisideIntegral"    => n -> mapped_profile(ZH, n),
+           "OneDimensionalSort"   => column_profile)
+
 ## `profiles[name][k]` is the `(b✶, z✶)` pair for method `name` at the `k`-th snapshot
-profiles = Dict(name => [reference_profile(sorted_reference_height(b_t[n]; method))
-                         for n in snapshots] for (name, method) in methods);
+profiles = Dict(name => [build(n) for n in snapshots] for (name, build) in methods);
 
 # All three describe the same reference state, so wherever the buoyancy field is continuous their
 # profiles coincide. They part ways only where cells are *tied* at exactly the same buoyancy, and a
 # lock is the extreme case: the initial condition saturates to `±Δb/2` away from the interface, leaving
 # just a few dozen distinct buoyancies across tens of thousands of cells.
 
-n_distinct(n) = length(unique(Array(vec(interior(b_t[n])))))
+n_distinct(n) = length(unique(vec(Float64.(B[:, :, n]))))
 @info "distinct buoyancies: $(n_distinct(snapshots[1])) at t = 0, " *
       "$(n_distinct(snapshots[end])) at t = $(times[snapshots[end]]), of $(prod(size(grid))) cells"
 
 using Test                                                                                #hide
+## `b✶_column` is written *during* the run, so each snapshot has to be a permutation of `b` at the  #hide
+## same time. This is what catches a reference state that lags an output behind the flow.           #hide
+for n in snapshots                                                                        #hide
+    @test sort(vec(Float64.(B1[:, :, :, n]))) ≈ sort(vec(Float64.(B[:, :, n]))) atol=1e-5 #hide
+end                                                                                       #hide
 z✶_3d_0,  z✶_hv_0 = profiles["ThreeDimensionalSort"][1][2], profiles["HeavisideIntegral"][1][2]   #hide
 b✶_3d, z✶_3d = profiles["ThreeDimensionalSort"][end]                                      #hide
 b✶_hv, z✶_hv = profiles["HeavisideIntegral"][end]                                         #hide
@@ -175,7 +198,11 @@ function time_sort(z✶; samples = 10)
     return minimum(@elapsed(compute!(z✶)) for _ in 1:samples)
 end
 
-timings = [name => time_sort(sorted_reference_height(b_t[end]; method)) for (name, method) in methods]
+sorting_methods = ("ThreeDimensionalSort" => ThreeDimensionalSort(),
+                   "HeavisideIntegral"    => HeavisideIntegral(),
+                   "OneDimensionalSort"   => OneDimensionalSort())
+
+timings = [name => time_sort(sorted_reference_height(b_t[end]; method)) for (name, method) in sorting_methods]
 
 for (name, t) in timings
     @printf("%-22s %7.2f ms   (%d cells)\n", name, 1e3t, prod(size(grid)))
