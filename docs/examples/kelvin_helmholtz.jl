@@ -179,7 +179,7 @@ z✶ = sorted_reference_height(model)
 
 # Sorting couples every cell in the domain to every other one, so `z✶` cannot be a pointwise kernel like
 # the other diagnostics: it is re-sorted from scratch each time these integrals are written out. Here
-# that is a sort of `128²` values per output, negligible next to a time step.
+# that is a sort of `N²` values per output, negligible next to a time step.
 
 # We use two NetCDF writers. A *snapshot* writer stores the 2D fields on a plain `TimeInterval(1)`,
 # while a *budget* writer stores only the integrated scalars on `ConsecutiveIterations(TimeInterval(1))`
@@ -268,7 +268,10 @@ E_a  = ∫E_a_t[i1]
 @test abs(E_a[1]) < 1e-10 * maximum(abs, ∫Eₚ_t)   # a sorted initial state holds no APE        #hide
 @test minimum(E_a) > -1e-10 * maximum(abs, ∫Eₚ_t) # the integrated APE is non-negative         #hide
 @test 1 < argmax(E_a) < length(E_a)               # APE peaks partway through: stir, then mix  #hide
-@test ΔE_b[end] > 0.3 * maximum(E_a);             # much of that APE ends up locked into E_b   #hide
+@test ΔE_b[end] > 0.3 * maximum(E_a)              # much of that APE ends up locked into E_b   #hide
+## E_b only ever rises, as the continuous equations demand: the scheme is resolved enough here   #hide
+## that its buoyancy overshoots never read to the sort as spurious unmixing                      #hide
+@test minimum(diff(ΔE_b)) > -1e-6 * maximum(abs, ∫Eₚ_t);                                        #hide
 
 
 # ## Plotting
@@ -378,17 +381,20 @@ end
 # The last panel follows the same event through the three energy reservoirs, and shows where that
 # potential energy goes. Kinetic energy drains away and available potential energy takes its place
 # almost one for one while the billow rolls up, which is the reversible half of the exchange: the flow
-# is lifting dense fluid and could in principle get all of it back. Past `t ≈ 55` the overturns break
-# down, `∫Eₐ dV` starts to decay, and the background potential energy climbs. That climb is what the
-# split is for. It is the irreversible part, the record of buoyancy that diffusion has actually mixed
-# across density surfaces, and by the end of the run it has absorbed a good fraction of the available
-# potential energy the instability produced.
+# is lifting dense fluid and could in principle get all of it back. `∫Eₐ dV` peaks near `t ≈ 51`; past
+# that the overturns break down, it decays, and the background potential energy climbs. That climb is
+# what the split is for. It is the irreversible part, the record of buoyancy that diffusion has
+# actually mixed across density surfaces, and by the end of the run it has taken up a little over half
+# of the peak available potential energy. The renewed rise in `∫Eₐ dV` after `t ≈ 90` comes with kinetic
+# energy still draining, so the shear is converting kinetic energy into available potential energy
+# again rather than recovering any of what was mixed.
 #
-# `∫E_b dV` does dip below its initial value between `t ≈ 35` and `t ≈ 75`, which no amount of physical
-# mixing can do. The culprit is the centered advection scheme: it carries no numerical dissipation, so
-# it is also free to overshoot, and by `t ≈ 60` it has manufactured buoyancy extrema about 2.5 times
-# the initial range `±B₀`. Sorting reads those extrema as fluid that is denser and lighter than
-# anything the flow started with, so the reference state comes out over-stratified and `E_b` drops.
-# Being sensitive to that is exactly why the background potential energy is the standard way to measure
-# spurious diapycnal transport in a numerical scheme. Here it exposes an artifact that the
-# kinetic-energy budget above is entirely blind to.
+# Note that `∫E_b dV` never decreases. That is what the continuous equations demand, since only
+# irreversible mixing can move the background state, but it is not automatic on a grid. A centered
+# scheme carries no numerical dissipation and is correspondingly free to overshoot, and buoyancy
+# extrema beyond the initial range `±B₀` read to the sort as fluid denser and lighter than anything the
+# flow started with, which pushes `E_b` down. Here the overshoot stays mild, peaking around `1.5 B₀` at
+# `t ≈ 69` while the billow breaks down, and never reverses the rise. That monotonicity is a useful
+# check on resolution: the background potential energy is the standard measure of spurious diapycnal
+# transport precisely because it is sensitive to this, and it registers such an artifact when the
+# kinetic-energy budget above is entirely blind to it.
