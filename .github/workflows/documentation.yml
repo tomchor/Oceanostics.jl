@@ -26,6 +26,7 @@ jobs:
           - rayleigh_taylor_instability
           - tilted_bottom_boundary_layer
           - spatial_filtering
+          - lock_exchange
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2

@@ -18,6 +18,7 @@ examples = ["Two-dimensional turbulence"   => "two_dimensional_turbulence",
             "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability",
             "Tilted bottom boundary layer" => "tilted_bottom_boundary_layer",
             "Spatial filtering"            => "spatial_filtering",
+            "Lock exchange"                => "lock_exchange",
             ]
 
 example_pages = [ k => "generated/$v.md" for (k, v) in examples ]
