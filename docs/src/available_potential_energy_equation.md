@@ -21,18 +21,13 @@ and what is left over is the available potential energy,
 E_a = E_p - E_b = -b (z - z^\star) ,
 ```
 
-the part that an adiabatic rearrangement can release into kinetic energy. The split matters
+the part that an adiabatic rearrangement can release into kinetic energy. Importantly, the split matters
 because the two halves respond to different physics: ``E_a`` is exchanged reversibly with kinetic
-energy through the buoyancy flux ``wb``, while ``E_b`` can only be changed irreversibly. In a
-closed domain the continuous equations make ``\int E_b \, \mathrm{d}V`` grow monotonically at the
-diapycnal mixing rate, which is what lets it separate stirring from mixing in a simulation.
-Numerically it also registers whatever spurious diapycnal transport the advection scheme
-introduces, in either direction, which is why it doubles as a standard measure of a scheme's
-mixing.
+energy through the buoyancy flux ``wb``, while ``E_b`` can only be changed irreversibly.
 
 ``z^\star`` is computed by [`sorted_reference_height`](@ref), which returns a `Field` on the model
-grid. Sorting couples every cell in the domain to every other one, so unlike every other diagnostic
-in Oceanostics this one is not a pointwise kernel. It is re-sorted on each `compute!`, so writing it
+grid. Sorting is a non-local operation that couples every cell in the domain to every other one, so, unlike most other diagnostics
+in Oceanostics, this one is not a pointwise kernel. It is re-sorted on each `compute!`, so writing it
 (or anything built on it) out during a simulation tracks the evolving flow.
 
 ```julia
