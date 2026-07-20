@@ -49,15 +49,6 @@ model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             closure = ScalarDiffusivity(; ν, κ),
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
-# The centered scheme is what makes the budget below meaningful: it carries no numerical dissipation, so
-# every sink in the kinetic-energy budget is one we compute explicitly. The price is that nothing damps
-# the grid scale for us, which is what caps `Re` at the value set above. In a stratified shear layer the
-# sharpest feature is the braid between billows, a sheet the strain thins until diffusion arrests it at
-# `δ ∼ h / √Re`; resolving it takes a few cells, so `Re` and `N` are not independent knobs. At `N = 128`
-# over this domain (`Δx ≈ 0.11 h`), that lands near `Re ∼ 10³`. Raising `Re` without also raising `N`
-# leaves the braid unresolved, and it then shows up in the budget as grid-scale noise: at `Re = 5×10⁴`
-# on this grid the billow manufactures buoyancy extrema roughly three times the initial range `±B₀`.
-#
 # We use hyperbolic tangent profiles with the same length scale `h` for both the shear flow and
 # the stratification. The buoyancy jump `B₀ = U² Ri₀ / h` is chosen so that the gradient Richardson
 # number `N² / (∂u/∂z)²` reaches its minimum value `Ri₀ = 0.1` — below the classical stability
