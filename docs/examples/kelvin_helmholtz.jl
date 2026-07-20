@@ -316,5 +316,4 @@ end
 # dissipation `∫εˡ dV` stays comparatively small at this Reynolds number. The residual (dashed), the
 # sum of the negative tendency `−d(∫Kˡ)/dt` and the three source terms, stays small. As in the
 # [Two-dimensional turbulence example](@ref two_d_turbulence_example), the centered scheme contributes no
-# numerical dissipation of its own, so the budget closes against the explicit `∫εˡ dV` alone rather than
-# against a scheme-dependent sink we would have no way to measure.
+# numerical dissipation of its own, so the budget closes against the explicit `∫εˡ dV` alone with a negligible residual.
