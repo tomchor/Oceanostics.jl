@@ -25,13 +25,13 @@ the part that an adiabatic rearrangement can release into kinetic energy. Import
 because the two halves respond to different physics: ``E_a`` is exchanged reversibly with kinetic
 energy through the buoyancy flux ``wb``, while ``E_b`` can only be changed irreversibly.
 
-``z^\star`` is computed by [`sorted_reference_height`](@ref), which returns a `Field` on the model
+``z^\star`` is computed by [`reference_height`](@ref), which returns a `Field` on the model
 grid. Sorting is a non-local operation that couples every cell in the domain to every other one, so, unlike most other diagnostics
 in Oceanostics, this one is not a pointwise kernel. It is re-sorted on each `compute!`, so writing it
 (or anything built on it) out during a simulation tracks the evolving flow.
 
 ```julia
-z✶ = sorted_reference_height(model)                  # share one sort between the two diagnostics
+z✶ = reference_height(model)                  # share one sort between the two diagnostics
 ∫E_b = Integral(BackgroundPotentialEnergy(model, z✶))
 ∫E_a = Integral(AvailablePotentialEnergy(model, z✶))
 ```
@@ -94,8 +94,8 @@ every cell of the model grid to hold the same volume, since otherwise the column
 would move as the flow evolves.
 
 ```julia
-z✶ = sorted_reference_height(model, method=HeavisideIntegral()) # clean cell-by-cell maps
-z✶ = sorted_reference_height(model, method=OneDimensionalSort()) # the reference profile itself
+z✶ = reference_height(model, method=HeavisideIntegral()) # clean cell-by-cell maps
+z✶ = reference_height(model, method=OneDimensionalSort()) # the reference profile itself
 ```
 
 The [Kelvin-Helmholtz instability](@ref kelvin_helmholtz_example) example tracks the three energy
@@ -116,8 +116,8 @@ Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy
 ## Sorted reference height
 
 ```@docs
-Oceanostics.AvailablePotentialEnergyEquation.sorted_reference_height
-Oceanostics.AvailablePotentialEnergyEquation.sorted_buoyancy
+Oceanostics.AvailablePotentialEnergyEquation.reference_height
+Oceanostics.AvailablePotentialEnergyEquation.reference_buoyancy
 Oceanostics.AvailablePotentialEnergyEquation.AbstractSortingMethod
 Oceanostics.AvailablePotentialEnergyEquation.ThreeDimensionalSort
 Oceanostics.AvailablePotentialEnergyEquation.HeavisideIntegral

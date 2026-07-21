@@ -272,7 +272,7 @@ writer given it on its own would silently keep writing the previous output's pro
 entirely plausible: it is a real sorted profile, just of the wrong step. Fetching it is what a writer
 does, so that is what is exercised here.
 """
-function test_sorted_buoyancy_triggers_the_sort(grid)
+function test_reference_buoyancy_triggers_the_sort(grid)
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = (x, y, z) -> z + 0.3 * sin(9x))
@@ -425,7 +425,7 @@ end
         test_heaviside_is_constant_on_isopycnals(grid)
         if grid_class == "regular grid"
             test_one_dimensional_sort_column(grid)
-            test_sorted_buoyancy_triggers_the_sort(grid)
+            test_reference_buoyancy_triggers_the_sort(grid)
         else
             test_one_dimensional_sort_rejects_stretched_grids(grid)
         end

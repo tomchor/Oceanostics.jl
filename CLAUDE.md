@@ -55,7 +55,7 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `validate_gravity_unit_vector`, which `AvailablePotentialEnergyEquation` imports.
 - **`AvailablePotentialEnergyEquation`**: the Winters et al. (1995) split of Eₚ into
   `BackgroundPotentialEnergy` (E_b = -bz✶) and `AvailablePotentialEnergy` (Eₐ = -b(z - z✶)). The
-  reference height z✶ comes from `sorted_reference_height`, which returns a `Field` whose operand is a
+  reference height z✶ comes from `reference_height`, which returns a `Field` whose operand is a
   `SortedReferenceState` rather than a `KernelFunctionOperation`: sorting is a whole-domain operation,
   so it hooks into `compute!` the way `Oceananigans.Fields.Scan` does for `Integral`/`Average`, and is
   re-sorted on every `compute!` so the diagnostic tracks the flow when written out during a simulation.
@@ -63,7 +63,7 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   integral: `ThreeDimensionalSort` (default; each cell gets its own slot, so tied cells spread over a
   grid cell), `HeavisideIntegral` (Winters eq. 11, tied cells share their layer's mid-height, so z✶ is a
   function of buoyancy alone and local maps are clean), and `OneDimensionalSort` (the sorted column on
-  its own `1×1×N` grid of equal-volume cells; needs uniform cell volumes). `sorted_buoyancy(z✶)` returns
+  its own `1×1×N` grid of equal-volume cells; needs uniform cell volumes). `reference_buoyancy(z✶)` returns
   the buoyancy that pairs with z✶ cell by cell, which is the sorted profile b✶ under
   `OneDimensionalSort` and the model's own buoyancy under the two model-grid methods. Built on
   `PotentialEnergyEquation`, so it is included after it
