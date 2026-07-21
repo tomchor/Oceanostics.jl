@@ -13,13 +13,14 @@ using Oceanostics
 EXAMPLES_DIR = joinpath(@__DIR__, "examples")
 OUTPUT_DIR   = joinpath(@__DIR__, "src/generated")
 
-examples = ["Two-dimensional turbulence"   => "two_dimensional_turbulence",
-            "Kelvin-Helmholtz instability" => "kelvin_helmholtz",
-            "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability",
-            "Tilted bottom boundary layer" => "tilted_bottom_boundary_layer",
-            "Spatial filtering"            => "spatial_filtering",
-            "Lock exchange"                => "lock_exchange",
-            ]
+examples = [
+    "Two-dimensional turbulence"   => "two_dimensional_turbulence", # KE and tracer variance budgets (~8 min)
+    "Spatial filtering"            => "spatial_filtering", # Spatial filtering examples (~5 min)
+    "Kelvin-Helmholtz instability" => "kelvin_helmholtz", # Filtered KE budget (~8 min)
+    "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability", # SFS budget (~6 min)
+    "Lock exchange"                => "lock_exchange", # APE and reference profiles calculation (~ 5 min)
+    "Tilted bottom boundary layer" => "tilted_bottom_boundary_layer", # Nothing (~3 min)
+    ]
 
 example_pages = [ k => "generated/$v.md" for (k, v) in examples ]
 
