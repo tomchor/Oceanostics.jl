@@ -159,23 +159,24 @@ n_distinct(n) = length(unique(vec(Float64.(B[:, :, n]))))
       "$(n_distinct(snapshots[end])) at t = $(times[snapshots[end]]), of $(prod(size(grid))) cells"
 
 using Test                                                                                #hide
-## `b✶_column` is written *during* the run, so each snapshot has to be a permutation of `b` at the  #hide
-## same time. This is what catches a reference state that lags an output behind the flow.           #hide
+## `b✶_column` is written *during* the run, so each snapshot has to be a                  #hide
+## permutation of `b` at the same time. This is what catches a reference                  #hide
+## state that lags an output behind the flow.                                             #hide
 for n in snapshots                                                                        #hide
-    @test sort(vec(Float64.(B1[:, :, n]))) ≈ sort(vec(Float64.(B[:, :, n]))) atol=1e-5 #hide
+    @test sort(vec(Float64.(B1[:, :, n]))) ≈ sort(vec(Float64.(B[:, :, n]))) atol=1e-5    #hide
 end                                                                                       #hide
 z★_3d_0,  z★_hv_0 = profiles["ThreeDimensionalSort"][1][2], profiles["HeavisideIntegral"][1][2]   #hide
 b✶_3d, z★_3d = profiles["ThreeDimensionalSort"][end]                                      #hide
 b✶_hv, z★_hv = profiles["HeavisideIntegral"][end]                                         #hide
 b✶_1d, z★_1d = profiles["OneDimensionalSort"][end]                                        #hide
-## the two model-grid methods differ by a quarter of the depth while the lock is intact       #hide
+## the two model-grid methods differ by a quarter of the depth while the lock is intact   #hide
 @test maximum(abs, z★_hv_0 .- z★_3d_0) > 0.2H                                             #hide
-## and agree to the grid scale once mixing has made the field continuous                      #hide
+## and agree to the grid scale once mixing has made the field continuous                  #hide
 @test maximum(abs, z★_hv .- z★_3d) < H / Nz                                               #hide
-## the column carries exactly what the ranked sort assigns, by construction                   #hide
+## the column carries exactly what the ranked sort assigns, by construction               #hide
 @test maximum(abs, z★_3d .- z★_1d) < 1e-12                                                #hide
 @test maximum(abs, b✶_3d .- b✶_1d) < 1e-12                                                #hide
-## and the reference profile is, by construction, monotonic                                   #hide
+## and the reference profile is, by construction, monotonic                               #hide
 @test issorted(b✶_1d)                                                                     #hide
 ## The three methods describe one reference state, so although their `z★` maps differ wherever    #hide
 ## cells are tied, every buoyancy-weighted integral of `z★` has to agree — that integral is `E_b`, #hide
@@ -189,7 +190,7 @@ for n in snapshots                                                              
     E_column    = sum(b1n .* vec(Float64.(Z1[:, :, n])))                                  #hide
     @test E_heaviside ≈ E_ranked rtol=1e-8                                                #hide
     @test E_column    ≈ E_ranked rtol=1e-8                                                #hide
-    ## the two that give every cell its own slot assign exactly the same set of heights     #hide
+    ## the two that give every cell its own slot assign exactly the same set of heights   #hide
     @test sort(vec(Float64.(Z3[:, :, n]))) ≈ sort(vec(Float64.(Z1[:, :, n]))) atol=1e-6   #hide
 end                                                                                       #hide
 ## `HeavisideIntegral` is the one that can differ pointwise, and only while ties survive: it is    #hide
