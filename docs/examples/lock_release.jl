@@ -139,7 +139,7 @@ mapped_profile(Z, n) = (h = vec(Float64.(Z[:, :, n])); p = sortperm(h);
 ## the column is already ordered, so it is read straight off
 column_profile(n) = (vec(Float64.(B1[:, :, n])), vec(Float64.(Z1[:, :, n])))
 
-snapshot_times = [0, 2, 5, 10, 20]
+snapshot_times = [0, 5, 10, 20]
 snapshots = [argmin(abs.(times .- t)) for t in snapshot_times]
 
 methods = ("ThreeDimensionalSort" => n -> mapped_profile(Z3, n),
@@ -215,45 +215,29 @@ using CairoMakie
 set_theme!(Theme(fontsize = 20))
 fig = Figure(size = (1000, 760));
 
-# The top rows show the buoyancy field as the lock collapses: the dense fluid on the left runs right
-# along the bottom, the buoyant fluid on the right runs left along the top, and the shear between them
-# rolls up into billows that do the mixing.
-
-for (row, n) in enumerate(snapshots)
-    ax = Axis(fig[row, 1]; ylabel = "z", width = 400, height = 100,
-              xlabel = row == length(snapshots) ? "x" : "",
-              xticklabelsvisible = row == length(snapshots))
-    heatmap!(ax, b_t[n]; colormap = :balance, colorrange = (-Δb/2, Δb/2))
-    text!(ax, -Lx/2 + 0.05, 0.28; text = "t = $(round(times[n], digits=1))", fontsize = 14)
-end
-
-Colorbar(fig[1:length(snapshots), 2]; colormap = :balance, limits = (-Δb/2, Δb/2), label = "b")
-
-# The remaining panels are the point of the example: the reference profile at those same times, one
-# panel per method. It starts as a step, two blocks of uniform buoyancy stacked one on the other, and
-# mixing erodes it into a smooth stratification.
+# The top row is the point of the example: the reference profile at a few times, one panel per method.
+# It starts as a step, two blocks of uniform buoyancy stacked one on the other, and mixing erodes it
+# into a smooth stratification.
 
 colors = cgrad(:viridis, length(snapshots); categorical = true)
 
 for (m, (name, _)) in enumerate(methods)
-    ax = Axis(fig[1:length(snapshots), 2 + m]; xlabel = "b✶", title = name, width = 240,
-              ylabel = m == 1 ? "z★" : "", yticklabelsvisible = m == 1, titlesize = 15)
+    local ax = Axis(fig[1, m]; xlabel = "b✶", title = name, width = 200, height = 280,
+                    ylabel = m == 1 ? "z★" : "", yticklabelsvisible = m == 1, titlesize = 15)
     ylims!(ax, -H/2, H/2)
     for (s, n) in enumerate(snapshots)
         b✶, z★ = profiles[name][s]
-        lines!(ax, b✶, z★; color = colors[s], linewidth = 2,
-               label = "t = $(round(times[n], digits=1))")
+        lines!(ax, b✶, z★; color = colors[s], linewidth = 2, label = "t = $(round(times[n], digits=1))")
     end
     m == 1 && axislegend(ax; position = :lt, labelsize = 11)
 end
 
-# The last panel puts the three side by side at `t = 0`, where they disagree the most.
+# The rightmost panel of that row puts the three side by side at `t = 0`, where they disagree the most.
 # [`HeavisideIntegral`](@ref) is drawn as markers rather than a line because its `z★` takes only as many
 # distinct values as there are distinct buoyancies, which is a few dozen here against 65536 cells.
 
-styles = (:solid, :dash, :dot)
-ax0 = Axis(fig[1:length(snapshots), 6]; xlabel = "b✶", title = "t = 0, all three",
-           width = 200, yticklabelsvisible = false, titlesize = 15)
+ax0 = Axis(fig[1, length(methods) + 1]; xlabel = "b✶", title = "t = 0, all three",
+           width = 200, height = 280, yticklabelsvisible = false, titlesize = 15)
 ylims!(ax0, -H/2, H/2)
 
 b✶_r, z★_r = profiles["ThreeDimensionalSort"][1]
@@ -265,7 +249,7 @@ lines!(ax0, b✶_c, z★_c; linewidth = 2, linestyle = :dash, color = :black, la
 scatter!(ax0, b✶_h, z★_h; markersize = 9, color = :crimson, label = "HeavisideIntegral")
 axislegend(ax0; position = :lt, labelsize = 9)
 
-# The three panels are identical except while the lock is still intact, and that difference is
+# The three method panels are identical except while the lock is still intact, and that difference is
 # informative rather than an error. At `t = 0` almost every cell is tied with thousands of others at
 # one of two buoyancies, and the methods place tied cells differently.
 # [`ThreeDimensionalSort`](@ref) and [`OneDimensionalSort`](@ref) give each cell its own slot in the
@@ -275,6 +259,24 @@ axislegend(ax0; position = :lt, labelsize = 9)
 # profile: its `z★` only ever reaches the mid-heights of the two blocks, about a quarter of the depth
 # in from each boundary. Once mixing has made the buoyancy field continuous the ties vanish and all
 # three agree to within a grid cell.
+
+# The rows below show the flow those profiles come from: a vertical cross section of the buoyancy field
+# at each of the same times. The dense fluid on the left runs right along the bottom, the buoyant fluid
+# on the right runs left along the top, and the shear between them rolls up into billows that do the
+# mixing.
+
+n_cols = length(methods) + 1
+
+for (row, n) in enumerate(snapshots)
+    local ax = Axis(fig[row + 1, 1:n_cols]; ylabel = "z", width = 860, height = 215,
+                    xlabel = row == length(snapshots) ? "x" : "",
+                    xticklabelsvisible = row == length(snapshots))
+    heatmap!(ax, b_t[n]; colormap = :balance, colorrange = (-Δb/2, Δb/2))
+    text!(ax, -Lx/2 + 0.05, 0.30; text = "t = $(round(times[n], digits=1))", fontsize = 16)
+end
+
+Colorbar(fig[2:length(snapshots) + 1, n_cols + 1];
+         colormap = :balance, limits = (-Δb/2, Δb/2), label = "b")
 
 resize_to_layout!(fig)
 save("lock_release_profiles.png", fig)
