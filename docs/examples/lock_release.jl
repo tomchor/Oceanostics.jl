@@ -176,7 +176,27 @@ b✶_1d, z★_1d = profiles["OneDimensionalSort"][end]                          
 @test maximum(abs, z★_3d .- z★_1d) < 1e-12                                                #hide
 @test maximum(abs, b✶_3d .- b✶_1d) < 1e-12                                                #hide
 ## and the reference profile is, by construction, monotonic                                   #hide
-@test issorted(b✶_1d);                                                                    #hide
+@test issorted(b✶_1d)                                                                     #hide
+## The three methods describe one reference state, so although their `z★` maps differ wherever    #hide
+## cells are tied, every buoyancy-weighted integral of `z★` has to agree — that integral is `E_b`, #hide
+## and its independence from the method is the precise sense in which the three reference heights  #hide
+## are the same. Unlike the pointwise comparisons above it holds at every time, ties or not, so it #hide
+## is checked at all four snapshots rather than only once the field has gone continuous.           #hide
+for n in snapshots                                                                        #hide
+    bn, b1n = vec(Float64.(B[:, :, n])), vec(Float64.(B1[:, :, n]))                       #hide
+    E_ranked    = sum(bn  .* vec(Float64.(Z3[:, :, n])))                                  #hide
+    E_heaviside = sum(bn  .* vec(Float64.(ZH[:, :, n])))                                  #hide
+    E_column    = sum(b1n .* vec(Float64.(Z1[:, :, n])))                                  #hide
+    @test E_heaviside ≈ E_ranked rtol=1e-8                                                #hide
+    @test E_column    ≈ E_ranked rtol=1e-8                                                #hide
+    ## the two that give every cell its own slot assign exactly the same set of heights     #hide
+    @test sort(vec(Float64.(Z3[:, :, n]))) ≈ sort(vec(Float64.(Z1[:, :, n]))) atol=1e-6   #hide
+end                                                                                       #hide
+## `HeavisideIntegral` is the one that can differ pointwise, and only while ties survive: it is    #hide
+## a fifth of the depth out at `t = 0` and converges to the others as mixing removes the ties.     #hide
+Δ_hv(n) = maximum(abs, vec(Float64.(ZH[:, :, n])) .- vec(Float64.(Z3[:, :, n])))          #hide
+@test Δ_hv(snapshots[1])   > 0.2H                                                         #hide
+@test Δ_hv(snapshots[end]) < H / Nz;                                                      #hide
 
 # ## Timing the three methods
 #
