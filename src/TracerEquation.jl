@@ -192,7 +192,7 @@ end
 """
     $(SIGNATURES)
 
-Calculates the sub-grid diffusive flux in the x-direction as determined by the 
+Calculates the sub-grid diffusive flux in the x-direction as determined by the
 configured closure, using the Oceananigans kernel `diffusive_flux_x`.
 
 ```jldoctest
@@ -200,7 +200,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> closure = AnisotropicMinimumDissipation()
+julia> closure = ScalarDiffusivity();
 
 julia> model = NonhydrostaticModel(grid; closure, tracers=:a);
 
@@ -208,8 +208,8 @@ julia> DIFF_FLUX_X = TracerEquation.XDiffusiveFlux(model, :a)
 TracerXDiffusiveFlux KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: diffusive_flux_x (generic function with 15 methods)
-└── arguments: ("AnisotropicMinimumDissipation", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
-└── computes: sub-grid diffusive flux given by the configured closure
+└── arguments: ("ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+└── computes: subgrid tracer diffusion in x determined by the configured closure
 ```
 """
 function XDiffusiveFlux(model, val_tracer_index, tracer; location = (Face, Center, Center))
@@ -226,7 +226,7 @@ end
 """
     $(SIGNATURES)
 
-Calculates the sub-grid diffusive flux in the y-direction as determined by the 
+Calculates the sub-grid diffusive flux in the y-direction as determined by the
 configured closure, using the Oceananigans kernel `diffusive_flux_y`.
 
 ```jldoctest
@@ -234,7 +234,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> closure = AnisotropicMinimumDissipation()
+julia> closure = ScalarDiffusivity();
 
 julia> model = NonhydrostaticModel(grid; closure, tracers=:a);
 
@@ -242,8 +242,8 @@ julia> DIFF_FLUX_Y = TracerEquation.YDiffusiveFlux(model, :a)
 TracerYDiffusiveFlux KernelFunctionOperation at (Center, Face, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: diffusive_flux_y (generic function with 15 methods)
-└── arguments: ("AnisotropicMinimumDissipation", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
-└── computes: sub-grid diffusive flux given by the configured closure
+└── arguments: ("ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+└── computes: subgrid tracer diffusion in y determined by the configured closure
 ```
 """
 function YDiffusiveFlux(model, val_tracer_index, tracer; location = (Center, Face, Center))
@@ -260,7 +260,7 @@ end
 """
     $(SIGNATURES)
 
-Calculates the sub-grid diffusive flux in the z-direction as determined by the 
+Calculates the sub-grid diffusive flux in the z-direction as determined by the
 configured closure, using the Oceananigans kernel `diffusive_flux_z`.
 
 ```jldoctest
@@ -268,7 +268,7 @@ julia> using Oceananigans, Oceanostics
 
 julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
-julia> closure = AnisotropicMinimumDissipation()
+julia> closure = ScalarDiffusivity();
 
 julia> model = NonhydrostaticModel(grid; closure, tracers=:a);
 
@@ -276,8 +276,8 @@ julia> DIFF_FLUX_Z = TracerEquation.ZDiffusiveFlux(model, :a)
 TracerZDiffusiveFlux KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: diffusive_flux_z (generic function with 17 methods)
-└── arguments: ("AnisotropicMinimumDissipation", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
-└── computes: sub-grid diffusive flux given by the configured closure
+└── arguments: ("ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+└── computes: subgrid tracer diffusion in z determined by the configured closure
 ```
 """
 function ZDiffusiveFlux(model, val_tracer_index, tracer; location = (Center, Center, Face))
