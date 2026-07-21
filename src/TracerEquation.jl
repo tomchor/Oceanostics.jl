@@ -1,14 +1,16 @@
 module TracerEquation
 using DocStringExtensions
 
-using Oceananigans: fields, Center, KernelFunctionOperation
+using Oceananigans: fields, Center, Face, KernelFunctionOperation
 using Oceananigans.Models: HydrostaticFreeSurfaceModel
 using Oceananigans.Models.NonhydrostaticModels: div_Uc, ∇_dot_qᶜ, immersed_∇_dot_qᶜ, biogeochemical_transition
+using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 
 using Oceanostics: validate_location, CustomKFO
 
-export Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, Forcing,
-       TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing
+export Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, XDiffusiveFlux, YDiffusiveFlux, ZDiffusiveFlux, Forcing,
+       TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, 
+       TracerXDiffusiveFlux, TracerYDiffusiveFlux, TracerZDiffusiveFlux, TracerForcing
 
 # Inline function for total diffusion
 @inline total_∇_dot_qᶜ(i, j, k, grid, c, c_immersed_bc, closure, closure_fields, val_tracer_index, clock, model_fields, buoyancy) =
@@ -20,12 +22,18 @@ const Advection = CustomKFO{<:typeof(div_Uc)}
 const Diffusion = CustomKFO{<:typeof(∇_dot_qᶜ)}
 const ImmersedDiffusion = CustomKFO{<:typeof(immersed_∇_dot_qᶜ)}
 const TotalDiffusion = CustomKFO{<:typeof(total_∇_dot_qᶜ)}
+const XDiffusiveFlux = CustomKFO{<:typeof(diffusive_flux_x)}
+const YDiffusiveFlux = CustomKFO{<:typeof(diffusive_flux_y)}
+const ZDiffusiveFlux = CustomKFO{<:typeof(diffusive_flux_z)}
 const Forcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any}
 
 const TracerAdvection = Advection
 const TracerDiffusion = Diffusion
 const TracerImmersedDiffusion = ImmersedDiffusion
 const TracerTotalDiffusion = TotalDiffusion
+const TracerXDiffusiveFlux = XDiffusiveFlux
+const TracerYDiffusiveFlux = YDiffusiveFlux
+const TracerZDiffusiveFlux = ZDiffusiveFlux
 const TracerForcing = Forcing
 
 #+++ Advection
@@ -179,6 +187,108 @@ function TotalDiffusion(model, tracer_name; kwargs...)
     tracer = model.tracers[tracer_index]
     immersed_bc = tracer.boundary_conditions.immersed
     return TotalDiffusion(model, tracer, immersed_bc, model.closure, model.closure_fields, Val(tracer_index), model.clock, fields(model), model.buoyancy; kwargs...)
+end
+
+"""
+    $(SIGNATURES)
+
+Calculates the sub-grid diffusive flux in the x-direction as determined by the
+configured closure, using the Oceananigans kernel `diffusive_flux_x`.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> closure = ScalarDiffusivity();
+
+julia> model = NonhydrostaticModel(grid; closure, tracers=:a);
+
+julia> DIFF_FLUX_X = TracerEquation.XDiffusiveFlux(model, :a)
+TracerXDiffusiveFlux KernelFunctionOperation at (Face, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: diffusive_flux_x (generic function with 15 methods)
+└── arguments: ("ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+└── computes: subgrid tracer diffusion in x determined by the configured closure
+```
+"""
+function XDiffusiveFlux(model, val_tracer_index, tracer; location = (Face, Center, Center))
+    validate_location(location, "XDiffusiveFlux", (Face, Center, Center))
+    return KernelFunctionOperation{Face, Center, Center}(diffusive_flux_x, model.grid, model.closure, model.closure_fields, val_tracer_index, tracer, model.clock, fields(model), model.buoyancy)
+end
+
+function XDiffusiveFlux(model, tracer_name; kwargs...)
+    tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
+    @inbounds tracer = model.tracers[tracer_name]
+    return XDiffusiveFlux(model, Val(tracer_index), tracer; kwargs...)
+end
+
+"""
+    $(SIGNATURES)
+
+Calculates the sub-grid diffusive flux in the y-direction as determined by the
+configured closure, using the Oceananigans kernel `diffusive_flux_y`.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> closure = ScalarDiffusivity();
+
+julia> model = NonhydrostaticModel(grid; closure, tracers=:a);
+
+julia> DIFF_FLUX_Y = TracerEquation.YDiffusiveFlux(model, :a)
+TracerYDiffusiveFlux KernelFunctionOperation at (Center, Face, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: diffusive_flux_y (generic function with 15 methods)
+└── arguments: ("ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+└── computes: subgrid tracer diffusion in y determined by the configured closure
+```
+"""
+function YDiffusiveFlux(model, val_tracer_index, tracer; location = (Center, Face, Center))
+    validate_location(location, "YDiffusiveFlux", (Center, Face, Center))
+    return KernelFunctionOperation{Center, Face, Center}(diffusive_flux_y, model.grid, model.closure, model.closure_fields, val_tracer_index, tracer, model.clock, fields(model), model.buoyancy)
+end
+
+function YDiffusiveFlux(model, tracer_name; kwargs...)
+    tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
+    @inbounds tracer = model.tracers[tracer_name]
+    return YDiffusiveFlux(model, Val(tracer_index), tracer; kwargs...)
+end
+
+"""
+    $(SIGNATURES)
+
+Calculates the sub-grid diffusive flux in the z-direction as determined by the
+configured closure, using the Oceananigans kernel `diffusive_flux_z`.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> closure = ScalarDiffusivity();
+
+julia> model = NonhydrostaticModel(grid; closure, tracers=:a);
+
+julia> DIFF_FLUX_Z = TracerEquation.ZDiffusiveFlux(model, :a)
+TracerZDiffusiveFlux KernelFunctionOperation at (Center, Center, Face)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: diffusive_flux_z (generic function with 17 methods)
+└── arguments: ("ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+└── computes: subgrid tracer diffusion in z determined by the configured closure
+```
+"""
+function ZDiffusiveFlux(model, val_tracer_index, tracer; location = (Center, Center, Face))
+    validate_location(location, "ZDiffusiveFlux", (Center, Center, Face))
+    return KernelFunctionOperation{Center, Center, Face}(diffusive_flux_z, model.grid, model.closure, model.closure_fields, val_tracer_index, tracer, model.clock, fields(model), model.buoyancy)
+end
+
+function ZDiffusiveFlux(model, tracer_name; kwargs...)
+    tracer_index = findfirst(x -> x == tracer_name, keys(model.tracers))
+    @inbounds tracer = model.tracers[tracer_name]
+    return ZDiffusiveFlux(model, Val(tracer_index), tracer; kwargs...)
 end
 #---
 
