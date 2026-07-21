@@ -187,5 +187,4 @@ end
     return KernelFunctionOperation{Center, Center, Center}(minus_bz_ccc, grid, ρ, parameters)
 end
 
-
 end # module

@@ -64,7 +64,6 @@ function test_PEbuoyancytracer_equals_PElineareos(grid)
 
     return nothing
 end
-
 #---
 
 @testset "Diagnostics tests" begin

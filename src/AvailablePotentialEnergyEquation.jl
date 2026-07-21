@@ -260,7 +260,6 @@ exactly the same volume as the original one and `z✶` covers the full depth of 
 sort_buoyancy!(z✶_field, s::SortedReferenceState) = sort_buoyancy!(z✶_field, s, s.method)
 
 function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::ThreeDimensionalSort)
-
     sz   = size(z✶_field)
     work = s.workspace
     perm = s.permutation
@@ -276,7 +275,6 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::ThreeDimensionalS
 end
 
 function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::HeavisideIntegral)
-
     sz   = size(z✶_field)
     work = s.workspace
     perm = s.permutation
@@ -317,7 +315,6 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::HeavisideIntegral
 end
 
 function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::OneDimensionalSort)
-
     sz   = size(z✶_field) # (1, 1, N): the sorted column, not the model grid
     work = s.workspace
     perm = s.permutation
@@ -334,7 +331,6 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::OneDimensio
 end
 
 function compute!(z✶_field::SortedReferenceHeightField, time=nothing)
-
     s = z✶_field.operand
     compute_at!(s.buoyancy, time)
     sort_buoyancy!(z✶_field, s)
@@ -618,15 +614,12 @@ function AvailablePotentialEnergy(model; location = (Center, Center, Center), me
     return AvailablePotentialEnergy(model, reference_height(model; method, geopotential_height))
 end
 
-AvailablePotentialEnergy(model, z✶::SortedReferenceHeightField) =
-    available_potential_energy(z✶, reference_buoyancy(z✶.operand), sorted_height(z✶.operand))
+AvailablePotentialEnergy(model, z✶::SortedReferenceHeightField) = available_potential_energy(z✶, reference_buoyancy(z✶.operand), sorted_height(z✶.operand))
 
 # On the model grid the parcel's own height is the grid's; on a sorted column it has to be carried.
-available_potential_energy(z✶, b, ::Nothing) =
-    KernelFunctionOperation{Center, Center, Center}(minus_bδz✶_ccc, z✶.grid, b, z✶)
+available_potential_energy(z✶, b, ::Nothing) = KernelFunctionOperation{Center, Center, Center}(minus_bδz✶_ccc, z✶.grid, b, z✶)
 
-available_potential_energy(z✶, b, z) =
-    KernelFunctionOperation{Center, Center, Center}(minus_bδz✶_ccc, z✶.grid, b, z, z✶)
+available_potential_energy(z✶, b, z) = KernelFunctionOperation{Center, Center, Center}(minus_bδz✶_ccc, z✶.grid, b, z, z✶)
 #---
 
 end # module
