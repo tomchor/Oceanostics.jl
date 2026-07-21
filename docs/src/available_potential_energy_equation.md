@@ -98,8 +98,8 @@ z✶ = reference_height(model, method=HeavisideIntegral()) # clean cell-by-cell 
 z✶ = reference_height(model, method=OneDimensionalSort()) # the reference profile itself
 ```
 
-The [Kelvin-Helmholtz instability](@ref kelvin_helmholtz_example) example tracks the three energy
-reservoirs through a mixing event.
+The [Lock exchange](@ref lock_exchange_example) example follows the reference profile, and the energy
+split that goes with it, through a gravity current that starts as a step and ends well mixed.
 
 ## Background potential energy
 

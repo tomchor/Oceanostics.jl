@@ -152,34 +152,6 @@ w̄b̄ = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy productio
 ∫Πₖ = Integral(Πₖ)
 ∫εˡ = Integral(εˡ)
 
-# ### Available and background potential energy
-#
-# Billows do more than cascade kinetic energy. They overturn the stratification, carrying dense fluid
-# over light, and diffusion across the folded interface then mixes the two irreversibly. To separate
-# that irreversible mixing from the reversible stirring that precedes it, we split the potential energy
-# following [Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X). Sorting the buoyancy
-# field adiabatically into the state of minimum potential energy assigns every parcel a reference height
-# ``z^\star``, and the potential energy splits into
-#
-# ```math
-# \underbrace{-bz}_{E_p} = \underbrace{-b z^\star}_{E_b} + \underbrace{-b(z - z^\star)}_{E_a} ,
-# ```
-#
-# a background part ``E_b`` locked into the sorted state, which only irreversible mixing can change, and
-# an available part ``E_a`` that the flow can still trade back and forth with kinetic energy. Both are
-# built from the same reference height, so we compute ``z^\star`` once with
-# [`reference_height`](@ref) and hand it to both diagnostics:
-
-z✶ = reference_height(model)
-
-∫K   = Integral(KineticEnergyEquation.KineticEnergy(model))
-∫Eₚ  = Integral(PotentialEnergy(model))
-∫E_b = Integral(BackgroundPotentialEnergy(model, z✶))
-∫E_a = Integral(AvailablePotentialEnergy(model, z✶))
-
-# Sorting couples every cell in the domain to every other one, so `z✶` cannot be a pointwise kernel like
-# the other diagnostics: it is re-sorted from scratch each time these integrals are written out. Here
-# that is a sort of `N²` values per output, negligible next to a time step.
 
 # We use two NetCDF writers. A *snapshot* writer stores the 2D fields on a plain `TimeInterval(1)`,
 # while a *budget* writer stores only the integrated scalars on `ConsecutiveIterations(TimeInterval(1))`
@@ -195,7 +167,7 @@ simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b, w̄b̄, Πₖ,
                                               schedule=TimeInterval(1),
                                               overwrite_existing=true)
 
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫Kˡ, ∫w̄b̄, ∫Πₖ, ∫εˡ, ∫K, ∫Eₚ, ∫E_b, ∫E_a),
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫Kˡ, ∫w̄b̄, ∫Πₖ, ∫εˡ),
                                                   filename=joinpath(@__DIR__, filename * "_budget"),
                                                   schedule=ConsecutiveIterations(TimeInterval(1)),
                                                   overwrite_existing=true)
@@ -231,10 +203,6 @@ times_bud = ds_bud["time"][:]
 ∫w̄b̄_t     = ds_bud["∫w̄b̄"][:]
 ∫Πₖ_t     = ds_bud["∫Πₖ"][:]
 ∫εˡ_t     = ds_bud["∫εˡ"][:]
-∫K_t      = ds_bud["∫K"][:]
-∫Eₚ_t     = ds_bud["∫Eₚ"][:]
-∫E_b_t    = ds_bud["∫E_b"][:]
-∫E_a_t    = ds_bud["∫E_a"][:]
 close(ds_bud)
 
 i1 = 1:2:length(times_bud)-1   # primary snapshots
@@ -253,25 +221,6 @@ resid = @. -dKˡdt + w̄b̄_pair - Πₖ_pair - εˡ_pair
 using Test                              #hide
 rms(x) = √(sum(abs2, x) / length(x))    #hide
 @test rms(resid) < 0.06 * rms(dKˡdt);   #hide
-
-# For the potential energy we plot the three reservoirs against their initial values, since what the
-# instability does to them is small next to the energies themselves. The available potential energy
-# needs no offset: the initial stratification is monotonic in `z` and uniform in `x`, so it is already
-# its own sorted state and starts with none.
-
-ΔK   = ∫K_t[i1]   .- ∫K_t[1]
-ΔE_b = ∫E_b_t[i1] .- ∫E_b_t[1]
-E_a  = ∫E_a_t[i1]
-
-## The split is exact cell by cell, so the only error in the integral is the Float32 output    #hide
-@test maximum(abs, ∫Eₚ_t .- ∫E_b_t .- ∫E_a_t) < 1e-6 * maximum(abs, ∫Eₚ_t)                     #hide
-@test abs(E_a[1]) < 1e-10 * maximum(abs, ∫Eₚ_t)   # a sorted initial state holds no APE        #hide
-@test minimum(E_a) > -1e-10 * maximum(abs, ∫Eₚ_t) # the integrated APE is non-negative         #hide
-@test 1 < argmax(E_a) < length(E_a)               # APE peaks partway through: stir, then mix  #hide
-@test ΔE_b[end] > 0.3 * maximum(E_a)              # much of that APE ends up locked into E_b   #hide
-## E_b only ever rises, as the continuous equations demand: the scheme is resolved enough here   #hide
-## that its buoyancy overshoots never read to the sort as spurious unmixing                      #hide
-@test minimum(diff(ΔE_b)) > -1e-6 * maximum(abs, ∫Eₚ_t);                                        #hide
 
 
 # ## Plotting
@@ -342,19 +291,10 @@ lines!(ax_bud, t_pair, -εˡ_pair, label="−∫εˡ dV")
 lines!(ax_bud, t_pair, resid, label="residual", color=:black, linestyle=:dash)
 axislegend(ax_bud; position=:lb, labelsize=10)
 
-# The last panel tracks the three energy reservoirs through the same event.
-
-ax_pe = Axis(fig[7, 1:3]; xlabel="Time", title="Energy reservoirs (change from t = 0)", height=140)
-lines!(ax_pe, times_bud[i1], ΔK, label="Δ∫K dV")
-lines!(ax_pe, times_bud[i1], E_a, label="∫Eₐ dV")
-lines!(ax_pe, times_bud[i1], ΔE_b, label="Δ∫E_b dV")
-axislegend(ax_pe; position=:lt, labelsize=10)
-
-# Now we mark the time by placing a vertical line in the bottom panels and adding a helpful title
+# Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
 
 tₙ = @lift times[$n]
 vlines!(ax_bud, tₙ, color=:black, linestyle=:dash)
-vlines!(ax_pe, tₙ, color=:black, linestyle=:dash)
 
 title = @lift "Time = " * string(round(times[$n], digits=2))
 fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);
@@ -370,31 +310,10 @@ end
 
 # ![](kelvin_helmholtz.mp4)
 #
-# The sixth panel shows the volume-integrated coarse-grained kinetic-energy budget. As the billows
+# The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget. As the billows
 # grow and overturn, the filtered flow mostly loses kinetic energy to potential energy (`∫w̄b̄ dV < 0`) and
 # feeds the subfilter scales through the cross-scale flux (`−∫Πₖ dV`), while the coarse-grained viscous
 # dissipation `∫εˡ dV` stays comparatively small at this Reynolds number. The residual (dashed), the
 # sum of the negative tendency `−d(∫Kˡ)/dt` and the three source terms, stays small. As in the
 # [Two-dimensional turbulence example](@ref two_d_turbulence_example), the centered scheme contributes no
 # numerical dissipation of its own, so the budget closes against the explicit `∫εˡ dV` alone with a negligible residual.
-#
-# The last panel follows the same event through the three energy reservoirs, and shows where that
-# potential energy goes. Kinetic energy drains away and available potential energy takes its place
-# almost one for one while the billow rolls up, which is the reversible half of the exchange: the flow
-# is lifting dense fluid and could in principle get all of it back. `∫Eₐ dV` peaks near `t ≈ 51`; past
-# that the overturns break down, it decays, and the background potential energy climbs. That climb is
-# what the split is for. It is the irreversible part, the record of buoyancy that diffusion has
-# actually mixed across density surfaces, and by the end of the run it has taken up a little over half
-# of the peak available potential energy. The renewed rise in `∫Eₐ dV` after `t ≈ 90` comes with kinetic
-# energy still draining, so the shear is converting kinetic energy into available potential energy
-# again rather than recovering any of what was mixed.
-#
-# Note that `∫E_b dV` never decreases. That is what the continuous equations demand, since only
-# irreversible mixing can move the background state, but it is not automatic on a grid. A centered
-# scheme carries no numerical dissipation and is correspondingly free to overshoot, and buoyancy
-# extrema beyond the initial range `±B₀` read to the sort as fluid denser and lighter than anything the
-# flow started with, which pushes `E_b` down. Here the overshoot stays mild, peaking around `1.5 B₀` at
-# `t ≈ 69` while the billow breaks down, and never reverses the rise. That monotonicity is a useful
-# check on resolution: the background potential energy is the standard measure of spurious diapycnal
-# transport precisely because it is sensitive to this, and it registers such an artifact when the
-# kinetic-energy budget above is entirely blind to it.
