@@ -58,7 +58,7 @@ conjure_time_step_wizard!(simulation, IterationInterval(5), cfl = 0.7)
 
 using Oceanostics
 
-progress = ProgressMessengers.TimedMessenger()
+progress = ProgressMessengers.BasicMessenger()
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
 
 # ## Diagnostics
