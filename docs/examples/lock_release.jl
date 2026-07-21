@@ -1,7 +1,7 @@
-# # [Lock exchange and the sorted reference state](@id lock_exchange_example)
+# # [Lock release and the sorted reference state](@id lock_release_example)
 #
-# In this example we run a two-dimensional lock exchange and use it to watch the *sorted reference
-# state* evolve. A lock exchange is about the sharpest test of a reference-state calculation there is:
+# In this example we run a two-dimensional lock release and use it to watch the *sorted reference
+# state* evolve. A lock release is about the sharpest test of a reference-state calculation there is:
 # it starts as two blocks of uniform buoyancy sitting side by side, which is as far from a sorted state
 # as a stratified fluid can get, and it ends well mixed. Along the way we build the reference profile
 # with each of the three methods Oceanostics offers and time them against each other.
@@ -19,7 +19,7 @@
 using Oceananigans
 
 # We work with nondimensional quantities. The buoyancy jump across the lock `Δb` and the channel depth
-# `H` set the buoyancy velocity `U = √(Δb H) / 2`, which is the classic lock-exchange front speed, and
+# `H` set the buoyancy velocity `U = √(Δb H) / 2`, which is the classic lock-release front speed, and
 # from it the Reynolds number fixes the viscosity. The channel is four times as long as it is deep:
 
 Δb = 1      # buoyancy jump across the lock
@@ -50,8 +50,8 @@ model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
 # without changing the fact that almost every cell starts at one of two buoyancies:
 
 δ = 2 * minimum_xspacing(grid)          # interface thickness, two cells
-lock_exchange(x, z) = (Δb / 2) * tanh(x / δ)
-set!(model, b = lock_exchange)
+lock_release(x, z) = (Δb / 2) * tanh(x / δ)
+set!(model, b = lock_release)
 
 simulation = Simulation(model, Δt = 0.1 * minimum_xspacing(grid) / U, stop_time = 20)
 conjure_time_step_wizard!(simulation, IterationInterval(5), cfl = 0.7)
@@ -86,7 +86,7 @@ b✶_column    = reference_buoyancy(z★_column)
 ∫E_a = Integral(AvailablePotentialEnergy(model, z★_ranked))
 
 using NCDatasets
-filename = "lock_exchange"
+filename = "lock_release"
 
 # A single `NetCDFWriter` copes with the two grids: the model-grid fields are written against `x` and
 # `z`, and the column's against its own `N`-cell vertical axis.
@@ -277,14 +277,14 @@ axislegend(ax0; position = :lt, labelsize = 9)
 # three agree to within a grid cell.
 
 resize_to_layout!(fig)
-save("lock_exchange_profiles.png", fig)
+save("lock_release_profiles.png", fig)
 nothing #hide
 
-# ![](lock_exchange_profiles.png)
+# ![](lock_release_profiles.png)
 
 # ## Energetics
 #
-# A lock exchange is the textbook case of the split this module computes. The initial state holds no
+# A lock release is the textbook case of the split this module computes. The initial state holds no
 # kinetic energy and a great deal of available potential energy; the collapse converts `Eₐ` into motion,
 # and the billows then mix irreversibly, which shows up as a rise in `E_b`. Because the channel is
 # closed, the fronts reflect off the end walls and the whole box seiches, so `∫Eₐ dV` does not decay
@@ -303,15 +303,15 @@ close(ds)
 @test minimum(diff(E_b_t)) > -1e-6 * maximum(abs, E_b_t);   # and only ever raised it         #hide
 
 fig2 = Figure(size = (700, 300))
-ax = Axis(fig2[1, 1]; xlabel = "Time", ylabel = "Energy", title = "Lock-exchange energetics")
+ax = Axis(fig2[1, 1]; xlabel = "Time", ylabel = "Energy", title = "Lock-release energetics")
 lines!(ax, t_e, E_a_t, label = "∫Eₐ dV")
 lines!(ax, t_e, E_b_t .- E_b_t[1], label = "Δ∫E_b dV")
 axislegend(ax; position = :rc, labelsize = 12)
 
-save("lock_exchange_energetics.png", fig2)
+save("lock_release_energetics.png", fig2)
 nothing #hide
 
-# ![](lock_exchange_energetics.png)
+# ![](lock_release_energetics.png)
 #
 # The two curves separate the reversible part of the flow from the irreversible one. `∫Eₐ dV` swings up
 # and down with the seiche, since sloshing lifts dense fluid back up and stores energy that the flow can

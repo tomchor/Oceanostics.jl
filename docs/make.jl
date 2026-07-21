@@ -18,7 +18,7 @@ examples = [
     "Spatial filtering"            => "spatial_filtering", # Spatial filtering examples (~5 min)
     "Kelvin-Helmholtz instability" => "kelvin_helmholtz", # Filtered KE budget (~8 min)
     "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability", # SFS budget (~6 min)
-    "Lock exchange"                => "lock_exchange", # APE and reference profiles calculation (~ 5 min)
+    "Lock release"                 => "lock_release", # APE and reference profiles calculation (~ 5 min)
     "Tilted bottom boundary layer" => "tilted_bottom_boundary_layer", # Nothing (~3 min)
     ]
 

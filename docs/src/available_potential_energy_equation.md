@@ -52,7 +52,7 @@ potential energy the fluid would still hold once every parcel had been let down 
 
 Plotting the buoyancy against the reference height it was assigned gives the reference profile
 ``b^\star(z^\star)``: the stratification the flow would have if all of its available potential energy
-were released. The [Lock exchange](@ref lock_exchange_example) example follows that profile through a
+were released. The [Lock release](@ref lock_release_example) example follows that profile through a
 gravity current, from the step it starts as to the smooth stratification mixing leaves behind, and
 builds it with each of the three methods below so their costs and their differences can be compared
 directly.
@@ -98,7 +98,7 @@ z✶ = reference_height(model, method=HeavisideIntegral()) # clean cell-by-cell 
 z✶ = reference_height(model, method=OneDimensionalSort()) # the reference profile itself
 ```
 
-The [Lock exchange](@ref lock_exchange_example) example follows the reference profile, and the energy
+The [Lock release](@ref lock_release_example) example follows the reference profile, and the energy
 split that goes with it, through a gravity current that starts as a step and ends well mixed.
 
 ## Background potential energy
