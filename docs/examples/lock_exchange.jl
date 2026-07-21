@@ -63,27 +63,27 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
 
 # ## Diagnostics
 #
-# We build one `z✶` per method and write all of them, so the reference state comes out of the run
+# We build one `z⋆` per method and write all of them, so the reference state comes out of the run
 # rather than being rebuilt afterwards. They are ordinary `Field`s that re-sort themselves whenever
 # they are computed, so an output writer can simply be handed them.
 #
 # What each method gives you to write differs, and that difference is the same one the figures below
 # show. The two model-grid methods produce a *map* of the reference height, one value per cell, on the
-# model grid. [`OneDimensionalSort`](@ref) instead produces the sorted column itself, so its `z✶` and
+# model grid. [`OneDimensionalSort`](@ref) instead produces the sorted column itself, so its `z⋆` and
 # the buoyancy that goes with it are already the profile, in order, and need no post-processing at all.
 
 b = model.tracers.b
 
-z✶_ranked    = sorted_reference_height(model, method = ThreeDimensionalSort())
-z✶_heaviside = sorted_reference_height(model, method = HeavisideIntegral())
-z✶_column    = sorted_reference_height(model, method = OneDimensionalSort())
-b✶_column    = sorted_buoyancy(z✶_column)
+z⋆_ranked    = sorted_reference_height(model, method = ThreeDimensionalSort())
+z⋆_heaviside = sorted_reference_height(model, method = HeavisideIntegral())
+z⋆_column    = sorted_reference_height(model, method = OneDimensionalSort())
+b✶_column    = sorted_buoyancy(z⋆_column)
 
 # Both energies are built from the same reference height, so we share one rather than letting each
 # diagnostic sort the domain for itself.
 
-∫E_b = Integral(BackgroundPotentialEnergy(model, z✶_ranked))
-∫E_a = Integral(AvailablePotentialEnergy(model, z✶_ranked))
+∫E_b = Integral(BackgroundPotentialEnergy(model, z⋆_ranked))
+∫E_a = Integral(AvailablePotentialEnergy(model, z⋆_ranked))
 
 using NCDatasets
 filename = "lock_exchange"
@@ -92,7 +92,7 @@ filename = "lock_exchange"
 # `z`, and the column's against its own `N`-cell vertical axis.
 
 simulation.output_writers[:fields] = NetCDFWriter(model,
-                                                  (; b, z✶_ranked, z✶_heaviside, z✶_column, b✶_column),
+                                                  (; b, z⋆_ranked, z⋆_heaviside, z⋆_column, b✶_column),
                                                   filename = joinpath(@__DIR__, filename),
                                                   schedule = TimeInterval(0.5),
                                                   overwrite_existing = true)
@@ -115,8 +115,8 @@ run!(simulation)
 # all of its available potential energy were released.
 #
 # Everything needed is already in the file. For the column the profile is written as it stands. For the
-# two model-grid methods, `z✶` and `b` are both maps over the cells, so pairing them and ordering by
-# `z✶` recovers the same profile; that reordering is all the "post-processing" amounts to.
+# two model-grid methods, `z⋆` and `b` are both maps over the cells, so pairing them and ordering by
+# `z⋆` recovers the same profile; that reordering is all the "post-processing" amounts to.
 
 using Oceananigans.Fields: interior
 
@@ -126,13 +126,13 @@ b_t = FieldTimeSeries(filepath, "b")     # for the heatmaps below
 ds = NCDataset(filepath)
 times = ds["time"][:]
 B  = ds["b"][:, :, :]                    # (x, z, time); y is Flat, so it is dropped
-Z3 = ds["z✶_ranked"][:, :, :]
-ZH = ds["z✶_heaviside"][:, :, :]
-Z1 = ds["z✶_column"][:, :, :]            # (1, N, time): the column keeps the model's Flat y, dropped here
+Z3 = ds["z⋆_ranked"][:, :, :]
+ZH = ds["z⋆_heaviside"][:, :, :]
+Z1 = ds["z⋆_column"][:, :, :]            # (1, N, time): the column keeps the model's Flat y, dropped here
 B1 = ds["b✶_column"][:, :, :]
 close(ds)
 
-## pair a reference-height map with the buoyancy map and order by z✶
+## pair a reference-height map with the buoyancy map and order by z⋆
 mapped_profile(Z, n) = (h = vec(Float64.(Z[:, :, n])); p = sortperm(h);
                         (vec(Float64.(B[:, :, n]))[p], h[p]))
 
@@ -146,7 +146,7 @@ methods = ("ThreeDimensionalSort" => n -> mapped_profile(Z3, n),
            "HeavisideIntegral"    => n -> mapped_profile(ZH, n),
            "OneDimensionalSort"   => column_profile)
 
-## `profiles[name][k]` is the `(b✶, z✶)` pair for method `name` at the `k`-th snapshot
+## `profiles[name][k]` is the `(b✶, z⋆)` pair for method `name` at the `k`-th snapshot
 profiles = Dict(name => [build(n) for n in snapshots] for (name, build) in methods);
 
 # All three describe the same reference state, so wherever the buoyancy field is continuous their
@@ -164,16 +164,16 @@ using Test                                                                      
 for n in snapshots                                                                        #hide
     @test sort(vec(Float64.(B1[:, :, n]))) ≈ sort(vec(Float64.(B[:, :, n]))) atol=1e-5 #hide
 end                                                                                       #hide
-z✶_3d_0,  z✶_hv_0 = profiles["ThreeDimensionalSort"][1][2], profiles["HeavisideIntegral"][1][2]   #hide
-b✶_3d, z✶_3d = profiles["ThreeDimensionalSort"][end]                                      #hide
-b✶_hv, z✶_hv = profiles["HeavisideIntegral"][end]                                         #hide
-b✶_1d, z✶_1d = profiles["OneDimensionalSort"][end]                                        #hide
+z⋆_3d_0,  z⋆_hv_0 = profiles["ThreeDimensionalSort"][1][2], profiles["HeavisideIntegral"][1][2]   #hide
+b✶_3d, z⋆_3d = profiles["ThreeDimensionalSort"][end]                                      #hide
+b✶_hv, z⋆_hv = profiles["HeavisideIntegral"][end]                                         #hide
+b✶_1d, z⋆_1d = profiles["OneDimensionalSort"][end]                                        #hide
 ## the two model-grid methods differ by a quarter of the depth while the lock is intact       #hide
-@test maximum(abs, z✶_hv_0 .- z✶_3d_0) > 0.2H                                             #hide
+@test maximum(abs, z⋆_hv_0 .- z⋆_3d_0) > 0.2H                                             #hide
 ## and agree to the grid scale once mixing has made the field continuous                      #hide
-@test maximum(abs, z✶_hv .- z✶_3d) < H / Nz                                               #hide
+@test maximum(abs, z⋆_hv .- z⋆_3d) < H / Nz                                               #hide
 ## the column carries exactly what the ranked sort assigns, by construction                   #hide
-@test maximum(abs, z✶_3d .- z✶_1d) < 1e-12                                                #hide
+@test maximum(abs, z⋆_3d .- z⋆_1d) < 1e-12                                                #hide
 @test maximum(abs, b✶_3d .- b✶_1d) < 1e-12                                                #hide
 ## and the reference profile is, by construction, monotonic                                   #hide
 @test issorted(b✶_1d);                                                                    #hide
@@ -187,15 +187,15 @@ b✶_1d, z✶_1d = profiles["OneDimensionalSort"][end]                          
 # carries the buoyancy and the original heights along into the column. On this grid that works out at
 # roughly 20% and 60% over the ranked sort respectively, so the differences are real without being
 # order-of-magnitude: if all you need are the volume integrals, the default is the cheapest route to
-# them. We time a `compute!` of `z✶` on the final snapshot, taking the best of several runs after a
+# them. We time a `compute!` of `z⋆` on the final snapshot, taking the best of several runs after a
 # warm-up:
 
 using Printf
 using Oceananigans.Fields: compute!
 
-function time_sort(z✶; samples = 10)
-    compute!(z✶)                                    # warm up: compile out of band
-    return minimum(@elapsed(compute!(z✶)) for _ in 1:samples)
+function time_sort(z⋆; samples = 10)
+    compute!(z⋆)                                    # warm up: compile out of band
+    return minimum(@elapsed(compute!(z⋆)) for _ in 1:samples)
 end
 
 sorting_methods = ("ThreeDimensionalSort" => ThreeDimensionalSort(),
@@ -237,18 +237,18 @@ colors = cgrad(:viridis, length(snapshots); categorical = true)
 
 for (m, (name, _)) in enumerate(methods)
     ax = Axis(fig[1:length(snapshots), 2 + m]; xlabel = "b✶", title = name, width = 240,
-              ylabel = m == 1 ? "z✶" : "", yticklabelsvisible = m == 1, titlesize = 15)
+              ylabel = m == 1 ? "z⋆" : "", yticklabelsvisible = m == 1, titlesize = 15)
     ylims!(ax, -H/2, H/2)
     for (s, n) in enumerate(snapshots)
-        b✶, z✶ = profiles[name][s]
-        lines!(ax, b✶, z✶; color = colors[s], linewidth = 2,
+        b✶, z⋆ = profiles[name][s]
+        lines!(ax, b✶, z⋆; color = colors[s], linewidth = 2,
                label = "t = $(round(times[n], digits=1))")
     end
     m == 1 && axislegend(ax; position = :lt, labelsize = 11)
 end
 
 # The last panel puts the three side by side at `t = 0`, where they disagree the most.
-# [`HeavisideIntegral`](@ref) is drawn as markers rather than a line because its `z✶` takes only as many
+# [`HeavisideIntegral`](@ref) is drawn as markers rather than a line because its `z⋆` takes only as many
 # distinct values as there are distinct buoyancies, which is a few dozen here against 65536 cells.
 
 styles = (:solid, :dash, :dot)
@@ -256,13 +256,13 @@ ax0 = Axis(fig[1:length(snapshots), 6]; xlabel = "b✶", title = "t = 0, all thr
            width = 200, yticklabelsvisible = false, titlesize = 15)
 ylims!(ax0, -H/2, H/2)
 
-b✶_r, z✶_r = profiles["ThreeDimensionalSort"][1]
-b✶_c, z✶_c = profiles["OneDimensionalSort"][1]
-b✶_h, z✶_h = profiles["HeavisideIntegral"][1]
+b✶_r, z⋆_r = profiles["ThreeDimensionalSort"][1]
+b✶_c, z⋆_c = profiles["OneDimensionalSort"][1]
+b✶_h, z⋆_h = profiles["HeavisideIntegral"][1]
 
-lines!(ax0, b✶_r, z✶_r; linewidth = 5, color = (:steelblue, 0.9), label = "ThreeDimensionalSort")
-lines!(ax0, b✶_c, z✶_c; linewidth = 2, linestyle = :dash, color = :black, label = "OneDimensionalSort")
-scatter!(ax0, b✶_h, z✶_h; markersize = 9, color = :crimson, label = "HeavisideIntegral")
+lines!(ax0, b✶_r, z⋆_r; linewidth = 5, color = (:steelblue, 0.9), label = "ThreeDimensionalSort")
+lines!(ax0, b✶_c, z⋆_c; linewidth = 2, linestyle = :dash, color = :black, label = "OneDimensionalSort")
+scatter!(ax0, b✶_h, z⋆_h; markersize = 9, color = :crimson, label = "HeavisideIntegral")
 axislegend(ax0; position = :lt, labelsize = 9)
 
 # The three panels are identical except while the lock is still intact, and that difference is
@@ -270,9 +270,9 @@ axislegend(ax0; position = :lt, labelsize = 9)
 # one of two buoyancies, and the methods place tied cells differently.
 # [`ThreeDimensionalSort`](@ref) and [`OneDimensionalSort`](@ref) give each cell its own slot in the
 # stack, so they draw the true step spanning the full depth. [`HeavisideIntegral`](@ref) instead
-# collapses each buoyancy class onto the mid-height of the layer it fills, which is what makes `z✶` a
+# collapses each buoyancy class onto the mid-height of the layer it fills, which is what makes `z⋆` a
 # function of buoyancy alone and a clean field to map, but leaves it unable to represent a step as a
-# profile: its `z✶` only ever reaches the mid-heights of the two blocks, about a quarter of the depth
+# profile: its `z⋆` only ever reaches the mid-heights of the two blocks, about a quarter of the depth
 # in from each boundary. Once mixing has made the buoyancy field continuous the ties vanish and all
 # three agree to within a grid cell.
 
