@@ -168,9 +168,9 @@ w̄b̄ = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy productio
 # a background part ``E_b`` locked into the sorted state, which only irreversible mixing can change, and
 # an available part ``E_a`` that the flow can still trade back and forth with kinetic energy. Both are
 # built from the same reference height, so we compute ``z^\star`` once with
-# [`sorted_reference_height`](@ref) and hand it to both diagnostics:
+# [`reference_height`](@ref) and hand it to both diagnostics:
 
-z✶ = sorted_reference_height(model)
+z✶ = reference_height(model)
 
 ∫K   = Integral(KineticEnergyEquation.KineticEnergy(model))
 ∫Eₚ  = Integral(PotentialEnergy(model))

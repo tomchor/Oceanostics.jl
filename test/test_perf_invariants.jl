@@ -173,7 +173,7 @@ end
     @testset "AvailablePotentialEnergyEquation" begin
         # The sorting behind `z✶` is a whole-field operation done in `compute!`, but the kernels that
         # read the resulting field still have to be allocation-free per cell like every other one.
-        z✶ = AvailablePotentialEnergyEquation.sorted_reference_height(model)
+        z✶ = AvailablePotentialEnergyEquation.reference_height(model)
         test_kfo_invariants("BackgroundPotentialEnergy", AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶))
         test_kfo_invariants("AvailablePotentialEnergy",  AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶))
     end

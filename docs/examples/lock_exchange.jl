@@ -74,10 +74,10 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
 
 b = model.tracers.b
 
-z★_ranked    = sorted_reference_height(model, method = ThreeDimensionalSort())
-z★_heaviside = sorted_reference_height(model, method = HeavisideIntegral())
-z★_column    = sorted_reference_height(model, method = OneDimensionalSort())
-b✶_column    = sorted_buoyancy(z★_column)
+z★_ranked    = reference_height(model, method = ThreeDimensionalSort())
+z★_heaviside = reference_height(model, method = HeavisideIntegral())
+z★_column    = reference_height(model, method = OneDimensionalSort())
+b✶_column    = reference_buoyancy(z★_column)
 
 # Both energies are built from the same reference height, so we share one rather than letting each
 # diagnostic sort the domain for itself.
@@ -202,7 +202,7 @@ sorting_methods = ("ThreeDimensionalSort" => ThreeDimensionalSort(),
                    "HeavisideIntegral"    => HeavisideIntegral(),
                    "OneDimensionalSort"   => OneDimensionalSort())
 
-timings = [name => time_sort(sorted_reference_height(b_t[end]; method)) for (name, method) in sorting_methods]
+timings = [name => time_sort(reference_height(b_t[end]; method)) for (name, method) in sorting_methods]
 
 for (name, t) in timings
     @printf("%-22s %7.2f ms   (%d cells)\n", name, 1e3t, prod(size(grid)))

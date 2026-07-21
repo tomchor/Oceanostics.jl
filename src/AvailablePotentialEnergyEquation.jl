@@ -2,7 +2,7 @@ module AvailablePotentialEnergyEquation
 
 using DocStringExtensions
 
-export BackgroundPotentialEnergy, AvailablePotentialEnergy, sorted_reference_height, sorted_buoyancy
+export BackgroundPotentialEnergy, AvailablePotentialEnergy, reference_height, reference_buoyancy
 export ThreeDimensionalSort, HeavisideIntegral, OneDimensionalSort
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -63,7 +63,7 @@ end
 """
     $(TYPEDEF)
 
-Operand of the `Field` returned by [`sorted_reference_height`](@ref). It carries the buoyancy `Field`
+Operand of the `Field` returned by [`reference_height`](@ref). It carries the buoyancy `Field`
 that gets sorted, the (time-independent) cell volumes and domain geometry, and the workspaces that
 every `compute!` reuses. Sorting couples every cell in the domain to every other one, so unlike every
 other diagnostic in Oceanostics it cannot be expressed as a `KernelFunctionOperation`. This plays the
@@ -89,7 +89,7 @@ const SortedReferenceHeightField = Field{<:Any, <:Any, <:Any, <:SortedReferenceS
 """
     $(TYPEDEF)
 
-Supertype of the three strategies [`sorted_reference_height`](@ref) offers for turning a buoyancy
+Supertype of the three strategies [`reference_height`](@ref) offers for turning a buoyancy
 field into a reference height: [`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref) and
 [`OneDimensionalSort`](@ref). They agree on every volume integral built from `z✶`, and differ along
 two axes rather than one. [`OneDimensionalSort`](@ref) is the only one that moves the answer off the
@@ -153,7 +153,7 @@ in the sorted column rather than by position in the flow. Requires every cell of
 hold the same volume, since otherwise the column's cell boundaries would move as the flow evolves.
 """
 struct OneDimensionalSort{B, H, V} <: AbstractSortingMethod
-    sorted_buoyancy :: B
+    reference_buoyancy :: B
     sorted_height :: H
     source_height :: V
 end
@@ -167,7 +167,7 @@ Base.summary(::OneDimensionalSort) = "OneDimensionalSort"
 """
     $(TYPEDEF)
 
-Operand of the `Field` [`sorted_buoyancy`](@ref) returns for [`OneDimensionalSort`](@ref). The column's
+Operand of the `Field` [`reference_buoyancy`](@ref) returns for [`OneDimensionalSort`](@ref). The column's
 buoyancy is filled as part of sorting `z✶`, not by a computation of its own, so this exists to make
 that dependency explicit: `compute!` on the buoyancy delegates to the parent reference height, which
 does the sort and writes both. Without it the buoyancy would be a bare `Field` that `compute!` silently
@@ -195,7 +195,7 @@ end
     $(SIGNATURES)
 
 Return the buoyancy `Field` that pairs with the reference height `z✶` cell by cell, so that
-`(z✶, sorted_buoyancy(z✶))` is the reference profile the sort produced.
+`(z✶, reference_buoyancy(z✶))` is the reference profile the sort produced.
 
 Under [`OneDimensionalSort`](@ref) that is the sorted profile `b✶` living on the column alongside
 `z✶`. Under [`ThreeDimensionalSort`](@ref) and [`HeavisideIntegral`](@ref) it is the model's own
@@ -206,24 +206,24 @@ The returned field recomputes itself, so it is safe to hand straight to an outpu
 sorts the parent `z✶` if that has not already happened at this time. It shares its data with the column
 the sort fills, so it costs no extra memory and stays consistent with `z✶` by construction.
 """
-sorted_buoyancy(z✶::SortedReferenceHeightField) =
-    sorted_buoyancy(z✶, z✶.operand.method, sorted_buoyancy(z✶.operand))
+reference_buoyancy(z✶::SortedReferenceHeightField) =
+    reference_buoyancy(z✶, z✶.operand.method, reference_buoyancy(z✶.operand))
 
 # On the model grid the buoyancy is the model's own field, which already recomputes itself, so it is
 # handed back untouched. On the sorted column it is storage the sort writes into, so it is wrapped in a
 # field that shares that storage and knows to trigger the sort.
-sorted_buoyancy(z✶, ::AbstractSortingMethod, buoyancy) = buoyancy
+reference_buoyancy(z✶, ::AbstractSortingMethod, buoyancy) = buoyancy
 
-sorted_buoyancy(z✶, ::OneDimensionalSort, buoyancy) =
+reference_buoyancy(z✶, ::OneDimensionalSort, buoyancy) =
     Field{Center, Center, Center}(buoyancy.grid; data = buoyancy.data,
                                   operand = SortedBuoyancyState(z✶), status = FieldStatus())
 
 # The buoyancy the diagnostics read, and the height they measure a parcel's displacement from. On the
 # model grid both come straight from the flow (`nothing` height means "use the grid's own `Zᶜᶜᶜ`");
 # on the sorted column both have to be carried in sorted order.
-sorted_buoyancy(s::SortedReferenceState) = sorted_buoyancy(s.method, s.buoyancy)
-sorted_buoyancy(::AbstractSortingMethod, buoyancy) = buoyancy
-sorted_buoyancy(method::OneDimensionalSort, buoyancy) = method.sorted_buoyancy
+reference_buoyancy(s::SortedReferenceState) = reference_buoyancy(s.method, s.buoyancy)
+reference_buoyancy(::AbstractSortingMethod, buoyancy) = buoyancy
+reference_buoyancy(method::OneDimensionalSort, buoyancy) = method.reference_buoyancy
 
 sorted_height(s::SortedReferenceState) = sorted_height(s.method)
 sorted_height(::AbstractSortingMethod) = nothing
@@ -323,7 +323,7 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::OneDimensio
     perm = s.permutation
     ΔV   = rank_by_buoyancy!(s)
 
-    interior(method.sorted_buoyancy) .= reshape(work[perm], sz)                # buoyancy, densest first
+    interior(method.reference_buoyancy) .= reshape(work[perm], sz)                # buoyancy, densest first
     interior(method.sorted_height)   .= reshape(method.source_height[perm], sz) # where each parcel came from
 
     cumsum!(work, ΔV)
@@ -354,7 +354,7 @@ buoyancy field is rearranged adiabatically into the state of minimum potential e
 built yourself so a pair of them can share one sort:
 
 ```julia
-z✶ = sorted_reference_height(model)
+z✶ = reference_height(model)
 E_b = BackgroundPotentialEnergy(model, z✶)
 E_a = AvailablePotentialEnergy(model, z✶)
 ```
@@ -388,7 +388,7 @@ model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
 set!(model, b = (x, y, z) -> z)
 
 # with eq. (11), a horizontally uniform stable stratification is exactly its own sorted state
-z✶ = sorted_reference_height(model, method=HeavisideIntegral())
+z✶ = reference_height(model, method=HeavisideIntegral())
 interior(z✶) ≈ reshape(znodes(grid, Center()), 1, 1, 4) .* ones(4, 4, 4)
 
 # output
@@ -401,7 +401,7 @@ and defaults the same way, so the two diagnostics always sort and weight the sam
 nonlinear equation of state, prefer a fixed value (`geopotential_height = 0` for σ₀): sorting is only
 meaningful for a variable the flow conserves, which in-situ density is not.
 
-A second method, `sorted_reference_height(b::Field)`, sorts a `Field` you supply instead of the model's
+A second method, `reference_height(b::Field)`, sorts a `Field` you supply instead of the model's
 buoyancy, which is what you want for a reference state built from a coarse-grained buoyancy `filter(b)`.
 It sorts in ascending order, so `b` has to be buoyancy-like (large where the fluid is light); pass
 `-ρ` rather than `ρ` for a density.
@@ -413,7 +413,7 @@ grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Per
 model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
 set!(model, b = (x, y, z) -> z)
 
-z✶ = sorted_reference_height(model)
+z✶ = reference_height(model)
 
 # a stably stratified field is already sorted, so z✶ stays within half a cell of z
 maximum(abs, interior(z✶) .- reshape(znodes(grid, Center()), 1, 1, 4)) <= 0.5 * 0.25
@@ -423,16 +423,16 @@ maximum(abs, interior(z✶) .- reshape(znodes(grid, Center()), 1, 1, 4)) <= 0.5 
 true
 ```
 """
-function sorted_reference_height(model; method = ThreeDimensionalSort(),
+function reference_height(model; method = ThreeDimensionalSort(),
                                  geopotential_height = model_geopotential_height(model))
 
     isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
     validate_sortable_grid(model.grid)
 
-    return sorted_reference_height(buoyancy_field(model, model.buoyancy, geopotential_height); method)
+    return reference_height(buoyancy_field(model, model.buoyancy, geopotential_height); method)
 end
 
-function sorted_reference_height(b::Field; method = ThreeDimensionalSort())
+function reference_height(b::Field; method = ThreeDimensionalSort())
 
     grid = b.grid
     validate_sortable_grid(grid)
@@ -470,7 +470,7 @@ end
 # `ThreeDimensionalSort` and `HeavisideIntegral` write `z✶` onto the model grid; `OneDimensionalSort` writes it
 # onto the sorted column it allocates below.
 sorting_grid(::AbstractSortingMethod, grid) = grid
-sorting_grid(method::OneDimensionalSort, grid) = method.sorted_buoyancy.grid
+sorting_grid(method::OneDimensionalSort, grid) = method.reference_buoyancy.grid
 
 build_sorting_method(method::AbstractSortingMethod, grid, cell_volume, horizontal_area, z_bottom) = method
 
@@ -528,7 +528,7 @@ volume,
 the potential energy the fluid would retain if it were rearranged adiabatically into the state of
 minimum potential energy ([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X), eq. 22).
 `z✶` is the reference height that rearrangement assigns to each parcel, computed by
-[`sorted_reference_height`](@ref); pass one explicitly to share a single sort with
+[`reference_height`](@ref); pass one explicitly to share a single sort with
 [`AvailablePotentialEnergy`](@ref), or pass `method` through to choose how it is built
 ([`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref) or [`OneDimensionalSort`](@ref); `Integral(E_b)` is
 the same either way).
@@ -563,11 +563,11 @@ function BackgroundPotentialEnergy(model; location = (Center, Center, Center), m
 
     validate_location(location, "BackgroundPotentialEnergy")
 
-    return BackgroundPotentialEnergy(model, sorted_reference_height(model; method, geopotential_height))
+    return BackgroundPotentialEnergy(model, reference_height(model; method, geopotential_height))
 end
 
 BackgroundPotentialEnergy(model, z✶::SortedReferenceHeightField) =
-    KernelFunctionOperation{Center, Center, Center}(minus_bz✶_ccc, z✶.grid, sorted_buoyancy(z✶.operand), z✶)
+    KernelFunctionOperation{Center, Center, Center}(minus_bz✶_ccc, z✶.grid, reference_buoyancy(z✶.operand), z✶)
 
 """
     $(SIGNATURES)
@@ -580,7 +580,7 @@ Return a `KernelFunctionOperation` computing the available potential energy per 
 
 the part of the potential energy that an adiabatic rearrangement can release into kinetic energy
 ([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X), eq. 23). `z✶` is the reference
-height computed by [`sorted_reference_height`](@ref); pass one explicitly to share a single sort with
+height computed by [`reference_height`](@ref); pass one explicitly to share a single sort with
 [`BackgroundPotentialEnergy`](@ref), or pass `method` through to choose how it is built.
 
 The decomposition `Eₚ = E_b + Eₐ` holds cell by cell, so up to roundoff `Integral(Eₐ)` is
@@ -615,11 +615,11 @@ function AvailablePotentialEnergy(model; location = (Center, Center, Center), me
 
     validate_location(location, "AvailablePotentialEnergy")
 
-    return AvailablePotentialEnergy(model, sorted_reference_height(model; method, geopotential_height))
+    return AvailablePotentialEnergy(model, reference_height(model; method, geopotential_height))
 end
 
 AvailablePotentialEnergy(model, z✶::SortedReferenceHeightField) =
-    available_potential_energy(z✶, sorted_buoyancy(z✶.operand), sorted_height(z✶.operand))
+    available_potential_energy(z✶, reference_buoyancy(z✶.operand), sorted_height(z✶.operand))
 
 # On the model grid the parcel's own height is the grid's; on a sorted column it has to be carried.
 available_potential_energy(z✶, b, ::Nothing) =

@@ -27,7 +27,7 @@ column up. `OneDimensionalSort` already stores it that way; the two model-grid m
 function reference_profile(z✶)
 
     heights   = Array(vec(interior(z✶)))
-    buoyancy  = Array(vec(interior(sorted_buoyancy(z✶))))
+    buoyancy  = Array(vec(interior(reference_buoyancy(z✶))))
     ascending = sortperm(heights)
 
     return heights[ascending], buoyancy[ascending]
@@ -39,7 +39,7 @@ function test_available_potential_energy_errors(model)
 
     @test_throws ArgumentError AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model)
     @test_throws ArgumentError AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model)
-    @test_throws ArgumentError AvailablePotentialEnergyEquation.sorted_reference_height(model)
+    @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model)
 
     return nothing
 end
@@ -48,7 +48,7 @@ function test_background_and_available_pe(model; geopotential_height = nothing)
 
     kwargs = isnothing(geopotential_height) ? (;) : (; geopotential_height)
 
-    z✶  = AvailablePotentialEnergyEquation.sorted_reference_height(model; kwargs...)
+    z✶  = AvailablePotentialEnergyEquation.reference_height(model; kwargs...)
     Eₚ  = PotentialEnergyEquation.PotentialEnergy(model; kwargs...)
     E_b = AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)
     E_a = AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)
@@ -89,7 +89,7 @@ function test_available_pe_analytic()
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = reshape([1.0, -1.0], 1, 1, 2)) # statically unstable: light below, dense above
 
-    z✶ = AvailablePotentialEnergyEquation.sorted_reference_height(model)
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model)
     @allowscalar @test interior(z✶)[1, 1, :] ≈ [-0.25, -0.75]
 
     @test volume_integral(PotentialEnergyEquation.PotentialEnergy(model))               ≈ +0.25
@@ -98,7 +98,7 @@ function test_available_pe_analytic()
 
     # Flipping the column makes it statically stable, hence already sorted, hence free of available PE
     set!(model, b = reshape([-1.0, 1.0], 1, 1, 2))
-    z✶ = AvailablePotentialEnergyEquation.sorted_reference_height(model)
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model)
     @allowscalar @test interior(z✶)[1, 1, :] ≈ [-0.75, -0.25]
     @test volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)) ≈
           volume_integral(PotentialEnergyEquation.PotentialEnergy(model))
@@ -132,7 +132,7 @@ function test_reference_state_is_recomputed(grid)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = (x, y, z) -> z + 0.5 * sin(6z)) # statically unstable in places, so unsorted
 
-    z✶   = AvailablePotentialEnergyEquation.sorted_reference_height(model)
+    z✶   = AvailablePotentialEnergyEquation.reference_height(model)
     ∫E_b = Field(Integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)))
     ∫Eₚ  = Field(Integral(PotentialEnergyEquation.PotentialEnergy(model)))
 
@@ -169,7 +169,7 @@ function test_sorting_methods_agree(grid)
         uniform_volumes = minimum(zspacings(grid)) ≈ maximum(zspacings(grid))
         method isa OneDimensionalSort && !uniform_volumes && continue
 
-        z✶  = AvailablePotentialEnergyEquation.sorted_reference_height(model; method)
+        z✶  = AvailablePotentialEnergyEquation.reference_height(model; method)
         ∫E_b = volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶))
         ∫E_a = volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶))
 
@@ -200,13 +200,13 @@ function test_heaviside_is_constant_on_isopycnals(grid)
     heights = interior(Field(height_operation(grid)))
     Δz_max = maximum(zspacings(grid))
 
-    z✶ = AvailablePotentialEnergyEquation.sorted_reference_height(model, method=HeavisideIntegral())
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
     @test interior(z✶) ≈ heights
     @test maximum(abs, interior(Field(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)))) <
           sqrt(eps(eltype(grid)))
 
     # The ranked heights stay within half a cell of the parcel's own height, and no closer
-    z✶_ranked = AvailablePotentialEnergyEquation.sorted_reference_height(model, method=ThreeDimensionalSort())
+    z✶_ranked = AvailablePotentialEnergyEquation.reference_height(model, method=ThreeDimensionalSort())
     @test maximum(abs, interior(z✶_ranked) .- heights) ≤ Δz_max / 2
 
     return nothing
@@ -221,8 +221,8 @@ function test_one_dimensional_sort_column(grid)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = (x, y, z) -> z + 0.4 * sin(9x) * cos(7z))
 
-    z✶ = AvailablePotentialEnergyEquation.sorted_reference_height(model, method=OneDimensionalSort())
-    b✶ = sorted_buoyancy(z✶)
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=OneDimensionalSort())
+    b✶ = reference_buoyancy(z✶)
 
     @test size(z✶) == (1, 1, prod(size(grid)))
     @test issorted(Array(vec(interior(b✶))))  # densest at the bottom
@@ -252,12 +252,12 @@ function test_one_dimensional_sort_matches_topology()
         model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
         set!(model, b = b₀)
 
-        z✶ = AvailablePotentialEnergyEquation.sorted_reference_height(model, method=OneDimensionalSort())
+        z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=OneDimensionalSort())
 
         @test topology(z✶.grid) == topology(grid)
         @test size(z✶) == (1, 1, prod(size(grid)))
         # The integral is unaffected by the topology fix, so it still matches the model-grid method
-        z✶_ranked = AvailablePotentialEnergyEquation.sorted_reference_height(model, method=ThreeDimensionalSort())
+        z✶_ranked = AvailablePotentialEnergyEquation.reference_height(model, method=ThreeDimensionalSort())
         @test volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)) ≈
               volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶_ranked))
     end
@@ -267,7 +267,7 @@ end
 
 """
 The column's buoyancy is filled as a side effect of sorting `z✶`, not by a computation of its own, so
-the field [`sorted_buoyancy`](@ref) hands back has to know to trigger that sort. Otherwise an output
+the field [`reference_buoyancy`](@ref) hands back has to know to trigger that sort. Otherwise an output
 writer given it on its own would silently keep writing the previous output's profile, which looks
 entirely plausible: it is a real sorted profile, just of the wrong step. Fetching it is what a writer
 does, so that is what is exercised here.
@@ -277,8 +277,8 @@ function test_sorted_buoyancy_triggers_the_sort(grid)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = (x, y, z) -> z + 0.3 * sin(9x))
 
-    z✶ = AvailablePotentialEnergyEquation.sorted_reference_height(model, method=OneDimensionalSort())
-    b✶ = sorted_buoyancy(z✶)
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=OneDimensionalSort())
+    b✶ = reference_buoyancy(z✶)
 
     # Move the flow on and fetch `b✶` alone, never touching `z✶`, exactly as a writer would
     set!(model, b = (x, y, z) -> 2z - 0.4 * cos(7x))
@@ -290,7 +290,7 @@ function test_sorted_buoyancy_triggers_the_sort(grid)
 
     # The model-grid methods already hand back a field that recomputes itself, so it is passed through
     for method in (ThreeDimensionalSort(), HeavisideIntegral())
-        @test sorted_buoyancy(AvailablePotentialEnergyEquation.sorted_reference_height(model; method)) === model.tracers.b
+        @test reference_buoyancy(AvailablePotentialEnergyEquation.reference_height(model; method)) === model.tracers.b
     end
 
     return nothing
@@ -300,7 +300,7 @@ end
 function test_one_dimensional_sort_rejects_stretched_grids(grid)
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
-    @test_throws ArgumentError AvailablePotentialEnergyEquation.sorted_reference_height(model, method=OneDimensionalSort())
+    @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model, method=OneDimensionalSort())
 
     return nothing
 end
@@ -343,7 +343,7 @@ function test_sorting_methods_reproduce_a_known_profile()
     ∫E_b_expected = sum(@. -b✶_expected * z✶_expected * ΔV)
 
     for method in (ThreeDimensionalSort(), HeavisideIntegral(), OneDimensionalSort())
-        z✶ = AvailablePotentialEnergyEquation.sorted_reference_height(model; method)
+        z✶ = AvailablePotentialEnergyEquation.reference_height(model; method)
         heights, buoyancies = reference_profile(z✶)
 
         @test heights ≈ z✶_expected
@@ -362,7 +362,7 @@ function test_sorting_methods_reproduce_a_known_profile()
     tied_depth = maximum(v -> count(==(v), tied), unique(tied)) * Δz✶
     profiles, energies = [], Float64[]
     for method in (ThreeDimensionalSort(), HeavisideIntegral(), OneDimensionalSort())
-        z✶ = AvailablePotentialEnergyEquation.sorted_reference_height(model; method)
+        z✶ = AvailablePotentialEnergyEquation.reference_height(model; method)
         push!(profiles, reference_profile(z✶))
         push!(energies, volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)))
     end
@@ -382,7 +382,7 @@ function test_sorting_rejects_immersed_boundaries(grid)
     immersed_grid = ImmersedBoundaryGrid(grid, GridFittedBottom((x, y) -> -0.5))
     model = NonhydrostaticModel(immersed_grid; buoyancy=BuoyancyTracer(), tracers=:b)
 
-    @test_throws ArgumentError AvailablePotentialEnergyEquation.sorted_reference_height(model)
+    @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model)
     @test_throws ArgumentError AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model)
     @test_throws ArgumentError AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model)
 
