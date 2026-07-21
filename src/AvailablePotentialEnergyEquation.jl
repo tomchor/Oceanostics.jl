@@ -6,7 +6,7 @@ export BackgroundPotentialEnergy, AvailablePotentialEnergy, reference_height, re
 export ThreeDimensionalSort, HeavisideIntegral, OneDimensionalSort
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceananigans.Architectures: architecture, on_architecture
+using Oceananigans.Architectures: CPU, architecture, on_architecture
 using Oceananigans.BoundaryConditions: fill_halo_regions!
 using Oceananigans.Fields: Field, CenterField, FieldStatus, compute_at!, interior, set_status!
 using Oceananigans.ImmersedBoundaries: ImmersedBoundaryGrid
@@ -429,7 +429,6 @@ function reference_height(model; method = ThreeDimensionalSort(),
 end
 
 function reference_height(b::Field; method = ThreeDimensionalSort())
-
     grid = b.grid
     validate_sortable_grid(grid)
 
@@ -439,7 +438,9 @@ function reference_height(b::Field; method = ThreeDimensionalSort())
 
     cell_volume = flat_grid_metric(grid, Vᶜᶜᶜ)
 
-    z_bottom = convert(FT, znode(1, 1, 1, grid, Center(), Center(), Face()))
+    # A stretched grid keeps its coordinates on the device, so the bottom face is read off a CPU copy
+    # of the grid rather than by indexing into GPU memory.
+    z_bottom = convert(FT, znode(1, 1, 1, on_architecture(CPU(), grid), Center(), Center(), Face()))
     # Taking the horizontal area from the total volume (rather than from the surface area) makes the
     # sorted column fill the domain's depth exactly, which is what keeps ∫Eₚ = ∫E_b for a sorted field.
     horizontal_area = convert(FT, sum(cell_volume) / grid.Lz)
