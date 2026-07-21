@@ -12,7 +12,7 @@ using Oceananigans.Fields: Field, CenterField, FieldStatus, compute_at!, interio
 using Oceananigans.ImmersedBoundaries: ImmersedBoundaryGrid
 using Oceananigans.Models: seawater_density, model_geopotential_height
 using Oceananigans.Operators: Vᶜᶜᶜ
-using Oceananigans.Grids: Center, Face, RectilinearGrid, Periodic, Bounded, znode
+using Oceananigans.Grids: Center, Face, RectilinearGrid, Flat, znode, topology
 using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceanostics: validate_location, CustomKFO
 
@@ -142,7 +142,9 @@ struct HeavisideIntegral <: AbstractSortingMethod end
 Return the sorted column itself, on its own `1×1×N` grid with `N = Nx*Ny*Nz` cells that span the
 domain's full horizontal area. The cells are reshaped rather than re-counted: each holds the same
 volume as a cell of the model grid, so volume integrals over the column match those over the model
-grid, and `z✶` is simply the column's own cell centers.
+grid, and `z✶` is simply the column's own cell centers. The column keeps the model grid's topology,
+collapsing each horizontal direction to a single cell, so a `Flat` direction stays `Flat` rather than
+turning into a spurious periodic axis in any output.
 
 This is the representation to reach for when you want the reference state as a profile, say to plot
 `b✶(z✶)` or to differentiate it into a reference stratification. The parcels' original positions are
@@ -482,12 +484,20 @@ function build_sorting_method(::OneDimensionalSort, grid, cell_volume, horizonta
                              range over [$ΔV_min, $ΔV_max]. Use `ThreeDimensionalSort()` or `HeavisideIntegral()` on a \
                              grid with variable spacing."))
 
+    # The column collapses the two horizontal directions to a single cell and stacks the sorted cells
+    # in the vertical, but it keeps the model grid's topology so that, e.g., a `Flat` horizontal stays
+    # `Flat` rather than becoming a spurious periodic axis in the output. A `Flat` direction takes no
+    # size entry and no coordinate; the others get a single cell spanning the domain.
+    tx, ty, tz = topology(grid)
     N = length(cell_volume)
+    column_size = Tuple(s for (s, T) in zip((1, 1, N), (tx, ty, tz)) if T !== Flat)
+
+    x_kw = tx === Flat ? (;) : (; x = (0, grid.Lx))
+    y_kw = ty === Flat ? (;) : (; y = (0, grid.Ly))
+
     column = RectilinearGrid(architecture(grid), eltype(grid);
-                             size = (1, 1, N), halo = (1, 1, 1),
-                             x = (0, grid.Lx), y = (0, grid.Ly),
-                             z = (z_bottom, z_bottom + grid.Lz),
-                             topology = (Periodic, Periodic, Bounded))
+                             size = column_size, topology = (tx, ty, tz),
+                             z = (z_bottom, z_bottom + grid.Lz), x_kw..., y_kw...)
 
     return OneDimensionalSort(CenterField(column), CenterField(column), flat_grid_metric(grid, Zᶜᶜᶜ))
 end

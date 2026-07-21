@@ -4,6 +4,7 @@ using CUDA: has_cuda_gpu, @allowscalar
 using Oceananigans
 using Oceananigans.BuoyancyFormulations: Zᶜᶜᶜ
 using Oceananigans.Fields: compute_at!
+using Oceananigans.Grids: topology
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
 
 using Oceanostics
@@ -228,6 +229,38 @@ function test_one_dimensional_sort_column(grid)
     @test issorted(Array(vec(interior(z✶))))
     # Reshaping the cells conserves volume, so the column integrates like the model grid does
     @test volume_integral(b✶) ≈ volume_integral(model.tracers.b)
+    # The column keeps the model grid's topology rather than forcing one of its own
+    @test topology(z✶.grid) == topology(grid)
+
+    return nothing
+end
+
+"""
+The column inherits the model grid's topology, so a `Flat` horizontal direction stays `Flat` rather
+than becoming a spurious periodic axis. Exercised on grids the shared `grids` fixture does not cover:
+a 2D grid `Flat` in one horizontal, and a single-column grid `Flat` in both.
+"""
+function test_one_dimensional_sort_matches_topology()
+
+    grids_and_setters = ((RectilinearGrid(arch, size=(6, 8), x=(-1, 1), z=(-1, 0),
+                                          topology=(Bounded, Flat, Bounded)),
+                          (x, z) -> z + 0.3 * sin(7x)),
+                         (RectilinearGrid(arch, size=10, z=(-1, 0), topology=(Flat, Flat, Bounded)),
+                          z -> z + 0.2 * sin(6z)))
+
+    for (grid, b₀) in grids_and_setters
+        model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+        set!(model, b = b₀)
+
+        z✶ = AvailablePotentialEnergyEquation.sorted_reference_height(model, method=OneDimensionalSort())
+
+        @test topology(z✶.grid) == topology(grid)
+        @test size(z✶) == (1, 1, prod(size(grid)))
+        # The integral is unaffected by the topology fix, so it still matches the model-grid method
+        z✶_ranked = AvailablePotentialEnergyEquation.sorted_reference_height(model, method=ThreeDimensionalSort())
+        @test volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)) ≈
+              volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶_ranked))
+    end
 
     return nothing
 end
@@ -403,4 +436,7 @@ end
 
     @info "  Testing the sorting methods against a synthetic profile with a known sorted state"
     test_sorting_methods_reproduce_a_known_profile()
+
+    @info "  Testing that `OneDimensionalSort` inherits the model grid's topology"
+    test_one_dimensional_sort_matches_topology()
 end

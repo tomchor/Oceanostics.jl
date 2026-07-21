@@ -128,8 +128,8 @@ times = ds["time"][:]
 B  = ds["b"][:, :, :]                    # (x, z, time); y is Flat, so it is dropped
 Z3 = ds["z✶_ranked"][:, :, :]
 ZH = ds["z✶_heaviside"][:, :, :]
-Z1 = ds["z✶_column"][:, :, :, :]         # (1, 1, N, time) on the column's own grid
-B1 = ds["b✶_column"][:, :, :, :]
+Z1 = ds["z✶_column"][:, :, :]            # (1, N, time): the column keeps the model's Flat y, dropped here
+B1 = ds["b✶_column"][:, :, :]
 close(ds)
 
 ## pair a reference-height map with the buoyancy map and order by z✶
@@ -137,7 +137,7 @@ mapped_profile(Z, n) = (h = vec(Float64.(Z[:, :, n])); p = sortperm(h);
                         (vec(Float64.(B[:, :, n]))[p], h[p]))
 
 ## the column is already ordered, so it is read straight off
-column_profile(n) = (vec(Float64.(B1[:, :, :, n])), vec(Float64.(Z1[:, :, :, n])))
+column_profile(n) = (vec(Float64.(B1[:, :, n])), vec(Float64.(Z1[:, :, n])))
 
 snapshot_times = [0, 2, 5, 10, 20]
 snapshots = [argmin(abs.(times .- t)) for t in snapshot_times]
@@ -162,7 +162,7 @@ using Test                                                                      
 ## `b✶_column` is written *during* the run, so each snapshot has to be a permutation of `b` at the  #hide
 ## same time. This is what catches a reference state that lags an output behind the flow.           #hide
 for n in snapshots                                                                        #hide
-    @test sort(vec(Float64.(B1[:, :, :, n]))) ≈ sort(vec(Float64.(B[:, :, n]))) atol=1e-5 #hide
+    @test sort(vec(Float64.(B1[:, :, n]))) ≈ sort(vec(Float64.(B[:, :, n]))) atol=1e-5 #hide
 end                                                                                       #hide
 z✶_3d_0,  z✶_hv_0 = profiles["ThreeDimensionalSort"][1][2], profiles["HeavisideIntegral"][1][2]   #hide
 b✶_3d, z✶_3d = profiles["ThreeDimensionalSort"][end]                                      #hide
