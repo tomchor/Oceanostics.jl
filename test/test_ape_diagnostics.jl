@@ -1,5 +1,5 @@
 using Test
-using CUDA: has_cuda_gpu, @allowscalar
+using CUDA: has_cuda_gpu
 
 using Oceananigans
 using Oceananigans.BuoyancyFormulations: Zᶜᶜᶜ
@@ -90,7 +90,7 @@ function test_available_pe_analytic()
     set!(model, b = reshape([1.0, -1.0], 1, 1, 2)) # statically unstable: light below, dense above
 
     z✶ = AvailablePotentialEnergyEquation.reference_height(model)
-    @allowscalar @test interior(z✶)[1, 1, :] ≈ [-0.25, -0.75]
+    @test Array(vec(interior(z✶))) ≈ [-0.25, -0.75]
 
     @test volume_integral(PotentialEnergyEquation.PotentialEnergy(model))               ≈ +0.25
     @test volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)) ≈ -0.25
@@ -99,7 +99,7 @@ function test_available_pe_analytic()
     # Flipping the column makes it statically stable, hence already sorted, hence free of available PE
     set!(model, b = reshape([-1.0, 1.0], 1, 1, 2))
     z✶ = AvailablePotentialEnergyEquation.reference_height(model)
-    @allowscalar @test interior(z✶)[1, 1, :] ≈ [-0.75, -0.25]
+    @test Array(vec(interior(z✶))) ≈ [-0.75, -0.25]
     @test volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)) ≈
           volume_integral(PotentialEnergyEquation.PotentialEnergy(model))
     @test volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)) ≈ 0 atol=1e-14
@@ -130,7 +130,10 @@ every `compute!` rather than baked in when the diagnostic is constructed. Mixing
 function test_reference_state_is_recomputed(grid)
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
-    set!(model, b = (x, y, z) -> z + 0.5 * sin(6z)) # statically unstable in places, so unsorted
+    # A sorted state is a function of z alone, so the horizontal term is what makes this one unsorted
+    # whatever the grid. A purely vertical wiggle is not enough: sampled on the stretched grid's six
+    # levels, `z + 0.5sin(6z)` comes out monotonic, hence already sorted, hence free of available PE.
+    set!(model, b = (x, y, z) -> z + 0.5 * sin(6z) + 0.2 * sin(7x))
 
     z✶   = AvailablePotentialEnergyEquation.reference_height(model)
     ∫E_b = Field(Integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)))
