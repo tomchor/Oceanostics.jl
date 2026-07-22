@@ -82,10 +82,7 @@ z^\star(\boldsymbol{x}) = \frac{1}{A} \int H\!\left(\rho(\boldsymbol{x}') - \rho
 with the Heaviside step function ``H`` taking the value ``1/2`` where the two densities are equal.
 That half-weight gives every cell of a given buoyancy the same ``z^\star``, the mid-height of the
 layer that buoyancy class fills in the sorted column, which makes ``z^\star`` a function of buoyancy
-alone and constant on isopycnals. A horizontally uniform,
-statically stable stratification then gives ``z^\star = z`` and ``E_a = 0`` cell by cell rather than
-only in the integral, so this is the method to use for local maps. It costs a couple of extra passes
-over the sorted cells to find the tied runs.
+alone and constant on isopycnals.
 
 
 ```julia
