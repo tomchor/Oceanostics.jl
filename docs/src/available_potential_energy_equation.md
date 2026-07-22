@@ -57,7 +57,7 @@ shared height, so ``z^\star`` spreads over a grid cell wherever the stratificati
 uniform. Crucially, this method may leave small horizontal buyoancy gradients in the reference state,
 which goes against the idea of a reference state being horizontally uniform
 
-[`OneDimensionalSort`](@ref) is similar to [`ThreeDimensionalSort`](@ref) but returns the cells reorganized
+[`VerticalSort`](@ref) is similar to [`ThreeDimensionalSort`](@ref) but returns the cells reorganized
 into a single column. To achieve this the cells are flattened such that their volume remains the same, but their
 horizontal area matches the domain's horizontal area. This has the advantage that the resulting reference
 state (correctly) has no horizontal structure. The downside is that the results land on a different grid.
@@ -66,7 +66,7 @@ Namely a ``1 \times 1 \times N`` grid whose ``N = N_x N_y N_z`` cells span the d
 [`ProfileLookup`](@ref) gives each cell the height of the slot whose buoyancy matches its own, found by
 binary search into a sorted profile. Cells are matched by value rather than by identity, so it is the
 one method whose profile need not have come from the field being diagnosed. It reproduces on the model
-grid what the [`OneDimensionalSort`](@ref) column holds, without calling that method to do it.
+grid what the [`VerticalSort`](@ref) column holds, without calling that method to do it.
 
 ```julia
 z✶ = reference_height(model, method=ProfileLookup())            # sort this field, as the others do
@@ -98,7 +98,7 @@ Sorting couples every cell in the domain to every other one, so unlike the point
 cost is not linear in the number of cells. All four methods pay for the same `sortperm!`, which is
 ``\mathcal{O}(N \log N)``; what separates them is the work done around it.
 [`HeavisideIntegral`](@ref) makes extra passes over the sorted cells to find the tied runs,
-[`ProfileLookup`](@ref) adds a binary search per cell, and [`OneDimensionalSort`](@ref) carries the
+[`ProfileLookup`](@ref) adds a binary search per cell, and [`VerticalSort`](@ref) carries the
 buoyancy and the original heights into the column.
 
 To measure that, build the same synthetic field — a linear stratification plus noise, so no two cells
@@ -122,7 +122,7 @@ cells   = collect(Ns .^ 2)   # a Vector, so Makie can plot it directly
 methods = ("ThreeDimensionalSort" => ThreeDimensionalSort(),
            "HeavisideIntegral"    => HeavisideIntegral(),
            "ProfileLookup"        => ProfileLookup(),
-           "OneDimensionalSort"   => OneDimensionalSort())
+           "VerticalSort"         => VerticalSort())
 
 ## best of several runs, after a warm-up so compilation stays out of the measurement
 function time_sort(N, method; samples = 7)
@@ -187,5 +187,5 @@ Oceanostics.AvailablePotentialEnergyEquation.AbstractSortingMethod
 Oceanostics.AvailablePotentialEnergyEquation.ThreeDimensionalSort
 Oceanostics.AvailablePotentialEnergyEquation.HeavisideIntegral
 Oceanostics.AvailablePotentialEnergyEquation.ProfileLookup
-Oceanostics.AvailablePotentialEnergyEquation.OneDimensionalSort
+Oceanostics.AvailablePotentialEnergyEquation.VerticalSort
 ```

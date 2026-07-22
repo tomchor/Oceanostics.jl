@@ -3,7 +3,7 @@ module AvailablePotentialEnergyEquation
 using DocStringExtensions
 
 export BackgroundPotentialEnergy, AvailablePotentialEnergy, reference_height, reference_buoyancy
-export ThreeDimensionalSort, HeavisideIntegral, OneDimensionalSort, ProfileLookup
+export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Architectures: CPU, architecture, on_architecture
@@ -92,8 +92,8 @@ const SortedReferenceHeightField = Field{<:Any, <:Any, <:Any, <:SortedReferenceS
 
 Supertype of the four strategies [`reference_height`](@ref) offers for turning a buoyancy
 field into a reference height: [`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref),
-[`ProfileLookup`](@ref) and [`OneDimensionalSort`](@ref). They agree on every volume integral built
-from `z✶`, and differ along two axes rather than one. [`OneDimensionalSort`](@ref) is the only one
+[`ProfileLookup`](@ref) and [`VerticalSort`](@ref). They agree on every volume integral built
+from `z✶`, and differ along two axes rather than one. [`VerticalSort`](@ref) is the only one
 that moves the answer off the model grid, onto a sorted column; the other three all leave `z✶` on the
 model grid and differ instead in where they place cells of equal buoyancy.
 
@@ -109,7 +109,7 @@ abstract type AbstractSortingMethod end
 
 Give every cell the height of its own slot in the sorted column: rank the cells by buoyancy, stack
 them from the bottom of the domain, and read off where each one lands. `z✶` comes back on the model
-grid, which is what the name contrasts with [`OneDimensionalSort`](@ref); note that
+grid, which is what the name contrasts with [`VerticalSort`](@ref); note that
 [`HeavisideIntegral`](@ref) also answers on the model grid and differs over ties instead. This is the
 default.
 
@@ -158,12 +158,12 @@ carried along, so [`AvailablePotentialEnergy`](@ref) still works, but its result
 in the sorted column rather than by position in the flow. Requires every cell of the model grid to
 hold the same volume, since otherwise the column's cell boundaries would move as the flow evolves.
 """
-struct OneDimensionalSort{B, H} <: AbstractSortingMethod
+struct VerticalSort{B, H} <: AbstractSortingMethod
     reference_buoyancy :: B
     sorted_height :: H
 end
 
-OneDimensionalSort() = OneDimensionalSort(nothing, nothing)
+VerticalSort() = VerticalSort(nothing, nothing)
 
 """
     $(TYPEDEF)
@@ -178,7 +178,7 @@ it:
   - `ProfileLookup()` sorts the field's own buoyancy, exactly as the other methods do. This
     reproduces the same `z✶` those methods assign, up to which slot of a tied run is picked.
   - `ProfileLookup(z✶_column)` takes the profile from a reference height built with
-    [`OneDimensionalSort`](@ref), and reads it back onto the model grid. The column is recomputed
+    [`VerticalSort`](@ref), and reads it back onto the model grid. The column is recomputed
     first, so the profile still tracks the flow.
   - `ProfileLookup(b✶, z✶)` takes any paired buoyancy and height, as vectors or `Field`s, ordered
     from the densest fluid up. This is the form to use for a profile held fixed in time, or taken
@@ -204,14 +204,14 @@ ProfileLookup(b✶, z✶) = ProfileLookup((b✶, z✶))
 
 Base.summary(::ThreeDimensionalSort) = "ThreeDimensionalSort"
 Base.summary(::HeavisideIntegral) = "HeavisideIntegral"
-Base.summary(::OneDimensionalSort) = "OneDimensionalSort"
+Base.summary(::VerticalSort) = "VerticalSort"
 Base.summary(::ProfileLookup{Nothing}) = "ProfileLookup"
 Base.summary(::ProfileLookup) = "ProfileLookup (external profile)"
 
 """
     $(TYPEDEF)
 
-Operand of the `Field` [`reference_buoyancy`](@ref) returns for [`OneDimensionalSort`](@ref). The column's
+Operand of the `Field` [`reference_buoyancy`](@ref) returns for [`VerticalSort`](@ref). The column's
 buoyancy is filled as part of sorting `z✶`, not by a computation of its own, so this exists to make
 that dependency explicit: `compute!` on the buoyancy delegates to the parent reference height, which
 does the sort and writes both. Without it the buoyancy would be a bare `Field` that `compute!` silently
@@ -241,7 +241,7 @@ end
 Return the buoyancy `Field` that pairs with the reference height `z✶` cell by cell, so that
 `(z✶, reference_buoyancy(z✶))` is the reference profile the sort produced.
 
-Under [`OneDimensionalSort`](@ref) that is the sorted profile `b✶` living on the column alongside
+Under [`VerticalSort`](@ref) that is the sorted profile `b✶` living on the column alongside
 `z✶`. Under [`ThreeDimensionalSort`](@ref) and [`HeavisideIntegral`](@ref) it is the model's own
 buoyancy, which already pairs with `z✶` cell by cell since both live on the model grid; ordering
 those pairs by `z✶` recovers the same profile the column stores directly.
@@ -258,7 +258,7 @@ reference_buoyancy(z✶::SortedReferenceHeightField) =
 # field that shares that storage and knows to trigger the sort.
 reference_buoyancy(z✶, ::AbstractSortingMethod, buoyancy) = buoyancy
 
-reference_buoyancy(z✶, ::OneDimensionalSort, buoyancy) =
+reference_buoyancy(z✶, ::VerticalSort, buoyancy) =
     Field{Center, Center, Center}(buoyancy.grid; data = buoyancy.data,
                                   operand = SortedBuoyancyState(z✶), status = FieldStatus())
 
@@ -267,11 +267,11 @@ reference_buoyancy(z✶, ::OneDimensionalSort, buoyancy) =
 # on the sorted column both have to be carried in sorted order.
 reference_buoyancy(s::SortedReferenceState) = reference_buoyancy(s.method, s.buoyancy)
 reference_buoyancy(::AbstractSortingMethod, buoyancy) = buoyancy
-reference_buoyancy(method::OneDimensionalSort, buoyancy) = method.reference_buoyancy
+reference_buoyancy(method::VerticalSort, buoyancy) = method.reference_buoyancy
 
 sorted_height(s::SortedReferenceState) = sorted_height(s.method)
 sorted_height(::AbstractSortingMethod) = nothing
-sorted_height(method::OneDimensionalSort) = method.sorted_height
+sorted_height(method::VerticalSort) = method.sorted_height
 #---
 
 """
@@ -422,7 +422,7 @@ profile_vector(p) = vec(interior(p))
     $(SIGNATURES)
 
 Return `(b✶, z✶)` for the profile a [`ProfileLookup`](@ref) was given: the sorted buoyancy and the
-height paired with it, densest first. A reference height built with [`OneDimensionalSort`](@ref)
+height paired with it, densest first. A reference height built with [`VerticalSort`](@ref)
 carries both already, so it is unpacked; a pair is taken as it stands.
 """
 profile_arrays(z✶::SortedReferenceHeightField) = (profile_vector(reference_buoyancy(z✶)), profile_vector(z✶))
@@ -434,7 +434,7 @@ profile_arrays(p::Tuple) = (profile_vector(p[1]), profile_vector(p[2]))
 Recover the slot volumes of an externally supplied profile, which gives only heights. The slot faces
 are the midpoints between neighbouring `z✶`, closed off by the bottom and top of the domain, so the
 slots tile the depth exactly however the profile is spaced. For a profile of equal-volume slots (what
-[`OneDimensionalSort`](@ref) produces) this recovers their thickness exactly.
+[`VerticalSort`](@ref) produces) this recovers their thickness exactly.
 """
 function profile_slot_volumes(s::SortedReferenceState, z)
 
@@ -503,7 +503,7 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::ProfileLook
     return z✶_field
 end
 
-function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::OneDimensionalSort)
+function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::VerticalSort)
     sz   = size(z✶_field) # (1, 1, N): the sorted column, not the model grid
     work = s.workspace
     perm = s.permutation
@@ -561,7 +561,7 @@ the domain, and it is re-sorted on every `compute!`, so writing it (or anything 
 a simulation tracks the evolving flow, at a cost that grows like `N log N` in the number of cells. It
 holds three `Nx*Ny*Nz` workspace arrays for its lifetime, and each sort allocates a handful more as
 temporaries: measured on `65536` cells that is 1.5 such arrays for [`ThreeDimensionalSort`](@ref), 3.5
-for [`OneDimensionalSort`](@ref) and 5.8 for [`HeavisideIntegral`](@ref), which builds the most
+for [`VerticalSort`](@ref) and 5.8 for [`HeavisideIntegral`](@ref), which builds the most
 intermediates. The `N log N` sort still dominates the runtime, so this shows up as allocation churn
 rather than as wall-clock.
 
@@ -583,7 +583,7 @@ and `∫Eₐ dV` do not depend on the choice:
     back onto the model grid, matched by value rather than by cell identity, so it is the one method
     that does not need the profile to have come from the field being diagnosed. Tied cells take the
     first slot of their run, which makes `z✶` a function of buoyancy alone as above.
-  - [`OneDimensionalSort`](@ref) returns the sorted column itself, on a `1×1×N` grid of cells that span
+  - [`VerticalSort`](@ref) returns the sorted column itself, on a `1×1×N` grid of cells that span
     the domain's horizontal area, which is the form to use for a reference profile.
 
 Where they differ is `z✶`, and so `E_b`: the placement of tied cells is the only freedom they have,
@@ -682,20 +682,20 @@ function flat_grid_metric(grid, metric)
     return flat
 end
 
-# `ThreeDimensionalSort` and `HeavisideIntegral` write `z✶` onto the model grid; `OneDimensionalSort` writes it
+# `ThreeDimensionalSort` and `HeavisideIntegral` write `z✶` onto the model grid; `VerticalSort` writes it
 # onto the sorted column it allocates below.
 sorting_grid(::AbstractSortingMethod, grid) = grid
-sorting_grid(method::OneDimensionalSort, grid) = method.reference_buoyancy.grid
+sorting_grid(method::VerticalSort, grid) = method.reference_buoyancy.grid
 
 build_sorting_method(method::AbstractSortingMethod, grid, cell_volume, horizontal_area, z_bottom) = method
 
-function build_sorting_method(::OneDimensionalSort, grid, cell_volume, horizontal_area, z_bottom)
+function build_sorting_method(::VerticalSort, grid, cell_volume, horizontal_area, z_bottom)
 
     # The column's cell boundaries sit at the cumulative volume of the sorted cells. They may only be
     # baked into a grid if that stacking cannot change, which needs every cell to hold the same volume.
     ΔV_max, ΔV_min = maximum(cell_volume), minimum(cell_volume)
     ΔV_max - ΔV_min > sqrt(eps(eltype(cell_volume))) * ΔV_max &&
-        throw(ArgumentError("`OneDimensionalSort` needs every cell of the grid to hold the same volume, but they \
+        throw(ArgumentError("`VerticalSort` needs every cell of the grid to hold the same volume, but they \
                              range over [$ΔV_min, $ΔV_max]. Use `ThreeDimensionalSort()` or `HeavisideIntegral()` on a \
                              grid with variable spacing."))
 
@@ -714,7 +714,7 @@ function build_sorting_method(::OneDimensionalSort, grid, cell_volume, horizonta
                              size = column_size, topology = (tx, ty, tz),
                              z = (z_bottom, z_bottom + grid.Lz), x_kw..., y_kw...)
 
-    return OneDimensionalSort(CenterField(column), CenterField(column))
+    return VerticalSort(CenterField(column), CenterField(column))
 end
 #---
 #---
@@ -745,7 +745,7 @@ minimum potential energy ([Winters et al., 1995](https://doi.org/10.1017/S002211
 `z✶` is the reference height that rearrangement assigns to each parcel, computed by
 [`reference_height`](@ref); pass one explicitly to share a single sort with
 [`AvailablePotentialEnergy`](@ref), or pass `method` through to choose how it is built
-([`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref) or [`OneDimensionalSort`](@ref); `Integral(E_b)` is
+([`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref) or [`VerticalSort`](@ref); `Integral(E_b)` is
 the same either way).
 
 `E_b` responds only to irreversible changes in the buoyancy field, so in a closed domain the continuous
@@ -816,7 +816,7 @@ coarse one. `Eₐ` does vanish, cell by cell and exactly, for a statically stabl
 uniform stratification.
 
 The result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻²`), and is defined for the
-same buoyancy formulations as [`PotentialEnergy`](@ref). Under [`OneDimensionalSort`](@ref) it lands
+same buoyancy formulations as [`PotentialEnergy`](@ref). Under [`VerticalSort`](@ref) it lands
 on the sorted column, indexed by rank rather than by position in the flow.
 
 ```jldoctest

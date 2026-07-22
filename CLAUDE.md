@@ -62,10 +62,10 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   The `method` keyword picks one of three `AbstractSortingMethod`s, which agree on every volume
   integral: `ThreeDimensionalSort` (default; each cell gets its own slot, so tied cells spread over a
   grid cell), `HeavisideIntegral` (Winters eq. 11, tied cells share their layer's mid-height, so z✶ is a
-  function of buoyancy alone and local maps are clean), and `OneDimensionalSort` (the sorted column on
+  function of buoyancy alone and local maps are clean), and `VerticalSort` (the sorted column on
   its own `1×1×N` grid of equal-volume cells; needs uniform cell volumes). `reference_buoyancy(z✶)` returns
   the buoyancy that pairs with z✶ cell by cell, which is the sorted profile b✶ under
-  `OneDimensionalSort` and the model's own buoyancy under the two model-grid methods. Built on
+  `VerticalSort` and the model's own buoyancy under the two model-grid methods. Built on
   `PotentialEnergyEquation`, so it is included after it
 - **`FlowDiagnostics`**: Richardson/Rossby numbers, Ertel/ThermalWind potential vorticity, strain rate & vorticity tensor moduli, Q-criterion, `subfilter_covariance` (generalized subfilter covariance `τ(a,b) = filter(a·b) − filter(a)·filter(b)`, unifying subfilter tracer flux and momentum stress), MixedLayerDepth, BottomCellValue
 - **`ProgressMessengers`** (submodule): Composable simulation progress reporters using `+` (comma-separated) and `*` (concatenation) operators

@@ -21,7 +21,7 @@ volume_mean(op)     = sum(Field(Average(op)))  # ditto, volume-weighted over the
 
 """
 The reference profile a sorting method describes, as `(z✶, b✶)` ordered from the bottom of the sorted
-column up. `OneDimensionalSort` already stores it that way; the two model-grid methods hold `z✶` and
+column up. `VerticalSort` already stores it that way; the two model-grid methods hold `z✶` and
 `b` cell by cell, so pairing them and ordering by `z✶` recovers the same profile.
 """
 function reference_profile(z✶)
@@ -168,11 +168,11 @@ function test_sorting_methods_agree(grid)
     set!(model, b = (x, y, z) -> z + 0.4 * sin(9x) * cos(7z))
 
     reference = nothing
-    for method in (ThreeDimensionalSort(), HeavisideIntegral(), OneDimensionalSort())
+    for method in (ThreeDimensionalSort(), HeavisideIntegral(), VerticalSort())
 
-        # `OneDimensionalSort` bakes the sorted column into a grid, so it only accepts uniform volumes
+        # `VerticalSort` bakes the sorted column into a grid, so it only accepts uniform volumes
         uniform_volumes = minimum(zspacings(grid)) ≈ maximum(zspacings(grid))
-        method isa OneDimensionalSort && !uniform_volumes && continue
+        method isa VerticalSort && !uniform_volumes && continue
 
         z✶  = AvailablePotentialEnergyEquation.reference_height(model; method)
         ∫E_b = volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶))
@@ -222,7 +222,7 @@ function test_heaviside_is_constant_on_isopycnals(grid)
 end
 
 """
-`OneDimensionalSort` returns the sorted column on its own `1×1×N` grid: the same cells, reshaped to
+`VerticalSort` returns the sorted column on its own `1×1×N` grid: the same cells, reshaped to
 span the domain's horizontal area, stacked in order of increasing buoyancy.
 """
 function test_one_dimensional_sort_column(grid)
@@ -230,7 +230,7 @@ function test_one_dimensional_sort_column(grid)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = (x, y, z) -> z + 0.4 * sin(9x) * cos(7z))
 
-    z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=OneDimensionalSort())
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=VerticalSort())
     b✶ = reference_buoyancy(z✶)
 
     @test size(z✶) == (1, 1, prod(size(grid)))
@@ -261,7 +261,7 @@ function test_one_dimensional_sort_matches_topology()
         model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
         set!(model, b = b₀)
 
-        z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=OneDimensionalSort())
+        z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=VerticalSort())
 
         @test topology(z✶.grid) == topology(grid)
         @test size(z✶) == (1, 1, prod(size(grid)))
@@ -286,7 +286,7 @@ function test_reference_buoyancy_triggers_the_sort(grid)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = (x, y, z) -> z + 0.3 * sin(9x))
 
-    z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=OneDimensionalSort())
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=VerticalSort())
     b✶ = reference_buoyancy(z✶)
 
     # Move the flow on and fetch `b✶` alone, never touching `z✶`, exactly as a writer would
@@ -305,11 +305,11 @@ function test_reference_buoyancy_triggers_the_sort(grid)
     return nothing
 end
 
-"`OneDimensionalSort` bakes the sorted column's cell boundaries into a grid, so volumes must be equal."
+"`VerticalSort` bakes the sorted column's cell boundaries into a grid, so volumes must be equal."
 function test_one_dimensional_sort_rejects_stretched_grids(grid)
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
-    @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model, method=OneDimensionalSort())
+    @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model, method=VerticalSort())
 
     return nothing
 end
@@ -351,7 +351,7 @@ function test_sorting_methods_reproduce_a_known_profile()
 
     ∫E_b_expected = sum(@. -b✶_expected * z✶_expected * ΔV)
 
-    for method in (ThreeDimensionalSort(), HeavisideIntegral(), OneDimensionalSort())
+    for method in (ThreeDimensionalSort(), HeavisideIntegral(), VerticalSort())
         z✶ = AvailablePotentialEnergyEquation.reference_height(model; method)
         heights, buoyancies = reference_profile(z✶)
 
@@ -370,7 +370,7 @@ function test_sorting_methods_reproduce_a_known_profile()
 
     tied_depth = maximum(v -> count(==(v), tied), unique(tied)) * Δz✶
     profiles, energies = [], Float64[]
-    for method in (ThreeDimensionalSort(), HeavisideIntegral(), OneDimensionalSort())
+    for method in (ThreeDimensionalSort(), HeavisideIntegral(), VerticalSort())
         z✶ = AvailablePotentialEnergyEquation.reference_height(model; method)
         push!(profiles, reference_profile(z✶))
         push!(energies, volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)))
@@ -486,7 +486,7 @@ end
         @info "      Testing that the local available potential energy is non-negative"
         test_local_ape_is_non_negative(grid)
 
-        @info "      Testing the `ThreeDimensionalSort`, `HeavisideIntegral` and `OneDimensionalSort` methods"
+        @info "      Testing the `ThreeDimensionalSort`, `HeavisideIntegral` and `VerticalSort` methods"
         test_sorting_methods_agree(grid)
         test_heaviside_is_constant_on_isopycnals(grid)
         if grid_class == "regular grid"
@@ -506,6 +506,6 @@ end
     @info "  Testing that the local APE total converges to the Winters split"
     test_local_ape_converges_to_the_winters_total()
 
-    @info "  Testing that `OneDimensionalSort` inherits the model grid's topology"
+    @info "  Testing that `VerticalSort` inherits the model grid's topology"
     test_one_dimensional_sort_matches_topology()
 end

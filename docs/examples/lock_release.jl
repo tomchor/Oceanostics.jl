@@ -60,7 +60,7 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
 #
 # What each method gives you to write differs, and that difference is the same one the figures below
 # show. The three model-grid methods produce a *map* of the reference height, one value per cell, on the
-# model grid. [`OneDimensionalSort`](@ref) instead produces the sorted column itself, so its `z★` and
+# model grid. [`VerticalSort`](@ref) instead produces the sorted column itself, so its `z★` and
 # the buoyancy that goes with it are already the profile, in order, and need no post-processing at all.
 #
 # Given that the referece height calculation is nonnlocal, it is generally a computationally-heavy operation
@@ -72,7 +72,7 @@ b = model.tracers.b
 z★_ranked    = reference_height(model, method = ThreeDimensionalSort())
 z★_heaviside = reference_height(model, method = HeavisideIntegral())
 z★_lookup    = reference_height(model, method = ProfileLookup())
-z★_column    = reference_height(model, method = OneDimensionalSort())
+z★_column    = reference_height(model, method = VerticalSort())
 b✶_column    = reference_buoyancy(z★_column)
 
 # Both background and available potential energies are built from the same reference height, so we share one rather than letting each
@@ -81,7 +81,7 @@ b✶_column    = reference_buoyancy(z★_column)
 
 #
 # We build one `Eₐ` per method. Three of the four answer on the model grid and give a map over the
-# domain, which is what the animation below compares. [`OneDimensionalSort`](@ref) answers on the sorted
+# domain, which is what the animation below compares. [`VerticalSort`](@ref) answers on the sorted
 # column, so its `Eₐ` is ordered by rank rather than by position and is not a map of the flow; it is
 # written anyway because the volume integral comes out the same whichever method builds the reference
 # state. [`ProfileLookup`](@ref) is that same column read back onto the model grid, matching each cell
@@ -157,7 +157,7 @@ snapshots = [argmin(abs.(times .- t)) for t in snapshot_times]
 
 methods = ("ThreeDimensionalSort" => n -> mapped_profile(Z3, n),
            "HeavisideIntegral"    => n -> mapped_profile(ZH, n),
-           "OneDimensionalSort"   => column_profile)
+           "VerticalSort"   => column_profile)
 
 ## `profiles[name][k]` is the `(b✶, z★)` pair for method `name` at the `k`-th snapshot
 profiles = Dict(name => [build(n) for n in snapshots] for (name, build) in methods);
@@ -181,7 +181,7 @@ end                                                                             
 z★_3d_0,  z★_hv_0 = profiles["ThreeDimensionalSort"][1][2], profiles["HeavisideIntegral"][1][2]   #hide
 b✶_3d, z★_3d = profiles["ThreeDimensionalSort"][end]                                      #hide
 b✶_hv, z★_hv = profiles["HeavisideIntegral"][end]                                         #hide
-b✶_1d, z★_1d = profiles["OneDimensionalSort"][end]                                        #hide
+b✶_1d, z★_1d = profiles["VerticalSort"][end]                                        #hide
 ## the two model-grid methods differ by a quarter of the depth while the lock is intact   #hide
 @test maximum(abs, z★_hv_0 .- z★_3d_0) > 0.2H                                             #hide
 ## and agree to the grid scale once mixing has made the field continuous                  #hide
@@ -243,18 +243,18 @@ ax0 = Axis(fig[1, length(methods) + 1]; xlabel = "b✶", title = "t = 0, all thr
 ylims!(ax0, -H/2, H/2)
 
 b✶_r, z★_r = profiles["ThreeDimensionalSort"][1]
-b✶_c, z★_c = profiles["OneDimensionalSort"][1]
+b✶_c, z★_c = profiles["VerticalSort"][1]
 b✶_h, z★_h = profiles["HeavisideIntegral"][1]
 
 lines!(ax0, b✶_r, z★_r; linewidth = 5, color = (:steelblue, 0.9), label = "ThreeDimensionalSort")
-lines!(ax0, b✶_c, z★_c; linewidth = 2, linestyle = :dash, color = :black, label = "OneDimensionalSort")
+lines!(ax0, b✶_c, z★_c; linewidth = 2, linestyle = :dash, color = :black, label = "VerticalSort")
 scatter!(ax0, b✶_h, z★_h; markersize = 9, color = :crimson, label = "HeavisideIntegral")
 axislegend(ax0; position = :lt, labelsize = 9)
 
 # The three method panels are identical except while the lock is still intact, and that difference is
 # informative rather than an error. At `t = 0` almost every cell is tied with thousands of others at
 # one of two buoyancies, and the methods place tied cells differently.
-# [`ThreeDimensionalSort`](@ref) and [`OneDimensionalSort`](@ref) give each cell its own slot in the
+# [`ThreeDimensionalSort`](@ref) and [`VerticalSort`](@ref) give each cell its own slot in the
 # stack, so they draw the true step spanning the full depth. [`HeavisideIntegral`](@ref) instead
 # collapses each buoyancy class onto the mid-height of the layer it fills, which is what makes `z★` a
 # function of buoyancy alone and a clean field to map, but leaves it unable to represent a step as a
