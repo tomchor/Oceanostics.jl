@@ -2,7 +2,7 @@
 #
 # In this example we run a two-dimensional lock release simulation and use it to watch the *sorted reference
 # state*, available potential energy and kinetic energy evolve. Along the way we build the reference profile
-# with each of the three methods Oceanostics offers and time them against each other.
+# with each of the four methods Oceanostics offers and compare what they do and do not agree on.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -59,18 +59,19 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
 # they are computed, so they can be passed to an output writer.
 #
 # What each method gives you to write differs, and that difference is the same one the figures below
-# show. The two model-grid methods produce a *map* of the reference height, one value per cell, on the
+# show. The three model-grid methods produce a *map* of the reference height, one value per cell, on the
 # model grid. [`OneDimensionalSort`](@ref) instead produces the sorted column itself, so its `z★` and
 # the buoyancy that goes with it are already the profile, in order, and need no post-processing at all.
 #
-# Building all three here costs three sorts per output rather than one. That is affordable at this
-# resolution, but the sort is the one part of these diagnostics whose cost grows faster than the number
-# of cells: see [What the three methods cost](@ref) for how the three compare and how they scale.
+# Given that the referece height calculation is nonnlocal, it is generally a computationally-heavy operation
+# and its cost grows faster than the number of cells: see [What the methods cost](@ref) for how different
+# methods compare and how they scale.
 
 b = model.tracers.b
 
 z★_ranked    = reference_height(model, method = ThreeDimensionalSort())
 z★_heaviside = reference_height(model, method = HeavisideIntegral())
+z★_lookup    = reference_height(model, method = ProfileLookup())
 z★_column    = reference_height(model, method = OneDimensionalSort())
 b✶_column    = reference_buoyancy(z★_column)
 
@@ -79,13 +80,16 @@ b✶_column    = reference_buoyancy(z★_column)
 # (as defined by Holliday & McIntyre (1981)) and it should always be non-negative
 
 #
-# We build one `Eₐ` per method. The two model-grid methods return a map over the domain, which is what
-# the animation below compares. [`OneDimensionalSort`](@ref) answers on the sorted column, so its `Eₐ` is
-# ordered by rank rather than by position and is not a map of the flow; it is written anyway because the
-# volume integral comes out the same whichever method builds the reference state.
+# We build one `Eₐ` per method. Three of the four answer on the model grid and give a map over the
+# domain, which is what the animation below compares. [`OneDimensionalSort`](@ref) answers on the sorted
+# column, so its `Eₐ` is ordered by rank rather than by position and is not a map of the flow; it is
+# written anyway because the volume integral comes out the same whichever method builds the reference
+# state. [`ProfileLookup`](@ref) is that same column read back onto the model grid, matching each cell
+# to the profile through its buoyancy rather than through where it came from.
 
 APE_ranked    = AvailablePotentialEnergy(model, z★_ranked)
 APE_heaviside = AvailablePotentialEnergy(model, z★_heaviside)
+APE_lookup    = AvailablePotentialEnergy(model, z★_lookup)
 APE_column    = AvailablePotentialEnergy(model, z★_column)
 KE            = KineticEnergy(model)
 
@@ -94,6 +98,7 @@ KE            = KineticEnergy(model)
 
 ∫APE           = Integral(APE_ranked)
 ∫APE_heaviside = Integral(APE_heaviside)
+∫APE_lookup    = Integral(APE_lookup)
 ∫APE_column    = Integral(APE_column)
 
 using NCDatasets
@@ -102,9 +107,9 @@ filename = "lock_release"
 # A single `NetCDFWriter` copes with the two grids: the model-grid fields are written against `x` and
 # `z`, and the column's against its own `N`-cell vertical axis.
 
-outputs = (; b, KE, APE_ranked, APE_heaviside, APE_column,
-             z★_ranked, z★_heaviside, z★_column, b✶_column,
-             ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_column)
+outputs = (; b, KE, APE_ranked, APE_heaviside, APE_lookup, APE_column,
+             z★_ranked, z★_heaviside, z★_lookup, z★_column, b✶_column,
+             ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column)
 
 simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
                                                   filename = joinpath(@__DIR__, filename),
@@ -210,39 +215,51 @@ end                                                                             
 # ## Animating the flow and its energy
 #
 # The panels above are snapshots; the exchange between the reservoirs is easier to follow as a movie.
-# We animate four fields: the buoyancy that drives the flow, the kinetic energy it produces, and the
-# local available potential energy still stored in the density field, once for each of the two methods
-# that answer on the model grid. `Eₐ` is the one worth watching against the other two — it starts
+# We animate five fields: the buoyancy that drives the flow, the kinetic energy it produces, and the
+# local available potential energy still stored in the density field, once for each of the three methods
+# that answer on the model grid. `Eₐ` is the one worth watching against the first two: it starts
 # concentrated at the lock, is spent as the fronts run and the billows break, and refills wherever the
-# seiche lifts dense fluid back up. The two `Eₐ` panels share a colour range, so any disagreement between
-# the methods shows up directly; they can only differ where cells are tied in buoyancy.
+# seiche lifts dense fluid back up.
+#
+# The three `Eₐ` panels are identical, and showing them together is the point. All the methods can
+# disagree about is where inside a tied run of slots a cell's `z✶` lands, and `Eₐ` cannot see that
+# choice: the reference profile is flat across the run, so moving `z✶` along it leaves `Eₐ` unchanged.
+# What the choice does change is `z✶` itself, and with it `E_b`.
 
 using CairoMakie
 
 KE_t   = FieldTimeSeries(filepath, "KE")
 APE3_t = FieldTimeSeries(filepath, "APE_ranked")
 APEH_t = FieldTimeSeries(filepath, "APE_heaviside")
+APEL_t = FieldTimeSeries(filepath, "APE_lookup")
 
 ## the local form is non-negative everywhere, whichever method builds the reference state          #hide
-for A in (APE3_t, APEH_t)                                                                          #hide
+for A in (APE3_t, APEH_t, APEL_t)                                                                  #hide
     @test minimum(minimum(interior(A[n])) for n in 1:length(times)) ≥ -1e-6 * maximum(interior(A[end]))  #hide
 end                                                                                                #hide
+## the three model-grid methods agree cell by cell, not merely in the integral                     #hide
+for n in 1:length(times)                                                                           #hide
+    @test interior(APEH_t[n]) ≈ interior(APE3_t[n]) atol=1e-12                                     #hide
+    @test interior(APEL_t[n]) ≈ interior(APE3_t[n]) atol=1e-12                                     #hide
+end                                                                                                #hide
 
-fig3 = Figure(size = (900, 820))
+fig3 = Figure(size = (900, 1010))
 
 n = Observable(1)
 
 panel_kwargs = (ylabel = "z", width = 760, height = 165)
 
-ax_b  = Axis(fig3[2, 1]; title = "Buoyancy b",                     panel_kwargs...)
-ax_KE = Axis(fig3[4, 1]; title = "Kinetic energy",                 panel_kwargs...)
-ax_E3 = Axis(fig3[6, 1]; title = "Eₐ,  ThreeDimensionalSort",      panel_kwargs...)
-ax_EH = Axis(fig3[8, 1]; title = "Eₐ,  HeavisideIntegral", xlabel = "x", panel_kwargs...)
+ax_b  = Axis(fig3[2, 1];  title = "Buoyancy b",                      panel_kwargs...)
+ax_KE = Axis(fig3[4, 1];  title = "Kinetic energy",                  panel_kwargs...)
+ax_E3 = Axis(fig3[6, 1];  title = "Eₐ,  ThreeDimensionalSort",       panel_kwargs...)
+ax_EH = Axis(fig3[8, 1];  title = "Eₐ,  HeavisideIntegral",          panel_kwargs...)
+ax_EL = Axis(fig3[10, 1]; title = "Eₐ,  ProfileLookup", xlabel = "x", panel_kwargs...)
 
 bₙ  = @lift b_t[$n]
 KEₙ = @lift KE_t[$n]
 E3ₙ = @lift APE3_t[$n]
 EHₙ = @lift APEH_t[$n]
+ELₙ = @lift APEL_t[$n]
 
 ## `Eₐ` and the kinetic energy are both sign-definite, so they get one-sided ranges set from their own
 ## peak over the run; the buoyancy keeps the symmetric range used above.
@@ -261,6 +278,9 @@ Colorbar(fig3[7, 1], hm_E3; vertical = false, height = 8)
 
 hm_EH = heatmap!(ax_EH, EHₙ; energy_options...)
 Colorbar(fig3[9, 1], hm_EH; vertical = false, height = 8)
+
+hm_EL = heatmap!(ax_EL, ELₙ; energy_options...)
+Colorbar(fig3[11, 1], hm_EL; vertical = false, height = 8)
 
 title = @lift "Lock release,  t = " * string(round(times[$n], digits = 1))
 Label(fig3[1, 1], title, fontsize = 22, tellwidth = false)
@@ -354,8 +374,9 @@ t_e     = ds["time"][:]
 BPE_int = ds["∫BPE"][:]
 APE_int = ds["∫APE"][:]
 KE_int  = ds["∫KE"][:]
-## all three methods integrate to the same Eₐ, however they place cells of equal buoyancy  #hide
+## all four methods integrate to the same Eₐ, however they place cells of equal buoyancy  #hide
 @test ds["∫APE_heaviside"][:] ≈ APE_int rtol=1e-8                                          #hide
+@test ds["∫APE_lookup"][:]    ≈ APE_int rtol=1e-8                                          #hide
 @test ds["∫APE_column"][:]    ≈ APE_int rtol=1e-8                                          #hide
 close(ds)
 
