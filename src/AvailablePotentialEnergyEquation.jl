@@ -168,23 +168,45 @@ OneDimensionalSort() = OneDimensionalSort(nothing, nothing)
 """
     $(TYPEDEF)
 
-Give each cell the height of the slot in the sorted column whose buoyancy matches its own, found by a
-binary search into the sorted profile. `z✶` comes back on the model grid.
+Give each cell the height of the slot whose buoyancy matches its own, found by a binary search into a
+sorted reference profile. `z✶` comes back on the model grid.
 
-This is the sorted column of [`OneDimensionalSort`](@ref) read back onto the model grid, but by
-buoyancy rather than by cell identity: a cell is matched to the profile through its value, never
-through where it came from. Like [`HeavisideIntegral`](@ref) that makes `z✶` a function of buoyancy
-alone, so it is constant on isopycnals; the two differ only in which slot of a tied run they pick,
-the first here against the run's mid-height there. Since the reference height is never traced back to
-a specific cell, this is the method that generalizes to a profile the field did not produce, such as
-one held fixed in time.
+A cell is matched to the profile through its buoyancy, never through where it came from, so the
+profile does not have to be the one this field would produce by sorting itself. Three ways to supply
+it:
+
+  - `ProfileLookup()` sorts the field's own buoyancy, exactly as the other methods do. This
+    reproduces the same `z✶` those methods assign, up to which slot of a tied run is picked.
+  - `ProfileLookup(z✶_column)` takes the profile from a reference height built with
+    [`OneDimensionalSort`](@ref), and reads it back onto the model grid. The column is recomputed
+    first, so the profile still tracks the flow.
+  - `ProfileLookup(b✶, z✶)` takes any paired buoyancy and height, as vectors or `Field`s, ordered
+    from the densest fluid up. This is the form to use for a profile held fixed in time, or taken
+    from a different field, and it does no sorting at all.
+
+Like [`HeavisideIntegral`](@ref) this makes `z✶` a function of buoyancy alone, so it is constant on
+isopycnals; the two differ only in which slot of a tied run they pick, the first here against the
+run's mid-height there.
+
+!!! warning "Non-negativity needs a profile that resolves the field"
+    `Eₐ ≥ 0` rests on a parcel carrying `b = b✶(z✶)` exactly, which holds when the profile contains the
+    buoyancies the field actually has. A profile sorted from the same field at the same time always
+    does, so `ProfileLookup()` and `ProfileLookup(z✶_column)` are safe. One that is coarse, fixed in
+    time, or drawn from another field matches only approximately, and `Eₐ` can then come out slightly
+    negative, by an amount that shrinks as the profile resolves the field's buoyancy more finely.
 """
-struct ProfileLookup <: AbstractSortingMethod end
+struct ProfileLookup{P} <: AbstractSortingMethod
+    profile :: P
+end
+
+ProfileLookup() = ProfileLookup(nothing)
+ProfileLookup(b✶, z✶) = ProfileLookup((b✶, z✶))
 
 Base.summary(::ThreeDimensionalSort) = "ThreeDimensionalSort"
 Base.summary(::HeavisideIntegral) = "HeavisideIntegral"
 Base.summary(::OneDimensionalSort) = "OneDimensionalSort"
-Base.summary(::ProfileLookup) = "ProfileLookup"
+Base.summary(::ProfileLookup{Nothing}) = "ProfileLookup"
+Base.summary(::ProfileLookup) = "ProfileLookup (external profile)"
 
 """
     $(TYPEDEF)
@@ -270,6 +292,31 @@ end
 """
     $(SIGNATURES)
 
+Build `Ψ(z) = ∫ b✶ dz̃`, from the bottom of the domain up through a reference profile of slot volumes
+`ΔV` and buoyancies `b`, and return it as a callable. `b✶` is piecewise constant on the profile, so `Ψ`
+is piecewise linear and evaluates exactly at any height. The profile need not have one slot per model
+cell: [`ProfileLookup`](@ref) may be handed a profile of its own length.
+"""
+function ape_potential_function(s::SortedReferenceState, ΔV, b)
+
+    N  = length(ΔV)
+    FT = eltype(ΔV)
+
+    Δz    = ΔV ./ s.horizontal_area                  # slot thickness, sorted order
+    faces = similar(Δz, N + 1)                       # slot faces, from the bottom up
+    Ψface = similar(Δz, N + 1)                       # Ψ evaluated at those faces
+    faces[1] = s.bottom_height
+    Ψface[1] = zero(FT)
+    cumsum!(view(faces, 2:N+1), Δz);  view(faces, 2:N+1) .+= s.bottom_height
+    cumsum!(view(Ψface, 2:N+1), b .* Δz)
+
+    ## Ψ inside slot k is Ψface[k] + b✶[k](z - faces[k]); `searchsortedlast` locates the slot
+    return z -> (k = clamp(searchsortedlast(faces, z), 1, N); @inbounds Ψface[k] + b[k] * (z - faces[k]))
+end
+
+"""
+    $(SIGNATURES)
+
 Fill `s.ape_potential` with `Ψ(z) - Ψ(z✶)`, where `Ψ(z) = ∫ b✶ dz̃` runs from the bottom of the domain
 up through the sorted profile. This is the part of the local available potential energy that only the
 sort can supply; [`AvailablePotentialEnergy`](@ref)'s kernel adds the remaining `-b(z - z✶)` pointwise.
@@ -282,21 +329,8 @@ over the whole path.
 """
 function fill_ape_potential!(s::SortedReferenceState, ΔV_sorted, b_sorted, z✶_sorted, sz, sorted_output)
 
-    N  = length(ΔV_sorted)
-    FT = eltype(ΔV_sorted)
-
-    Δz    = ΔV_sorted ./ s.horizontal_area           # slot thickness, sorted order
-    faces = similar(Δz, N + 1)                       # slot faces, from the bottom up
-    Ψface = similar(Δz, N + 1)                       # Ψ evaluated at those faces
-    faces[1] = s.bottom_height
-    Ψface[1] = zero(FT)
-    cumsum!(view(faces, 2:N+1), Δz);  view(faces, 2:N+1) .+= s.bottom_height
-    cumsum!(view(Ψface, 2:N+1), b_sorted .* Δz)
-
-    ## Ψ inside slot k is Ψface[k] + b✶[k](z - faces[k]); `searchsortedlast` locates the slot
-    psi(z) = (k = clamp(searchsortedlast(faces, z), 1, N); @inbounds Ψface[k] + b_sorted[k] * (z - faces[k]))
-
-    Ψ✶ = psi.(z✶_sorted)                             # sorted order
+    psi = ape_potential_function(s, ΔV_sorted, b_sorted)
+    Ψ✶  = psi.(z✶_sorted)                            # sorted order
 
     if sorted_output   # the column: its cells are already in sorted order
         interior(s.ape_potential) .= reshape(psi.(s.source_height[s.permutation]) .- Ψ✶, sz)
@@ -379,30 +413,92 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::HeavisideIntegral
     return z✶_field
 end
 
-function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::ProfileLookup)
-    sz   = size(z✶_field)
-    perm = s.permutation
-    N    = length(s.workspace)
-    ΔV, b_sorted = rank_by_buoyancy!(s)
-    b = s.workspace   # still the model-ordered buoyancy: nothing has overwritten it yet
+#+++ Reference profiles for `ProfileLookup`
+"Flatten a profile given as a `Field` or as a plain vector into a vector."
+profile_vector(p::AbstractVector) = p
+profile_vector(p) = vec(interior(p))
 
-    # the sorted column's slot centers, densest first, exactly as `OneDimensionalSort` lays them out
-    z✶_slot = similar(ΔV)
-    cumsum!(z✶_slot, ΔV)
-    @. z✶_slot = s.bottom_height + (z✶_slot - ΔV / 2) / s.horizontal_area
+"""
+    $(SIGNATURES)
 
-    # `b_sorted` is non-decreasing, so each cell's own buoyancy can be located in it by binary search.
+Return `(b✶, z✶)` for the profile a [`ProfileLookup`](@ref) was given: the sorted buoyancy and the
+height paired with it, densest first. A reference height built with [`OneDimensionalSort`](@ref)
+carries both already, so it is unpacked; a pair is taken as it stands.
+"""
+profile_arrays(z✶::SortedReferenceHeightField) = (profile_vector(reference_buoyancy(z✶)), profile_vector(z✶))
+profile_arrays(p::Tuple) = (profile_vector(p[1]), profile_vector(p[2]))
+
+"""
+    $(SIGNATURES)
+
+Recover the slot volumes of an externally supplied profile, which gives only heights. The slot faces
+are the midpoints between neighbouring `z✶`, closed off by the bottom and top of the domain, so the
+slots tile the depth exactly however the profile is spaced. For a profile of equal-volume slots (what
+[`OneDimensionalSort`](@ref) produces) this recovers their thickness exactly.
+"""
+function profile_slot_volumes(s::SortedReferenceState, z)
+
+    M     = length(z)
+    faces = similar(z, M + 1)
+    faces[1]     = s.bottom_height
+    faces[M + 1] = s.bottom_height + sum(s.cell_volume) / s.horizontal_area
+    @views @. faces[2:M] = (z[1:M-1] + z[2:M]) / 2
+
+    return diff(faces) .* s.horizontal_area
+end
+
+"""
+    $(SIGNATURES)
+
+Return `(b✶, z✶, ΔV)` for the profile a [`ProfileLookup`](@ref) will search, and leave the
+model-ordered buoyancy in `s.workspace` either way. With no profile of its own the field is sorted,
+exactly as [`ThreeDimensionalSort`](@ref) sorts it; with one supplied there is nothing to sort, and
+the whole `O(N log N)` ranking is skipped.
+"""
+function lookup_profile(s::SortedReferenceState, method::ProfileLookup{Nothing})
+
+    ΔV, b✶ = rank_by_buoyancy!(s)
+    z✶ = similar(ΔV)
+    cumsum!(z✶, ΔV)
+    @. z✶ = s.bottom_height + (z✶ - ΔV / 2) / s.horizontal_area
+
+    return b✶, z✶, ΔV
+end
+
+function lookup_profile(s::SortedReferenceState, method::ProfileLookup)
+
+    reshape(s.workspace, size(s.buoyancy)) .= interior(s.buoyancy)   # what `rank_by_buoyancy!` would leave, unsorted
+    b✶, z✶ = profile_arrays(method.profile)
+
+    length(b✶) == length(z✶) ||
+        throw(ArgumentError("`ProfileLookup` was given a profile whose buoyancy and height have different \
+                             lengths ($(length(b✶)) and $(length(z✶)))."))
+    issorted(b✶) ||
+        throw(ArgumentError("`ProfileLookup` needs a reference profile ordered from the densest fluid up, \
+                             but the buoyancy it was given is not non-decreasing."))
+
+    return b✶, z✶, profile_slot_volumes(s, z✶)
+end
+#---
+
+function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::ProfileLookup)
+    sz = size(z✶_field)
+    b✶, z✶_slot, ΔV = lookup_profile(s, method)
+    b = s.workspace   # the model-ordered buoyancy, which `lookup_profile` leaves in place
+    M = length(b✶)
+
+    # `b✶` is non-decreasing, so each cell's own buoyancy can be located in it by binary search.
     # The search lands on the first slot of a tied run; the neighbour on the left is the closer match
     # whenever the value falls between two runs, which is the only way an exact tie can be missed.
-    j  = clamp.(searchsortedfirst.(Ref(b_sorted), b), 1, N)
+    j  = clamp.(searchsortedfirst.(Ref(b✶), b), 1, M)
     jₗ = max.(j .- 1, 1)
-    z✶ = ifelse.(abs.(view(b_sorted, jₗ) .- b) .< abs.(view(b_sorted, j) .- b),
-                 view(z✶_slot, jₗ), view(z✶_slot, j))
+    z✶ = ifelse.(abs.(view(b✶, jₗ) .- b) .< abs.(view(b✶, j) .- b), view(z✶_slot, jₗ), view(z✶_slot, j))
 
     interior(z✶_field) .= reshape(z✶, sz)
-    # `fill_ape_potential!` wants `z✶` in sorted order and scatters `Ψ(z✶)` back through `perm`, so
-    # gathering here and letting it scatter returns it to exactly this ordering.
-    fill_ape_potential!(s, ΔV, b_sorted, z✶[perm], sz, false)
+    # `z✶` is already in the model's ordering, so `Ψ` is evaluated directly rather than scattered
+    # through the permutation, which also lets the profile be a different length from the field.
+    psi = ape_potential_function(s, ΔV, b✶)
+    interior(s.ape_potential) .= reshape(psi.(s.source_height) .- psi.(z✶), sz)
 
     return z✶_field
 end
@@ -424,9 +520,20 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::OneDimensio
     return z✶_field
 end
 
+# Only a `ProfileLookup` can depend on anything beyond its own buoyancy, and only when the profile it
+# was handed is itself computed. Refreshing it here is what keeps a borrowed profile tracking the flow.
+refresh_profile!(::AbstractSortingMethod, time) = nothing
+refresh_profile!(method::ProfileLookup, time) = refresh_profile_source!(method.profile, time)
+
+refresh_profile_source!(::Nothing, time) = nothing
+refresh_profile_source!(::AbstractVector, time) = nothing
+refresh_profile_source!(p::Field, time) = compute_at!(p, time)
+refresh_profile_source!(p::Tuple, time) = foreach(x -> refresh_profile_source!(x, time), p)
+
 function compute!(z✶_field::SortedReferenceHeightField, time=nothing)
     s = z✶_field.operand
     compute_at!(s.buoyancy, time)
+    refresh_profile!(s.method, time)
     sort_buoyancy!(z✶_field, s)
     fill_halo_regions!(z✶_field)
     set_status!(z✶_field.status, time)

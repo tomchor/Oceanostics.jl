@@ -64,9 +64,19 @@ state (correctly) has no horizontal structure. The downside is that the results 
 Namely a ``1 \times 1 \times N`` grid whose ``N = N_x N_y N_z`` cells span the domain's full horizontal area.
 
 [`ProfileLookup`](@ref) gives each cell the height of the slot whose buoyancy matches its own, found by
-binary search into the [`OneDimensionalSort`](@ref) profile. It is the column of [`OneDimensionalSort`](@ref) read back onto
-the model grid, matched by value rather than by cell identity, which also makes it the one method that
-does not need the profile to have come from the field being diagnosed.
+binary search into a sorted profile. Cells are matched by value rather than by identity, so it is the
+one method whose profile need not have come from the field being diagnosed. It reproduces on the model
+grid what the [`OneDimensionalSort`](@ref) column holds, without calling that method to do it.
+
+```julia
+z✶ = reference_height(model, method=ProfileLookup())            # sort this field, as the others do
+z✶ = reference_height(model, method=ProfileLookup(z✶_column))   # borrow a column, recomputed with it
+z✶ = reference_height(model, method=ProfileLookup(b✶, z✶_prof)) # any profile, e.g. one fixed in time
+```
+
+The last two forms do no sorting at all, and the last is the way to hold the reference state fixed
+while the flow evolves. Note that ``E_a \ge 0`` is guaranteed only while the profile resolves the
+buoyancies the field actually has, which a profile sorted from that same field always does.
 
 [`HeavisideIntegral`](@ref) is Eq. (11) of Winters et al. (1995) verbatim,
 
