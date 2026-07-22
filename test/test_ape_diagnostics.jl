@@ -60,19 +60,21 @@ function test_background_and_available_pe(model; geopotential_height = nothing)
     @test E_b_field isa Field
     @test E_a_field isa Field
 
-    # The decomposition Eₚ = E_b + Eₐ holds cell by cell, since Eₐ is built from the same buoyancy
-    @test interior(Eₚ_field) ≈ interior(E_b_field) .+ interior(E_a_field)
+    grid = model.grid
+    FT = eltype(grid)
+
+    # `Eₐ` is the *local* available potential energy of Holliday & McIntyre (1981), the work needed to
+    # bring a parcel from its reference height to where it is. That is non-negative everywhere, which
+    # `Eₚ - E_b` is not: the two agree in the volume integral, not cell by cell.
+    @test minimum(interior(E_a_field)) > -sqrt(eps(FT)) * maximum(abs, interior(Eₚ_field))
 
     # Sorting only rearranges cells between heights, so it moves no volume and leaves the
     # volume-weighted mean height where it was. The comparison needs an absolute tolerance because
     # that mean is zero on a grid whose z is symmetric about the origin.
-    grid = model.grid
-    FT = eltype(grid)
     @test volume_mean(z✶) ≈ volume_mean(height_operation(grid)) atol = sqrt(eps(FT)) * grid.Lz
 
     # The sorted state is the state of minimum potential energy, so ∫Eₐ = ∫Eₚ - ∫E_b ≥ 0
     ∫Eₚ, ∫E_b, ∫E_a = volume_integral(Eₚ), volume_integral(E_b), volume_integral(E_a)
-    @test ∫E_a ≈ ∫Eₚ - ∫E_b
     @test ∫E_a ≥ -sqrt(eps(FT)) * max(abs(∫Eₚ), abs(∫E_b))
 
     return nothing
@@ -179,7 +181,11 @@ function test_sorting_methods_agree(grid)
         if isnothing(reference)
             reference = (∫E_b, ∫E_a)
             @test ∫E_a > 0
-            @test ∫E_b + ∫E_a ≈ volume_integral(PotentialEnergyEquation.PotentialEnergy(model))
+            # `∫E_b + ∫Eₐ` only approaches `∫Eₚ` as the vertical grid refines — the local density
+            # evaluates the reference profile at the model's cell centers rather than the sorted
+            # column's. `test_local_ape_converges_to_the_winters_total` pins that convergence down;
+            # on these small test grids the gap is a few percent, so all that is checked here is
+            # that the three methods land on the same total as each other.
         else
             @test ∫E_b ≈ reference[1]
             @test ∫E_a ≈ reference[2]
@@ -379,6 +385,60 @@ function test_sorting_methods_reproduce_a_known_profile()
     return nothing
 end
 
+"""
+The local available potential energy is the work needed to move a parcel from its reference height to
+where it actually sits, `Eₐ = ∫_{z✶}^{z} [b✶(z̃) - b] dz̃`. A parcel carries `b = b✶(z✶)` and `b✶` is
+non-decreasing, so the integrand has the same sign as `z̃ - z✶` over the whole path and the result is
+non-negative wherever the parcel started. That is the property the Winters form `-b(z - z✶)` lacks,
+and it has to hold for every cell, every buoyancy formulation and all three sorting methods.
+"""
+function test_local_ape_is_non_negative(grid)
+
+    for buoyancy in (BuoyancyTracer(), SeawaterBuoyancy(), SeawaterBuoyancy(equation_of_state=TEOS10EquationOfState()))
+        tracers = buoyancy isa BuoyancyTracer ? :b : (:S, :T)
+        model = NonhydrostaticModel(grid; buoyancy, tracers)
+        buoyancy isa BuoyancyTracer ? set!(model, b = grid_noise) :
+                                      set!(model, S = grid_noise, T = grid_noise)
+
+        for method in (ThreeDimensionalSort(), HeavisideIntegral())
+            z✶ = AvailablePotentialEnergyEquation.reference_height(model; method)
+            E_a = interior(Field(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)))
+            scale = maximum(abs, E_a)
+            # only roundoff may dip below zero, and it scales with the field, not with the grid
+            @test minimum(E_a) > -sqrt(eps(eltype(grid))) * max(scale, eps(eltype(grid)))
+            @test volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)) ≥ 0
+        end
+    end
+
+    return nothing
+end
+
+"""
+The local density integrates to the same total the Winters split gives, but only in the continuum
+limit: `∫Eₐ dV` evaluates `Ψ` at the model's cell centers while `∫Eₚ - ∫E_b` effectively evaluates it
+at the sorted column's, and the two midpoint quadratures differ at finite `Δz`. The gap is second
+order, so refining the vertical must shrink it.
+"""
+function test_local_ape_converges_to_the_winters_total()
+
+    gap(Nz) = begin
+        grid  = RectilinearGrid(arch, size=(4, Nz), x=(0, 2), z=(-1, 0), topology=(Periodic, Flat, Bounded))
+        model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+        set!(model, b = (x, z) -> z + 0.4 * sin(9x) * cos(7z))
+        z✶  = AvailablePotentialEnergyEquation.reference_height(model)
+        ∫Eₐ = volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶))
+        ∫Eₚ = volume_integral(PotentialEnergyEquation.PotentialEnergy(model))
+        ∫E_b = volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶))
+        abs(∫Eₐ - (∫Eₚ - ∫E_b)) / abs(∫Eₚ - ∫E_b)
+    end
+
+    coarse, fine = gap(16), gap(64)
+    @test fine < coarse / 4        # second order: 4x the resolution should give >4x the accuracy
+    @test fine < 1e-2
+
+    return nothing
+end
+
 "An `ImmersedBoundaryGrid` has a depth-dependent horizontal area, which the sorting does not support."
 function test_sorting_rejects_immersed_boundaries(grid)
 
@@ -423,6 +483,9 @@ end
         test_reference_state_is_recomputed(grid)
         test_sorting_rejects_immersed_boundaries(grid)
 
+        @info "      Testing that the local available potential energy is non-negative"
+        test_local_ape_is_non_negative(grid)
+
         @info "      Testing the `ThreeDimensionalSort`, `HeavisideIntegral` and `OneDimensionalSort` methods"
         test_sorting_methods_agree(grid)
         test_heaviside_is_constant_on_isopycnals(grid)
@@ -439,6 +502,9 @@ end
 
     @info "  Testing the sorting methods against a synthetic profile with a known sorted state"
     test_sorting_methods_reproduce_a_known_profile()
+
+    @info "  Testing that the local APE total converges to the Winters split"
+    test_local_ape_converges_to_the_winters_total()
 
     @info "  Testing that `OneDimensionalSort` inherits the model grid's topology"
     test_one_dimensional_sort_matches_topology()

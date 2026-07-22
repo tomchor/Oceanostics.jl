@@ -15,13 +15,21 @@ potential energy,
 E_b = -b z^\star = \frac{g \rho}{\rho_0} z^\star ,
 ```
 
-and what is left over is the available potential energy,
+and what is left over is the available potential energy. Oceanostics computes it in its *local*
+form, the density of [Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742) written
+as eq. (1.1) of [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879),
 
 ```math
-E_a = E_p - E_b = -b (z - z^\star) ,
+E_a(b, z) = \int_{z^\star}^{z} \left[b^\star(\tilde z) - b\right] \mathrm{d}\tilde z
+          = \frac{g}{\rho_0}\int_{z^\star}^{z} \left[\rho - \rho^\star(\tilde z)\right] \mathrm{d}\tilde z ,
 ```
 
-the part that an adiabatic rearrangement can release into kinetic energy. Importantly, the split matters
+the work needed to bring a parcel from its reference height to where it actually sits. Unlike the
+difference ``E_p - E_b``, this is **non-negative everywhere in space**, so it can be mapped as a field
+and read directly as "how much energy is still extractable from the density field, and where". Its
+volume integral recovers ``\int E_p - \int E_b`` in the continuum limit; at finite ``\Delta z`` the
+two differ at second order, because the local density samples the reference profile at the model's
+cell centers and the global split at the sorted column's. Importantly, the split matters
 because the two halves respond to different physics: ``E_a`` is exchanged reversibly with kinetic
 energy through the buoyancy flux ``wb``, while ``E_b`` can only be changed irreversibly.
 

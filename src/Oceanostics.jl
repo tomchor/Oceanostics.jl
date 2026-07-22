@@ -37,7 +37,7 @@ export TracerVarianceTendency, TracerVarianceDissipationRate, TracerVarianceDiff
 #---
 
 #+++ KineticEnergyEquation exports
-export KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyBuoyancyProduction,
+export KineticEnergy, KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyBuoyancyProduction,
        KineticEnergyDissipationRate, KineticEnergyIsotropicDissipationRate
 #---
 
@@ -409,7 +409,7 @@ end
 
 #+++ AvailablePotentialEnergyEquation
 @diagnostic_show AvailablePotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  E_b = -bz✶"
-@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy  "AvailablePotentialEnergy"  "available potential energy per unit volume  Eₐ = -b(z - z✶)"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy  "AvailablePotentialEnergy"  "local available potential energy density  Eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
 #---
 
 #+++ FlowDiagnostics

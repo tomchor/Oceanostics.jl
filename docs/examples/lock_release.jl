@@ -1,9 +1,7 @@
 # # [Lock release and the sorted reference state](@id lock_release_example)
 #
-# In this example we run a two-dimensional lock release and use it to watch the *sorted reference
-# state* evolve. A lock release is about the sharpest test of a reference-state calculation there is:
-# it starts as two blocks of uniform buoyancy sitting side by side, which is as far from a sorted state
-# as a stratified fluid can get, and it ends well mixed. Along the way we build the reference profile
+# In this example we run a two-dimensional lock release simulation and use it to watch the *sorted reference
+# state*, available potential energy and kinetic energy evolve. Along the way we build the reference profile
 # with each of the three methods Oceanostics offers and time them against each other.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
@@ -19,30 +17,24 @@
 using Oceananigans
 
 # We work with nondimensional quantities. The buoyancy jump across the lock `Δb` and the channel depth
-# `H` set the buoyancy velocity `U = √(Δb H) / 2`, which is the classic lock-release front speed, and
-# from it the Reynolds number fixes the viscosity. The channel is four times as long as it is deep:
+# `H` set the buoyancy velocity `U = √(Δb H) / 2`, which is the classic lock-release front speed and
+# the only velocity scale in the problem. The channel is four times as long as it is deep:
 
 Δb = 1      # buoyancy jump across the lock
 H  = 1      # channel depth
 Lx = 4H     # channel length
-Re = 1000   # Reynolds number
-Pr = 1      # Prandtl number
 
 U = √(Δb * H) / 2   # buoyancy velocity
-ν = U * H / Re      # viscosity
-κ = ν / Pr          # buoyancy diffusivity
 
 # The domain is walled at both ends and at top and bottom, so the fronts eventually reflect and the
 # channel fills with a mixed intermediate layer. That is what we want here: it drives the reference
 # profile all the way from a step to something smooth. The grid is isotropic at `Δ = H/128`:
 
 Nz = 128
-grid = RectilinearGrid(size = (4Nz, Nz), x = (-Lx/2, Lx/2), z = (-H/2, H/2),
-                       topology = (Bounded, Flat, Bounded))
+grid = RectilinearGrid(size = (4Nz, Nz), x = (-Lx/2, Lx/2), z = (-H/2, H/2), topology = (Bounded, Flat, Bounded))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
-                            advection = Centered(order=4),
-                            closure = ScalarDiffusivity(; ν, κ),
+                            advection = WENO(order=5), # Diffusive and bounded scheme
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
 # The lock itself: buoyant fluid on the right, dense fluid on the left, separated by an interface a
@@ -57,7 +49,6 @@ simulation = Simulation(model, Δt = 0.1 * minimum_xspacing(grid) / U, stop_time
 conjure_time_step_wizard!(simulation, IterationInterval(5), cfl = 0.7)
 
 using Oceanostics
-
 progress = ProgressMessengers.BasicMessenger()
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
 
@@ -65,7 +56,7 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
 #
 # We build one `z★` per method and write all of them, so the reference state comes out of the run
 # rather than being rebuilt afterwards. They are ordinary `Field`s that re-sort themselves whenever
-# they are computed, so an output writer can simply be handed them.
+# they are computed, so they can be passed to an output writer.
 #
 # What each method gives you to write differs, and that difference is the same one the figures below
 # show. The two model-grid methods produce a *map* of the reference height, one value per cell, on the
@@ -83,11 +74,16 @@ z★_heaviside = reference_height(model, method = HeavisideIntegral())
 z★_column    = reference_height(model, method = OneDimensionalSort())
 b✶_column    = reference_buoyancy(z★_column)
 
-# Both energies are built from the same reference height, so we share one rather than letting each
-# diagnostic sort the domain for itself.
+# Both background and available potential energies are built from the same reference height, so we share one rather than letting each
+# diagnostic sort the domain for itself. Note that `APE` here is the *local* available potential energy
+# (as defined by Holliday & McIntyre (1981)) and it should always be non-negative
 
-∫E_b = Integral(BackgroundPotentialEnergy(model, z★_ranked))
-∫E_a = Integral(AvailablePotentialEnergy(model, z★_ranked))
+APE = AvailablePotentialEnergy(model, z★_ranked)
+KE  = KineticEnergy(model)
+
+∫BPE = Integral(BackgroundPotentialEnergy(model, z★_ranked))
+∫APE = Integral(APE)
+∫KE  = Integral(KE)
 
 using NCDatasets
 filename = "lock_release"
@@ -96,15 +92,10 @@ filename = "lock_release"
 # `z`, and the column's against its own `N`-cell vertical axis.
 
 simulation.output_writers[:fields] = NetCDFWriter(model,
-                                                  (; b, z★_ranked, z★_heaviside, z★_column, b✶_column),
+                                                  (; b, KE, APE, z★_ranked, z★_heaviside, z★_column, b✶_column, ∫BPE, ∫APE, ∫KE),
                                                   filename = joinpath(@__DIR__, filename),
                                                   schedule = TimeInterval(0.5),
                                                   overwrite_existing = true)
-
-simulation.output_writers[:energies] = NetCDFWriter(model, (; ∫E_b, ∫E_a),
-                                                    filename = joinpath(@__DIR__, filename * "_energies"),
-                                                    schedule = TimeInterval(0.5),
-                                                    overwrite_existing = true)
 
 # ## Run the simulation
 
@@ -125,7 +116,7 @@ run!(simulation)
 using Oceananigans.Fields: interior
 
 filepath = simulation.output_writers[:fields].filepath
-b_t = FieldTimeSeries(filepath, "b")     # for the heatmaps below
+b_t = FieldTimeSeries(filepath, "b")     # for the movie below
 
 ds = NCDataset(filepath)
 times = ds["time"][:]
@@ -137,8 +128,7 @@ B1 = ds["b✶_column"][:, :, :]
 close(ds)
 
 ## pair a reference-height map with the buoyancy map and order by z★
-mapped_profile(Z, n) = (h = vec(Float64.(Z[:, :, n])); p = sortperm(h);
-                        (vec(Float64.(B[:, :, n]))[p], h[p]))
+mapped_profile(Z, n) = (h = vec(Float64.(Z[:, :, n])); p = sortperm(h); (vec(Float64.(B[:, :, n]))[p], h[p]))
 
 ## the column is already ordered, so it is read straight off
 column_profile(n) = (vec(Float64.(B1[:, :, n])), vec(Float64.(Z1[:, :, n])))
@@ -183,7 +173,7 @@ b✶_1d, z★_1d = profiles["OneDimensionalSort"][end]                          
 ## and the reference profile is, by construction, monotonic                               #hide
 @test issorted(b✶_1d)                                                                     #hide
 ## The three methods describe one reference state, so although their `z★` maps differ wherever    #hide
-## cells are tied, every buoyancy-weighted integral of `z★` has to agree — that integral is `E_b`, #hide
+## cells are tied, every buoyancy-weighted integral of `z★` has to agree — that integral is `BPE`, #hide
 ## and its independence from the method is the precise sense in which the three reference heights  #hide
 ## are the same. Unlike the pointwise comparisons above it holds at every time, ties or not, so it #hide
 ## is checked at all four snapshots rather than only once the field has gone continuous.           #hide
@@ -213,12 +203,68 @@ end                                                                             
 
 using CairoMakie
 
-set_theme!(Theme(fontsize = 20))
-fig = Figure(size = (1000, 760));
+KE_t  = FieldTimeSeries(filepath, "KE")
+APE_t = FieldTimeSeries(filepath, "APE")
 
-# The top row is the point of the example: the reference profile at a few times, one panel per method.
-# It starts as a step, two blocks of uniform buoyancy stacked one on the other, and mixing erodes it
-# into a smooth stratification.
+@test minimum(minimum(interior(APE_t[n])) for n in 1:length(times)) ≥ -1e-6 * maximum(interior(APE_t[end]))  #hide
+
+fig3 = Figure(size = (900, 620))
+
+n = Observable(1)
+
+panel_kwargs = (ylabel = "z", width = 760, height = 165)
+
+ax_b  = Axis(fig3[2, 1]; title = "Buoyancy b",                       panel_kwargs...)
+ax_KE = Axis(fig3[4, 1]; title = "Kinetic energy",                   panel_kwargs...)
+ax_Ea = Axis(fig3[6, 1]; title = "Available potential energy Eₐ", xlabel = "x", panel_kwargs...)
+
+bₙ  = @lift b_t[$n]
+KEₙ = @lift KE_t[$n]
+Eaₙ = @lift APE_t[$n]
+
+## `Eₐ` and the kinetic energy are both sign-definite, so they get one-sided ranges set from their own
+## peak over the run; the buoyancy keeps the symmetric range used above.
+KE_lim = maximum(maximum(interior(KE_t[k]))  for k in 1:length(times))
+Ea_lim = maximum(maximum(interior(APE_t[k])) for k in 1:length(times))
+
+hm_b  = heatmap!(ax_b,  bₙ;  colormap = :balance, colorrange = (-Δb/2, Δb/2))
+Colorbar(fig3[3, 1], hm_b;  vertical = false, height = 8)
+
+energy_options = (; colormap = :magma, colorrange = (0, 0.5Ea_lim))
+hm_KE = heatmap!(ax_KE, KEₙ; energy_options...)
+Colorbar(fig3[5, 1], hm_KE; vertical = false, height = 8)
+
+hm_Ea = heatmap!(ax_Ea, Eaₙ; energy_options...)
+Colorbar(fig3[7, 1], hm_Ea; vertical = false, height = 8)
+
+title = @lift "Lock release,  t = " * string(round(times[$n], digits = 1))
+Label(fig3[1, 1], title, fontsize = 22, tellwidth = false)
+
+resize_to_layout!(fig3)
+
+@info "Animating..."
+record(fig3, "lock_release.mp4", 1:length(times), framerate = 8) do i
+    n[] = i
+end
+nothing #hide
+
+# ![](lock_release.mp4)
+#
+# The buoyancy panel shows the two fronts running past each other and rolling up; the kinetic energy
+# tracks them, brightest along the shear between the counterflowing layers. The available potential
+# energy is the complement of the other two: it drains from the lock as the fronts accelerate, is
+# nearly spent when they meet the end walls, and returns each time the seiche lifts dense fluid back
+# above its reference height. Because this is the local form, it is non-negative everywhere, so the
+# panel reads directly as "how much energy is still extractable from the density field, and where".
+
+# ## The reference profile, method by method
+#
+# With the flow itself covered by the movie, the reference profile gets a figure of its own: one panel
+# per method, each showing `b★(z★)` at the four times above. It starts as a step, two blocks of uniform
+# buoyancy stacked one on the other, and mixing erodes it into a smooth stratification.
+
+set_theme!(Theme(fontsize = 20))
+fig = Figure();
 
 colors = cgrad(:viridis, length(snapshots); categorical = true)
 
@@ -261,24 +307,6 @@ axislegend(ax0; position = :lt, labelsize = 9)
 # in from each boundary. Once mixing has made the buoyancy field continuous the ties vanish and all
 # three agree to within a grid cell.
 
-# The rows below show the flow those profiles come from: a vertical cross section of the buoyancy field
-# at each of the same times. The dense fluid on the left runs right along the bottom, the buoyant fluid
-# on the right runs left along the top, and the shear between them rolls up into billows that do the
-# mixing.
-
-n_cols = length(methods) + 1
-
-for (row, n) in enumerate(snapshots)
-    local ax = Axis(fig[row + 1, 1:n_cols]; ylabel = "z", width = 860, height = 215,
-                    xlabel = row == length(snapshots) ? "x" : "",
-                    xticklabelsvisible = row == length(snapshots))
-    heatmap!(ax, b_t[n]; colormap = :balance, colorrange = (-Δb/2, Δb/2))
-    text!(ax, -Lx/2 + 0.05, 0.30; text = "t = $(round(times[n], digits=1))", fontsize = 16)
-end
-
-Colorbar(fig[2:length(snapshots) + 1, n_cols + 1];
-         colormap = :balance, limits = (-Δb/2, Δb/2), label = "b")
-
 resize_to_layout!(fig)
 save("lock_release_profiles.png", fig)
 nothing #hide
@@ -287,28 +315,39 @@ nothing #hide
 
 # ## Energetics
 #
-# A lock release is the textbook case of the split this module computes. The initial state holds no
-# kinetic energy and a great deal of available potential energy; the collapse converts `Eₐ` into motion,
-# and the billows then mix irreversibly, which shows up as a rise in `E_b`. Because the channel is
-# closed, the fronts reflect off the end walls and the whole box seiches, so `∫Eₐ dV` does not decay
-# smoothly: it very nearly empties as the fronts pass each other, then refills as the sloshing carries
-# fluid back up, with each cycle weaker than the last.
+# The three reservoirs go on one axis. `APE` is spent as the fronts run and refills as the seiche lifts
+# dense fluid back up; `KE` mirrors it, filling as `APE` drains; and `BPE` climbs as the flow mixes
+# buoyancy irreversibly across density surfaces. Their sum (dashed) is the total energy, which no
+# exchange among the three can alter.
+#
+# The model carries no explicit dissipation of any kind, so every one of those changes is the work of
+# the advection scheme. `WENO` is bounded, which is key to keeping the reference state physical: it
+# cannot manufacture buoyancy outside its initial range.
 
-ds = NCDataset(simulation.output_writers[:energies].filepath)
-t_e   = ds["time"][:]
-E_b_t = ds["∫E_b"][:]
-E_a_t = ds["∫E_a"][:]
+ds = NCDataset(simulation.output_writers[:fields].filepath)
+t_e     = ds["time"][:]
+BPE_int = ds["∫BPE"][:]
+APE_int = ds["∫APE"][:]
+KE_int  = ds["∫KE"][:]
 close(ds)
 
-@test E_a_t[1] > 0                                          # a lock is pure available PE     #hide
-@test minimum(E_a_t) < 0.05 * E_a_t[1]                      # the collapse nearly empties it  #hide
-@test E_b_t[end] > E_b_t[1]                                 # mixing raised the background    #hide
-@test minimum(diff(E_b_t)) > -1e-6 * maximum(abs, E_b_t);   # and only ever raised it         #hide
+total_int = KE_int .+ APE_int .+ BPE_int
 
-fig2 = Figure(size = (700, 300))
+@test APE_int[1] > 0                                        # a lock is pure available PE     #hide
+@test minimum(APE_int) < 0.05 * APE_int[1]                  # the collapse nearly empties it  #hide
+@test all(APE_int .≥ -1e-8)                                 # and it is never negative        #hide
+@test KE_int[1] < 1e-8 * APE_int[1]                         # the lock starts at rest         #hide
+@test BPE_int[end] > BPE_int[1]                             # mixing raised the background    #hide
+@test minimum(diff(BPE_int)) > -1e-6 * maximum(abs, BPE_int) # and only ever raised it        #hide
+## the total is only ever dissipated, never created                                           #hide
+@test maximum(diff(total_int)) < 1e-6 * abs(total_int[1] - total_int[end]);                   #hide
+
+fig2 = Figure(size = (780, 350))
 ax = Axis(fig2[1, 1]; xlabel = "Time", ylabel = "Energy", title = "Lock-release energetics")
-lines!(ax, t_e, E_a_t, label = "∫Eₐ dV")
-lines!(ax, t_e, E_b_t .- E_b_t[1], label = "Δ∫E_b dV")
+lines!(ax, t_e, KE_int,  label = "∫KE dV")
+lines!(ax, t_e, APE_int, label = "∫APE dV")
+lines!(ax, t_e, BPE_int, label = "∫BPE dV")
+lines!(ax, t_e, total_int; label = "total", color = :black, linestyle = :dash)
 axislegend(ax; position = :rc, labelsize = 12)
 
 save("lock_release_energetics.png", fig2)
@@ -316,10 +355,8 @@ nothing #hide
 
 # ![](lock_release_energetics.png)
 #
-# The two curves separate the reversible part of the flow from the irreversible one. `∫Eₐ dV` swings up
-# and down with the seiche, since sloshing lifts dense fluid back up and stores energy that the flow can
-# still give back. `Δ∫E_b dV` only ever climbs: it is the running record of how much buoyancy has
-# actually been mixed across density surfaces, and it is precisely the part of the reference profile's
-# evolution that cannot be undone. By the end of the run it has absorbed a modest fraction of the
-# available potential energy the lock started with, with the rest still sloshing between kinetic and
-# available potential energy.
+# `BPE` is the one curve that never turns back: it is the running record of buoyancy that has actually
+# been mixed across density surfaces, and mixing cannot be undone. Everything the flow can still do
+# sits in `APE`, which trades back and forth with `KE` as the box seiches, each cycle weaker than the
+# last. The dashed total drifts down slowly and monotonically, since the scheme's implicit dissipation
+# is the only sink once the three reservoirs are all accounted for.
