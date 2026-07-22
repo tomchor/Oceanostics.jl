@@ -80,10 +80,15 @@ z★_column    = reference_height(model, method = OneDimensionalSort())
 b✶_column    = reference_buoyancy(z★_column)
 
 # Both energies are built from the same reference height, so we share one rather than letting each
-# diagnostic sort the domain for itself.
+# diagnostic sort the domain for itself. `Eₐ` here is the *local* available potential energy, the work
+# needed to bring each parcel from its reference height to where it is, so it is non-negative
+# everywhere and can be mapped as a field in its own right.
+
+E_a = AvailablePotentialEnergy(model, z★_ranked)
+KE  = KineticEnergyEquation.KineticEnergy(model)
 
 ∫E_b = Integral(BackgroundPotentialEnergy(model, z★_ranked))
-∫E_a = Integral(AvailablePotentialEnergy(model, z★_ranked))
+∫E_a = Integral(E_a)
 
 using NCDatasets
 filename = "lock_release"
@@ -92,7 +97,7 @@ filename = "lock_release"
 # `z`, and the column's against its own `N`-cell vertical axis.
 
 simulation.output_writers[:fields] = NetCDFWriter(model,
-                                                  (; b, z★_ranked, z★_heaviside, z★_column, b✶_column),
+                                                  (; b, KE, E_a, z★_ranked, z★_heaviside, z★_column, b✶_column),
                                                   filename = joinpath(@__DIR__, filename),
                                                   schedule = TimeInterval(0.5),
                                                   overwrite_existing = true)
@@ -343,3 +348,64 @@ nothing #hide
 # evolution that cannot be undone. By the end of the run it has absorbed a modest fraction of the
 # available potential energy the lock started with, with the rest still sloshing between kinetic and
 # available potential energy.
+
+# ## Animating the flow and its energy
+#
+# The panels above are snapshots; the exchange between the reservoirs is easier to follow as a movie.
+# We animate three fields side by side: the buoyancy that drives the flow, the kinetic energy it
+# produces, and the local available potential energy still stored in the density field. `Eₐ` is the one
+# worth watching against the other two — it starts concentrated at the lock, is spent as the fronts run
+# and the billows break, and refills wherever the seiche lifts dense fluid back up.
+
+KE_t  = FieldTimeSeries(filepath, "KE")
+E_a_t = FieldTimeSeries(filepath, "E_a")
+
+@test minimum(minimum(interior(E_a_t[n])) for n in 1:length(times)) ≥ -1e-6 * maximum(interior(E_a_t[end]))  #hide
+
+fig3 = Figure(size = (900, 620))
+
+n = Observable(1)
+
+panel_kwargs = (ylabel = "z", width = 760, height = 165)
+
+ax_b  = Axis(fig3[2, 1]; title = "Buoyancy b",                       panel_kwargs...)
+ax_KE = Axis(fig3[4, 1]; title = "Kinetic energy",                   panel_kwargs...)
+ax_Ea = Axis(fig3[6, 1]; title = "Available potential energy Eₐ", xlabel = "x", panel_kwargs...)
+
+bₙ  = @lift b_t[$n]
+KEₙ = @lift KE_t[$n]
+Eaₙ = @lift E_a_t[$n]
+
+## `Eₐ` and the kinetic energy are both sign-definite, so they get one-sided ranges set from their own
+## peak over the run; the buoyancy keeps the symmetric range used above.
+KE_lim = maximum(maximum(interior(KE_t[k]))  for k in 1:length(times))
+Ea_lim = maximum(maximum(interior(E_a_t[k])) for k in 1:length(times))
+
+hm_b  = heatmap!(ax_b,  bₙ;  colormap = :balance, colorrange = (-Δb/2, Δb/2))
+Colorbar(fig3[3, 1], hm_b;  vertical = false, height = 8)
+
+hm_KE = heatmap!(ax_KE, KEₙ; colormap = :magma,   colorrange = (0, KE_lim))
+Colorbar(fig3[5, 1], hm_KE; vertical = false, height = 8)
+
+hm_Ea = heatmap!(ax_Ea, Eaₙ; colormap = :thermal, colorrange = (0, 0.5Ea_lim))
+Colorbar(fig3[7, 1], hm_Ea; vertical = false, height = 8)
+
+title = @lift "Lock release,  t = " * string(round(times[$n], digits = 1))
+Label(fig3[1, 1], title, fontsize = 22, tellwidth = false)
+
+resize_to_layout!(fig3)
+
+@info "Animating..."
+record(fig3, "lock_release.mp4", 1:length(times), framerate = 8) do i
+    n[] = i
+end
+nothing #hide
+
+# ![](lock_release.mp4)
+#
+# The buoyancy panel shows the two fronts running past each other and rolling up; the kinetic energy
+# tracks them, brightest along the shear between the counterflowing layers. The available potential
+# energy is the complement of the other two: it drains from the lock as the fronts accelerate, is
+# nearly spent when they meet the end walls, and returns each time the seiche lifts dense fluid back
+# above its reference height. Because this is the local form, it is non-negative everywhere, so the
+# panel reads directly as "how much energy is still extractable from the density field, and where".

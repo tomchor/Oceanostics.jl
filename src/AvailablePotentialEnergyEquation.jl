@@ -70,12 +70,14 @@ other diagnostic in Oceanostics it cannot be expressed as a `KernelFunctionOpera
 same role `Oceananigans.Fields.Scan` plays for `Integral` and `Average` instead, hooking a whole-field
 computation into `compute!` so the reference state is refreshed whenever the diagnostic is written out.
 """
-struct SortedReferenceState{M, B, V, P, W, FT}
+struct SortedReferenceState{M, B, V, P, W, S, A, FT}
     method :: M
     buoyancy :: B
     cell_volume :: V
     permutation :: P
     workspace :: W
+    source_height :: S
+    ape_potential :: A
     horizontal_area :: FT
     bottom_height :: FT
 end
@@ -152,13 +154,12 @@ carried along, so [`AvailablePotentialEnergy`](@ref) still works, but its result
 in the sorted column rather than by position in the flow. Requires every cell of the model grid to
 hold the same volume, since otherwise the column's cell boundaries would move as the flow evolves.
 """
-struct OneDimensionalSort{B, H, V} <: AbstractSortingMethod
+struct OneDimensionalSort{B, H} <: AbstractSortingMethod
     reference_buoyancy :: B
     sorted_height :: H
-    source_height :: V
 end
 
-OneDimensionalSort() = OneDimensionalSort(nothing, nothing, nothing)
+OneDimensionalSort() = OneDimensionalSort(nothing, nothing)
 
 Base.summary(::ThreeDimensionalSort) = "ThreeDimensionalSort"
 Base.summary(::HeavisideIntegral) = "HeavisideIntegral"
@@ -234,15 +235,57 @@ sorted_height(method::OneDimensionalSort) = method.sorted_height
     $(SIGNATURES)
 
 Rank the cells of `s.buoyancy` by buoyancy, densest (lowest `b`) first, leaving the flattened
-buoyancy in `s.workspace` and the ranking in `s.permutation`. Returns the cell volumes in that
-sorted order, which is what every [`AbstractSortingMethod`](@ref) then accumulates.
+buoyancy in `s.workspace` and the ranking in `s.permutation`. Returns the cell volumes and the
+buoyancies in that sorted order, which is what every [`AbstractSortingMethod`](@ref) then accumulates.
 """
 function rank_by_buoyancy!(s::SortedReferenceState)
 
     reshape(s.workspace, size(s.buoyancy)) .= interior(s.buoyancy)
     sortperm!(s.permutation, s.workspace)
 
-    return s.cell_volume[s.permutation]
+    return s.cell_volume[s.permutation], s.workspace[s.permutation]
+end
+
+"""
+    $(SIGNATURES)
+
+Fill `s.ape_potential` with `Ψ(z) - Ψ(z✶)`, where `Ψ(z) = ∫ b✶ dz̃` runs from the bottom of the domain
+up through the sorted profile. This is the part of the local available potential energy that only the
+sort can supply; [`AvailablePotentialEnergy`](@ref)'s kernel adds the remaining `-b(z - z✶)` pointwise.
+
+`b✶` is piecewise constant on the sorted column, so `Ψ` is piecewise linear and can be evaluated
+exactly at any height from the slot faces and the cumulative integral over them. Both `z` and `z✶` are
+evaluated through that same `Ψ`, which is what makes the result non-negative: a parcel carries
+`b = b✶(z✶)`, and `b✶` is non-decreasing, so the integrand `b✶(z̃) - b` has the same sign as `z̃ - z✶`
+over the whole path.
+"""
+function fill_ape_potential!(s::SortedReferenceState, ΔV_sorted, b_sorted, z✶_sorted, sz, sorted_output)
+
+    N  = length(ΔV_sorted)
+    FT = eltype(ΔV_sorted)
+
+    Δz    = ΔV_sorted ./ s.horizontal_area           # slot thickness, sorted order
+    faces = similar(Δz, N + 1)                       # slot faces, from the bottom up
+    Ψface = similar(Δz, N + 1)                       # Ψ evaluated at those faces
+    faces[1] = s.bottom_height
+    Ψface[1] = zero(FT)
+    cumsum!(view(faces, 2:N+1), Δz);  view(faces, 2:N+1) .+= s.bottom_height
+    cumsum!(view(Ψface, 2:N+1), b_sorted .* Δz)
+
+    ## Ψ inside slot k is Ψface[k] + b✶[k](z - faces[k]); `searchsortedlast` locates the slot
+    psi(z) = (k = clamp(searchsortedlast(faces, z), 1, N); @inbounds Ψface[k] + b_sorted[k] * (z - faces[k]))
+
+    Ψ✶ = psi.(z✶_sorted)                             # sorted order
+
+    if sorted_output   # the column: its cells are already in sorted order
+        interior(s.ape_potential) .= reshape(psi.(s.source_height[s.permutation]) .- Ψ✶, sz)
+    else               # the model grid: scatter Ψ(z✶) back to the original cell ordering
+        work = s.workspace
+        work[s.permutation] = Ψ✶
+        interior(s.ape_potential) .= reshape(psi.(s.source_height) .- work, sz)
+    end
+
+    return nothing
 end
 
 """
@@ -263,13 +306,14 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::ThreeDimensionalS
     sz   = size(z✶_field)
     work = s.workspace
     perm = s.permutation
-    ΔV   = rank_by_buoyancy!(s)
+    ΔV, b_sorted = rank_by_buoyancy!(s)
 
-    cumsum!(work, ΔV)                                              # volume of the column below each cell's top face
-    @. ΔV = s.bottom_height + (work - ΔV / 2) / s.horizontal_area  # cell-center z✶, in sorted order
-    work[perm] = ΔV                                                # scatter back to the original cell ordering
+    cumsum!(work, ΔV)                                                       # volume below each cell's top face
+    z✶_sorted = @. s.bottom_height + (work - ΔV / 2) / s.horizontal_area    # cell-center z✶, in sorted order
+    work[perm] = z✶_sorted                                                  # scatter to the original ordering
 
     interior(z✶_field) .= reshape(work, sz)
+    fill_ape_potential!(s, ΔV, b_sorted, z✶_sorted, sz, false)
 
     return z✶_field
 end
@@ -280,9 +324,8 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::HeavisideIntegral
     perm = s.permutation
     FT   = eltype(work)
     N    = length(work)
-    ΔV   = rank_by_buoyancy!(s)
+    ΔV, b = rank_by_buoyancy!(s)   # `b` is the sorted buoyancy, which is where the ties show up
 
-    b = work[perm]      # buoyancy in sorted order, which is where the ties show up
     cumsum!(work, ΔV)   # volume of the column below each cell's top face
     below = work .- ΔV  # ... and below its bottom face
 
@@ -306,10 +349,11 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::HeavisideIntegral
     accumulate!(min, no_lighter, no_lighter)
     reverse!(no_lighter)
 
-    @. ΔV = s.bottom_height + (denser + no_lighter) / (2 * s.horizontal_area)
-    work[perm] = ΔV
+    z✶_sorted = @. s.bottom_height + (denser + no_lighter) / (2 * s.horizontal_area)
+    work[perm] = z✶_sorted
 
     interior(z✶_field) .= reshape(work, sz)
+    fill_ape_potential!(s, ΔV, b, z✶_sorted, sz, false)
 
     return z✶_field
 end
@@ -318,14 +362,15 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::OneDimensio
     sz   = size(z✶_field) # (1, 1, N): the sorted column, not the model grid
     work = s.workspace
     perm = s.permutation
-    ΔV   = rank_by_buoyancy!(s)
+    ΔV, b_sorted = rank_by_buoyancy!(s)
 
-    interior(method.reference_buoyancy) .= reshape(work[perm], sz)                # buoyancy, densest first
-    interior(method.sorted_height)   .= reshape(method.source_height[perm], sz) # where each parcel came from
+    interior(method.reference_buoyancy) .= reshape(b_sorted, sz)                 # buoyancy, densest first
+    interior(method.sorted_height)      .= reshape(s.source_height[perm], sz)    # where each parcel came from
 
     cumsum!(work, ΔV)
-    @. ΔV = s.bottom_height + (work - ΔV / 2) / s.horizontal_area
-    interior(z✶_field) .= reshape(ΔV, sz) # which is exactly the column's own cell centers
+    z✶_sorted = @. s.bottom_height + (work - ΔV / 2) / s.horizontal_area
+    interior(z✶_field) .= reshape(z✶_sorted, sz) # exactly the column's own cell centers
+    fill_ape_potential!(s, ΔV, b_sorted, z✶_sorted, sz, true)
 
     return z✶_field
 end
@@ -436,7 +481,8 @@ function reference_height(b::Field; method = ThreeDimensionalSort())
     FT   = eltype(grid)
     N    = prod(size(grid))
 
-    cell_volume = flat_grid_metric(grid, Vᶜᶜᶜ)
+    cell_volume   = flat_grid_metric(grid, Vᶜᶜᶜ)
+    source_height = flat_grid_metric(grid, Zᶜᶜᶜ)
 
     # A stretched grid keeps its coordinates on the device, so the bottom face is read off a CPU copy
     # of the grid rather than by indexing into GPU memory.
@@ -445,13 +491,16 @@ function reference_height(b::Field; method = ThreeDimensionalSort())
     # sorted column fill the domain's depth exactly, which is what keeps ∫Eₚ = ∫E_b for a sorted field.
     horizontal_area = convert(FT, sum(cell_volume) / grid.Lz)
 
-    method  = build_sorting_method(method, grid, cell_volume, horizontal_area, z_bottom)
+    method = build_sorting_method(method, grid, cell_volume, horizontal_area, z_bottom)
+    sgrid  = sorting_grid(method, grid)
+
     operand = SortedReferenceState(method, b, cell_volume,
                                    on_architecture(arch, zeros(Int, N)),
                                    on_architecture(arch, zeros(FT, N)),
+                                   source_height, CenterField(sgrid),
                                    horizontal_area, z_bottom)
 
-    return compute!(Field{Center, Center, Center}(sorting_grid(method, grid); operand, status = FieldStatus()))
+    return compute!(Field{Center, Center, Center}(sgrid; operand, status = FieldStatus()))
 end
 
 #+++ Per-method setup
@@ -496,21 +545,23 @@ function build_sorting_method(::OneDimensionalSort, grid, cell_volume, horizonta
                              size = column_size, topology = (tx, ty, tz),
                              z = (z_bottom, z_bottom + grid.Lz), x_kw..., y_kw...)
 
-    return OneDimensionalSort(CenterField(column), CenterField(column), flat_grid_metric(grid, Zᶜᶜᶜ))
+    return OneDimensionalSort(CenterField(column), CenterField(column))
 end
 #---
 #---
 
 #+++ Background and available potential energy
 @inline minus_bz✶_ccc(i, j, k, grid, b, z✶) = @inbounds -b[i, j, k] * z✶[i, j, k]
-# `Eₐ` multiplies the displacement `z - z✶` rather than subtracting `Eₚ - E_b`: near equilibrium the two
-# energies are large and nearly equal, and differencing the heights first avoids that cancellation. The
-# parcel's own height is the grid's `Zᶜᶜᶜ` on the model grid, and a carried field on a sorted column.
-@inline minus_bδz✶_ccc(i, j, k, grid, b, z✶) = @inbounds -b[i, j, k] * (Zᶜᶜᶜ(i, j, k, grid) - z✶[i, j, k])
-@inline minus_bδz✶_ccc(i, j, k, grid, b, z, z✶) = @inbounds -b[i, j, k] * (z[i, j, k] - z✶[i, j, k])
+# The local available potential energy `Eₐ = ∫_{z✶}^{z} [b✶(z̃) - b] dz̃`, split into the part only the
+# sort can supply (`Ψδ = Ψ(z) - Ψ(z✶)`, see `fill_ape_potential!`) and the `-b(z - z✶)` the kernel does
+# pointwise. The parcel's own height is the grid's `Zᶜᶜᶜ` on the model grid, a carried field on a column.
+@inline local_ape_ccc(i, j, k, grid, Ψδ, b, z✶) =
+    @inbounds Ψδ[i, j, k] - b[i, j, k] * (Zᶜᶜᶜ(i, j, k, grid) - z✶[i, j, k])
+@inline local_ape_ccc(i, j, k, grid, Ψδ, b, z, z✶) =
+    @inbounds Ψδ[i, j, k] - b[i, j, k] * (z[i, j, k] - z✶[i, j, k])
 
 const BackgroundPotentialEnergy = CustomKFO{<:typeof(minus_bz✶_ccc)}
-const AvailablePotentialEnergy = CustomKFO{<:typeof(minus_bδz✶_ccc)}
+const AvailablePotentialEnergy = CustomKFO{<:typeof(local_ape_ccc)}
 
 """
     $(SIGNATURES)
@@ -618,9 +669,11 @@ end
 AvailablePotentialEnergy(model, z✶::SortedReferenceHeightField) = available_potential_energy(z✶, reference_buoyancy(z✶.operand), sorted_height(z✶.operand))
 
 # On the model grid the parcel's own height is the grid's; on a sorted column it has to be carried.
-available_potential_energy(z✶, b, ::Nothing) = KernelFunctionOperation{Center, Center, Center}(minus_bδz✶_ccc, z✶.grid, b, z✶)
+available_potential_energy(z✶, b, ::Nothing) =
+    KernelFunctionOperation{Center, Center, Center}(local_ape_ccc, z✶.grid, z✶.operand.ape_potential, b, z✶)
 
-available_potential_energy(z✶, b, z) = KernelFunctionOperation{Center, Center, Center}(minus_bδz✶_ccc, z✶.grid, b, z, z✶)
+available_potential_energy(z✶, b, z) =
+    KernelFunctionOperation{Center, Center, Center}(local_ape_ccc, z✶.grid, z✶.operand.ape_potential, b, z, z✶)
 #---
 
 end # module
