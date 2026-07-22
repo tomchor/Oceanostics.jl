@@ -17,8 +17,8 @@
 using Oceananigans
 
 # We work with nondimensional quantities. The buoyancy jump across the lock `Δb` and the channel depth
-# `H` set the buoyancy velocity `U = √(Δb H) / 2`, which is the classic lock-release front speed, and
-# from it the Reynolds number fixes the viscosity. The channel is four times as long as it is deep:
+# `H` set the buoyancy velocity `U = √(Δb H) / 2`, which is the classic lock-release front speed and
+# the only velocity scale in the problem. The channel is four times as long as it is deep:
 
 Δb = 1      # buoyancy jump across the lock
 H  = 1      # channel depth
@@ -34,7 +34,7 @@ Nz = 128
 grid = RectilinearGrid(size = (4Nz, Nz), x = (-Lx/2, Lx/2), z = (-H/2, H/2), topology = (Bounded, Flat, Bounded))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
-                            advection = UpwindBiased(order=5), # Adds some numerical diffusion
+                            advection = WENO(order=5), # Diffusive and bounded scheme
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
 # The lock itself: buoyant fluid on the right, dense fluid on the left, separated by an interface a
@@ -124,8 +124,7 @@ B1 = ds["b✶_column"][:, :, :]
 close(ds)
 
 ## pair a reference-height map with the buoyancy map and order by z★
-mapped_profile(Z, n) = (h = vec(Float64.(Z[:, :, n])); p = sortperm(h);
-                        (vec(Float64.(B[:, :, n]))[p], h[p]))
+mapped_profile(Z, n) = (h = vec(Float64.(Z[:, :, n])); p = sortperm(h); (vec(Float64.(B[:, :, n]))[p], h[p]))
 
 ## the column is already ordered, so it is read straight off
 column_profile(n) = (vec(Float64.(B1[:, :, n])), vec(Float64.(Z1[:, :, n])))
@@ -343,9 +342,13 @@ nothing #hide
 # ## Energetics
 #
 # The three reservoirs go on one axis. `APE` is spent as the fronts run and refills as the seiche lifts
-# dense fluid back up; `KE` mirrors it, filling as `APE` drains; and `BPE` climbs monotonically as
-# mixing carries buoyancy irreversibly across density surfaces. Their sum (dashed) is the total energy,
-# which no exchange among the three can alter — it only falls, and only through viscous dissipation.
+# dense fluid back up; `KE` mirrors it, filling as `APE` drains; and `BPE` climbs as the flow mixes
+# buoyancy irreversibly across density surfaces. Their sum (dashed) is the total energy, which no
+# exchange among the three can alter.
+#
+# The model carries no explicit dissipation of any kind, so every one of those changes is the work of
+# the advection scheme. `WENO` is bounded, which is key to keeping the reference state physical: it
+# cannot manufacture buoyancy outside its initial range.
 
 ds = NCDataset(simulation.output_writers[:fields].filepath)
 t_e     = ds["time"][:]
@@ -378,8 +381,8 @@ nothing #hide
 
 # ![](lock_release_energetics.png)
 #
-# `BPE` is the one curve that never turns back: it is the running record of buoyancy that diffusion has
-# actually mixed across density surfaces, and mixing cannot be undone. Everything the flow can still do
+# `BPE` is the one curve that never turns back: it is the running record of buoyancy that has actually
+# been mixed across density surfaces, and mixing cannot be undone. Everything the flow can still do
 # sits in `APE`, which trades back and forth with `KE` as the box seiches, each cycle weaker than the
-# last. The dashed total drifts down slowly and monotonically — once the three reservoirs are all
-# accounted for, the only sink left is viscosity.
+# last. The dashed total drifts down slowly and monotonically, since the scheme's implicit dissipation
+# is the only sink once the three reservoirs are all accounted for.
