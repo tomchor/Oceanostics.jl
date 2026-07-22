@@ -471,8 +471,17 @@ and `∫Eₐ dV` do not depend on the choice:
   - [`HeavisideIntegral`](@ref) is Eq. (11) of Winters et al. verbatim, also on the model grid. Tied
     cells share the mid-height of their layer, so `z✶` is a function of buoyancy alone and a
     cell-by-cell map is clean. Use this one for local fields.
+  - [`ProfileLookup`](@ref) gives each cell the height of the slot whose buoyancy matches its own,
+    found by binary search into the sorted profile, on the model grid. It is the column below read
+    back onto the model grid, matched by value rather than by cell identity, so it is the one method
+    that does not need the profile to have come from the field being diagnosed. Tied cells take the
+    first slot of their run, which makes `z✶` a function of buoyancy alone as above.
   - [`OneDimensionalSort`](@ref) returns the sorted column itself, on a `1×1×N` grid of cells that span
     the domain's horizontal area, which is the form to use for a reference profile.
+
+Where they differ is `z✶`, and so `E_b`: the placement of tied cells is the only freedom they have,
+and `Eₐ` is blind to it, since a cell's `z✶` always lands inside the run of slots its own buoyancy
+fills and the reference profile is flat across that run.
 
 ```jldoctest
 using Oceananigans, Oceanostics
