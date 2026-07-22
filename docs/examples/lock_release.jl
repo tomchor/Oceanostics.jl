@@ -23,12 +23,8 @@ using Oceananigans
 Δb = 1      # buoyancy jump across the lock
 H  = 1      # channel depth
 Lx = 4H     # channel length
-Re = 1000   # Reynolds number
-Pr = 1      # Prandtl number
 
 U = √(Δb * H) / 2   # buoyancy velocity
-ν = U * H / Re      # viscosity
-κ = ν / Pr          # buoyancy diffusivity
 
 # The domain is walled at both ends and at top and bottom, so the fronts eventually reflect and the
 # channel fills with a mixed intermediate layer. That is what we want here: it drives the reference
@@ -38,8 +34,7 @@ Nz = 128
 grid = RectilinearGrid(size = (4Nz, Nz), x = (-Lx/2, Lx/2), z = (-H/2, H/2), topology = (Bounded, Flat, Bounded))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
-                            advection = Centered(order=4), # Minizes numerical diffusion
-                            closure = ScalarDiffusivity(; ν, κ),
+                            advection = UpwindBiased(order=5), # Adds some numerical diffusion
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
 # The lock itself: buoyant fluid on the right, dense fluid on the left, separated by an interface a
