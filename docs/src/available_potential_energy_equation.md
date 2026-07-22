@@ -16,8 +16,7 @@ E_b = -b z^\star = \frac{g \rho}{\rho_0} z^\star ,
 ```
 
 and what is left over is the available potential energy. Oceanostics computes it in its *local*
-form, the density of [Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742) written
-as eq. (1.1) of [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879),
+form, the density of [Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742),
 
 ```math
 E_a(b, z) = \int_{z^\star}^{z} \left[b^\star(\tilde z) - b\right] \mathrm{d}\tilde z
@@ -25,13 +24,9 @@ E_a(b, z) = \int_{z^\star}^{z} \left[b^\star(\tilde z) - b\right] \mathrm{d}\til
 ```
 
 the work needed to bring a parcel from its reference height to where it actually sits. Unlike the
-difference ``E_p - E_b``, this is **non-negative everywhere in space**, so it can be mapped as a field
-and read directly as "how much energy is still extractable from the density field, and where". Its
-volume integral recovers ``\int E_p - \int E_b`` in the continuum limit; at finite ``\Delta z`` the
-two differ at second order, because the local density samples the reference profile at the model's
-cell centers and the global split at the sorted column's. Importantly, the split matters
-because the two halves respond to different physics: ``E_a`` is exchanged reversibly with kinetic
-energy through the buoyancy flux ``wb``, while ``E_b`` can only be changed irreversibly.
+difference ``E_p - E_b``, this is **non-negative everywhere in space**, so it can be mapped as a field. Its
+volume integral recovers ``\int E_p - \int E_b`` in the continuum limit, although at finite ``\Delta z`` the
+two differ at second order.
 
 ``z^\star`` is computed by [`reference_height`](@ref), which returns a `Field` on the model
 grid. Sorting is a non-local operation that couples every cell in the domain to every other one, so, unlike most other diagnostics
@@ -44,42 +39,41 @@ z✶ = reference_height(model)                  # share one sort between the two
 ∫E_a = Integral(AvailablePotentialEnergy(model, z✶))
 ```
 
-The domain's horizontal cross-sectional area is assumed independent of depth, so an
+For now the domain's horizontal cross-sectional area is assumed independent of depth, so an
 `ImmersedBoundaryGrid` is rejected.
 
 ## The background potential energy and the reference state
 
-The reference state is what characterizes ``E_b``. Usually this is achieved by sorting the buoyancy
-field: rank every cell in the domain by buoyancy and stack the
-cells from the bottom of the domain up, densest first. Each cell keeps its own volume, so it becomes
-a slab of thickness ``\Delta V / A`` spanning the domain's horizontal area ``A``, and the height its
-middle lands at is that cell's reference height ``z^\star``. Nothing is added or removed, only
-rearranged, which is why the stack fills exactly the depth of the domain and why the rearrangement
-counts as adiabatic. Weighting the buoyancy by ``z^\star`` instead of by ``z`` gives ``E_b``, the
+The reference state is what characterizes ``E_b`` and it is characterized being the state of
+minimum potential energy that can be reached by adiabatic rearrangement of the fluid.
+The reference height ``z^\star`` is the height a parcel would occupy in that state.
+Weighting the buoyancy by ``z^\star`` instead of by ``z`` gives ``E_b``, the
 potential energy the fluid would still hold once every parcel had been let down to its own level.
 
-Plotting the buoyancy against the reference height it was assigned gives the reference profile
+Organizing the buoyancy against the reference height it was assigned gives the reference profile
 ``b^\star(z^\star)``: the stratification the flow would have if all of its available potential energy
 were released. The [Lock release](@ref lock_release_example) example follows that profile through a
 gravity current, from the step it starts as to the smooth stratification mixing leaves behind, and
 builds it with each of the three methods below so their costs and their differences can be compared
 directly.
 
-## Choosing how the reference state is built
-
-`method` selects one of three strategies. They describe the same reference state and agree on every
+`method` selects one of three strategies to calculate the reference state. They describe the same reference state and agree on every
 volume integral, so ``\int E_b \, \mathrm{d}V`` and ``\int E_a \, \mathrm{d}V`` do not depend on the
-choice. What differs is how cells of *equal* buoyancy are placed, and what grid the answer lands on.
-Those are two separate axes: only [`OneDimensionalSort`](@ref) moves the answer off the model grid,
-while the other two both stay on it and part ways over ties.
+choice. Mainly what differs is how cells of *equal* buoyancy are placed, and what grid the answer lands on.
 
 [`ThreeDimensionalSort`](@ref) (the default) ranks the cells and gives each one the height of its
-own slot in the sorted column, on the model grid. Tied cells take consecutive slots rather than a
+own slot in the sorted state on the model grid. Tied cells take consecutive slots rather than a
 shared height, so ``z^\star`` spreads over a grid cell wherever the stratification is horizontally
-uniform. The spread is the volume-weighted mean of what the next method assigns, so it cancels in
-the integrals, but it does make a cell-by-cell map noisy in such regions.
+uniform. Crucially, this method may leave small horizontal buyoancy gradients in the reference state,
+which goes against the idea of a reference state being horizontally uniform
 
-[`HeavisideIntegral`](@ref) is eq. (11) of Winters et al. verbatim,
+[`OneDimensionalSort`](@ref) is similar to [`ThreeDimensionalSort`](@ref) but returns the cells reorganized
+into a single column. To achieve this the cells are flattened such that their volume remains the same, but their
+horizontal area matches the domain's horizontal area. This has the advantage that reference state (correctly) has no horizontal structure. The
+downside is that the results land on a different grid. Namely a ``1 \times 1 \times N`` grid whose
+``N = N_x N_y N_z`` cells span the domain's full horizontal area.
+
+[`HeavisideIntegral`](@ref) is Eq. (11) of Winters et al. (1995) verbatim,
 
 ```math
 z^\star(\boldsymbol{x}) = \frac{1}{A} \int H\!\left(\rho(\boldsymbol{x}') - \rho(\boldsymbol{x})\right) \mathrm{d}V' ,
@@ -88,18 +82,11 @@ z^\star(\boldsymbol{x}) = \frac{1}{A} \int H\!\left(\rho(\boldsymbol{x}') - \rho
 with the Heaviside step function ``H`` taking the value ``1/2`` where the two densities are equal.
 That half-weight gives every cell of a given buoyancy the same ``z^\star``, the mid-height of the
 layer that buoyancy class fills in the sorted column, which makes ``z^\star`` a function of buoyancy
-alone and constant on isopycnals, exactly as the paper describes it. A horizontally uniform,
+alone and constant on isopycnals. A horizontally uniform,
 statically stable stratification then gives ``z^\star = z`` and ``E_a = 0`` cell by cell rather than
 only in the integral, so this is the method to use for local maps. It costs a couple of extra passes
 over the sorted cells to find the tied runs.
 
-[`OneDimensionalSort`](@ref) returns the sorted column itself, on a ``1 \times 1 \times N`` grid whose
-``N = N_x N_y N_z`` cells span the domain's full horizontal area. The cells are reshaped rather than
-re-counted, so each still holds the volume of a model-grid cell and volume integrals over the column
-match those over the model grid. This is the form to reach for when you want the reference state as a
-profile, to plot ``b^\star(z^\star)`` or differentiate it into a reference stratification. It needs
-every cell of the model grid to hold the same volume, since otherwise the column's cell boundaries
-would move as the flow evolves.
 
 ```julia
 z✶ = reference_height(model, method=HeavisideIntegral()) # clean cell-by-cell maps
