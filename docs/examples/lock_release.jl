@@ -71,6 +71,10 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
 # show. The two model-grid methods produce a *map* of the reference height, one value per cell, on the
 # model grid. [`OneDimensionalSort`](@ref) instead produces the sorted column itself, so its `z★` and
 # the buoyancy that goes with it are already the profile, in order, and need no post-processing at all.
+#
+# Building all three here costs three sorts per output rather than one. That is affordable at this
+# resolution, but the sort is the one part of these diagnostics whose cost grows faster than the number
+# of cells: see [What the three methods cost](@ref) for how the three compare and how they scale.
 
 b = model.tracers.b
 
@@ -199,37 +203,13 @@ end                                                                             
 @test Δ_hv(snapshots[1])   > 0.2H                                                         #hide
 @test Δ_hv(snapshots[end]) < H / Nz;                                                      #hide
 
-# ## Timing the three methods
+# ## Animating the flow and its energy
 #
-# Sorting couples every cell in the domain to every other one, so its cost grows faster than
-# linearly in the number of cells. All three methods pay for that same `N log N` sort, which bounds how
-# far apart they can get, but what they do around it is not free: [`HeavisideIntegral`](@ref) makes a
-# few extra passes over the sorted cells to find the tied runs, and [`OneDimensionalSort`](@ref)
-# carries the buoyancy and the original heights along into the column. On this grid that works out at
-# roughly 20% and 60% over the ranked sort respectively, so the differences are real without being
-# order-of-magnitude: if all you need are the volume integrals, the default is the cheapest route to
-# them. We time a `compute!` of `z★` on the final snapshot, taking the best of several runs after a
-# warm-up:
-
-using Printf
-using Oceananigans.Fields: compute!
-
-function time_sort(z★; samples = 10)
-    compute!(z★)                                    # warm up: compile out of band
-    return minimum(@elapsed(compute!(z★)) for _ in 1:samples)
-end
-
-sorting_methods = ("ThreeDimensionalSort" => ThreeDimensionalSort(),
-                   "HeavisideIntegral"    => HeavisideIntegral(),
-                   "OneDimensionalSort"   => OneDimensionalSort())
-
-timings = [name => time_sort(reference_height(b_t[end]; method)) for (name, method) in sorting_methods]
-
-for (name, t) in timings
-    @printf("%-22s %7.2f ms   (%d cells)\n", name, 1e3t, prod(size(grid)))
-end
-
-# ## Plotting
+# The panels above are snapshots; the exchange between the reservoirs is easier to follow as a movie.
+# We animate three fields side by side: the buoyancy that drives the flow, the kinetic energy it
+# produces, and the local available potential energy still stored in the density field. `Eₐ` is the one
+# worth watching against the other two — it starts concentrated at the lock, is spent as the fronts run
+# and the billows break, and refills wherever the seiche lifts dense fluid back up.
 
 using CairoMakie
 
