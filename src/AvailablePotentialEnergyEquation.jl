@@ -631,9 +631,9 @@ resorted state to the height `z` where it actually sits. The parcel's own buoyan
 along the path; only the reference profile `b✶` varies with `z̃`.
 
 This is the spatially local APE density of
-[Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742), and the form written as Eq.
-(1.1) of [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879), whose coarse-grained APE
-framework is built on it. It is **non-negative everywhere in space**, which follows from the convexity
+[Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742) and it is also used in
+[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) as a basis for a filtered APE
+framework. It is **non-negative everywhere in space**, which follows from the convexity
 of that integral: a parcel carries `b = b✶(z✶)` and `b✶` is non-decreasing, so the integrand
 `b✶(z̃) - b` takes the sign of `z̃ - z✶` over the whole path and the integral is positive whichever
 side of its reference height the parcel is on. That is the property the global
