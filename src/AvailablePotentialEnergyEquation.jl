@@ -28,9 +28,8 @@ import Oceananigans.Fields: compute!
 # depth, so that a cumulative volume maps onto a height by a simple division. That fails as soon as
 # there is topography.
 validate_sortable_grid(grid) = nothing
-validate_sortable_grid(grid::ImmersedBoundaryGrid) =
-    throw(ArgumentError("`BackgroundPotentialEnergy` and `AvailablePotentialEnergy` are not currently defined on \
-                         an `ImmersedBoundaryGrid`, whose horizontal area varies with depth."))
+validate_sortable_grid(grid::ImmersedBoundaryGrid) = throw(ArgumentError("`BackgroundPotentialEnergy` and `AvailablePotentialEnergy` are not currently defined on \
+                                                                         an `ImmersedBoundaryGrid`, whose horizontal area varies with depth."))
 
 #+++ Buoyancy as a single materialized `Field`
 # The sorting below needs the buoyancy of every cell as plain data, and the `BackgroundPotentialEnergy`
@@ -555,10 +554,8 @@ end
 # The local available potential energy `Eₐ = ∫_{z✶}^{z} [b✶(z̃) - b] dz̃`, split into the part only the
 # sort can supply (`Ψδ = Ψ(z) - Ψ(z✶)`, see `fill_ape_potential!`) and the `-b(z - z✶)` the kernel does
 # pointwise. The parcel's own height is the grid's `Zᶜᶜᶜ` on the model grid, a carried field on a column.
-@inline local_ape_ccc(i, j, k, grid, Ψδ, b, z✶) =
-    @inbounds Ψδ[i, j, k] - b[i, j, k] * (Zᶜᶜᶜ(i, j, k, grid) - z✶[i, j, k])
-@inline local_ape_ccc(i, j, k, grid, Ψδ, b, z, z✶) =
-    @inbounds Ψδ[i, j, k] - b[i, j, k] * (z[i, j, k] - z✶[i, j, k])
+@inline local_ape_ccc(i, j, k, grid, Ψδ, b, z✶) = @inbounds Ψδ[i, j, k] - b[i, j, k] * (Zᶜᶜᶜ(i, j, k, grid) - z✶[i, j, k])
+@inline local_ape_ccc(i, j, k, grid, Ψδ, b, z, z✶) = @inbounds Ψδ[i, j, k] - b[i, j, k] * (z[i, j, k] - z✶[i, j, k])
 
 const BackgroundPotentialEnergy = CustomKFO{<:typeof(minus_bz✶_ccc)}
 const AvailablePotentialEnergy = CustomKFO{<:typeof(local_ape_ccc)}
@@ -606,16 +603,12 @@ BackgroundPotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 └── computes: background potential energy per unit volume  E_b = -bz✶
 ```
 """
-function BackgroundPotentialEnergy(model; location = (Center, Center, Center), method = ThreeDimensionalSort(),
-                                   geopotential_height = model_geopotential_height(model))
-
+function BackgroundPotentialEnergy(model; method = ThreeDimensionalSort(), geopotential_height = model_geopotential_height(model), location = (Center, Center, Center))
     validate_location(location, "BackgroundPotentialEnergy")
-
     return BackgroundPotentialEnergy(model, reference_height(model; method, geopotential_height))
 end
 
-BackgroundPotentialEnergy(model, z✶::SortedReferenceHeightField) =
-    KernelFunctionOperation{Center, Center, Center}(minus_bz✶_ccc, z✶.grid, reference_buoyancy(z✶.operand), z✶)
+BackgroundPotentialEnergy(model, z✶::SortedReferenceHeightField) = KernelFunctionOperation{Center, Center, Center}(minus_bz✶_ccc, z✶.grid, reference_buoyancy(z✶.operand), z✶)
 
 """
     $(SIGNATURES)
@@ -673,22 +666,16 @@ AvailablePotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 └── computes: local available potential energy density  Eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0
 ```
 """
-function AvailablePotentialEnergy(model; location = (Center, Center, Center), method = ThreeDimensionalSort(),
-                                  geopotential_height = model_geopotential_height(model))
-
+function AvailablePotentialEnergy(model; method = ThreeDimensionalSort(), geopotential_height = model_geopotential_height(model), location = (Center, Center, Center))
     validate_location(location, "AvailablePotentialEnergy")
-
     return AvailablePotentialEnergy(model, reference_height(model; method, geopotential_height))
 end
 
 AvailablePotentialEnergy(model, z✶::SortedReferenceHeightField) = available_potential_energy(z✶, reference_buoyancy(z✶.operand), sorted_height(z✶.operand))
 
 # On the model grid the parcel's own height is the grid's; on a sorted column it has to be carried.
-available_potential_energy(z✶, b, ::Nothing) =
-    KernelFunctionOperation{Center, Center, Center}(local_ape_ccc, z✶.grid, z✶.operand.ape_potential, b, z✶)
-
-available_potential_energy(z✶, b, z) =
-    KernelFunctionOperation{Center, Center, Center}(local_ape_ccc, z✶.grid, z✶.operand.ape_potential, b, z, z✶)
+available_potential_energy(z✶, b, ::Nothing) = KernelFunctionOperation{Center, Center, Center}(local_ape_ccc, z✶.grid, z✶.operand.ape_potential, b, z✶)
+available_potential_energy(z✶, b, z)         = KernelFunctionOperation{Center, Center, Center}(local_ape_ccc, z✶.grid, z✶.operand.ape_potential, b, z, z✶)
 #---
 
 end # module
