@@ -15,51 +15,41 @@ potential energy,
 E_b = -b z^\star = \frac{g \rho}{\rho_0} z^\star ,
 ```
 
-and what is left over is the available potential energy. Oceanostics computes it in its *local*
-form, the density of [Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742),
+and what is left over is the available potential energy, which Oceanostics computes it in its *local*
+form [Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742):
 
 ```math
 E_a(b, z) = \int_{z^\star}^{z} \left[b^\star(\tilde z) - b\right] \mathrm{d}\tilde z
-          = \frac{g}{\rho_0}\int_{z^\star}^{z} \left[\rho - \rho^\star(\tilde z)\right] \mathrm{d}\tilde z ,
+          = \frac{g}{\rho_0}\int_{z^\star}^{z} \left[\rho - \rho^\star(\tilde z)\right] \mathrm{d}\tilde z .
 ```
 
-the work needed to bring a parcel from its reference height to where it actually sits. Unlike the
-difference ``E_p - E_b``, this is **non-negative everywhere in space**, so it can be mapped as a field. Its
+In this form ``E_a`` is **non-negative everywhere in space**, so it can be mapped as a field. Its
 volume integral recovers ``\int E_p - \int E_b`` in the continuum limit, although at finite ``\Delta z`` the
 two differ at second order.
 
-``z^\star`` is computed by [`reference_height`](@ref), which returns a `Field` on the model
-grid. Sorting is a non-local operation that couples every cell in the domain to every other one, so, unlike most other diagnostics
-in Oceanostics, this one is not a pointwise kernel. It is re-sorted on each `compute!`, so writing it
-(or anything built on it) out during a simulation tracks the evolving flow.
-
-```julia
-z✶ = reference_height(model)                  # share one sort between the two diagnostics
-∫E_b = Integral(BackgroundPotentialEnergy(model, z✶))
-∫E_a = Integral(AvailablePotentialEnergy(model, z✶))
-```
-
-For now the domain's horizontal cross-sectional area is assumed independent of depth, so an
-`ImmersedBoundaryGrid` is rejected.
-
 ## The background potential energy and the reference state
 
-The reference state is what characterizes ``E_b`` and it is characterized being the state of
-minimum potential energy that can be reached by adiabatic rearrangement of the fluid.
-The reference height ``z^\star`` is the height a parcel would occupy in that state.
-Weighting the buoyancy by ``z^\star`` instead of by ``z`` gives ``E_b``, the
-potential energy the fluid would still hold once every parcel had been let down to its own level.
+The reference height ``z^\star`` is the height a parcel would occupy in that state and it
+is computed by [`reference_height`](@ref), which returns a `Field`. Sorting is a nonlocal
+operation, so, unlike most other diagnostics in Oceanostics, this one is not a pointwise kernel.
+It is re-sorted on each `compute!`, so writing it (or anything built on it) out during a simulation
+tracks the evolving flow.
 
 Organizing the buoyancy against the reference height it was assigned gives the reference profile
 ``b^\star(z^\star)``: the stratification the flow would have if all of its available potential energy
 were released. The [Lock release](@ref lock_release_example) example follows that profile through a
 gravity current, from the step it starts as to the smooth stratification mixing leaves behind, and
-builds it with each of the three methods below so their costs and their differences can be compared
+builds it with each of the four methods below so their costs and their differences can be compared
 directly.
 
-`method` selects one of three strategies to calculate the reference state. They describe the same reference state and agree on every
+`method` selects one of four strategies to calculate the reference state. All `method`s produce the same reference state and agree on every
 volume integral, so ``\int E_b \, \mathrm{d}V`` and ``\int E_a \, \mathrm{d}V`` do not depend on the
 choice. Mainly what differs is how cells of *equal* buoyancy are placed, and what grid the answer lands on.
+
+That freedom is one ``E_a`` cannot see. A cell's ``z^\star`` always lands inside the run of slots that
+its own buoyancy fills, and the reference profile is flat across that run, so sliding ``z^\star`` along
+it leaves ``E_a`` unchanged. The four therefore agree on ``E_a`` cell by cell, not merely in the
+integral; where they part company is ``z^\star`` itself, and so ``E_b``.
 
 [`ThreeDimensionalSort`](@ref) (the default) ranks the cells and gives each one the height of its
 own slot in the sorted state on the model grid. Tied cells take consecutive slots rather than a
@@ -69,9 +59,14 @@ which goes against the idea of a reference state being horizontally uniform
 
 [`OneDimensionalSort`](@ref) is similar to [`ThreeDimensionalSort`](@ref) but returns the cells reorganized
 into a single column. To achieve this the cells are flattened such that their volume remains the same, but their
-horizontal area matches the domain's horizontal area. This has the advantage that reference state (correctly) has no horizontal structure. The
-downside is that the results land on a different grid. Namely a ``1 \times 1 \times N`` grid whose
-``N = N_x N_y N_z`` cells span the domain's full horizontal area.
+horizontal area matches the domain's horizontal area. This has the advantage that the resulting reference
+state (correctly) has no horizontal structure. The downside is that the results land on a different grid.
+Namely a ``1 \times 1 \times N`` grid whose ``N = N_x N_y N_z`` cells span the domain's full horizontal area.
+
+[`ProfileLookup`](@ref) gives each cell the height of the slot whose buoyancy matches its own, found by
+binary search into the [`OneDimensionalSort`](@ref) profile. It is the column of [`OneDimensionalSort`](@ref) read back onto
+the model grid, matched by value rather than by cell identity, which also makes it the one method that
+does not need the profile to have come from the field being diagnosed.
 
 [`HeavisideIntegral`](@ref) is Eq. (11) of Winters et al. (1995) verbatim,
 
@@ -84,22 +79,17 @@ That half-weight gives every cell of a given buoyancy the same ``z^\star``, the 
 layer that buoyancy class fills in the sorted column, which makes ``z^\star`` a function of buoyancy
 alone and constant on isopycnals.
 
-
-```julia
-z✶ = reference_height(model, method=HeavisideIntegral()) # clean cell-by-cell maps
-z✶ = reference_height(model, method=OneDimensionalSort()) # the reference profile itself
-```
-
 The [Lock release](@ref lock_release_example) example follows the reference profile, and the energy
 split that goes with it, through a gravity current that starts as a step and ends well mixed.
 
-## What the three methods cost
+## What the methods cost
 
 Sorting couples every cell in the domain to every other one, so unlike the pointwise diagnostics its
-cost is not linear in the number of cells. All three methods pay for the same `sortperm!`, which is
+cost is not linear in the number of cells. All four methods pay for the same `sortperm!`, which is
 ``\mathcal{O}(N \log N)``; what separates them is the work done around it.
-[`HeavisideIntegral`](@ref) makes extra passes over the sorted cells to find the tied runs, and
-[`OneDimensionalSort`](@ref) carries the buoyancy and the original heights into the column.
+[`HeavisideIntegral`](@ref) makes extra passes over the sorted cells to find the tied runs,
+[`ProfileLookup`](@ref) adds a binary search per cell, and [`OneDimensionalSort`](@ref) carries the
+buoyancy and the original heights into the column.
 
 To measure that, build the same synthetic field — a linear stratification plus noise, so no two cells
 are tied and the sort does its full work — on four grids spanning two decades in cell count, and time
@@ -121,6 +111,7 @@ Ns      = (32, 64, 128, 256)
 cells   = collect(Ns .^ 2)   # a Vector, so Makie can plot it directly
 methods = ("ThreeDimensionalSort" => ThreeDimensionalSort(),
            "HeavisideIntegral"    => HeavisideIntegral(),
+           "ProfileLookup"        => ProfileLookup(),
            "OneDimensionalSort"   => OneDimensionalSort())
 
 ## best of several runs, after a warm-up so compilation stays out of the measurement
@@ -155,10 +146,10 @@ axislegend(ax; position = :lt, labelsize = 11)
 fig
 ```
 
-The three curves run parallel to the dashed reference, so the sort is what sets the scaling: a
+The four curves run parallel to the dashed reference, so the sort is what sets the scaling: a
 fourfold increase in cells costs a little over fourfold in time, the excess being the ``\log N``.
-Neither of the extra passes changes that exponent — they move the curve up, not tilt it — so the
-choice of method is a constant factor, not a scaling penalty. If all you need are the volume
+None of the extra work changes that exponent. It moves the curves up rather than tilting them, so the
+choice of method is a constant factor and not a scaling penalty. If all you need are the volume
 integrals, the default is the cheapest route to them.
 
 The absolute numbers are machine-dependent, and the docs are built with different optimisation
@@ -185,5 +176,6 @@ Oceanostics.AvailablePotentialEnergyEquation.reference_buoyancy
 Oceanostics.AvailablePotentialEnergyEquation.AbstractSortingMethod
 Oceanostics.AvailablePotentialEnergyEquation.ThreeDimensionalSort
 Oceanostics.AvailablePotentialEnergyEquation.HeavisideIntegral
+Oceanostics.AvailablePotentialEnergyEquation.ProfileLookup
 Oceanostics.AvailablePotentialEnergyEquation.OneDimensionalSort
 ```

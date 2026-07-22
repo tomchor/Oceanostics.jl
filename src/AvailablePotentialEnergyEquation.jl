@@ -3,7 +3,7 @@ module AvailablePotentialEnergyEquation
 using DocStringExtensions
 
 export BackgroundPotentialEnergy, AvailablePotentialEnergy, reference_height, reference_buoyancy
-export ThreeDimensionalSort, HeavisideIntegral, OneDimensionalSort
+export ThreeDimensionalSort, HeavisideIntegral, OneDimensionalSort, ProfileLookup
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Architectures: CPU, architecture, on_architecture
@@ -90,12 +90,17 @@ const SortedReferenceHeightField = Field{<:Any, <:Any, <:Any, <:SortedReferenceS
 """
     $(TYPEDEF)
 
-Supertype of the three strategies [`reference_height`](@ref) offers for turning a buoyancy
-field into a reference height: [`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref) and
-[`OneDimensionalSort`](@ref). They agree on every volume integral built from `z✶`, and differ along
-two axes rather than one. [`OneDimensionalSort`](@ref) is the only one that moves the answer off the
-model grid, onto a sorted column; the other two both leave `z✶` on the model grid and differ instead
-in where they place cells of equal buoyancy.
+Supertype of the four strategies [`reference_height`](@ref) offers for turning a buoyancy
+field into a reference height: [`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref),
+[`ProfileLookup`](@ref) and [`OneDimensionalSort`](@ref). They agree on every volume integral built
+from `z✶`, and differ along two axes rather than one. [`OneDimensionalSort`](@ref) is the only one
+that moves the answer off the model grid, onto a sorted column; the other three all leave `z✶` on the
+model grid and differ instead in where they place cells of equal buoyancy.
+
+That placement is the only freedom they have, and it is one `Eₐ` cannot see: a cell's `z✶` always
+lands inside the run of slots its own buoyancy fills, and the reference profile is flat across that
+run, so the local available potential energy comes out the same whichever of the four is used. The
+choice shows up in `z✶` itself, and so in [`BackgroundPotentialEnergy`](@ref).
 """
 abstract type AbstractSortingMethod end
 
@@ -160,9 +165,26 @@ end
 
 OneDimensionalSort() = OneDimensionalSort(nothing, nothing)
 
+"""
+    $(TYPEDEF)
+
+Give each cell the height of the slot in the sorted column whose buoyancy matches its own, found by a
+binary search into the sorted profile. `z✶` comes back on the model grid.
+
+This is the sorted column of [`OneDimensionalSort`](@ref) read back onto the model grid, but by
+buoyancy rather than by cell identity: a cell is matched to the profile through its value, never
+through where it came from. Like [`HeavisideIntegral`](@ref) that makes `z✶` a function of buoyancy
+alone, so it is constant on isopycnals; the two differ only in which slot of a tied run they pick,
+the first here against the run's mid-height there. Since the reference height is never traced back to
+a specific cell, this is the method that generalizes to a profile the field did not produce, such as
+one held fixed in time.
+"""
+struct ProfileLookup <: AbstractSortingMethod end
+
 Base.summary(::ThreeDimensionalSort) = "ThreeDimensionalSort"
 Base.summary(::HeavisideIntegral) = "HeavisideIntegral"
 Base.summary(::OneDimensionalSort) = "OneDimensionalSort"
+Base.summary(::ProfileLookup) = "ProfileLookup"
 
 """
     $(TYPEDEF)
@@ -357,6 +379,34 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::HeavisideIntegral
     return z✶_field
 end
 
+function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::ProfileLookup)
+    sz   = size(z✶_field)
+    perm = s.permutation
+    N    = length(s.workspace)
+    ΔV, b_sorted = rank_by_buoyancy!(s)
+    b = s.workspace   # still the model-ordered buoyancy: nothing has overwritten it yet
+
+    # the sorted column's slot centers, densest first, exactly as `OneDimensionalSort` lays them out
+    z✶_slot = similar(ΔV)
+    cumsum!(z✶_slot, ΔV)
+    @. z✶_slot = s.bottom_height + (z✶_slot - ΔV / 2) / s.horizontal_area
+
+    # `b_sorted` is non-decreasing, so each cell's own buoyancy can be located in it by binary search.
+    # The search lands on the first slot of a tied run; the neighbour on the left is the closer match
+    # whenever the value falls between two runs, which is the only way an exact tie can be missed.
+    j  = clamp.(searchsortedfirst.(Ref(b_sorted), b), 1, N)
+    jₗ = max.(j .- 1, 1)
+    z✶ = ifelse.(abs.(view(b_sorted, jₗ) .- b) .< abs.(view(b_sorted, j) .- b),
+                 view(z✶_slot, jₗ), view(z✶_slot, j))
+
+    interior(z✶_field) .= reshape(z✶, sz)
+    # `fill_ape_potential!` wants `z✶` in sorted order and scatters `Ψ(z✶)` back through `perm`, so
+    # gathering here and letting it scatter returns it to exactly this ordering.
+    fill_ape_potential!(s, ΔV, b_sorted, z✶[perm], sz, false)
+
+    return z✶_field
+end
+
 function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::OneDimensionalSort)
     sz   = size(z✶_field) # (1, 1, N): the sorted column, not the model grid
     work = s.workspace
@@ -412,7 +462,7 @@ The domain's horizontal cross-sectional area is taken to be independent of depth
 `RectilinearGrid`, false as soon as there is topography), and an `ImmersedBoundaryGrid` is rejected for
 that reason.
 
-`method` picks how the sorted state is built. All three agree on every volume integral, so `∫E_b dV`
+`method` picks how the sorted state is built. All four agree on every volume integral, so `∫E_b dV`
 and `∫Eₐ dV` do not depend on the choice:
 
   - [`ThreeDimensionalSort`](@ref) (the default) gives each cell the height of its own slot in the sorted
@@ -639,7 +689,7 @@ which is why `Eₐ` here is a field worth mapping in its own right rather than o
 
 `z✶` is the reference height computed by [`reference_height`](@ref); pass one explicitly to share a
 single sort with [`BackgroundPotentialEnergy`](@ref), or pass `method` through to choose how it is
-built. All three methods give the same `Eₐ` volume integral.
+built. All four methods give the same `Eₐ` volume integral.
 
 `Integral(Eₐ)` recovers the global APE `Integral(PotentialEnergy(model)) -
 Integral(BackgroundPotentialEnergy(model))` only in the continuum limit: the local density samples the

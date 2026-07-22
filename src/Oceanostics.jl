@@ -81,7 +81,7 @@ export PotentialEnergy
 
 #+++ AvailablePotentialEnergyEquation exports
 export BackgroundPotentialEnergy, AvailablePotentialEnergy, reference_height, reference_buoyancy
-export ThreeDimensionalSort, HeavisideIntegral, OneDimensionalSort
+export ThreeDimensionalSort, HeavisideIntegral, OneDimensionalSort, ProfileLookup
 #---
 
 #+++ ProgressMessengers
