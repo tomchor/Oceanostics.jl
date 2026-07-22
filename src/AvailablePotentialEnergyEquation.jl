@@ -402,7 +402,11 @@ E_a = AvailablePotentialEnergy(model, z✶)
 Unlike the pointwise diagnostics elsewhere in Oceanostics, `z✶` is defined by a sort of every cell in
 the domain, and it is re-sorted on every `compute!`, so writing it (or anything built on it) out during
 a simulation tracks the evolving flow, at a cost that grows like `N log N` in the number of cells. It
-holds three `Nx*Ny*Nz` workspace arrays for its lifetime and allocates one more per sort.
+holds three `Nx*Ny*Nz` workspace arrays for its lifetime, and each sort allocates a handful more as
+temporaries: measured on `65536` cells that is 1.5 such arrays for [`ThreeDimensionalSort`](@ref), 3.5
+for [`OneDimensionalSort`](@ref) and 5.8 for [`HeavisideIntegral`](@ref), which builds the most
+intermediates. The `N log N` sort still dominates the runtime, so this shows up as allocation churn
+rather than as wall-clock.
 
 The domain's horizontal cross-sectional area is taken to be independent of depth (true of a
 `RectilinearGrid`, false as soon as there is topography), and an `ImmersedBoundaryGrid` is rejected for
