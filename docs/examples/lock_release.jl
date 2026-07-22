@@ -1,9 +1,7 @@
 # # [Lock release and the sorted reference state](@id lock_release_example)
 #
-# In this example we run a two-dimensional lock release and use it to watch the *sorted reference
-# state* evolve. A lock release is about the sharpest test of a reference-state calculation there is:
-# it starts as two blocks of uniform buoyancy sitting side by side, which is as far from a sorted state
-# as a stratified fluid can get, and it ends well mixed. Along the way we build the reference profile
+# In this example we run a two-dimensional lock release simulation and use it to watch the *sorted reference
+# state*, available potential energy and kinetic energy evolve. Along the way we build the reference profile
 # with each of the three methods Oceanostics offers and time them against each other.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
@@ -37,11 +35,10 @@ U = √(Δb * H) / 2   # buoyancy velocity
 # profile all the way from a step to something smooth. The grid is isotropic at `Δ = H/128`:
 
 Nz = 128
-grid = RectilinearGrid(size = (4Nz, Nz), x = (-Lx/2, Lx/2), z = (-H/2, H/2),
-                       topology = (Bounded, Flat, Bounded))
+grid = RectilinearGrid(size = (4Nz, Nz), x = (-Lx/2, Lx/2), z = (-H/2, H/2), topology = (Bounded, Flat, Bounded))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
-                            advection = Centered(order=4),
+                            advection = Centered(order=4), # Minizes numerical diffusion
                             closure = ScalarDiffusivity(; ν, κ),
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
@@ -57,7 +54,6 @@ simulation = Simulation(model, Δt = 0.1 * minimum_xspacing(grid) / U, stop_time
 conjure_time_step_wizard!(simulation, IterationInterval(5), cfl = 0.7)
 
 using Oceanostics
-
 progress = ProgressMessengers.BasicMessenger()
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
 
@@ -84,11 +80,11 @@ b✶_column    = reference_buoyancy(z★_column)
 # needed to bring each parcel from its reference height to where it is, so it is non-negative
 # everywhere and can be mapped as a field in its own right.
 
-E_a = AvailablePotentialEnergy(model, z★_ranked)
-KE  = KineticEnergyEquation.KineticEnergy(model)
+APE = AvailablePotentialEnergy(model, z★_ranked)
+KE  = KineticEnergy(model)
 
-∫E_b = Integral(BackgroundPotentialEnergy(model, z★_ranked))
-∫E_a = Integral(E_a)
+∫BPE = Integral(BackgroundPotentialEnergy(model, z★_ranked))
+∫APE = Integral(APE)
 
 using NCDatasets
 filename = "lock_release"
@@ -97,15 +93,10 @@ filename = "lock_release"
 # `z`, and the column's against its own `N`-cell vertical axis.
 
 simulation.output_writers[:fields] = NetCDFWriter(model,
-                                                  (; b, KE, E_a, z★_ranked, z★_heaviside, z★_column, b✶_column),
+                                                  (; b, KE, APE, z★_ranked, z★_heaviside, z★_column, b✶_column, ∫BPE, ∫APE),
                                                   filename = joinpath(@__DIR__, filename),
                                                   schedule = TimeInterval(0.5),
                                                   overwrite_existing = true)
-
-simulation.output_writers[:energies] = NetCDFWriter(model, (; ∫E_b, ∫E_a),
-                                                    filename = joinpath(@__DIR__, filename * "_energies"),
-                                                    schedule = TimeInterval(0.5),
-                                                    overwrite_existing = true)
 
 # ## Run the simulation
 
@@ -184,7 +175,7 @@ b✶_1d, z★_1d = profiles["OneDimensionalSort"][end]                          
 ## and the reference profile is, by construction, monotonic                               #hide
 @test issorted(b✶_1d)                                                                     #hide
 ## The three methods describe one reference state, so although their `z★` maps differ wherever    #hide
-## cells are tied, every buoyancy-weighted integral of `z★` has to agree — that integral is `E_b`, #hide
+## cells are tied, every buoyancy-weighted integral of `z★` has to agree — that integral is `BPE`, #hide
 ## and its independence from the method is the precise sense in which the three reference heights  #hide
 ## are the same. Unlike the pointwise comparisons above it holds at every time, ties or not, so it #hide
 ## is checked at all four snapshots rather than only once the field has gone continuous.           #hide
@@ -314,26 +305,26 @@ nothing #hide
 #
 # A lock release is the textbook case of the split this module computes. The initial state holds no
 # kinetic energy and a great deal of available potential energy; the collapse converts `Eₐ` into motion,
-# and the billows then mix irreversibly, which shows up as a rise in `E_b`. Because the channel is
+# and the billows then mix irreversibly, which shows up as a rise in `BPE`. Because the channel is
 # closed, the fronts reflect off the end walls and the whole box seiches, so `∫Eₐ dV` does not decay
 # smoothly: it very nearly empties as the fronts pass each other, then refills as the sloshing carries
 # fluid back up, with each cycle weaker than the last.
 
-ds = NCDataset(simulation.output_writers[:energies].filepath)
+ds = NCDataset(simulation.output_writers[:fields].filepath)
 t_e   = ds["time"][:]
-E_b_t = ds["∫E_b"][:]
-E_a_t = ds["∫E_a"][:]
+BPE_t = ds["∫BPE"][:]
+APE_t = ds["∫APE"][:]
 close(ds)
 
-@test E_a_t[1] > 0                                          # a lock is pure available PE     #hide
-@test minimum(E_a_t) < 0.05 * E_a_t[1]                      # the collapse nearly empties it  #hide
-@test E_b_t[end] > E_b_t[1]                                 # mixing raised the background    #hide
-@test minimum(diff(E_b_t)) > -1e-6 * maximum(abs, E_b_t);   # and only ever raised it         #hide
+@test APE_t[1] > 0                                          # a lock is pure available PE     #hide
+@test minimum(APE_t) < 0.05 * APE_t[1]                      # the collapse nearly empties it  #hide
+@test BPE_t[end] > BPE_t[1]                                 # mixing raised the background    #hide
+@test minimum(diff(BPE_t)) > -1e-6 * maximum(abs, BPE_t);   # and only ever raised it         #hide
 
 fig2 = Figure(size = (700, 300))
 ax = Axis(fig2[1, 1]; xlabel = "Time", ylabel = "Energy", title = "Lock-release energetics")
-lines!(ax, t_e, E_a_t, label = "∫Eₐ dV")
-lines!(ax, t_e, E_b_t .- E_b_t[1], label = "Δ∫E_b dV")
+lines!(ax, t_e, APE_t, label = "∫Eₐ dV")
+lines!(ax, t_e, BPE_t .- BPE_t[1], label = "Δ∫BPE dV")
 axislegend(ax; position = :rc, labelsize = 12)
 
 save("lock_release_energetics.png", fig2)
@@ -343,7 +334,7 @@ nothing #hide
 #
 # The two curves separate the reversible part of the flow from the irreversible one. `∫Eₐ dV` swings up
 # and down with the seiche, since sloshing lifts dense fluid back up and stores energy that the flow can
-# still give back. `Δ∫E_b dV` only ever climbs: it is the running record of how much buoyancy has
+# still give back. `Δ∫BPE dV` only ever climbs: it is the running record of how much buoyancy has
 # actually been mixed across density surfaces, and it is precisely the part of the reference profile's
 # evolution that cannot be undone. By the end of the run it has absorbed a modest fraction of the
 # available potential energy the lock started with, with the rest still sloshing between kinetic and
@@ -358,9 +349,9 @@ nothing #hide
 # and the billows break, and refills wherever the seiche lifts dense fluid back up.
 
 KE_t  = FieldTimeSeries(filepath, "KE")
-E_a_t = FieldTimeSeries(filepath, "E_a")
+APE_t = FieldTimeSeries(filepath, "APE")
 
-@test minimum(minimum(interior(E_a_t[n])) for n in 1:length(times)) ≥ -1e-6 * maximum(interior(E_a_t[end]))  #hide
+@test minimum(minimum(interior(APE_t[n])) for n in 1:length(times)) ≥ -1e-6 * maximum(interior(APE_t[end]))  #hide
 
 fig3 = Figure(size = (900, 620))
 
@@ -374,12 +365,12 @@ ax_Ea = Axis(fig3[6, 1]; title = "Available potential energy Eₐ", xlabel = "x"
 
 bₙ  = @lift b_t[$n]
 KEₙ = @lift KE_t[$n]
-Eaₙ = @lift E_a_t[$n]
+Eaₙ = @lift APE_t[$n]
 
 ## `Eₐ` and the kinetic energy are both sign-definite, so they get one-sided ranges set from their own
 ## peak over the run; the buoyancy keeps the symmetric range used above.
 KE_lim = maximum(maximum(interior(KE_t[k]))  for k in 1:length(times))
-Ea_lim = maximum(maximum(interior(E_a_t[k])) for k in 1:length(times))
+Ea_lim = maximum(maximum(interior(APE_t[k])) for k in 1:length(times))
 
 hm_b  = heatmap!(ax_b,  bₙ;  colormap = :balance, colorrange = (-Δb/2, Δb/2))
 Colorbar(fig3[3, 1], hm_b;  vertical = false, height = 8)
