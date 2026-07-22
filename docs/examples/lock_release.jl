@@ -120,7 +120,7 @@ simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
 
 run!(simulation)
 
-# ## The reference profile
+# ## Reference profile
 #
 # The reference state is what you get by rearranging every parcel adiabatically into the state of
 # minimum potential energy: rank the cells by buoyancy and stack them from the bottom of the domain up.
@@ -212,21 +212,67 @@ end                                                                             
 @test Δ_hv(snapshots[1])   > 0.2H                                                         #hide
 @test Δ_hv(snapshots[end]) < H / Nz;                                                      #hide
 
-# ## Animating the flow and its energy
-#
-# The panels above are snapshots; the exchange between the reservoirs is easier to follow as a movie.
-# We animate five fields: the buoyancy that drives the flow, the kinetic energy it produces, and the
-# local available potential energy still stored in the density field, once for each of the three methods
-# that answer on the model grid. `Eₐ` is the one worth watching against the first two: it starts
-# concentrated at the lock, is spent as the fronts run and the billows break, and refills wherever the
-# seiche lifts dense fluid back up.
-#
-# The three `Eₐ` panels are identical, and showing them together is the point. All the methods can
-# disagree about is where inside a tied run of slots a cell's `z✶` lands, and `Eₐ` cannot see that
-# choice: the reference profile is flat across the run, so moving `z✶` along it leaves `Eₐ` unchanged.
-# What the choice does change is `z✶` itself, and with it `E_b`.
+# The profile gets a figure of its own: one panel per method, each showing `b★(z★)` at the four times
+# above. It starts as a step, two blocks of uniform buoyancy stacked one on the other, and mixing
+# erodes it into a smooth stratification.
 
 using CairoMakie
+
+set_theme!(Theme(fontsize = 20))
+fig = Figure();
+
+colors = cgrad(:viridis, length(snapshots); categorical = true)
+
+for (m, (name, _)) in enumerate(methods)
+    local ax = Axis(fig[1, m]; xlabel = "b✶", title = name, width = 200, height = 280,
+                    ylabel = m == 1 ? "z★" : "", yticklabelsvisible = m == 1, titlesize = 15)
+    ylims!(ax, -H/2, H/2)
+    for (s, n) in enumerate(snapshots)
+        b✶, z★ = profiles[name][s]
+        lines!(ax, b✶, z★; color = colors[s], linewidth = 2, label = "t = $(round(times[n], digits=1))")
+    end
+    m == 1 && axislegend(ax; position = :lt, labelsize = 11)
+end
+
+# The rightmost panel of that row puts the three side by side at `t = 0`, where they disagree the most.
+# [`HeavisideIntegral`](@ref) is drawn as markers rather than a line because its `z★` takes only as many
+# distinct values as there are distinct buoyancies, which is a few dozen here against 65536 cells.
+
+ax0 = Axis(fig[1, length(methods) + 1]; xlabel = "b✶", title = "t = 0, all three",
+           width = 200, height = 280, yticklabelsvisible = false, titlesize = 15)
+ylims!(ax0, -H/2, H/2)
+
+b✶_r, z★_r = profiles["ThreeDimensionalSort"][1]
+b✶_c, z★_c = profiles["OneDimensionalSort"][1]
+b✶_h, z★_h = profiles["HeavisideIntegral"][1]
+
+lines!(ax0, b✶_r, z★_r; linewidth = 5, color = (:steelblue, 0.9), label = "ThreeDimensionalSort")
+lines!(ax0, b✶_c, z★_c; linewidth = 2, linestyle = :dash, color = :black, label = "OneDimensionalSort")
+scatter!(ax0, b✶_h, z★_h; markersize = 9, color = :crimson, label = "HeavisideIntegral")
+axislegend(ax0; position = :lt, labelsize = 9)
+
+# The three method panels are identical except while the lock is still intact, and that difference is
+# informative rather than an error. At `t = 0` almost every cell is tied with thousands of others at
+# one of two buoyancies, and the methods place tied cells differently.
+# [`ThreeDimensionalSort`](@ref) and [`OneDimensionalSort`](@ref) give each cell its own slot in the
+# stack, so they draw the true step spanning the full depth. [`HeavisideIntegral`](@ref) instead
+# collapses each buoyancy class onto the mid-height of the layer it fills, which is what makes `z★` a
+# function of buoyancy alone and a clean field to map, but leaves it unable to represent a step as a
+# profile: its `z★` only ever reaches the mid-heights of the two blocks, about a quarter of the depth
+# in from each boundary. Once mixing has made the buoyancy field continuous the ties vanish and all
+# three agree to within a grid cell.
+
+resize_to_layout!(fig)
+save("lock_release_profiles.png", fig)
+set_theme!() #hide
+nothing #hide
+
+# ![](lock_release_profiles.png)
+
+# ## Flow animation and local energies
+#
+# The movie sets the flow beside the energy it carries: buoyancy, kinetic energy, and the local `Eₐ`
+# built from each of the three methods that answer on the model grid.
 
 KE_t   = FieldTimeSeries(filepath, "KE")
 APE3_t = FieldTimeSeries(filepath, "APE_ranked")
@@ -295,79 +341,15 @@ nothing #hide
 
 # ![](lock_release.mp4)
 #
-# The buoyancy panel shows the two fronts running past each other and rolling up; the kinetic energy
-# tracks them, brightest along the shear between the counterflowing layers. The available potential
-# energy is the complement of the other two: it drains from the lock as the fronts accelerate, is
-# nearly spent when they meet the end walls, and returns each time the seiche lifts dense fluid back
-# above its reference height. Because this is the local form, it is non-negative everywhere, so the
-# panel reads directly as "how much energy is still extractable from the density field, and where".
-
-# ## The reference profile, method by method
-#
-# With the flow itself covered by the movie, the reference profile gets a figure of its own: one panel
-# per method, each showing `b★(z★)` at the four times above. It starts as a step, two blocks of uniform
-# buoyancy stacked one on the other, and mixing erodes it into a smooth stratification.
-
-set_theme!(Theme(fontsize = 20))
-fig = Figure();
-
-colors = cgrad(:viridis, length(snapshots); categorical = true)
-
-for (m, (name, _)) in enumerate(methods)
-    local ax = Axis(fig[1, m]; xlabel = "b✶", title = name, width = 200, height = 280,
-                    ylabel = m == 1 ? "z★" : "", yticklabelsvisible = m == 1, titlesize = 15)
-    ylims!(ax, -H/2, H/2)
-    for (s, n) in enumerate(snapshots)
-        b✶, z★ = profiles[name][s]
-        lines!(ax, b✶, z★; color = colors[s], linewidth = 2, label = "t = $(round(times[n], digits=1))")
-    end
-    m == 1 && axislegend(ax; position = :lt, labelsize = 11)
-end
-
-# The rightmost panel of that row puts the three side by side at `t = 0`, where they disagree the most.
-# [`HeavisideIntegral`](@ref) is drawn as markers rather than a line because its `z★` takes only as many
-# distinct values as there are distinct buoyancies, which is a few dozen here against 65536 cells.
-
-ax0 = Axis(fig[1, length(methods) + 1]; xlabel = "b✶", title = "t = 0, all three",
-           width = 200, height = 280, yticklabelsvisible = false, titlesize = 15)
-ylims!(ax0, -H/2, H/2)
-
-b✶_r, z★_r = profiles["ThreeDimensionalSort"][1]
-b✶_c, z★_c = profiles["OneDimensionalSort"][1]
-b✶_h, z★_h = profiles["HeavisideIntegral"][1]
-
-lines!(ax0, b✶_r, z★_r; linewidth = 5, color = (:steelblue, 0.9), label = "ThreeDimensionalSort")
-lines!(ax0, b✶_c, z★_c; linewidth = 2, linestyle = :dash, color = :black, label = "OneDimensionalSort")
-scatter!(ax0, b✶_h, z★_h; markersize = 9, color = :crimson, label = "HeavisideIntegral")
-axislegend(ax0; position = :lt, labelsize = 9)
-
-# The three method panels are identical except while the lock is still intact, and that difference is
-# informative rather than an error. At `t = 0` almost every cell is tied with thousands of others at
-# one of two buoyancies, and the methods place tied cells differently.
-# [`ThreeDimensionalSort`](@ref) and [`OneDimensionalSort`](@ref) give each cell its own slot in the
-# stack, so they draw the true step spanning the full depth. [`HeavisideIntegral`](@ref) instead
-# collapses each buoyancy class onto the mid-height of the layer it fills, which is what makes `z★` a
-# function of buoyancy alone and a clean field to map, but leaves it unable to represent a step as a
-# profile: its `z★` only ever reaches the mid-heights of the two blocks, about a quarter of the depth
-# in from each boundary. Once mixing has made the buoyancy field continuous the ties vanish and all
-# three agree to within a grid cell.
-
-resize_to_layout!(fig)
-save("lock_release_profiles.png", fig)
-nothing #hide
-
-# ![](lock_release_profiles.png)
+# `Eₐ` drains from the lock as the fronts accelerate and refills wherever the seiche lifts dense fluid
+# back above its reference height. Being the local form, it is non-negative everywhere. The three `Eₐ`
+# panels are identical: the methods differ only in where inside a tied run they place `z★`, and `Eₐ`
+# cannot see that choice.
 
 # ## Energetics
 #
-# The three reservoirs go on one axis. `APE` is spent as the fronts run and refills as the seiche lifts
-# dense fluid back up; `KE` mirrors it, filling as `APE` drains; and `BPE` climbs as the flow mixes
-# buoyancy irreversibly across density surfaces. Their sum (dashed) is the total energy, which no
-# exchange among the three can alter.
-#
-# The model carries no explicit dissipation of any kind, so every one of those changes is the work of
-# the advection scheme. `WENO` is bounded, which is key to keeping the reference state physical: it
-# cannot manufacture buoyancy outside its initial range.
+# The same three energies, now volume integrated. Their sum (dashed) is the total, which no exchange
+# among them can alter.
 
 ds = NCDataset(simulation.output_writers[:fields].filepath)
 t_e     = ds["time"][:]
@@ -391,6 +373,7 @@ total_int = KE_int .+ APE_int .+ BPE_int
 ## the total is only ever dissipated, never created                                           #hide
 @test maximum(diff(total_int)) < 1e-6 * abs(total_int[1] - total_int[end]);                   #hide
 
+set_theme!(Theme(fontsize = 20)) #hide
 fig2 = Figure(size = (780, 350))
 ax = Axis(fig2[1, 1]; xlabel = "Time", ylabel = "Energy", title = "Lock-release energetics")
 lines!(ax, t_e, KE_int,  label = "∫KE dV")
@@ -404,8 +387,7 @@ nothing #hide
 
 # ![](lock_release_energetics.png)
 #
-# `BPE` is the one curve that never turns back: it is the running record of buoyancy that has actually
-# been mixed across density surfaces, and mixing cannot be undone. Everything the flow can still do
-# sits in `APE`, which trades back and forth with `KE` as the box seiches, each cycle weaker than the
-# last. The dashed total drifts down slowly and monotonically, since the scheme's implicit dissipation
-# is the only sink once the three reservoirs are all accounted for.
+# `BPE` never turns back, since mixing across density surfaces cannot be undone. Everything the flow
+# can still do sits in `APE`, which trades with `KE` as the box seiches, each cycle weaker than the
+# last. The model has no explicit dissipation, so the dashed total drifts down only through the
+# advection scheme's implicit dissipation.
