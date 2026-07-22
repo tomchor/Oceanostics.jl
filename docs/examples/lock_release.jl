@@ -75,15 +75,26 @@ z★_column    = reference_height(model, method = OneDimensionalSort())
 b✶_column    = reference_buoyancy(z★_column)
 
 # Both background and available potential energies are built from the same reference height, so we share one rather than letting each
-# diagnostic sort the domain for itself. Note that `APE` here is the *local* available potential energy
+# diagnostic sort the domain for itself. Note that `Eₐ` here is the *local* available potential energy
 # (as defined by Holliday & McIntyre (1981)) and it should always be non-negative
 
-APE = AvailablePotentialEnergy(model, z★_ranked)
-KE  = KineticEnergy(model)
+#
+# We build one `Eₐ` per method. The two model-grid methods return a map over the domain, which is what
+# the animation below compares. [`OneDimensionalSort`](@ref) answers on the sorted column, so its `Eₐ` is
+# ordered by rank rather than by position and is not a map of the flow; it is written anyway because the
+# volume integral comes out the same whichever method builds the reference state.
+
+APE_ranked    = AvailablePotentialEnergy(model, z★_ranked)
+APE_heaviside = AvailablePotentialEnergy(model, z★_heaviside)
+APE_column    = AvailablePotentialEnergy(model, z★_column)
+KE            = KineticEnergy(model)
 
 ∫BPE = Integral(BackgroundPotentialEnergy(model, z★_ranked))
-∫APE = Integral(APE)
 ∫KE  = Integral(KE)
+
+∫APE           = Integral(APE_ranked)
+∫APE_heaviside = Integral(APE_heaviside)
+∫APE_column    = Integral(APE_column)
 
 using NCDatasets
 filename = "lock_release"
@@ -91,8 +102,11 @@ filename = "lock_release"
 # A single `NetCDFWriter` copes with the two grids: the model-grid fields are written against `x` and
 # `z`, and the column's against its own `N`-cell vertical axis.
 
-simulation.output_writers[:fields] = NetCDFWriter(model,
-                                                  (; b, KE, APE, z★_ranked, z★_heaviside, z★_column, b✶_column, ∫BPE, ∫APE, ∫KE),
+outputs = (; b, KE, APE_ranked, APE_heaviside, APE_column,
+             z★_ranked, z★_heaviside, z★_column, b✶_column,
+             ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_column)
+
+simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
                                                   filename = joinpath(@__DIR__, filename),
                                                   schedule = TimeInterval(0.5),
                                                   overwrite_existing = true)
@@ -196,36 +210,44 @@ end                                                                             
 # ## Animating the flow and its energy
 #
 # The panels above are snapshots; the exchange between the reservoirs is easier to follow as a movie.
-# We animate three fields side by side: the buoyancy that drives the flow, the kinetic energy it
-# produces, and the local available potential energy still stored in the density field. `Eₐ` is the one
-# worth watching against the other two — it starts concentrated at the lock, is spent as the fronts run
-# and the billows break, and refills wherever the seiche lifts dense fluid back up.
+# We animate four fields: the buoyancy that drives the flow, the kinetic energy it produces, and the
+# local available potential energy still stored in the density field, once for each of the two methods
+# that answer on the model grid. `Eₐ` is the one worth watching against the other two — it starts
+# concentrated at the lock, is spent as the fronts run and the billows break, and refills wherever the
+# seiche lifts dense fluid back up. The two `Eₐ` panels share a colour range, so any disagreement between
+# the methods shows up directly; they can only differ where cells are tied in buoyancy.
 
 using CairoMakie
 
-KE_t  = FieldTimeSeries(filepath, "KE")
-APE_t = FieldTimeSeries(filepath, "APE")
+KE_t   = FieldTimeSeries(filepath, "KE")
+APE3_t = FieldTimeSeries(filepath, "APE_ranked")
+APEH_t = FieldTimeSeries(filepath, "APE_heaviside")
 
-@test minimum(minimum(interior(APE_t[n])) for n in 1:length(times)) ≥ -1e-6 * maximum(interior(APE_t[end]))  #hide
+## the local form is non-negative everywhere, whichever method builds the reference state          #hide
+for A in (APE3_t, APEH_t)                                                                          #hide
+    @test minimum(minimum(interior(A[n])) for n in 1:length(times)) ≥ -1e-6 * maximum(interior(A[end]))  #hide
+end                                                                                                #hide
 
-fig3 = Figure(size = (900, 620))
+fig3 = Figure(size = (900, 820))
 
 n = Observable(1)
 
 panel_kwargs = (ylabel = "z", width = 760, height = 165)
 
-ax_b  = Axis(fig3[2, 1]; title = "Buoyancy b",                       panel_kwargs...)
-ax_KE = Axis(fig3[4, 1]; title = "Kinetic energy",                   panel_kwargs...)
-ax_Ea = Axis(fig3[6, 1]; title = "Available potential energy Eₐ", xlabel = "x", panel_kwargs...)
+ax_b  = Axis(fig3[2, 1]; title = "Buoyancy b",                     panel_kwargs...)
+ax_KE = Axis(fig3[4, 1]; title = "Kinetic energy",                 panel_kwargs...)
+ax_E3 = Axis(fig3[6, 1]; title = "Eₐ,  ThreeDimensionalSort",      panel_kwargs...)
+ax_EH = Axis(fig3[8, 1]; title = "Eₐ,  HeavisideIntegral", xlabel = "x", panel_kwargs...)
 
 bₙ  = @lift b_t[$n]
 KEₙ = @lift KE_t[$n]
-Eaₙ = @lift APE_t[$n]
+E3ₙ = @lift APE3_t[$n]
+EHₙ = @lift APEH_t[$n]
 
 ## `Eₐ` and the kinetic energy are both sign-definite, so they get one-sided ranges set from their own
 ## peak over the run; the buoyancy keeps the symmetric range used above.
-KE_lim = maximum(maximum(interior(KE_t[k]))  for k in 1:length(times))
-Ea_lim = maximum(maximum(interior(APE_t[k])) for k in 1:length(times))
+KE_lim = maximum(maximum(interior(KE_t[k]))   for k in 1:length(times))
+Ea_lim = maximum(maximum(interior(APE3_t[k])) for k in 1:length(times))
 
 hm_b  = heatmap!(ax_b,  bₙ;  colormap = :balance, colorrange = (-Δb/2, Δb/2))
 Colorbar(fig3[3, 1], hm_b;  vertical = false, height = 8)
@@ -234,8 +256,11 @@ energy_options = (; colormap = :magma, colorrange = (0, 0.5Ea_lim))
 hm_KE = heatmap!(ax_KE, KEₙ; energy_options...)
 Colorbar(fig3[5, 1], hm_KE; vertical = false, height = 8)
 
-hm_Ea = heatmap!(ax_Ea, Eaₙ; energy_options...)
-Colorbar(fig3[7, 1], hm_Ea; vertical = false, height = 8)
+hm_E3 = heatmap!(ax_E3, E3ₙ; energy_options...)
+Colorbar(fig3[7, 1], hm_E3; vertical = false, height = 8)
+
+hm_EH = heatmap!(ax_EH, EHₙ; energy_options...)
+Colorbar(fig3[9, 1], hm_EH; vertical = false, height = 8)
 
 title = @lift "Lock release,  t = " * string(round(times[$n], digits = 1))
 Label(fig3[1, 1], title, fontsize = 22, tellwidth = false)
@@ -329,6 +354,9 @@ t_e     = ds["time"][:]
 BPE_int = ds["∫BPE"][:]
 APE_int = ds["∫APE"][:]
 KE_int  = ds["∫KE"][:]
+## all three methods integrate to the same Eₐ, however they place cells of equal buoyancy  #hide
+@test ds["∫APE_heaviside"][:] ≈ APE_int rtol=1e-8                                          #hide
+@test ds["∫APE_column"][:]    ≈ APE_int rtol=1e-8                                          #hide
 close(ds)
 
 total_int = KE_int .+ APE_int .+ BPE_int
