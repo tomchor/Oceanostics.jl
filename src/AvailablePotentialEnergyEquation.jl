@@ -121,7 +121,7 @@ struct ThreeDimensionalSort <: AbstractSortingMethod end
     $(TYPEDEF)
 
 Evaluate the reference height as [Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X)
-define it in their eq. (11),
+define it in their Eq. (11),
 
 ```
     z✶(x) = z_bottom + (1/A) ∫ H(ρ(x′) - ρ(x)) dV′ ,
@@ -415,7 +415,7 @@ and `∫Eₐ dV` do not depend on the choice:
   - [`ThreeDimensionalSort`](@ref) (the default) gives each cell the height of its own slot in the sorted
     column, on the model grid. Tied cells take consecutive slots, which spreads `z✶` over a grid cell
     wherever the buoyancy is uniform.
-  - [`HeavisideIntegral`](@ref) is eq. (11) of Winters et al. verbatim, also on the model grid. Tied
+  - [`HeavisideIntegral`](@ref) is Eq. (11) of Winters et al. verbatim, also on the model grid. Tied
     cells share the mid-height of their layer, so `z✶` is a function of buoyancy alone and a
     cell-by-cell map is clean. Use this one for local fields.
   - [`OneDimensionalSort`](@ref) returns the sorted column itself, on a `1×1×N` grid of cells that span
@@ -428,7 +428,7 @@ grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Per
 model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
 set!(model, b = (x, y, z) -> z)
 
-# with eq. (11), a horizontally uniform stable stratification is exactly its own sorted state
+# with Eq. (11), a horizontally uniform stable stratification is exactly its own sorted state
 z✶ = reference_height(model, method=HeavisideIntegral())
 interior(z✶) ≈ reshape(znodes(grid, Center()), 1, 1, 4) .* ones(4, 4, 4)
 
@@ -574,7 +574,7 @@ volume,
 ```
 
 the potential energy the fluid would retain if it were rearranged adiabatically into the state of
-minimum potential energy ([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X), eq. 22).
+minimum potential energy ([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X), Eq. 22).
 `z✶` is the reference height that rearrangement assigns to each parcel, computed by
 [`reference_height`](@ref); pass one explicitly to share a single sort with
 [`AvailablePotentialEnergy`](@ref), or pass `method` through to choose how it is built
@@ -620,26 +620,41 @@ BackgroundPotentialEnergy(model, z✶::SortedReferenceHeightField) =
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` computing the available potential energy per unit volume,
+Return a `KernelFunctionOperation` computing the **local** available potential energy density,
 
 ```
-    Eₐ = Eₚ - E_b = -b (z - z✶)
+    Eₐ(b, z) = ∫_{z✶}^{z} [b✶(z̃) - b] dz̃ ,   equivalently   (g/ρ₀) ∫_{z✶}^{z} [ρ - ρ✶(z̃)] dz̃
 ```
 
-the part of the potential energy that an adiabatic rearrangement can release into kinetic energy
-([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X), eq. 23). `z✶` is the reference
-height computed by [`reference_height`](@ref); pass one explicitly to share a single sort with
-[`BackgroundPotentialEnergy`](@ref), or pass `method` through to choose how it is built.
+the work needed to bring a parcel from the reference height `z✶` it would occupy in the adiabatically
+resorted state to the height `z` where it actually sits. The parcel's own buoyancy `b` is held fixed
+along the path; only the reference profile `b✶` varies with `z̃`.
 
-The decomposition `Eₚ = E_b + Eₐ` holds cell by cell, so up to roundoff `Integral(Eₐ)` is
-`Integral(PotentialEnergy(model)) - Integral(BackgroundPotentialEnergy(model))`, and it vanishes for a
-statically stable, horizontally uniform stratification. Only the volume integral is guaranteed
-non-negative: cell by cell, `Eₐ` goes negative wherever a parcel sits below its reference height. It
-also vanishes cell by cell in that uniform case only under [`HeavisideIntegral`](@ref), since
-[`ThreeDimensionalSort`](@ref) spreads tied cells over a grid cell. The result lives at
-`(Center, Center, Center)`, per unit mass (units `m² s⁻²`), and is defined for the same buoyancy
-formulations as [`PotentialEnergy`](@ref). Under [`OneDimensionalSort`](@ref) it lands on the sorted
-column, indexed by rank rather than by position in the flow.
+This is the spatially local APE density of
+[Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742), and the form written as Eq.
+(1.1) of [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879), whose coarse-grained APE
+framework is built on it. It is **non-negative everywhere in space**, which follows from the convexity
+of that integral: a parcel carries `b = b✶(z✶)` and `b✶` is non-decreasing, so the integrand
+`b✶(z̃) - b` takes the sign of `z̃ - z✶` over the whole path and the integral is positive whichever
+side of its reference height the parcel is on. That is the property the global
+[Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X) form `Eₚ - E_b` does not have,
+which is why `Eₐ` here is a field worth mapping in its own right rather than only integrating.
+
+`z✶` is the reference height computed by [`reference_height`](@ref); pass one explicitly to share a
+single sort with [`BackgroundPotentialEnergy`](@ref), or pass `method` through to choose how it is
+built. All three methods give the same `Eₐ` volume integral.
+
+`Integral(Eₐ)` recovers the global APE `Integral(PotentialEnergy(model)) -
+Integral(BackgroundPotentialEnergy(model))` only in the continuum limit: the local density samples the
+reference profile at the model's cell centers while the global split effectively samples it at the
+sorted column's, and the two midpoint quadratures differ at finite `Δz`. The gap is second order in
+the vertical spacing, so it is a fraction of a percent on a well resolved grid but a few percent on a
+coarse one. `Eₐ` does vanish, cell by cell and exactly, for a statically stable and horizontally
+uniform stratification.
+
+The result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻²`), and is defined for the
+same buoyancy formulations as [`PotentialEnergy`](@ref). Under [`OneDimensionalSort`](@ref) it lands
+on the sorted column, indexed by rank rather than by position in the flow.
 
 ```jldoctest
 using Oceananigans, Oceanostics
@@ -653,9 +668,9 @@ AvailablePotentialEnergy(model)
 
 AvailablePotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: minus_bδz✶_ccc (generic function with 2 methods)
-└── arguments: ("Field", "Field")
-└── computes: available potential energy per unit volume  Eₐ = -b(z - z✶)
+├── kernel_function: local_ape_ccc (generic function with 2 methods)
+└── arguments: ("Field", "Field", "Field")
+└── computes: local available potential energy density  Eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0
 ```
 """
 function AvailablePotentialEnergy(model; location = (Center, Center, Center), method = ThreeDimensionalSort(),
