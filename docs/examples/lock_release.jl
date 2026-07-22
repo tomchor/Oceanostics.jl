@@ -61,7 +61,7 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
 #
 # We build one `z★` per method and write all of them, so the reference state comes out of the run
 # rather than being rebuilt afterwards. They are ordinary `Field`s that re-sort themselves whenever
-# they are computed, so an output writer can simply be handed them.
+# they are computed, so they can be passed to an output writer.
 #
 # What each method gives you to write differs, and that difference is the same one the figures below
 # show. The two model-grid methods produce a *map* of the reference height, one value per cell, on the
@@ -75,10 +75,9 @@ z★_heaviside = reference_height(model, method = HeavisideIntegral())
 z★_column    = reference_height(model, method = OneDimensionalSort())
 b✶_column    = reference_buoyancy(z★_column)
 
-# Both energies are built from the same reference height, so we share one rather than letting each
-# diagnostic sort the domain for itself. `Eₐ` here is the *local* available potential energy, the work
-# needed to bring each parcel from its reference height to where it is, so it is non-negative
-# everywhere and can be mapped as a field in its own right.
+# Both background and available potential energies are built from the same reference height, so we share one rather than letting each
+# diagnostic sort the domain for itself. Note that `APE` here is the *local* available potential energy
+# (as defined by Holliday & McIntyre (1981)) and it should always be non-negative
 
 APE = AvailablePotentialEnergy(model, z★_ranked)
 KE  = KineticEnergy(model)
@@ -263,10 +262,11 @@ Ea_lim = maximum(maximum(interior(APE_t[k])) for k in 1:length(times))
 hm_b  = heatmap!(ax_b,  bₙ;  colormap = :balance, colorrange = (-Δb/2, Δb/2))
 Colorbar(fig3[3, 1], hm_b;  vertical = false, height = 8)
 
-hm_KE = heatmap!(ax_KE, KEₙ; colormap = :magma,   colorrange = (0, KE_lim))
+energy_options = (; colormap = :magma, colorrange = (0, 0.5Ea_lim))
+hm_KE = heatmap!(ax_KE, KEₙ; energy_options...)
 Colorbar(fig3[5, 1], hm_KE; vertical = false, height = 8)
 
-hm_Ea = heatmap!(ax_Ea, Eaₙ; colormap = :thermal, colorrange = (0, 0.5Ea_lim))
+hm_Ea = heatmap!(ax_Ea, Eaₙ; energy_options...)
 Colorbar(fig3[7, 1], hm_Ea; vertical = false, height = 8)
 
 title = @lift "Lock release,  t = " * string(round(times[$n], digits = 1))
