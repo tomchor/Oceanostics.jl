@@ -550,10 +550,21 @@ buoyancy field is rearranged adiabatically into the state of minimum potential e
 [`BackgroundPotentialEnergy`](@ref) and [`AvailablePotentialEnergy`](@ref), and both accept a `z✶` you
 built yourself so a pair of them can share one sort:
 
-```julia
-z✶ = reference_height(model)
-E_b = BackgroundPotentialEnergy(model, z✶)
+```jldoctest
+using Oceananigans, Oceanostics
+
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+set!(model, b = (x, y, z) -> z)
+
+z✶ = reference_height(model)                  # sort the domain once
+E_b = BackgroundPotentialEnergy(model, z✶)    # and reuse it for both diagnostics
 E_a = AvailablePotentialEnergy(model, z✶)
+E_b.grid === E_a.grid === grid
+
+# output
+
+true
 ```
 
 Unlike the pointwise diagnostics elsewhere in Oceanostics, `z✶` is defined by a sort of every cell in

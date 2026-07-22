@@ -68,10 +68,28 @@ binary search into a sorted profile. Cells are matched by value rather than by i
 one method whose profile need not have come from the field being diagnosed. It reproduces on the model
 grid what the [`VerticalSort`](@ref) column holds, without calling that method to do it.
 
-```julia
-z✶ = reference_height(model, method=ProfileLookup())            # sort this field, as the others do
-z✶ = reference_height(model, method=ProfileLookup(z✶_column))   # borrow a column, recomputed with it
-z✶ = reference_height(model, method=ProfileLookup(b✶, z✶_prof)) # any profile, e.g. one fixed in time
+```@example ape_profilelookup
+using Oceananigans, Oceanostics
+using Oceananigans.Fields: compute!, interior
+
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+set!(model, b = (x, y, z) -> z)
+
+# sort this field, exactly as the other methods do
+z✶ = reference_height(model, method=ProfileLookup())
+
+# borrow the column built by VerticalSort; it is recomputed alongside, so it tracks the flow
+z✶_column = reference_height(model, method=VerticalSort())
+z✶ = reference_height(model, method=ProfileLookup(z✶_column))
+
+# any (b✶, z✶) pair of vectors, here a snapshot of the column held fixed in time
+compute!(z✶_column)
+b✶      = vec(interior(reference_buoyancy(z✶_column)))
+z✶_prof = vec(interior(z✶_column))
+z✶ = reference_height(model, method=ProfileLookup(b✶, z✶_prof))
+
+nothing # hide
 ```
 
 The last two forms do no sorting at all, and the last is the way to hold the reference state fixed
