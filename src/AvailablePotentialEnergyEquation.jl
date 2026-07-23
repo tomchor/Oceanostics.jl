@@ -284,23 +284,50 @@ end
 """
     $(SIGNATURES)
 
-Build `Ψ(z) = ∫ b✶ dz̃`, from the bottom of the domain up through a reference profile of slot volumes
-`ΔV` and buoyancies `b`, and return it as a callable. `b✶` is piecewise constant on the profile, so `Ψ`
-is piecewise linear and evaluates exactly at any height. The profile need not have one slot per model
-cell: [`ProfileLookup`](@ref) may be handed a profile of its own length.
+The centre height of each slot in the sorted column: cells stacked from the bottom of the domain by
+cumulative volume, each placed at the midpoint of the slot it fills. `scratch` is overwritten with the
+cumulative volumes, and the centres come back as a fresh array, so a caller may pass `s.workspace` and
+still scatter the result through the permutation afterwards.
 """
-function ape_potential_function(s::SortedReferenceState, ΔV, b)
+function slot_centers!(scratch, s::SortedReferenceState, ΔV)
 
-    N  = length(ΔV)
-    FT = eltype(ΔV)
+    cumsum!(scratch, ΔV)
 
+    return @. s.bottom_height + (scratch - ΔV / 2) / s.horizontal_area
+end
+
+"""
+    $(SIGNATURES)
+
+The faces bounding those slots, from the bottom of the domain up: the same cumulative volumes divided by
+the domain's horizontal area, with the bottom closing the stack.
+"""
+function slot_faces(s::SortedReferenceState, ΔV)
+
+    N     = length(ΔV)
     Δz    = ΔV ./ s.horizontal_area                  # slot thickness, sorted order
-    faces = similar(Δz, N + 1)                       # slot faces, from the bottom up
-    Ψface = similar(Δz, N + 1)                       # Ψ evaluated at those faces
+    faces = similar(Δz, N + 1)
     faces[1] = s.bottom_height
-    Ψface[1] = zero(FT)
     cumsum!(view(faces, 2:N+1), Δz);  view(faces, 2:N+1) .+= s.bottom_height
-    cumsum!(view(Ψface, 2:N+1), b .* Δz)
+
+    return faces
+end
+
+"""
+    $(SIGNATURES)
+
+Build `Ψ(z) = ∫ b✶ dz̃`, from the bottom of the domain up through a reference profile given by its slot
+`faces` and buoyancies `b`, and return it as a callable. `b✶` is piecewise constant on the profile, so
+`Ψ` is piecewise linear and evaluates exactly at any height. Taking the faces rather than the volumes
+lets a caller that already has them (the external-profile path of [`ProfileLookup`](@ref)) skip
+rebuilding them, and lets the profile have its own length rather than one slot per model cell.
+"""
+function ape_potential_function(faces, b)
+
+    N     = length(b)
+    Ψface = similar(faces)                           # Ψ evaluated at the slot faces
+    Ψface[1] = zero(eltype(faces))
+    cumsum!(view(Ψface, 2:N+1), b .* diff(faces))
 
     ## Ψ inside slot k is Ψface[k] + b✶[k](z - faces[k]); `searchsortedlast` locates the slot
     return z -> (k = clamp(searchsortedlast(faces, z), 1, N); @inbounds Ψface[k] + b[k] * (z - faces[k]))
@@ -321,7 +348,7 @@ over the whole path.
 """
 function fill_ape_potential!(s::SortedReferenceState, ΔV_sorted, b_sorted, z✶_sorted, sz, sorted_output)
 
-    psi = ape_potential_function(s, ΔV_sorted, b_sorted)
+    psi = ape_potential_function(slot_faces(s, ΔV_sorted), b_sorted)
     Ψ✶  = psi.(z✶_sorted)                            # sorted order
 
     if sorted_output   # the column: its cells are already in sorted order
@@ -355,9 +382,8 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::ThreeDimensionalS
     perm = s.permutation
     ΔV, b_sorted = rank_by_buoyancy!(s)
 
-    cumsum!(work, ΔV)                                                       # volume below each cell's top face
-    z✶_sorted = @. s.bottom_height + (work - ΔV / 2) / s.horizontal_area    # cell-center z✶, in sorted order
-    work[perm] = z✶_sorted                                                  # scatter to the original ordering
+    z✶_sorted = slot_centers!(work, s, ΔV)   # cell-center z✶, in sorted order
+    work[perm] = z✶_sorted                   # scatter to the original ordering
 
     interior(z✶_field) .= reshape(work, sz)
     fill_ape_potential!(s, ΔV, b_sorted, z✶_sorted, sz, false)
@@ -430,12 +456,12 @@ profile_arrays(p) =
 """
     $(SIGNATURES)
 
-Recover the slot volumes of an externally supplied profile, which gives only heights. The slot faces
-are the midpoints between neighbouring `z✶`, closed off by the bottom and top of the domain, so the
-slots tile the depth exactly however the profile is spaced. For a profile of equal-volume slots (what
-[`VerticalSort`](@ref) produces) this recovers their thickness exactly.
+Recover the slot faces of an externally supplied profile, which gives only heights: the midpoints
+between neighbouring `z✶`, closed off by the bottom and top of the domain, so the slots tile the depth
+exactly however the profile is spaced. For a profile of equal-volume slots (what [`VerticalSort`](@ref)
+produces) this recovers their boundaries exactly.
 """
-function profile_slot_volumes(s::SortedReferenceState, z)
+function profile_slot_faces(s::SortedReferenceState, z)
 
     M     = length(z)
     faces = similar(z, M + 1)
@@ -443,13 +469,13 @@ function profile_slot_volumes(s::SortedReferenceState, z)
     faces[M + 1] = s.bottom_height + sum(s.cell_volume) / s.horizontal_area
     @views @. faces[2:M] = (z[1:M-1] + z[2:M]) / 2
 
-    return diff(faces) .* s.horizontal_area
+    return faces
 end
 
 """
     $(SIGNATURES)
 
-Return `(b✶, z✶, ΔV)` for the profile a [`ProfileLookup`](@ref) will search, and leave the
+Return `(b✶, z✶, faces)` for the profile a [`ProfileLookup`](@ref) will search, and leave the
 model-ordered buoyancy in `s.workspace` either way. With no profile of its own the field is sorted,
 exactly as [`ThreeDimensionalSort`](@ref) sorts it; with one supplied there is nothing to sort, and
 the whole `O(N log N)` ranking is skipped.
@@ -457,11 +483,8 @@ the whole `O(N log N)` ranking is skipped.
 function lookup_profile(s::SortedReferenceState, method::ProfileLookup{Nothing})
 
     ΔV, b✶ = rank_by_buoyancy!(s)
-    z✶ = similar(ΔV)
-    cumsum!(z✶, ΔV)
-    @. z✶ = s.bottom_height + (z✶ - ΔV / 2) / s.horizontal_area
 
-    return b✶, z✶, ΔV
+    return b✶, slot_centers!(similar(ΔV), s, ΔV), slot_faces(s, ΔV)
 end
 
 function lookup_profile(s::SortedReferenceState, method::ProfileLookup)
@@ -475,20 +498,20 @@ function lookup_profile(s::SortedReferenceState, method::ProfileLookup)
     issorted(b✶) ||
         throw(ArgumentError("`ProfileLookup` needs a reference profile ordered from the densest fluid up, \
                              but the buoyancy it was given is not non-decreasing."))
-    # `profile_slot_volumes` reads the slot faces off the midpoints between neighbouring heights, so a
-    # height that steps back down would hand it a negative volume and silently corrupt `Ψ`.
+    # `profile_slot_faces` reads the slot faces off the midpoints between neighbouring heights, so a
+    # height that steps back down would leave them out of order and silently corrupt `Ψ`.
     issorted(z✶) ||
         throw(ArgumentError("`ProfileLookup` needs the heights paired with `b✶` to rise with it, but the \
                              heights it was given are not non-decreasing. A reference profile runs from the \
                              densest fluid at the bottom to the lightest at the top."))
 
-    return b✶, z✶, profile_slot_volumes(s, z✶)
+    return b✶, z✶, profile_slot_faces(s, z✶)
 end
 #---
 
 function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::ProfileLookup)
     sz = size(z✶_field)
-    b✶, z✶_slot, ΔV = lookup_profile(s, method)
+    b✶, z✶_slot, faces = lookup_profile(s, method)
     b = s.workspace   # the model-ordered buoyancy, which `lookup_profile` leaves in place
     M = length(b✶)
 
@@ -502,7 +525,7 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::ProfileLook
     interior(z✶_field) .= reshape(z✶, sz)
     # `z✶` is already in the model's ordering, so `Ψ` is evaluated directly rather than scattered
     # through the permutation, which also lets the profile be a different length from the field.
-    psi = ape_potential_function(s, ΔV, b✶)
+    psi = ape_potential_function(faces, b✶)
     interior(s.ape_potential) .= reshape(psi.(s.source_height) .- psi.(z✶), sz)
 
     return z✶_field
@@ -517,8 +540,7 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::VerticalSor
     interior(method.reference_buoyancy) .= reshape(b_sorted, sz)                 # buoyancy, densest first
     interior(method.sorted_height)      .= reshape(s.source_height[perm], sz)    # where each parcel came from
 
-    cumsum!(work, ΔV)
-    z✶_sorted = @. s.bottom_height + (work - ΔV / 2) / s.horizontal_area
+    z✶_sorted = slot_centers!(work, s, ΔV)
     interior(z✶_field) .= reshape(z✶_sorted, sz) # exactly the column's own cell centers
     fill_ape_potential!(s, ΔV, b_sorted, z✶_sorted, sz, true)
 
