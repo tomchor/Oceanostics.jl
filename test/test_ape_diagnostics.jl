@@ -167,13 +167,10 @@ function test_sorting_methods_agree(grid)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = (x, y, z) -> z + 0.4 * sin(9x) * cos(7z))
 
-    # Only `HeavisideIntegral` runs on a stretched grid; the others need uniform cell volumes.
-    uniform_volumes = minimum(zspacings(grid)) ≈ maximum(zspacings(grid))
-
+    # Only called on a regular grid: cross-method agreement needs at least two methods to run, and a
+    # stretched grid admits only `HeavisideIntegral`.
     reference = nothing
     for method in (ThreeDimensionalSort(), HeavisideIntegral(), VerticalSort())
-
-        method isa HeavisideIntegral || uniform_volumes || continue
 
         z✶  = AvailablePotentialEnergyEquation.reference_height(model; method)
         ∫E_b = volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶))
@@ -271,11 +268,12 @@ function test_profile_lookup_matches_the_ranked_sort()
         @test minimum(E_a) > -sqrt(eps(eltype(grid))) * max(maximum(abs, E_a), eps(eltype(grid)))
     end
 
-    # a well-formed profile has matched lengths, buoyancy running up, and heights rising with it
-    for bad in (ProfileLookup(b✶[1:end-1], z✶_prof),   # mismatched lengths
-                ProfileLookup(reverse(b✶), z✶_prof),   # buoyancy not non-decreasing
-                ProfileLookup(b✶, reverse(z✶_prof)))   # heights step back down
-        @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model; method=bad)
+    # a well-formed profile has matched lengths, buoyancy running up, and heights rising with it. Each
+    # assertion matches its own message, so a profile rejected for the wrong reason still fails.
+    for (msg, bad) in ("buoyancy and height have different" => ProfileLookup(b✶[1:end-1], z✶_prof),
+                       "ordered from the densest fluid up"  => ProfileLookup(reverse(b✶), z✶_prof),
+                       "heights paired with"                => ProfileLookup(b✶, reverse(z✶_prof)))
+        @test_throws msg AvailablePotentialEnergyEquation.reference_height(model; method=bad)
     end
 
     return nothing
@@ -373,14 +371,23 @@ runs and returns a finite reference height.
 function test_stretched_grid_restrictions(grid)
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
-    set!(model, b = (x, y, z) -> z)
+    set!(model, b = grid_noise)   # a distinct buoyancy per cell, so the sort does real work
 
+    # Match the message, not just the type: `reference_height` raises `ArgumentError` from several
+    # places, so a bare type check cannot tell the grid restriction from an unrelated failure.
     for method in (ThreeDimensionalSort(), ProfileLookup(), VerticalSort())
-        @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model; method)
+        @test_throws "uniform cell volumes" AvailablePotentialEnergyEquation.reference_height(model; method)
     end
 
+    # `HeavisideIntegral` runs, and has to land somewhere a reference state could actually be: inside the
+    # domain, holding no negative APE, and leaving the volume-weighted mean height where it found it
+    # (sorting moves cells between heights, not volume between them).
     z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
+    z_bottom, z_top = extrema(znodes(grid, Face()))
     @test all(isfinite, interior(z✶))
+    @test all(z -> z_bottom ≤ z ≤ z_top, interior(z✶))
+    @test volume_mean(z✶) ≈ volume_mean(height_operation(grid)) atol = sqrt(eps(eltype(grid))) * grid.Lz
+    @test volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)) ≥ 0
 
     return nothing
 end
@@ -471,8 +478,9 @@ function test_local_ape_is_non_negative(grid)
         buoyancy isa BuoyancyTracer ? set!(model, b = grid_noise) :
                                       set!(model, S = grid_noise, T = grid_noise)
 
-        # Only `HeavisideIntegral` runs on a stretched grid; the others need uniform cell volumes.
-        uniform_volumes = minimum(zspacings(grid)) ≈ maximum(zspacings(grid))
+        # Only `HeavisideIntegral` runs on a stretched grid. The guard calls the source's own predicate
+        # rather than re-deriving one, so the two cannot drift apart.
+        uniform_volumes = !AvailablePotentialEnergyEquation.stretched_grid(grid)
 
         for method in (ThreeDimensionalSort(), HeavisideIntegral())
             method isa HeavisideIntegral || uniform_volumes || continue
@@ -525,14 +533,15 @@ function test_sorting_rejects_immersed_boundaries(grid)
     model = NonhydrostaticModel(immersed_grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = (x, y, z) -> z)
 
+    # Match the message so the assertion pins the immersed check rather than any `ArgumentError`
     for method in (ThreeDimensionalSort(), HeavisideIntegral(), ProfileLookup(), VerticalSort())
-        @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model; method)
+        @test_throws "ImmersedBoundaryGrid" AvailablePotentialEnergyEquation.reference_height(model; method)
     end
 
     # the model-level constructors default to `ThreeDimensionalSort`, so they throw too
-    @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model)
-    @test_throws ArgumentError AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model)
-    @test_throws ArgumentError AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model)
+    @test_throws "ImmersedBoundaryGrid" AvailablePotentialEnergyEquation.reference_height(model)
+    @test_throws "ImmersedBoundaryGrid" AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model)
+    @test_throws "ImmersedBoundaryGrid" AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model)
 
     return nothing
 end
@@ -575,9 +584,9 @@ end
         test_local_ape_is_non_negative(grid)
 
         @info "      Testing the `ThreeDimensionalSort`, `HeavisideIntegral` and `VerticalSort` methods"
-        test_sorting_methods_agree(grid)
         test_heaviside_is_constant_on_isopycnals(grid)
         if grid_class == "regular grid"
+            test_sorting_methods_agree(grid)   # needs at least two methods to run, so regular grids only
             test_one_dimensional_sort_column(grid)
             test_reference_buoyancy_triggers_the_sort(grid)
         else

@@ -12,7 +12,7 @@ using Oceananigans.Fields: Field, CenterField, FieldStatus, compute_at!, interio
 using Oceananigans.ImmersedBoundaries: ImmersedBoundaryGrid
 using Oceananigans.Models: seawater_density, model_geopotential_height
 using Oceananigans.Operators: Vᶜᶜᶜ
-using Oceananigans.Grids: Center, Face, RectilinearGrid, Flat, znode, topology
+using Oceananigans.Grids: Center, Face, RectilinearGrid, Flat, znode, topology, XYZRegularRG
 using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceanostics: validate_location, CustomKFO
 
@@ -684,11 +684,11 @@ function reference_height(b::Field; method = ThreeDimensionalSort())
 end
 
 #+++ Per-method setup
-# For a `RectilinearGrid`, a stretched grid (non-regular spacing in at least one direction) is exactly
-# one with non-uniform cell volumes: the volume is the product of the per-axis spacings, so it is uniform
-# iff every axis is regular. That single test therefore detects stretching however the grid was built.
-stretched_grid(cell_volume) =
-    ((ΔV_min, ΔV_max) = extrema(cell_volume); ΔV_max - ΔV_min > sqrt(eps(eltype(cell_volume))) * ΔV_max)
+# `XYZRegularRG` is Oceananigans' own name for a `RectilinearGrid` regular on all three axes, which is
+# exactly the uniform-cell-volume case: a cell's volume is the product of the per-axis spacings, so it is
+# uniform iff every axis is regular. Anything else (a stretched axis, or a curvilinear grid whose cells
+# shrink with latitude) is stretched as far as the stacking methods are concerned.
+stretched_grid(grid) = !(grid isa XYZRegularRG)
 
 # No method handles topography yet, so every one of them rejects an `ImmersedBoundaryGrid`. Beyond that,
 # `HeavisideIntegral` builds `z✶` from a volume fraction and tolerates a stretched grid, while the three
@@ -698,8 +698,8 @@ validate_grid_for_method(::HeavisideIntegral, grid, cell_volume) = validate_not_
 function validate_grid_for_method(method::AbstractSortingMethod, grid, cell_volume)
     validate_not_immersed(grid)
 
-    if stretched_grid(cell_volume)
-        ΔV_min, ΔV_max = extrema(cell_volume)
+    if stretched_grid(grid)
+        ΔV_min, ΔV_max = extrema(cell_volume)   # only for the message, so the scan stays off the happy path
         throw(ArgumentError("`$(summary(method))` needs a grid with uniform cell volumes (regular spacing in every \
                              direction), but this grid is stretched, with cell volumes ranging over [$ΔV_min, $ΔV_max]. \
                              Only `HeavisideIntegral()` supports stretched grids."))
