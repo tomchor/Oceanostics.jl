@@ -91,15 +91,7 @@ const SortedReferenceHeightField = Field{<:Any, <:Any, <:Any, <:SortedReferenceS
 
 Supertype of the four strategies [`reference_height`](@ref) offers for turning a buoyancy
 field into a reference height: [`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref),
-[`ProfileLookup`](@ref) and [`VerticalSort`](@ref). They agree on every volume integral built
-from `z✶`, and differ along two axes rather than one. [`VerticalSort`](@ref) is the only one
-that moves the answer off the model grid, onto a sorted column; the other three all leave `z✶` on the
-model grid and differ instead in where they place cells of equal buoyancy.
-
-That placement is the only freedom they have, and it is one `Eₐ` cannot see: a cell's `z✶` always
-lands inside the run of slots its own buoyancy fills, and the reference profile is flat across that
-run, so the local available potential energy comes out the same whichever of the four is used. The
-choice shows up in `z✶` itself, and so in [`BackgroundPotentialEnergy`](@ref).
+[`ProfileLookup`](@ref) and [`VerticalSort`](@ref).
 """
 abstract type AbstractSortingMethod end
 
@@ -179,10 +171,11 @@ it:
   - `ProfileLookup(z✶_column)` takes the profile from a reference height built with
     [`VerticalSort`](@ref), and reads it back onto the model grid. The column is recomputed
     first, so the profile still tracks the flow.
-  - `ProfileLookup(b✶, z✶)` takes any paired buoyancy and height, as vectors or `Field`s, ordered
-    from the densest fluid up. Arrays are moved to the model's architecture when the diagnostic is
-    built, so a plain `Vector` works on a GPU. This is the form to use for a profile held fixed in
-    time, or taken from a different field, and it does no sorting at all.
+  - `ProfileLookup(b✶, z✶)` takes any paired buoyancy and height, ordered from the densest fluid up,
+    and does no sorting at all. Pass arrays to hold the reference state fixed while the flow evolves;
+    they are moved to the model's architecture when the diagnostic is built, so a plain `Vector` works
+    on a GPU. Pass `Field`s and they are recomputed on every `compute!` instead, so the profile tracks
+    whatever they are built from rather than staying fixed.
 
 Like [`HeavisideIntegral`](@ref) this makes `z✶` a function of buoyancy alone, so it is constant on
 isopycnals; the two differ only in which slot of a tied run they pick, the first here against the
@@ -191,9 +184,8 @@ run's mid-height there.
 !!! warning "Non-negativity needs a profile that resolves the field"
     `Eₐ ≥ 0` rests on a parcel carrying `b = b✶(z✶)` exactly, which holds when the profile contains the
     buoyancies the field actually has. A profile sorted from the same field at the same time always
-    does, so `ProfileLookup()` and `ProfileLookup(z✶_column)` are safe. One that is coarse, fixed in
-    time, or drawn from another field matches only approximately, and `Eₐ` can then come out slightly
-    negative, by an amount that shrinks as the profile resolves the field's buoyancy more finely.
+    does, so `ProfileLookup()` and `ProfileLookup(z✶_column)` are safe. For other profiles `Eₐ` cannot
+    be guaranteed to be non-negative.
 """
 struct ProfileLookup{P} <: AbstractSortingMethod
     profile :: P
@@ -588,8 +580,8 @@ supported yet. On a stretched grid (non-uniform cell volumes) only [`HeavisideIn
 since it builds `z✶` from a volume fraction; the three methods that stack cells into a column need
 uniform cells and throw.
 
-`method` picks how the sorted state is built. All four agree on every volume integral, so `∫E_b dV`
-and `∫Eₐ dV` do not depend on the choice:
+`method` picks how the sorted state is built. Sorting the field itself, all four give the same
+`∫Eₐ dV` in the continuous limit, but have different limitations due to the discretization:
 
   - [`ThreeDimensionalSort`](@ref) (the default) gives each cell the height of its own slot in the sorted
     column, on the model grid. Tied cells take consecutive slots, which spreads `z✶` over a grid cell
@@ -854,16 +846,16 @@ along the path; only the reference profile `b✶` varies with `z̃`.
 This is the spatially local APE density of
 [Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742) and it is also used in
 [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) as a basis for a filtered APE
-framework. It is **non-negative everywhere in space**, which follows from the convexity
-of that integral: a parcel carries `b = b✶(z✶)` and `b✶` is non-decreasing, so the integrand
-`b✶(z̃) - b` takes the sign of `z̃ - z✶` over the whole path and the integral is positive whichever
-side of its reference height the parcel is on. That is the property the global
-[Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X) form `Eₚ - E_b` does not have,
-which is why `Eₐ` here is a field worth mapping in its own right rather than only integrating.
+framework. When the reference state is sorted from the field itself, it is **non-negative everywhere
+in space**, which follows from the convexity of that integral: a parcel carries `b = b✶(z✶)` exactly
+and `b✶` is non-decreasing, so the integrand `b✶(z̃) - b` takes the sign of `z̃ - z✶` over the whole
+path and the integral is positive whichever side of its reference height the parcel is on. Handing
+[`ProfileLookup`](@ref) a profile the field did not produce breaks the `b = b✶(z✶)` step, and with it
+the non-negativity guarantee.
 
 `z✶` is the reference height computed by [`reference_height`](@ref); pass one explicitly to share a
 single sort with [`BackgroundPotentialEnergy`](@ref), or pass `method` through to choose how it is
-built. All four methods give the same `Eₐ` volume integral.
+built. All four give the same `Eₐ` volume integral when each sorts the field itself.
 
 `Integral(Eₐ)` recovers the global APE `Integral(PotentialEnergy(model)) -
 Integral(BackgroundPotentialEnergy(model))` only in the continuum limit: the local density samples the
