@@ -25,10 +25,10 @@ using ..PotentialEnergyEquation: PotentialEnergy, NoBuoyancyModel, BuoyancyTrace
 import Oceananigans.Fields: compute!
 
 # The sort-and-stack reference state assumes uniform cells stacked under a horizontal cross-sectional
-# area that does not vary with depth. Both fail on a stretched grid (cells differ in volume) or an
-# `ImmersedBoundaryGrid` (horizontal area varies with depth), so every method but `HeavisideIntegral` is
-# restricted to a regular grid without topography; see `validate_grid_for_method` further down, once the
-# sorting-method types exist.
+# area that does not vary with depth. Topography breaks both, so no method runs on an
+# `ImmersedBoundaryGrid` yet; a stretched grid breaks only the first, so every method but
+# `HeavisideIntegral` additionally needs uniform cell volumes. See `validate_grid_for_method` further
+# down, once the sorting-method types exist.
 
 #+++ Buoyancy as a single materialized `Field`
 # The sorting below needs the buoyancy of every cell as plain data, and the `BackgroundPotentialEnergy`
@@ -180,8 +180,9 @@ it:
     [`VerticalSort`](@ref), and reads it back onto the model grid. The column is recomputed
     first, so the profile still tracks the flow.
   - `ProfileLookup(b✶, z✶)` takes any paired buoyancy and height, as vectors or `Field`s, ordered
-    from the densest fluid up. This is the form to use for a profile held fixed in time, or taken
-    from a different field, and it does no sorting at all.
+    from the densest fluid up. Arrays are moved to the model's architecture when the diagnostic is
+    built, so a plain `Vector` works on a GPU. This is the form to use for a profile held fixed in
+    time, or taken from a different field, and it does no sorting at all.
 
 Like [`HeavisideIntegral`](@ref) this makes `z✶` a function of buoyancy alone, so it is constant on
 isopycnals; the two differ only in which slot of a tied run they pick, the first here against the
@@ -741,6 +742,15 @@ sorting_grid(::AbstractSortingMethod, grid) = grid
 sorting_grid(method::VerticalSort, grid) = method.reference_buoyancy.grid
 
 build_sorting_method(method::AbstractSortingMethod, grid, cell_volume, horizontal_area, z_bottom) = method
+
+# A host `Vector` profile would be broadcast against on-architecture workspaces; move it once, not per `compute!`.
+build_sorting_method(method::ProfileLookup, grid, cell_volume, horizontal_area, z_bottom) =
+    ProfileLookup(on_architecture_profile(architecture(grid), method.profile))
+
+# `Field`s are already on-architecture and must stay `Field`s for `refresh_profile!`; only arrays move.
+on_architecture_profile(arch, profile) = profile
+on_architecture_profile(arch, profile::AbstractVector) = on_architecture(arch, profile)
+on_architecture_profile(arch, profile::Tuple) = map(p -> on_architecture_profile(arch, p), profile)
 
 function build_sorting_method(::VerticalSort, grid, cell_volume, horizontal_area, z_bottom)
 
