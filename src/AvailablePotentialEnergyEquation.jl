@@ -28,7 +28,7 @@ import Oceananigans.Fields: compute!
 # area that does not vary with depth. Topography breaks both, so no method runs on an
 # `ImmersedBoundaryGrid` yet; a stretched grid breaks only the first, so every method but
 # `HeavisideIntegral` additionally needs uniform cell volumes. See `validate_grid_for_method` further
-# down, once the sorting-method types exist.
+# down, once the method types exist.
 
 #+++ Buoyancy as a single materialized `Field`
 # The sorting below needs the buoyancy of every cell as plain data, and the `BackgroundPotentialEnergy`
@@ -93,7 +93,7 @@ Supertype of the four strategies [`reference_height`](@ref) offers for turning a
 field into a reference height: [`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref),
 [`ProfileLookup`](@ref) and [`VerticalSort`](@ref).
 """
-abstract type AbstractSortingMethod end
+abstract type AbstractReferenceHeightMethod end
 
 """
     $(TYPEDEF)
@@ -110,7 +110,7 @@ stratification. That spread is the volume-weighted mean of what [`HeavisideInteg
 so every volume integral agrees with it exactly, but it does make a cell-by-cell map of `z✶` noisy at
 the grid scale wherever the buoyancy is uniform.
 """
-struct ThreeDimensionalSort <: AbstractSortingMethod end
+struct ThreeDimensionalSort <: AbstractReferenceHeightMethod end
 
 """
     $(TYPEDEF)
@@ -131,7 +131,7 @@ Prefer this to [`ThreeDimensionalSort`](@ref) when you want a cell-by-cell map: 
 statically stable stratification gives `z✶ = z` exactly here, hence `Eₐ = 0` cell by cell rather than
 only in the integral. It costs a couple of extra passes over the sorted cells to find the tied runs.
 """
-struct HeavisideIntegral <: AbstractSortingMethod end
+struct HeavisideIntegral <: AbstractReferenceHeightMethod end
 
 """
     $(TYPEDEF)
@@ -149,7 +149,7 @@ carried along, so [`AvailablePotentialEnergy`](@ref) still works, but its result
 in the sorted column rather than by position in the flow. Requires every cell of the model grid to
 hold the same volume, since otherwise the column's cell boundaries would move as the flow evolves.
 """
-struct VerticalSort{B, H} <: AbstractSortingMethod
+struct VerticalSort{B, H} <: AbstractReferenceHeightMethod
     reference_buoyancy :: B
     sorted_height :: H
 end
@@ -186,7 +186,7 @@ isopycnals: a tied run is placed at the mid-height of the band it fills, exactly
     does, so `ProfileLookup()` and `ProfileLookup(z✶_column)` are safe. For other profiles `Eₐ` cannot
     be guaranteed to be non-negative.
 """
-struct ProfileLookup{P} <: AbstractSortingMethod
+struct ProfileLookup{P} <: AbstractReferenceHeightMethod
     profile :: P
 end
 
@@ -247,7 +247,7 @@ reference_buoyancy(z✶::SortedReferenceHeightField) =
 # On the model grid the buoyancy is the model's own field, which already recomputes itself, so it is
 # handed back untouched. On the sorted column it is storage the sort writes into, so it is wrapped in a
 # field that shares that storage and knows to trigger the sort.
-reference_buoyancy(z✶, ::AbstractSortingMethod, buoyancy) = buoyancy
+reference_buoyancy(z✶, ::AbstractReferenceHeightMethod, buoyancy) = buoyancy
 
 reference_buoyancy(z✶, ::VerticalSort, buoyancy) =
     Field{Center, Center, Center}(buoyancy.grid; data = buoyancy.data,
@@ -257,11 +257,11 @@ reference_buoyancy(z✶, ::VerticalSort, buoyancy) =
 # model grid both come straight from the flow (`nothing` height means "use the grid's own `Zᶜᶜᶜ`");
 # on the sorted column both have to be carried in sorted order.
 reference_buoyancy(s::SortedReferenceState) = reference_buoyancy(s.method, s.buoyancy)
-reference_buoyancy(::AbstractSortingMethod, buoyancy) = buoyancy
+reference_buoyancy(::AbstractReferenceHeightMethod, buoyancy) = buoyancy
 reference_buoyancy(method::VerticalSort, buoyancy) = method.reference_buoyancy
 
 sorted_height(s::SortedReferenceState) = sorted_height(s.method)
-sorted_height(::AbstractSortingMethod) = nothing
+sorted_height(::AbstractReferenceHeightMethod) = nothing
 sorted_height(method::VerticalSort) = method.sorted_height
 #---
 
@@ -270,7 +270,7 @@ sorted_height(method::VerticalSort) = method.sorted_height
 
 Rank the cells of `s.buoyancy` by buoyancy, densest (lowest `b`) first, leaving the flattened
 buoyancy in `s.workspace` and the ranking in `s.permutation`. Returns the cell volumes and the
-buoyancies in that sorted order, which is what every [`AbstractSortingMethod`](@ref) then accumulates.
+buoyancies in that sorted order, which is what every [`AbstractReferenceHeightMethod`](@ref) then accumulates.
 """
 function rank_by_buoyancy!(s::SortedReferenceState)
 
@@ -373,9 +373,9 @@ has reached, so a cell whose rank puts it between cumulative volumes `V₋` and 
 `z✶ = z_bottom + (V₋ + V₊) / 2A`. Ranking is a permutation of the cells, so the sorted column holds
 exactly the same volume as the original one and `z✶` covers the full depth of the domain.
 """
-sort_buoyancy!(z✶_field, s::SortedReferenceState) = sort_buoyancy!(z✶_field, s, s.method)
+assign_reference_height!(z✶_field, s::SortedReferenceState) = assign_reference_height!(z✶_field, s, s.method)
 
-function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::ThreeDimensionalSort)
+function assign_reference_height!(z✶_field, s::SortedReferenceState, ::ThreeDimensionalSort)
     sz   = size(z✶_field)
     work = s.workspace
     perm = s.permutation
@@ -390,7 +390,7 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::ThreeDimensionalS
     return z✶_field
 end
 
-function sort_buoyancy!(z✶_field, s::SortedReferenceState, ::HeavisideIntegral)
+function assign_reference_height!(z✶_field, s::SortedReferenceState, ::HeavisideIntegral)
     sz   = size(z✶_field)
     work = s.workspace
     perm = s.permutation
@@ -508,7 +508,7 @@ function lookup_profile(s::SortedReferenceState, method::ProfileLookup)
 end
 #---
 
-function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::ProfileLookup)
+function assign_reference_height!(z✶_field, s::SortedReferenceState, method::ProfileLookup)
     sz = size(z✶_field)
     b✶, z✶_slot, faces = lookup_profile(s, method)
     b = s.workspace   # the model-ordered buoyancy, which `lookup_profile` leaves in place
@@ -538,7 +538,7 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::ProfileLook
     return z✶_field
 end
 
-function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::VerticalSort)
+function assign_reference_height!(z✶_field, s::SortedReferenceState, method::VerticalSort)
     sz   = size(z✶_field) # (1, 1, N): the sorted column, not the model grid
     work = s.workspace
     perm = s.permutation
@@ -556,7 +556,7 @@ end
 
 # Only a `ProfileLookup` can depend on anything beyond its own buoyancy, and only when the profile it
 # was handed is itself computed. Refreshing it here is what keeps a borrowed profile tracking the flow.
-refresh_profile!(::AbstractSortingMethod, time) = nothing
+refresh_profile!(::AbstractReferenceHeightMethod, time) = nothing
 refresh_profile!(method::ProfileLookup, time) = refresh_profile_source!(method.profile, time)
 
 refresh_profile_source!(::Nothing, time) = nothing
@@ -568,7 +568,7 @@ function compute!(z✶_field::SortedReferenceHeightField, time=nothing)
     s = z✶_field.operand
     compute_at!(s.buoyancy, time)
     refresh_profile!(s.method, time)
-    sort_buoyancy!(z✶_field, s)
+    assign_reference_height!(z✶_field, s)
     fill_halo_regions!(z✶_field)
     set_status!(z✶_field.status, time)
 
@@ -731,7 +731,7 @@ stretched_grid(grid) = !(grid isa XYZRegularRG)
 # methods that stack cells into a column need uniform cell volumes to reconstruct the reference height.
 validate_grid_for_method(::HeavisideIntegral, grid, cell_volume) = validate_not_immersed(grid)
 
-function validate_grid_for_method(method::AbstractSortingMethod, grid, cell_volume)
+function validate_grid_for_method(method::AbstractReferenceHeightMethod, grid, cell_volume)
     validate_not_immersed(grid)
 
     if stretched_grid(grid)
@@ -766,10 +766,10 @@ end
 
 # `ThreeDimensionalSort` and `HeavisideIntegral` write `z✶` onto the model grid; `VerticalSort` writes it
 # onto the sorted column it allocates below.
-sorting_grid(::AbstractSortingMethod, grid) = grid
+sorting_grid(::AbstractReferenceHeightMethod, grid) = grid
 sorting_grid(method::VerticalSort, grid) = method.reference_buoyancy.grid
 
-build_sorting_method(method::AbstractSortingMethod, grid, cell_volume, horizontal_area, z_bottom) = method
+build_sorting_method(method::AbstractReferenceHeightMethod, grid, cell_volume, horizontal_area, z_bottom) = method
 
 # A host `Vector` profile would be broadcast against on-architecture workspaces; move it once, not per `compute!`.
 build_sorting_method(method::ProfileLookup, grid, cell_volume, horizontal_area, z_bottom) =
