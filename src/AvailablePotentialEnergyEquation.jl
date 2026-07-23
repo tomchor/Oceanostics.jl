@@ -178,8 +178,7 @@ it:
     whatever they are built from rather than staying fixed.
 
 Like [`HeavisideIntegral`](@ref) this makes `z✶` a function of buoyancy alone, so it is constant on
-isopycnals; the two differ only in which slot of a tied run they pick, the first here against the
-run's mid-height there.
+isopycnals: a tied run is placed at the mid-height of the band it fills, exactly as that method does.
 
 !!! warning "Non-negativity needs a profile that resolves the field"
     `Eₐ ≥ 0` rests on a parcel carrying `b = b✶(z✶)` exactly, which holds when the profile contains the
@@ -515,12 +514,20 @@ function sort_buoyancy!(z✶_field, s::SortedReferenceState, method::ProfileLook
     b = s.workspace   # the model-ordered buoyancy, which `lookup_profile` leaves in place
     M = length(b✶)
 
-    # `b✶` is non-decreasing, so each cell's own buoyancy can be located in it by binary search.
-    # The search lands on the first slot of a tied run; the neighbour on the left is the closer match
-    # whenever the value falls between two runs, which is the only way an exact tie can be missed.
-    j  = clamp.(searchsortedfirst.(Ref(b✶), b), 1, M)
-    jₗ = max.(j .- 1, 1)
-    z✶ = ifelse.(abs.(view(b✶, jₗ) .- b) .< abs.(view(b✶, j) .- b), view(z✶_slot, jₗ), view(z✶_slot, j))
+    # `b✶` is non-decreasing, so a cell's own buoyancy brackets a run of slots `[lo, hi]` by binary
+    # search. Its reference height is the mid-height of the band that run fills, which is what
+    # `HeavisideIntegral` assigns and what leaves `∫E_b dV` independent of the method; taking the run's
+    # first slot instead would drag every tied layer down to its own floor. A single-slot run reduces to
+    # that slot's own centre, so a field without ties is unaffected.
+    lo  = clamp.(searchsortedfirst.(Ref(b✶), b), 1, M)
+    hi  = clamp.(searchsortedlast.(Ref(b✶), b), 1, M)
+    loₗ = max.(lo .- 1, 1)
+
+    run_mid = (faces[lo] .+ faces[hi .+ 1]) ./ 2
+    # A value that matches no slot has no run, which only an externally supplied profile can produce.
+    # There the nearer of the two bracketing slots stands in.
+    nearest = ifelse.(abs.(view(b✶, loₗ) .- b) .< abs.(view(b✶, lo) .- b), view(z✶_slot, loₗ), view(z✶_slot, lo))
+    z✶ = ifelse.(view(b✶, lo) .== b, run_mid, nearest)
 
     interior(z✶_field) .= reshape(z✶, sz)
     # `z✶` is already in the model's ordering, so `Ψ` is evaluated directly rather than scattered
@@ -621,8 +628,8 @@ uniform cells and throw.
   - [`ProfileLookup`](@ref) gives each cell the height of the slot whose buoyancy matches its own,
     found by binary search into the sorted profile, on the model grid. It is the column below read
     back onto the model grid, matched by value rather than by cell identity, so it is the one method
-    that does not need the profile to have come from the field being diagnosed. Tied cells take the
-    first slot of their run, which makes `z✶` a function of buoyancy alone as above.
+    that does not need the profile to have come from the field being diagnosed. Tied cells share the
+    mid-height of their run, which makes `z✶` a function of buoyancy alone as above.
   - [`VerticalSort`](@ref) returns the sorted column itself, on a `1×1×N` grid of cells that span
     the domain's horizontal area, which is the form to use for a reference profile.
 

@@ -50,10 +50,9 @@ Mainly what differs is how cells of *equal* buoyancy are placed, and what grid t
 That freedom is one ``E_a`` cannot see. A cell's ``z^\star`` always lands inside the run of slots that
 its own buoyancy fills, and the reference profile is flat across that run, so sliding ``z^\star`` along
 it leaves ``E_a`` unchanged. The four therefore agree on ``E_a`` cell by cell, not merely in the
-integral; where they part company is ``z^\star`` itself, and so ``E_b``. Its volume integral
-``\int E_b \, \mathrm{d}V`` is insensitive to the placement as well, with one exception:
-[`ProfileLookup`](@ref) sends a whole tied run to its first slot rather than spreading it or centring
-it, so it can disagree where the field has cells of equal buoyancy.
+integral; where they part company is ``z^\star`` itself, and so ``E_b`` cell by cell. Its volume
+integral ``\int E_b \, \mathrm{d}V`` is insensitive to the placement as well, so the methods agree
+on that too.
 
 Both statements assume the reference state was sorted from the field being diagnosed.
 [`ProfileLookup`](@ref) also accepts a profile that was not, and that weakens them.

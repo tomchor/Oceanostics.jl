@@ -119,6 +119,7 @@ pages = ["Home" => "index.md",
          "Progress messengers" => "progress_messengers.md",
          "Spatial filters" => "filters.md",
          "Examples" => example_pages,
+         "Validation" => ["Sorted reference state" => "validation/reference_state.md"],
          "Function library" => "library.md",
         ]
 
