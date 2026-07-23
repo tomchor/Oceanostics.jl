@@ -215,9 +215,12 @@ function test_heaviside_is_constant_on_isopycnals(grid)
     @test maximum(abs, interior(Field(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)))) <
           sqrt(eps(eltype(grid)))
 
-    # The ranked heights stay within half a cell of the parcel's own height, and no closer
-    z✶_ranked = AvailablePotentialEnergyEquation.reference_height(model, method=ThreeDimensionalSort())
-    @test maximum(abs, interior(z✶_ranked) .- heights) ≤ Δz_max / 2
+    # The ranked heights stay within half a cell of the parcel's own height, and no closer. Only
+    # `HeavisideIntegral` runs on a stretched grid, so the contrast is drawn on uniform volumes alone.
+    if minimum(zspacings(grid)) ≈ maximum(zspacings(grid))
+        z✶_ranked = AvailablePotentialEnergyEquation.reference_height(model, method=ThreeDimensionalSort())
+        @test maximum(abs, interior(z✶_ranked) .- heights) ≤ Δz_max / 2
+    end
 
     return nothing
 end
