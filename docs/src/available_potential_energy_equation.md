@@ -23,9 +23,10 @@ E_a(b, z) = \int_{z^\star}^{z} \left[b^\star(\tilde z) - b\right] \mathrm{d}\til
           = \frac{g}{\rho_0}\int_{z^\star}^{z} \left[\rho - \rho^\star(\tilde z)\right] \mathrm{d}\tilde z .
 ```
 
-In this form ``E_a`` is **non-negative everywhere in space**, so it can be mapped as a field. Its
-volume integral recovers ``\int E_p - \int E_b`` in the continuum limit, although at finite ``\Delta z`` the
-two differ at second order.
+In this form ``E_a`` is **non-negative everywhere in space** whenever the reference state is sorted from
+the field itself, so it can be mapped as a field. Its volume integral recovers
+``\int E_p - \int E_b`` in the continuum limit, although at finite ``\Delta z`` the two differ at second
+order.
 
 ## The background potential energy and the reference state
 
@@ -42,14 +43,20 @@ gravity current, from the step it starts as to the smooth stratification mixing 
 builds it with each of the four methods below so their costs and their differences can be compared
 directly.
 
-`method` selects one of four strategies to calculate the reference state. All `method`s produce the same reference state and agree on every
-volume integral, so ``\int E_b \, \mathrm{d}V`` and ``\int E_a \, \mathrm{d}V`` do not depend on the
-choice. Mainly what differs is how cells of *equal* buoyancy are placed, and what grid the answer lands on.
+`method` selects one of four strategies to calculate the reference state. Sorting the field itself, all
+`method`s produce the same reference state in the continuous limit and the same ``\int E_a \, \mathrm{d}V``.
+Mainly what differs is how cells of *equal* buoyancy are placed, and what grid the answer lands on.
 
 That freedom is one ``E_a`` cannot see. A cell's ``z^\star`` always lands inside the run of slots that
 its own buoyancy fills, and the reference profile is flat across that run, so sliding ``z^\star`` along
 it leaves ``E_a`` unchanged. The four therefore agree on ``E_a`` cell by cell, not merely in the
-integral; where they part company is ``z^\star`` itself, and so ``E_b``.
+integral; where they part company is ``z^\star`` itself, and so ``E_b``. Its volume integral
+``\int E_b \, \mathrm{d}V`` is insensitive to the placement as well, with one exception:
+[`ProfileLookup`](@ref) sends a whole tied run to its first slot rather than spreading it or centring
+it, so it can disagree where the field has cells of equal buoyancy.
+
+Both statements assume the reference state was sorted from the field being diagnosed.
+[`ProfileLookup`](@ref) also accepts a profile that was not, and that weakens them.
 
 [`ThreeDimensionalSort`](@ref) (the default) ranks the cells and gives each one the height of its
 own slot in the sorted state on the model grid. Tied cells take consecutive slots rather than a
@@ -92,9 +99,11 @@ z✶ = reference_height(model, method=ProfileLookup(b✶, z✶_prof))
 nothing # hide
 ```
 
-The last two forms do no sorting at all, and the last is the way to hold the reference state fixed
-while the flow evolves. Note that ``E_a \ge 0`` is guaranteed only while the profile resolves the
-buoyancies the field actually has, which a profile sorted from that same field always does.
+The last two forms do no sorting at all. To hold the reference state fixed while the flow evolves, pass
+the last one *arrays*: `Field`s are recomputed on every `compute!`, so a profile given as `Field`s
+tracks whatever they are built from instead of staying put. Note also that ``E_a \ge 0`` is guaranteed
+only while the profile resolves the buoyancies the field actually has, which a profile sorted from that
+same field always does.
 
 [`HeavisideIntegral`](@ref) is Eq. (11) of Winters et al. (1995) verbatim,
 
