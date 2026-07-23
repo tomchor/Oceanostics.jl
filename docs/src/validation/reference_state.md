@@ -5,7 +5,8 @@ rest on it, against answers that are known independently of the code. Everything
 documentation is built, so a regression breaks the build rather than quietly changing a number.
 
 The checks lean on three facts that hold no matter which
-[`AbstractSortingMethod`](@ref) is used:
+[`AbstractSortingMethod`](@ref Oceanostics.AvailablePotentialEnergyEquation.AbstractSortingMethod) is
+used:
 
   - a field that is already sorted **is** its own reference state, which fixes ``\int E_b \, \mathrm{d}V``
     and ``\int E_a \, \mathrm{d}V`` in closed form;
