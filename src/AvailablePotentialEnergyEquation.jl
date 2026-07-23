@@ -24,12 +24,11 @@ using ..PotentialEnergyEquation: PotentialEnergy, NoBuoyancyModel, BuoyancyTrace
 
 import Oceananigans.Fields: compute!
 
-# The sorted reference state assumes the domain's horizontal cross-sectional area does not vary with
-# depth, so that a cumulative volume maps onto a height by a simple division. That fails as soon as
-# there is topography.
-validate_sortable_grid(grid) = nothing
-validate_sortable_grid(grid::ImmersedBoundaryGrid) = throw(ArgumentError("`BackgroundPotentialEnergy` and `AvailablePotentialEnergy` are not currently defined on \
-                                                                         an `ImmersedBoundaryGrid`, whose horizontal area varies with depth."))
+# The sort-and-stack reference state assumes uniform cells stacked under a horizontal cross-sectional
+# area that does not vary with depth. Both fail on a stretched grid (cells differ in volume) or an
+# `ImmersedBoundaryGrid` (horizontal area varies with depth), so every method but `HeavisideIntegral` is
+# restricted to a regular grid without topography; see `validate_grid_for_method` further down, once the
+# sorting-method types exist.
 
 #+++ Buoyancy as a single materialized `Field`
 # The sorting below needs the buoyancy of every cell as plain data, and the `BackgroundPotentialEnergy`
@@ -576,9 +575,10 @@ for [`VerticalSort`](@ref) and 5.8 for [`HeavisideIntegral`](@ref), which builds
 intermediates. The `N log N` sort still dominates the runtime, so this shows up as allocation churn
 rather than as wall-clock.
 
-The domain's horizontal cross-sectional area is taken to be independent of depth (true of a
-`RectilinearGrid`, false as soon as there is topography), and an `ImmersedBoundaryGrid` is rejected for
-that reason.
+Grid support depends on the method. Sorting cells into a stack (every method but
+[`HeavisideIntegral`](@ref)) assumes uniform cells under a depth-independent horizontal area, so those
+three throw on a stretched grid (non-uniform cell volumes) or an `ImmersedBoundaryGrid` (horizontal area
+varies with depth). [`HeavisideIntegral`](@ref) builds `z✶` from a volume fraction and accepts both.
 
 `method` picks how the sorted state is built. All four agree on every volume integral, so `∫E_b dV`
 and `∫Eₐ dV` do not depend on the choice:
@@ -648,20 +648,20 @@ function reference_height(model; method = ThreeDimensionalSort(),
                                  geopotential_height = model_geopotential_height(model))
 
     isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
-    validate_sortable_grid(model.grid)
 
     return reference_height(buoyancy_field(model, model.buoyancy, geopotential_height); method)
 end
 
 function reference_height(b::Field; method = ThreeDimensionalSort())
     grid = b.grid
-    validate_sortable_grid(grid)
 
     arch = architecture(grid)
     FT   = eltype(grid)
     N    = prod(size(grid))
 
     cell_volume   = flat_grid_metric(grid, Vᶜᶜᶜ)
+    validate_grid_for_method(method, grid, cell_volume)   # reject stretched/immersed for all but HeavisideIntegral
+
     source_height = flat_grid_metric(grid, Zᶜᶜᶜ)
 
     # A stretched grid keeps its coordinates on the device, so the bottom face is read off a CPU copy
@@ -684,6 +684,33 @@ function reference_height(b::Field; method = ThreeDimensionalSort())
 end
 
 #+++ Per-method setup
+# For a `RectilinearGrid`, a stretched grid (non-regular spacing in at least one direction) is exactly
+# one with non-uniform cell volumes: the volume is the product of the per-axis spacings, so it is uniform
+# iff every axis is regular. That single test therefore detects stretching however the grid was built.
+stretched_grid(cell_volume) =
+    ((ΔV_min, ΔV_max) = extrema(cell_volume); ΔV_max - ΔV_min > sqrt(eps(eltype(cell_volume))) * ΔV_max)
+
+# `HeavisideIntegral` builds `z✶` from a volume fraction and works on any grid. The other three sort and
+# stack cells into a column, which only reconstructs the reference height when the cells are uniform and
+# the horizontal area is depth-independent, so they reject stretched grids and immersed boundaries.
+validate_grid_for_method(::HeavisideIntegral, grid, cell_volume) = nothing
+
+function validate_grid_for_method(method::AbstractSortingMethod, grid, cell_volume)
+    grid isa ImmersedBoundaryGrid &&
+        throw(ArgumentError("`$(summary(method))` is not defined on an `ImmersedBoundaryGrid`, whose horizontal \
+                             cross-sectional area varies with depth. Only `HeavisideIntegral()` supports immersed \
+                             boundary grids."))
+
+    if stretched_grid(cell_volume)
+        ΔV_min, ΔV_max = extrema(cell_volume)
+        throw(ArgumentError("`$(summary(method))` needs a grid with uniform cell volumes (regular spacing in every \
+                             direction), but this grid is stretched, with cell volumes ranging over [$ΔV_min, $ΔV_max]. \
+                             Only `HeavisideIntegral()` supports stretched grids."))
+    end
+
+    return nothing
+end
+
 "Evaluate a grid metric (a `(i, j, k, grid)` operator) over every cell and return it as a flat vector."
 function flat_grid_metric(grid, metric)
 
@@ -702,13 +729,8 @@ build_sorting_method(method::AbstractSortingMethod, grid, cell_volume, horizonta
 
 function build_sorting_method(::VerticalSort, grid, cell_volume, horizontal_area, z_bottom)
 
-    # The column's cell boundaries sit at the cumulative volume of the sorted cells. They may only be
-    # baked into a grid if that stacking cannot change, which needs every cell to hold the same volume.
-    ΔV_max, ΔV_min = maximum(cell_volume), minimum(cell_volume)
-    ΔV_max - ΔV_min > sqrt(eps(eltype(cell_volume))) * ΔV_max &&
-        throw(ArgumentError("`VerticalSort` needs every cell of the grid to hold the same volume, but they \
-                             range over [$ΔV_min, $ΔV_max]. Use `ThreeDimensionalSort()` or `HeavisideIntegral()` on a \
-                             grid with variable spacing."))
+    # `validate_grid_for_method` has already rejected the non-uniform cell volumes this method cannot
+    # handle, so the sorted column's cell boundaries (the cumulative volumes) are safe to bake into a grid.
 
     # The column collapses the two horizontal directions to a single cell and stacks the sorted cells
     # in the vertical, but it keeps the model grid's topology so that, e.g., a `Flat` horizontal stays

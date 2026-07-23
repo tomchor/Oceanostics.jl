@@ -44,11 +44,11 @@ function test_available_potential_energy_errors(model)
     return nothing
 end
 
-function test_background_and_available_pe(model; geopotential_height = nothing)
+function test_background_and_available_pe(model; geopotential_height = nothing, method = ThreeDimensionalSort())
 
     kwargs = isnothing(geopotential_height) ? (;) : (; geopotential_height)
 
-    z✶  = AvailablePotentialEnergyEquation.reference_height(model; kwargs...)
+    z✶  = AvailablePotentialEnergyEquation.reference_height(model; method, kwargs...)
     Eₚ  = PotentialEnergyEquation.PotentialEnergy(model; kwargs...)
     E_b = AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)
     E_a = AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)
@@ -110,16 +110,16 @@ function test_available_pe_analytic()
 end
 
 "A horizontally uniform, statically stable stratification is its own sorted state, so it holds no APE."
-function test_available_pe_vanishes_when_sorted(grid)
+function test_available_pe_vanishes_when_sorted(grid; method = ThreeDimensionalSort())
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = (x, y, z) -> 3z)
 
-    ∫E_a = volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model))
+    ∫E_a = volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model; method))
     ∫Eₚ  = volume_integral(PotentialEnergyEquation.PotentialEnergy(model))
 
     @test ∫E_a ≈ 0 atol=sqrt(eps(eltype(grid))) * abs(∫Eₚ)
-    @test volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model)) ≈ ∫Eₚ
+    @test volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model; method)) ≈ ∫Eₚ
 
     return nothing
 end
@@ -129,7 +129,7 @@ The sorted reference state depends on every cell in the domain, so it has to be 
 every `compute!` rather than baked in when the diagnostic is constructed. Mixing the flow completely
 (which conserves `∫b dV`) has to raise `∫E_b` to `∫Eₚ`, and a frozen reference state would not notice.
 """
-function test_reference_state_is_recomputed(grid)
+function test_reference_state_is_recomputed(grid; method = ThreeDimensionalSort())
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     # A sorted state is a function of z alone, so the horizontal term is what makes this one unsorted
@@ -137,7 +137,7 @@ function test_reference_state_is_recomputed(grid)
     # levels, `z + 0.5sin(6z)` comes out monotonic, hence already sorted, hence free of available PE.
     set!(model, b = (x, y, z) -> z + 0.5 * sin(6z) + 0.2 * sin(7x))
 
-    z✶   = AvailablePotentialEnergyEquation.reference_height(model)
+    z✶   = AvailablePotentialEnergyEquation.reference_height(model; method)
     ∫E_b = Field(Integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)))
     ∫Eₚ  = Field(Integral(PotentialEnergyEquation.PotentialEnergy(model)))
 
@@ -167,12 +167,13 @@ function test_sorting_methods_agree(grid)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = (x, y, z) -> z + 0.4 * sin(9x) * cos(7z))
 
+    # Only `HeavisideIntegral` runs on a stretched grid; the others need uniform cell volumes.
+    uniform_volumes = minimum(zspacings(grid)) ≈ maximum(zspacings(grid))
+
     reference = nothing
     for method in (ThreeDimensionalSort(), HeavisideIntegral(), VerticalSort())
 
-        # `VerticalSort` bakes the sorted column into a grid, so it only accepts uniform volumes
-        uniform_volumes = minimum(zspacings(grid)) ≈ maximum(zspacings(grid))
-        method isa VerticalSort && !uniform_volumes && continue
+        method isa HeavisideIntegral || uniform_volumes || continue
 
         z✶  = AvailablePotentialEnergyEquation.reference_height(model; method)
         ∫E_b = volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶))
@@ -305,11 +306,22 @@ function test_reference_buoyancy_triggers_the_sort(grid)
     return nothing
 end
 
-"`VerticalSort` bakes the sorted column's cell boundaries into a grid, so volumes must be equal."
-function test_one_dimensional_sort_rejects_stretched_grids(grid)
+"""
+Only `HeavisideIntegral` supports a stretched grid (non-uniform cell volumes). The other three stack
+cells into a column, which needs uniform cells, so each throws an `ArgumentError`; `HeavisideIntegral`
+runs and returns a finite reference height.
+"""
+function test_stretched_grid_restrictions(grid)
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
-    @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model, method=VerticalSort())
+    set!(model, b = (x, y, z) -> z)
+
+    for method in (ThreeDimensionalSort(), ProfileLookup(), VerticalSort())
+        @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model; method)
+    end
+
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
+    @test all(isfinite, interior(z✶))
 
     return nothing
 end
@@ -400,7 +412,11 @@ function test_local_ape_is_non_negative(grid)
         buoyancy isa BuoyancyTracer ? set!(model, b = grid_noise) :
                                       set!(model, S = grid_noise, T = grid_noise)
 
+        # Only `HeavisideIntegral` runs on a stretched grid; the others need uniform cell volumes.
+        uniform_volumes = minimum(zspacings(grid)) ≈ maximum(zspacings(grid))
+
         for method in (ThreeDimensionalSort(), HeavisideIntegral())
+            method isa HeavisideIntegral || uniform_volumes || continue
             z✶ = AvailablePotentialEnergyEquation.reference_height(model; method)
             E_a = interior(Field(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)))
             scale = maximum(abs, E_a)
@@ -439,15 +455,28 @@ function test_local_ape_converges_to_the_winters_total()
     return nothing
 end
 
-"An `ImmersedBoundaryGrid` has a depth-dependent horizontal area, which the sorting does not support."
+"""
+An `ImmersedBoundaryGrid` has a depth-dependent horizontal area, which the stack-into-a-column methods
+do not support: each throws an `ArgumentError`, and so do the `model`-level constructors that default to
+`ThreeDimensionalSort`. Only `HeavisideIntegral`, which builds `z✶` from a volume fraction, runs.
+"""
 function test_sorting_rejects_immersed_boundaries(grid)
 
     immersed_grid = ImmersedBoundaryGrid(grid, GridFittedBottom((x, y) -> -0.5))
     model = NonhydrostaticModel(immersed_grid; buoyancy=BuoyancyTracer(), tracers=:b)
 
+    for method in (ThreeDimensionalSort(), ProfileLookup(), VerticalSort())
+        @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model; method)
+    end
+
+    # the model-level constructors default to `ThreeDimensionalSort`, so they throw too
     @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model)
     @test_throws ArgumentError AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model)
     @test_throws ArgumentError AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model)
+
+    # `HeavisideIntegral` is exempt and runs to a finite reference height
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
+    @test all(isfinite, interior(z✶))
 
     return nothing
 end
@@ -457,6 +486,9 @@ end
     @info "  Testing available and background potential energy"
     for (grid_class, grid) in zip(keys(grids), values(grids))
         @info "    with $grid_class"
+        # On a stretched grid only `HeavisideIntegral` runs, so the general correctness tests, which
+        # otherwise use the package default, sort with it there instead.
+        grid_method = grid_class == "regular grid" ? ThreeDimensionalSort() : HeavisideIntegral()
         for model_type in model_types
             @info "      with $model_type"
             for buoyancy in extended_buoyancy_formulations
@@ -472,15 +504,15 @@ end
                     # A distinct buoyancy per cell, so the sorting is actually exercised
                     buoyancy isa BuoyancyTracer ? set!(model, b = grid_noise) :
                                                   set!(model, S = grid_noise, T = grid_noise)
-                    test_background_and_available_pe(model)
-                    test_background_and_available_pe(model, geopotential_height = 0)
+                    test_background_and_available_pe(model; method = grid_method)
+                    test_background_and_available_pe(model; method = grid_method, geopotential_height = 0)
                 end
             end
         end
 
         @info "      Testing the adiabatically sorted reference state"
-        test_available_pe_vanishes_when_sorted(grid)
-        test_reference_state_is_recomputed(grid)
+        test_available_pe_vanishes_when_sorted(grid; method = grid_method)
+        test_reference_state_is_recomputed(grid; method = grid_method)
         test_sorting_rejects_immersed_boundaries(grid)
 
         @info "      Testing that the local available potential energy is non-negative"
@@ -493,7 +525,8 @@ end
             test_one_dimensional_sort_column(grid)
             test_reference_buoyancy_triggers_the_sort(grid)
         else
-            test_one_dimensional_sort_rejects_stretched_grids(grid)
+            @info "      Testing that only `HeavisideIntegral` runs on a stretched grid"
+            test_stretched_grid_restrictions(grid)
         end
     end
 

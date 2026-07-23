@@ -107,6 +107,12 @@ That half-weight gives every cell of a given buoyancy the same ``z^\star``, the 
 layer that buoyancy class fills in the sorted column, which makes ``z^\star`` a function of buoyancy
 alone and constant on isopycnals.
 
+Because it builds ``z^\star`` from a volume fraction rather than by stacking cells into a column,
+[`HeavisideIntegral`](@ref) is also the only method that works on a **stretched grid** (one with
+non-uniform cell volumes) or an **`ImmersedBoundaryGrid`**. The other three assume uniform cells under a
+depth-independent horizontal area, so on either kind of grid they throw an error pointing here rather
+than return a wrong answer.
+
 The [Lock release](@ref lock_release_example) example follows the reference profile, and the energy
 split that goes with it, through a gravity current that starts as a step and ends well mixed.
 
