@@ -418,7 +418,14 @@ height paired with it, densest first. A reference height built with [`VerticalSo
 carries both already, so it is unpacked; a pair is taken as it stands.
 """
 profile_arrays(z✶::SortedReferenceHeightField) = (profile_vector(reference_buoyancy(z✶)), profile_vector(z✶))
-profile_arrays(p::Tuple) = (profile_vector(p[1]), profile_vector(p[2]))
+profile_arrays(p::Tuple{Any, Any}) = (profile_vector(p[1]), profile_vector(p[2]))
+
+# Anything else was never a profile. Without this the mismatch would surface as a `MethodError` from
+# deep inside the first `compute!` rather than as a message naming the two forms that do work.
+profile_arrays(p) =
+    throw(ArgumentError("`ProfileLookup` takes either a reference height built with `VerticalSort()`, or a \
+                         pair of buoyancies and heights given as `ProfileLookup(b✶, z✶)`. It was handed a \
+                         $(typeof(p)), which is neither."))
 
 """
     $(SIGNATURES)
