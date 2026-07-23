@@ -108,10 +108,14 @@ layer that buoyancy class fills in the sorted column, which makes ``z^\star`` a 
 alone and constant on isopycnals.
 
 Because it builds ``z^\star`` from a volume fraction rather than by stacking cells into a column,
-[`HeavisideIntegral`](@ref) is also the only method that works on a **stretched grid** (one with
-non-uniform cell volumes) or an **`ImmersedBoundaryGrid`**. The other three assume uniform cells under a
-depth-independent horizontal area, so on either kind of grid they throw an error pointing here rather
-than return a wrong answer.
+[`HeavisideIntegral`](@ref) is the only method that works on a **stretched grid** (one with non-uniform
+cell volumes). The other three assume uniform cells, so on a stretched grid they throw an error pointing
+here rather than return a wrong answer.
+
+An **`ImmersedBoundaryGrid`** is rejected for every method, and not yet supported at all: the sort
+weights each cell by its full volume and converts a cumulative volume to a height through a single
+depth-independent area, so immersed cells would be stacked into the reference state as though they held
+fluid. Supporting topography needs the dry cells masked out of the sort and a depth-dependent area.
 
 The [Lock release](@ref lock_release_example) example follows the reference profile, and the energy
 split that goes with it, through a gravity current that starts as a step and ends well mixed.

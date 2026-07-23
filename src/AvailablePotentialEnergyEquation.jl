@@ -475,6 +475,12 @@ function lookup_profile(s::SortedReferenceState, method::ProfileLookup)
     issorted(b✶) ||
         throw(ArgumentError("`ProfileLookup` needs a reference profile ordered from the densest fluid up, \
                              but the buoyancy it was given is not non-decreasing."))
+    # `profile_slot_volumes` reads the slot faces off the midpoints between neighbouring heights, so a
+    # height that steps back down would hand it a negative volume and silently corrupt `Ψ`.
+    issorted(z✶) ||
+        throw(ArgumentError("`ProfileLookup` needs the heights paired with `b✶` to rise with it, but the \
+                             heights it was given are not non-decreasing. A reference profile runs from the \
+                             densest fluid at the bottom to the lightest at the top."))
 
     return b✶, z✶, profile_slot_volumes(s, z✶)
 end
@@ -575,10 +581,11 @@ for [`VerticalSort`](@ref) and 5.8 for [`HeavisideIntegral`](@ref), which builds
 intermediates. The `N log N` sort still dominates the runtime, so this shows up as allocation churn
 rather than as wall-clock.
 
-Grid support depends on the method. Sorting cells into a stack (every method but
-[`HeavisideIntegral`](@ref)) assumes uniform cells under a depth-independent horizontal area, so those
-three throw on a stretched grid (non-uniform cell volumes) or an `ImmersedBoundaryGrid` (horizontal area
-varies with depth). [`HeavisideIntegral`](@ref) builds `z✶` from a volume fraction and accepts both.
+An `ImmersedBoundaryGrid` is rejected for every method: the sort weights each cell by its full volume,
+so immersed cells would be stacked into the reference state as if they held fluid. Topography is not
+supported yet. On a stretched grid (non-uniform cell volumes) only [`HeavisideIntegral`](@ref) runs,
+since it builds `z✶` from a volume fraction; the three methods that stack cells into a column need
+uniform cells and throw.
 
 `method` picks how the sorted state is built. All four agree on every volume integral, so `∫E_b dV`
 and `∫Eₐ dV` do not depend on the choice:
@@ -690,16 +697,13 @@ end
 stretched_grid(cell_volume) =
     ((ΔV_min, ΔV_max) = extrema(cell_volume); ΔV_max - ΔV_min > sqrt(eps(eltype(cell_volume))) * ΔV_max)
 
-# `HeavisideIntegral` builds `z✶` from a volume fraction and works on any grid. The other three sort and
-# stack cells into a column, which only reconstructs the reference height when the cells are uniform and
-# the horizontal area is depth-independent, so they reject stretched grids and immersed boundaries.
-validate_grid_for_method(::HeavisideIntegral, grid, cell_volume) = nothing
+# No method handles topography yet, so every one of them rejects an `ImmersedBoundaryGrid`. Beyond that,
+# `HeavisideIntegral` builds `z✶` from a volume fraction and tolerates a stretched grid, while the three
+# methods that stack cells into a column need uniform cell volumes to reconstruct the reference height.
+validate_grid_for_method(::HeavisideIntegral, grid, cell_volume) = validate_not_immersed(grid)
 
 function validate_grid_for_method(method::AbstractSortingMethod, grid, cell_volume)
-    grid isa ImmersedBoundaryGrid &&
-        throw(ArgumentError("`$(summary(method))` is not defined on an `ImmersedBoundaryGrid`, whose horizontal \
-                             cross-sectional area varies with depth. Only `HeavisideIntegral()` supports immersed \
-                             boundary grids."))
+    validate_not_immersed(grid)
 
     if stretched_grid(cell_volume)
         ΔV_min, ΔV_max = extrema(cell_volume)
@@ -710,6 +714,17 @@ function validate_grid_for_method(method::AbstractSortingMethod, grid, cell_volu
 
     return nothing
 end
+
+# The sort weights every cell by its full volume and maps a cumulative volume onto a height by dividing
+# by one depth-independent area. Topography breaks both: immersed cells would be stacked into the
+# reference state as though they held fluid, and the wet area varies with depth.
+validate_not_immersed(grid) = nothing
+validate_not_immersed(::ImmersedBoundaryGrid) =
+    throw(ArgumentError("The sorted reference state is not available on an `ImmersedBoundaryGrid` yet: the sort \
+                         counts every cell at its full volume, so immersed cells would be stacked into the \
+                         reference state as if they held fluid, and the horizontal cross-sectional area is taken \
+                         to be independent of depth. Supporting topography needs the dry cells masked out of the \
+                         sort and a depth-dependent area."))
 
 "Evaluate a grid metric (a `(i, j, k, grid)` operator) over every cell and return it as a flat vector."
 function flat_grid_metric(grid, metric)

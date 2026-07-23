@@ -226,6 +226,62 @@ function test_heaviside_is_constant_on_isopycnals(grid)
 end
 
 """
+`ProfileLookup` matches each cell to a sorted profile by buoyancy rather than by cell identity, and takes
+that profile three ways: sorted from the field itself, borrowed from a `VerticalSort` column, or handed
+over as a bare `(b✶, z✶)` pair. On a tie-free field every cell finds its own slot, so all three have to
+reproduce exactly what `ThreeDimensionalSort` assigns. (With ties they legitimately place cells
+differently, so the field here is built to have none.)
+
+The second half pins the profile validation, which is what stands between a malformed pair and a silently
+wrong `Eₐ`: the heights have to rise with the buoyancy, or the reconstructed slot volumes go negative.
+"""
+function test_profile_lookup_matches_the_ranked_sort()
+
+    Nx, Ny, Nz = 3, 2, 4
+    N = Nx * Ny * Nz
+    grid = RectilinearGrid(arch, size=(Nx, Ny, Nz), x=(0, 1), y=(0, 1), z=(-1, 0))
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+
+    # `N` distinct buoyancies scattered by a stride permutation (a bijection since gcd(7, N) = 1), so no
+    # two cells are tied and the spatial arrangement bears no relation to the sorted one
+    scrambled = zeros(N)
+    for m in 1:N
+        scrambled[1 + mod(7 * (m - 1), N)] = -0.5 + (m - 1) / (N - 1)
+    end
+    @test length(unique(scrambled)) == N
+    set!(model, b = reshape(scrambled, Nx, Ny, Nz))
+
+    ranked = AvailablePotentialEnergyEquation.reference_height(model, method=ThreeDimensionalSort())
+    ∫E_b_expected = volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, ranked))
+    ∫E_a_expected = volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, ranked))
+
+    # a column to borrow, and the same profile as bare vectors (kept on the model's architecture)
+    column  = AvailablePotentialEnergyEquation.reference_height(model, method=VerticalSort())
+    b✶      = vec(interior(reference_buoyancy(column)))
+    z✶_prof = vec(interior(column))
+
+    for method in (ProfileLookup(), ProfileLookup(column), ProfileLookup(b✶, z✶_prof))
+        z✶ = AvailablePotentialEnergyEquation.reference_height(model; method)
+
+        @test interior(z✶) ≈ interior(ranked)
+        @test volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)) ≈ ∫E_b_expected
+        @test volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶))  ≈ ∫E_a_expected
+
+        E_a = interior(Field(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)))
+        @test minimum(E_a) > -sqrt(eps(eltype(grid))) * max(maximum(abs, E_a), eps(eltype(grid)))
+    end
+
+    # a well-formed profile has matched lengths, buoyancy running up, and heights rising with it
+    for bad in (ProfileLookup(b✶[1:end-1], z✶_prof),   # mismatched lengths
+                ProfileLookup(reverse(b✶), z✶_prof),   # buoyancy not non-decreasing
+                ProfileLookup(b✶, reverse(z✶_prof)))   # heights step back down
+        @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model; method=bad)
+    end
+
+    return nothing
+end
+
+"""
 `VerticalSort` returns the sorted column on its own `1×1×N` grid: the same cells, reshaped to
 span the domain's horizontal area, stacked in order of increasing buoyancy.
 """
@@ -459,16 +515,17 @@ function test_local_ape_converges_to_the_winters_total()
 end
 
 """
-An `ImmersedBoundaryGrid` has a depth-dependent horizontal area, which the stack-into-a-column methods
-do not support: each throws an `ArgumentError`, and so do the `model`-level constructors that default to
-`ThreeDimensionalSort`. Only `HeavisideIntegral`, which builds `z✶` from a volume fraction, runs.
+Topography is not supported yet. The sort weights every cell by its full volume, so immersed cells would
+be stacked into the reference state as if they held fluid; every method therefore rejects an
+`ImmersedBoundaryGrid`, `HeavisideIntegral` included, as do the `model`-level constructors.
 """
 function test_sorting_rejects_immersed_boundaries(grid)
 
     immersed_grid = ImmersedBoundaryGrid(grid, GridFittedBottom((x, y) -> -0.5))
     model = NonhydrostaticModel(immersed_grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = (x, y, z) -> z)
 
-    for method in (ThreeDimensionalSort(), ProfileLookup(), VerticalSort())
+    for method in (ThreeDimensionalSort(), HeavisideIntegral(), ProfileLookup(), VerticalSort())
         @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model; method)
     end
 
@@ -476,10 +533,6 @@ function test_sorting_rejects_immersed_boundaries(grid)
     @test_throws ArgumentError AvailablePotentialEnergyEquation.reference_height(model)
     @test_throws ArgumentError AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model)
     @test_throws ArgumentError AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model)
-
-    # `HeavisideIntegral` is exempt and runs to a finite reference height
-    z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
-    @test all(isfinite, interior(z✶))
 
     return nothing
 end
@@ -538,6 +591,9 @@ end
 
     @info "  Testing the sorting methods against a synthetic profile with a known sorted state"
     test_sorting_methods_reproduce_a_known_profile()
+
+    @info "  Testing that `ProfileLookup` reproduces the ranked sort and validates its profile"
+    test_profile_lookup_matches_the_ranked_sort()
 
     @info "  Testing that the local APE total converges to the Winters split"
     test_local_ape_converges_to_the_winters_total()
