@@ -39,72 +39,40 @@ directly.
 `method` selects one of four strategies to calculate the reference state. All
 `method`s produce the same reference state in the continuous limit and the same ``\int E_a \, \mathrm{d}V``.
 Mainly what differs is how cells of *equal* buoyancy are placed, and what grid the answer lands on.
-Here is a brief summary of the four methods, with more detail in the docstrings of each:
+Here is a brief summary of the four, with more detail in the docstring of each:
 
-[`ThreeDimensionalSort`](@ref) (the default) ranks the cells and gives each one the height of its
-own slot in the sorted state on the model grid. Tied cells take consecutive slots rather than a
-shared height, so ``z^\star`` spreads over a grid cell wherever the stratification is horizontally
-uniform. Crucially, this method may leave small horizontal buyoancy gradients in the reference state,
-which goes against the idea of a reference state being horizontally uniform
+  - [`ThreeDimensionalSort`](@ref) (the default) ranks the cells and gives each one the height of its
+    own slot in the sorted state, on the model grid. Tied cells take consecutive slots rather than a
+    shared height, so ``z^\star`` spreads over a grid cell wherever the stratification is horizontally
+    uniform. Crucially, this method may leave small horizontal buoyancy gradients in the reference
+    state, which goes against the idea of a reference state being horizontally uniform.
 
-[`VerticalSort`](@ref) is similar to [`ThreeDimensionalSort`](@ref) but returns the cells reorganized
-into a single column. To achieve this the cells are flattened such that their volume remains the same, but their
-horizontal area matches the domain's horizontal area. This has the advantage that the resulting reference
-state (correctly) has no horizontal structure. The downside is that the results land on a different grid.
-Namely a ``1 \times 1 \times N`` grid whose ``N = N_x N_y N_z`` cells span the domain's full horizontal area.
+  - [`VerticalSort`](@ref) is similar to [`ThreeDimensionalSort`](@ref) but returns the cells
+    reorganized into a single column. To achieve this the cells are flattened such that their volume
+    remains the same, but their horizontal area matches the domain's horizontal area. This has the
+    advantage that the resulting reference state (correctly) has no horizontal structure. The downside
+    is that the results land on a different grid, namely a ``1 \times 1 \times N`` grid whose
+    ``N = N_x N_y N_z`` cells span the domain's full horizontal area.
 
-[`ProfileLookup`](@ref) gives each cell the height of the slot whose buoyancy matches its own, found by
-binary search into a sorted profile. Cells are matched by value rather than by identity, so it is the
-one method whose profile need not have come from the field being diagnosed. It reproduces on the model
-grid what the [`VerticalSort`](@ref) column holds, without calling that method to do it.
+  - [`ProfileLookup`](@ref) gives each cell the height of the slot whose buoyancy matches its own,
+    found by binary search into a sorted profile. Cells are matched by value rather than by identity,
+    so it is the one method whose profile need not have come from the field being diagnosed. It
+    reproduces on the model grid what the [`VerticalSort`](@ref) column holds, without calling that
+    method to do it.
 
-```@example ape_profilelookup
-using Oceananigans, Oceanostics
-using Oceananigans.Fields: compute!, interior
+  - [`HeavisideIntegral`](@ref) is Eq. (11) of Winters et al. (1995) verbatim, with the Heaviside step
+    function ``H`` taking the value ``1/2`` where the two densities are equal. That half-weight gives
+    every cell of a given buoyancy the same ``z^\star``, the mid-height of the layer that buoyancy
+    class fills in the sorted column, which makes ``z^\star`` a function of buoyancy alone and constant
+    on isopycnals. Because it builds ``z^\star`` from a volume fraction rather than by stacking cells
+    into a column, it is also the only method that works on a **stretched grid** (one with non-uniform
+    cell volumes).
 
-grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
-model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
-set!(model, b = (x, y, z) -> z)
-
-# sort this field, exactly as the other methods do
-z✶ = reference_height(model, method=ProfileLookup())
-
-# borrow the column built by VerticalSort; it is recomputed alongside, so it tracks the flow
-z✶_column = reference_height(model, method=VerticalSort())
-z✶ = reference_height(model, method=ProfileLookup(z✶_column))
-
-# any (b✶, z✶) pair of vectors, here a snapshot of the column held fixed in time
-compute!(z✶_column)
-b✶      = vec(interior(reference_buoyancy(z✶_column)))
-z✶_prof = vec(interior(z✶_column))
-z✶ = reference_height(model, method=ProfileLookup(b✶, z✶_prof))
-
-nothing # hide
-```
-
-The last two forms do no sorting at all. To hold the reference state fixed while the flow evolves, pass
-the last one *arrays*: `Field`s are recomputed on every `compute!`, so a profile given as `Field`s
-tracks whatever they are built from instead of staying put. Note also that ``E_a \ge 0`` is guaranteed
-only while the profile resolves the buoyancies the field actually has, which a profile sorted from that
-same field always does.
-
-[`HeavisideIntegral`](@ref) is Eq. (11) of Winters et al. (1995) verbatim,
+Written out, that last one is
 
 ```math
-z^\star(\boldsymbol{x}) = \frac{1}{A} \int H\!\left(\rho(\boldsymbol{x}') - \rho(\boldsymbol{x})\right) \mathrm{d}V' ,
+z^\star(\boldsymbol{x}) = \frac{1}{A} \int H\!\left(\rho(\boldsymbol{x}') - \rho(\boldsymbol{x})\right) \mathrm{d}V' .
 ```
-
-with the Heaviside step function ``H`` taking the value ``1/2`` where the two densities are equal.
-That half-weight gives every cell of a given buoyancy the same ``z^\star``, the mid-height of the
-layer that buoyancy class fills in the sorted column, which makes ``z^\star`` a function of buoyancy
-alone and constant on isopycnals.
-
-Because it builds ``z^\star`` from a volume fraction rather than by stacking cells into a column,
-[`HeavisideIntegral`](@ref) is the only method that works on a **stretched grid** (one with non-uniform
-cell volumes).
-
-The [Lock release](@ref lock_release_example) example follows the reference profile, and the energy
-split that goes with it, through a gravity current that starts as a step and ends well mixed.
 
 ## Computational cost per method
 
