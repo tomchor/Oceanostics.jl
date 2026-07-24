@@ -30,10 +30,11 @@ order.
 
 ## The background potential energy and the reference state
 
-The reference height ``z^\star`` is the height a parcel would occupy in that state and it
-is computed by [`reference_height`](@ref), which returns a `Field`. Sorting is a nonlocal
+height ``z^\star`` is the height a parcel would occupy in a state of minimum potential energy
+that can be reached by adiabatic rearrangement flow parcels, and it
+is computed by [`reference_height`](@ref). Rearrangement is a nonlocal
 operation, so, unlike most other diagnostics in Oceanostics, this one is not a pointwise kernel.
-It is re-sorted on each `compute!`, so writing it (or anything built on it) out during a simulation
+It is rearranged on each `compute!`, so writing it (or anything built on it) out during a simulation
 tracks the evolving flow.
 
 Organizing the buoyancy against the reference height it was assigned gives the reference profile
@@ -43,19 +44,10 @@ gravity current, from the step it starts as to the smooth stratification mixing 
 builds it with each of the four methods below so their costs and their differences can be compared
 directly.
 
-`method` selects one of four strategies to calculate the reference state. Sorting the field itself, all
+`method` selects one of four strategies to calculate the reference state. All
 `method`s produce the same reference state in the continuous limit and the same ``\int E_a \, \mathrm{d}V``.
 Mainly what differs is how cells of *equal* buoyancy are placed, and what grid the answer lands on.
-
-That freedom is one ``E_a`` cannot see. A cell's ``z^\star`` always lands inside the run of slots that
-its own buoyancy fills, and the reference profile is flat across that run, so sliding ``z^\star`` along
-it leaves ``E_a`` unchanged. The four therefore agree on ``E_a`` cell by cell, not merely in the
-integral; where they part company is ``z^\star`` itself, and so ``E_b`` cell by cell. Its volume
-integral ``\int E_b \, \mathrm{d}V`` is insensitive to the placement as well, so the methods agree
-on that too.
-
-Both statements assume the reference state was sorted from the field being diagnosed.
-[`ProfileLookup`](@ref) also accepts a profile that was not, and that weakens them.
+Here is a brief summary of the four methods, with more detail in the docstrings of each:
 
 [`ThreeDimensionalSort`](@ref) (the default) ranks the cells and gives each one the height of its
 own slot in the sorted state on the model grid. Tied cells take consecutive slots rather than a
@@ -117,13 +109,7 @@ alone and constant on isopycnals.
 
 Because it builds ``z^\star`` from a volume fraction rather than by stacking cells into a column,
 [`HeavisideIntegral`](@ref) is the only method that works on a **stretched grid** (one with non-uniform
-cell volumes). The other three assume uniform cells, so on a stretched grid they throw an error pointing
-here rather than return a wrong answer.
-
-An **`ImmersedBoundaryGrid`** is rejected for every method, and not yet supported at all: the sort
-weights each cell by its full volume and converts a cumulative volume to a height through a single
-depth-independent area, so immersed cells would be stacked into the reference state as though they held
-fluid. Supporting topography needs the dry cells masked out of the sort and a depth-dependent area.
+cell volumes).
 
 The [Lock release](@ref lock_release_example) example follows the reference profile, and the energy
 split that goes with it, through a gravity current that starts as a step and ends well mixed.
