@@ -480,7 +480,7 @@ function test_local_ape_is_non_negative(grid)
 
         # Only `HeavisideIntegral` runs on a stretched grid. The guard calls the source's own predicate
         # rather than re-deriving one, so the two cannot drift apart.
-        uniform_volumes = !AvailablePotentialEnergyEquation.stretched_grid(grid)
+        uniform_volumes = !BackgroundPotentialEnergyEquation.stretched_grid(grid)
 
         for method in (ThreeDimensionalSort(), HeavisideIntegral())
             method isa HeavisideIntegral || uniform_volumes || continue

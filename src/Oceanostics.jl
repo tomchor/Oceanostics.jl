@@ -6,7 +6,7 @@ const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, 
 
 #+++ Module export
 export TracerEquation, KineticEnergyEquation, FilteredKineticEnergyEquation, SubFilterKineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
-       AvailablePotentialEnergyEquation, UMomentumEquation, VMomentumEquation, WMomentumEquation
+       BackgroundPotentialEnergyEquation, AvailablePotentialEnergyEquation, UMomentumEquation, VMomentumEquation, WMomentumEquation
 #---
 
 #+++ TracerEquation exports
@@ -79,9 +79,15 @@ export BoxFilter, GaussianFilter, check_filter_staging
 export PotentialEnergy
 #---
 
-#+++ AvailablePotentialEnergyEquation exports
-export BackgroundPotentialEnergy, AvailablePotentialEnergy, reference_height, reference_buoyancy
+#+++ BackgroundPotentialEnergyEquation exports
+# `reference_height`, `reference_buoyancy` and the reference-height methods are defined here and
+# re-exported by `AvailablePotentialEnergyEquation`, since both budgets are built on them.
+export BackgroundPotentialEnergy, reference_height, reference_buoyancy
 export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
+#---
+
+#+++ AvailablePotentialEnergyEquation exports
+export AvailablePotentialEnergy
 #---
 
 #+++ ProgressMessengers
@@ -198,6 +204,7 @@ include("TracerVarianceEquation.jl")
 include("KineticEnergyEquation.jl")
 include("TurbulentKineticEnergyEquation.jl")
 include("PotentialEnergyEquation.jl")
+include("BackgroundPotentialEnergyEquation.jl")
 include("AvailablePotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
 include("SpatialFilters/SpatialFilters.jl")
@@ -206,7 +213,7 @@ include("SubFilterKineticEnergyEquation.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
-using .AvailablePotentialEnergyEquation
+using .BackgroundPotentialEnergyEquation, .AvailablePotentialEnergyEquation
 using .FlowDiagnostics
 using .SpatialFilters
 using .FilteredKineticEnergyEquation
@@ -407,8 +414,11 @@ end
 @diagnostic_show PotentialEnergyEquation.PotentialEnergy "PotentialEnergy" "potential energy per unit volume  Eₚ = -bz"
 #---
 
+#+++ BackgroundPotentialEnergyEquation
+@diagnostic_show BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  E_b = -bz✶"
+#---
+
 #+++ AvailablePotentialEnergyEquation
-@diagnostic_show AvailablePotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  E_b = -bz✶"
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy  "AvailablePotentialEnergy"  "local available potential energy density  Eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
 #---
 
