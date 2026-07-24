@@ -73,7 +73,7 @@ z★_ranked    = reference_height(model, method = ThreeDimensionalSort())
 z★_heaviside = reference_height(model, method = HeavisideIntegral())
 z★_lookup    = reference_height(model, method = ProfileLookup())
 z★_column    = reference_height(model, method = VerticalSort())
-b✶_column    = reference_buoyancy(z★_column)
+b✶_column   = reference_buoyancy(z★_column)
 
 # Both background and available potential energies are built from the same reference height, so we share one rather than letting each
 # diagnostic sort the domain for itself. Note that `Eₐ` here is the *local* available potential energy
@@ -157,7 +157,7 @@ snapshots = [argmin(abs.(times .- t)) for t in snapshot_times]
 
 methods = ("ThreeDimensionalSort" => n -> mapped_profile(Z3, n),
            "HeavisideIntegral"    => n -> mapped_profile(ZH, n),
-           "VerticalSort"   => column_profile)
+           "VerticalSort"         => column_profile)
 
 ## `profiles[name][k]` is the `(b✶, z★)` pair for method `name` at the `k`-th snapshot
 profiles = Dict(name => [build(n) for n in snapshots] for (name, build) in methods);
