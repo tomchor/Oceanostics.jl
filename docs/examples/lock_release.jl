@@ -31,7 +31,7 @@ U = √(Δb * H) / 2   # buoyancy velocity
 # profile all the way from a step to something smooth. The grid is isotropic at `Δ = H/128`:
 
 Nz = 128
-grid = RectilinearGrid(size = (4Nz, Nz), x = (-Lx/2, Lx/2), z = (-H/2, H/2), topology = (Bounded, Flat, Bounded))
+grid = RectilinearGrid(size = (4Nz, Nz), x = (-Lx/2, Lx/2), z = (0, H), topology = (Bounded, Flat, Bounded))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = WENO(order=5), # Diffusive and bounded scheme
@@ -224,9 +224,10 @@ fig = Figure();
 colors = cgrad(:viridis, length(snapshots); categorical = true)
 
 for (m, (name, _)) in enumerate(methods)
-    local ax = Axis(fig[1, m]; xlabel = "b✶", title = name, width = 200, height = 280,
-                    ylabel = m == 1 ? "z★" : "", yticklabelsvisible = m == 1, titlesize = 15)
-    ylims!(ax, -H/2, H/2)
+    row, col = fldmod1(m, 2)   # fill a 2×2 grid row by row
+    local ax = Axis(fig[row, col]; xlabel = "b✶", title = name, width = 200, height = 280,
+                    ylabel = col == 1 ? "z★" : "", yticklabelsvisible = col == 1, titlesize = 15)
+    ylims!(ax, 0, H)
     for (s, n) in enumerate(snapshots)
         b✶, z★ = profiles[name][s]
         lines!(ax, b✶, z★; color = colors[s], linewidth = 2, label = "t = $(round(times[n], digits=1))")
@@ -234,13 +235,14 @@ for (m, (name, _)) in enumerate(methods)
     m == 1 && axislegend(ax; position = :lt, labelsize = 11)
 end
 
-# The rightmost panel of that row puts the three side by side at `t = 0`, where they disagree the most.
+# The fourth panel puts the three side by side at `t = 0`, where they disagree the most.
 # [`HeavisideIntegral`](@ref) is drawn as markers rather than a line because its `z★` takes only as many
 # distinct values as there are distinct buoyancies, which is a few dozen here against 65536 cells.
 
-ax0 = Axis(fig[1, length(methods) + 1]; xlabel = "b✶", title = "t = 0, all three",
-           width = 200, height = 280, yticklabelsvisible = false, titlesize = 15)
-ylims!(ax0, -H/2, H/2)
+row0, col0 = fldmod1(length(methods) + 1, 2)
+ax0 = Axis(fig[row0, col0]; xlabel = "b✶", title = "t = 0, all three", width = 200, height = 280,
+           ylabel = col0 == 1 ? "z★" : "", yticklabelsvisible = col0 == 1, titlesize = 15)
+ylims!(ax0, 0, H)
 
 b✶_r, z★_r = profiles["ThreeDimensionalSort"][1]
 b✶_c, z★_c = profiles["VerticalSort"][1]
@@ -293,7 +295,9 @@ fig3 = Figure(size = (900, 1010))
 
 n = Observable(1)
 
-panel_kwargs = (ylabel = "z", width = 760, height = 165)
+## `DataAspect` draws the channel at its true proportions, so a `4H` by `H` domain comes out four times
+## as wide as it is deep. The width follows from the height, rather than both being set independently.
+panel_kwargs = (ylabel = "z", height = 190, aspect = DataAspect())
 
 ax_b  = Axis(fig3[2, 1];  title = "Buoyancy b",                      panel_kwargs...)
 ax_KE = Axis(fig3[4, 1];  title = "Kinetic energy",                  panel_kwargs...)
