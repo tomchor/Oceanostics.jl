@@ -71,8 +71,21 @@ Here is a brief summary of the four, with more detail in the docstring of each:
 Written out, that last one is
 
 ```math
-z^\star(\boldsymbol{x}) = \frac{1}{A} \int H\!\left(\rho(\boldsymbol{x}') - \rho(\boldsymbol{x})\right) \mathrm{d}V' .
+z^\star(\boldsymbol{x}) = z_\mathrm{bottom} + \frac{1}{A} \int H\!\left(\rho(\boldsymbol{x}') - \rho(\boldsymbol{x})\right) \mathrm{d}V' ,
 ```
+
+with ``A`` the domain's horizontal area. Taken literally that is a double integral, a sweep over the
+whole domain for every cell, costing ``\mathcal{O}(N^2)``. Sorting the cells by buoyancy first collapses
+it to a cumulative sum: with the cells ordered densest first and ``V_n = \sum_{p \le n} \Delta V_p`` the
+running total of their volumes, every cell of the tied run spanning ranks ``p`` through ``q`` takes
+
+```math
+z^\star = z_\mathrm{bottom} + \frac{V_{p-1} + V_q}{2A} ,
+```
+
+where ``V_{p-1}`` is the volume strictly denser than the parcel and ``V_q`` the volume no lighter than
+it, the pair that ``H = 1/2`` averages at equality. A single `cumsum` over the sorted volumes therefore
+serves every cell, which brings the cost back down to the ``\mathcal{O}(N \log N)`` of the sort.
 
 ## Computational cost per method
 
