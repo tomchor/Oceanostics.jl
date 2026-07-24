@@ -185,6 +185,37 @@ isopycnals: a tied run is placed at the mid-height of the band it fills, exactly
     buoyancies the field actually has. A profile sorted from the same field at the same time always
     does, so `ProfileLookup()` and `ProfileLookup(z✶_column)` are safe. For other profiles `Eₐ` cannot
     be guaranteed to be non-negative.
+
+All three forms describe the same reference state when the profile comes from the field being
+diagnosed:
+
+```jldoctest
+using Oceananigans, Oceanostics
+using Oceananigans.Fields: compute!, interior
+
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+set!(model, b = (x, y, z) -> z)
+
+# sort the field's own buoyancy
+z✶ = reference_height(model, method=ProfileLookup())
+
+# borrow the column VerticalSort builds; it is recomputed alongside, so it tracks the flow
+z✶_column = reference_height(model, method=VerticalSort())
+z✶_borrowed = reference_height(model, method=ProfileLookup(z✶_column))
+
+# any paired (b✶, z✶), here a snapshot of that column held fixed in time
+compute!(z✶_column)
+b✶ = vec(interior(reference_buoyancy(z✶_column)))
+z✶_profile = vec(interior(z✶_column))
+z✶_fixed = reference_height(model, method=ProfileLookup(b✶, z✶_profile))
+
+interior(z✶) ≈ interior(z✶_borrowed) ≈ interior(z✶_fixed)
+
+# output
+
+true
+```
 """
 struct ProfileLookup{P} <: AbstractReferenceHeightMethod
     profile :: P
