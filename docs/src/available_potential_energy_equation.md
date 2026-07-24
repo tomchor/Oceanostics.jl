@@ -178,11 +178,8 @@ axislegend(ax; position = :lt, labelsize = 11)
 fig
 ```
 
-The four curves run parallel to the dashed reference, so the sort is what sets the scaling: a
-fourfold increase in cells costs a little over fourfold in time, the excess being the ``\log N``.
-None of the extra work changes that exponent. It moves the curves up rather than tilting them, so the
-choice of method is a constant factor and not a scaling penalty. If all you need are the volume
-integrals, the default is the cheapest route to them.
+The four curves run roughly parallel to the dashed reference, indicating that the sort is what sets the scaling.
+If all you need are the volume integrals, the default is the cheapest route to them.
 
 The absolute numbers are machine-dependent, and the docs are built with different optimisation
 settings than a typical simulation, so read the *shape* of these curves rather than the values. The
