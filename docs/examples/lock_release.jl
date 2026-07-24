@@ -64,7 +64,7 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
 # the buoyancy that goes with it are already the profile, in order, and need no post-processing at all.
 #
 # Given that the referece height calculation is nonnlocal, it is generally a computationally-heavy operation
-# and its cost grows faster than the number of cells: see [What the methods cost](@ref) for how different
+# and its cost grows faster than the number of cells: see [Computational cost per method](@ref) for how different
 # methods compare and how they scale.
 
 b = model.tracers.b

@@ -114,7 +114,7 @@ cell volumes).
 The [Lock release](@ref lock_release_example) example follows the reference profile, and the energy
 split that goes with it, through a gravity current that starts as a step and ends well mixed.
 
-## What the methods cost
+## Computational cost per method
 
 Sorting couples every cell in the domain to every other one, so unlike the pointwise diagnostics its
 cost is not linear in the number of cells. All four methods pay for the same `sortperm!`, which is
@@ -125,7 +125,7 @@ buoyancy and the original heights into the column.
 
 To measure that, build the same synthetic field — a linear stratification plus noise, so no two cells
 are tied and the sort does its full work — on four grids spanning two decades in cell count, and time
-one `compute!` of `z^\star` on each.
+one `compute!` of ``z^\star`` on each.
 
 ```@example ape_timing
 using Oceananigans, Oceanostics, CairoMakie, Random
