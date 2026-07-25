@@ -16,7 +16,7 @@ julia --project -e 'using Pkg; Pkg.test()'
 TEST_GROUP=vel_diagnostics julia --project -e 'using Pkg; Pkg.test()'
 ```
 
-Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `u_momentum_diagnostics`, `v_momentum_diagnostics`, `w_momentum_diagnostics`, `ke_diagnostics`, `filtered_ke_diagnostics`, `subfilter_ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `spatial_filters`, `perf_invariants`.
+Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `u_momentum_diagnostics`, `v_momentum_diagnostics`, `w_momentum_diagnostics`, `ke_diagnostics`, `filtered_ke_diagnostics`, `subfilter_ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `ape_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `spatial_filters`, `perf_invariants`.
 
 ```bash
 # Instantiate/build the package
@@ -50,6 +50,33 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 - **`TurbulentKineticEnergyEquation`**: TKE, isotropic dissipation, shear production rates (X/Y/Z and total)
 - **`TracerVarianceEquation`**: Tendency, dissipation rate, diffusion of tracer variance
 - **`PotentialEnergyEquation`**: Potential energy for BuoyancyTracer, linear/nonlinear SeawaterBuoyancy
+  (`PotentialEnergy`, Eₚ = -bz). It owns the buoyancy-formulation type aliases
+  (`BuoyancyTracerModel`, `BuoyancyLinearEOSModel`, `BuoyancyBoussinesqEOSModel`, …) and
+  `validate_gravity_unit_vector`, which `AvailablePotentialEnergyEquation` imports.
+- **`BackgroundPotentialEnergyEquation`**: the reference state and `BackgroundPotentialEnergy`
+  (E_b = -bz✶). The reference height z✶ comes from `reference_height`, which returns a `Field` whose
+  operand is a `SortedReferenceState` rather than a `KernelFunctionOperation`: building the reference
+  state is a whole-domain operation, so it hooks into `compute!` the way `Oceananigans.Fields.Scan`
+  does for `Integral`/`Average`, and is rebuilt on every `compute!` so the diagnostic tracks the flow
+  when written out during a simulation. The `method` keyword picks one of four
+  `AbstractReferenceHeightMethod`s, which agree on every volume integral: `ThreeDimensionalSort`
+  (default; each cell gets its own slot, so tied cells spread over a grid cell), `HeavisideIntegral`
+  (Winters eq. 11, tied cells share their layer's mid-height, so z✶ is a function of buoyancy alone,
+  local maps are clean, and it is the only method that accepts a stretched grid), `ProfileLookup`
+  (matches each cell to a sorted profile by buoyancy, so the profile need not come from the field being
+  diagnosed), and `VerticalSort` (the sorted column on its own `1×1×N` grid of equal-volume cells).
+  Only the last three actually sort: `ProfileLookup` handed an external profile does not.
+  `reference_buoyancy(z✶)` returns the buoyancy that pairs with z✶ cell by cell, which is the sorted
+  profile b✶ under `VerticalSort` and the model's own buoyancy under the model-grid methods. It also
+  owns `Ψ = ∫b✶dz̃` (`reference_potential`), a property of the reference profile that
+  `AvailablePotentialEnergy` consumes. No method runs on an `ImmersedBoundaryGrid` yet. Built on
+  `PotentialEnergyEquation`, so it is included after it
+- **`AvailablePotentialEnergyEquation`**: the other half of the Winters et al. (1995) split,
+  `AvailablePotentialEnergy` (Eₐ), computed in the local Holliday & McIntyre (1981) form
+  `∫[b✶(z̃) - b]dz̃`, which is non-negative everywhere rather than only in the integral. Built on
+  `BackgroundPotentialEnergyEquation`, so it is included after it, and it re-exports
+  `reference_height`, `reference_buoyancy` and the four reference-height methods so either module can
+  be used on its own
 - **`FlowDiagnostics`**: Richardson/Rossby numbers, Ertel/ThermalWind potential vorticity, strain rate & vorticity tensor moduli, Q-criterion, `subfilter_covariance` (generalized subfilter covariance `τ(a,b) = filter(a·b) − filter(a)·filter(b)`, unifying subfilter tracer flux and momentum stress), MixedLayerDepth, BottomCellValue
 - **`ProgressMessengers`** (submodule): Composable simulation progress reporters using `+` (comma-separated) and `*` (concatenation) operators
 

@@ -13,6 +13,7 @@ using Oceanostics.KineticEnergyEquation
 using Oceanostics.TurbulentKineticEnergyEquation
 using Oceanostics.TracerVarianceEquation
 using Oceanostics.PotentialEnergyEquation
+using Oceanostics.AvailablePotentialEnergyEquation
 using Oceanostics.FlowDiagnostics
 
 # These tests defend "the repo doesn't get accidentally slower" without
@@ -167,6 +168,14 @@ end
 
     @testset "PotentialEnergyEquation" begin
         test_kfo_invariants("PotentialEnergy",         PotentialEnergyEquation.PotentialEnergy(model))
+    end
+
+    @testset "AvailablePotentialEnergyEquation" begin
+        # The sorting behind `z✶` is a whole-field operation done in `compute!`, but the kernels that
+        # read the resulting field still have to be allocation-free per cell like every other one.
+        z✶ = AvailablePotentialEnergyEquation.reference_height(model)
+        test_kfo_invariants("BackgroundPotentialEnergy", AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶))
+        test_kfo_invariants("AvailablePotentialEnergy",  AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶))
     end
 
     @testset "FlowDiagnostics" begin

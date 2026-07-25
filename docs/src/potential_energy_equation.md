@@ -1,8 +1,7 @@
 # Potential energy equation
 
-The `PotentialEnergyEquation` module provides a diagnostic for computing the
-specific gravitational potential energy (per unit mass). In a Boussinesq fluid,
-the specific potential energy is defined as
+The `PotentialEnergyEquation` module provides a diagnostic for the specific gravitational
+potential energy (per unit mass). In a Boussinesq fluid, the specific potential energy is defined as
 
 ```math
 E_p = -bz = \frac{g\rho}{\rho_0} z

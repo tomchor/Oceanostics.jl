@@ -13,12 +13,14 @@ using Oceanostics
 EXAMPLES_DIR = joinpath(@__DIR__, "examples")
 OUTPUT_DIR   = joinpath(@__DIR__, "src/generated")
 
-examples = ["Two-dimensional turbulence"   => "two_dimensional_turbulence",
-            "Kelvin-Helmholtz instability" => "kelvin_helmholtz",
-            "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability",
-            "Tilted bottom boundary layer" => "tilted_bottom_boundary_layer",
-            "Spatial filtering"            => "spatial_filtering",
-            ]
+examples = [
+    "Two-dimensional turbulence"   => "two_dimensional_turbulence", # KE and tracer variance budgets (~8 min)
+    "Spatial filtering"            => "spatial_filtering", # Spatial filtering examples (~5 min)
+    "Kelvin-Helmholtz instability" => "kelvin_helmholtz", # Filtered KE budget (~8 min)
+    "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability", # SFS budget (~6 min)
+    "Lock release"                 => "lock_release", # APE and reference profiles calculation (~ 5 min)
+    "Tilted bottom boundary layer" => "tilted_bottom_boundary_layer", # Nothing (~3 min)
+    ]
 
 example_pages = [ k => "generated/$v.md" for (k, v) in examples ]
 
@@ -111,11 +113,14 @@ pages = ["Home" => "index.md",
                                 "Turbulent kinetic energy equation"      => "turbulent_kinetic_energy_equation.md",
                                 "Tracer variance equation"               => "tracer_variance_equation.md",
                                 "Potential energy equation"              => "potential_energy_equation.md",
+                                "Background potential energy equation"   => "background_potential_energy_equation.md",
+                                "Available potential energy equation"    => "available_potential_energy_equation.md",
                                 ],
          "Flow diagnostics" => "flow_diagnostics.md",
          "Progress messengers" => "progress_messengers.md",
          "Spatial filters" => "filters.md",
          "Examples" => example_pages,
+         "Validation" => ["Sorted reference state" => "validation/reference_state.md"],
          "Function library" => "library.md",
         ]
 

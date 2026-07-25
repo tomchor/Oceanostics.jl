@@ -234,9 +234,10 @@ fig_Π
 # \varepsilon^l = \frac{\partial \overline{u}_i}{\partial x_j}\,\overline{F}_{ij},
 # ```
 #
-# where ``\varepsilon^l `` indicates the dissipation of the filtered flow and ``\overline{F}_{ij}``
-# is the filtered viscous stress tensor. In our case (width a constant-viscosity run)
-# ``\overline{F}_{ij}`` simplifies to ``\nu\,\partial_j\overline{u}_i\,\partial_\overline{u}_i``:
+# where ``\varepsilon^l`` indicates the dissipation of the filtered flow and ``\overline{F}_{ij}`` is
+# the filtered viscous stress tensor — filtered from the full flow, rather than rebuilt from
+# ``\bar{u}_i``. For the constant viscosity used here the two coincide, and ``\varepsilon^l`` reduces
+# to ``2\nu\,\bar{S}_{ij}\bar{S}_{ij}``, the dissipation of the resolved strain:
 
 εˡ = FilteredKineticEnergyDissipationRate(model, filter)
 

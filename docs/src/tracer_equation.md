@@ -34,7 +34,7 @@ julia> model = NonhydrostaticModel(grid; tracers=:b, closure=ScalarDiffusivity(�
 julia> adv  = TracerEquation.Advection(model, :b)
 TracerAdvection KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: div_Uc (generic function with 12 methods)
+├── kernel_function: div_Uc (generic function with 10 methods)
 └── arguments: ("Centered", "NamedTuple", "Field")
 └── computes: tracer advection  ∂ⱼ(uⱼc)
 
