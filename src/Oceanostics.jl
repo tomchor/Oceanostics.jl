@@ -87,7 +87,7 @@ export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 #---
 
 #+++ AvailablePotentialEnergyEquation exports
-export AvailablePotentialEnergy
+export AvailablePotentialEnergy, BuoyancyDisplacementPotential, AvailablePotentialEnergyDissipationRate
 #---
 
 #+++ ProgressMessengers
@@ -419,7 +419,9 @@ end
 #---
 
 #+++ AvailablePotentialEnergyEquation
-@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy  "AvailablePotentialEnergy"  "local available potential energy density  Eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy                "AvailablePotentialEnergy"                "local available potential energy density  Eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
+@diagnostic_show AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential           "BuoyancyDisplacementPotential"           "buoyancy displacement potential  Υ = z✶ - z"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  ε_A = κ ∂ᵢb ∂ᵢΥ"
 #---
 
 #+++ FlowDiagnostics

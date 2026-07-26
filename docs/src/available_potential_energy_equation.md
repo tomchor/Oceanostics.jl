@@ -26,3 +26,39 @@ order.
 ```@docs
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy
 ```
+
+## Buoyancy displacement potential
+
+Differentiating ``E_a`` with respect to buoyancy gives the displacement potential
+
+```math
+\Upsilon = \frac{\partial E_a}{\partial b} = z^\star - z ,
+```
+
+the natural conjugate of ``b``: contracting it with a buoyancy gradient gives an APE dissipation rate,
+and contracting it with a sub-filter buoyancy flux gives a cross-scale APE flux
+([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879), who write it for density as
+``\Upsilon(\rho, z) = g(z - z^\star)/\rho_0``; the two differ by ``-g/\rho_0``, which cancels in either
+contraction).
+
+```@docs
+Oceanostics.AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential
+```
+
+## Available potential energy dissipation
+
+```math
+\varepsilon_A = \kappa \, \partial_i b \, \partial_i \Upsilon
+              = \kappa \left[\frac{\partial z^\star}{\partial b}\left|\nabla b\right|^2
+                             - \frac{\partial b}{\partial z}\right]
+```
+
+is the sink of the local ``E_a`` equation: the diapycnal mixing rate of
+[Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X), less the diffusion the reference
+state undergoes on its own and which carries no available energy with it. The two cancel exactly for a
+statically stable, horizontally uniform stratification, so ``\varepsilon_A`` measures only the APE
+actually lost and is **not** the sign-definite ``\kappa|\nabla b|^2`` the name might suggest.
+
+```@docs
+Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate
+```

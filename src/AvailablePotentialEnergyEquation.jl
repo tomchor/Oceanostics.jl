@@ -2,21 +2,25 @@ module AvailablePotentialEnergyEquation
 
 using DocStringExtensions
 
-export AvailablePotentialEnergy
+export AvailablePotentialEnergy, BuoyancyDisplacementPotential
+export AvailablePotentialEnergyDissipationRate, DissipationRate
 # The reference state lives in `BackgroundPotentialEnergyEquation`; re-exported here so either module
 # can be used on its own without reaching across for the pieces that build `z✶`.
 export BackgroundPotentialEnergy, reference_height, reference_buoyancy
 export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 
+using Oceananigans: fields
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Fields: Field
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Models: model_geopotential_height
 using Oceananigans.BuoyancyFormulations: Zᶜᶜᶜ
+using Oceananigans.Operators
+using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 using Oceanostics: validate_location, CustomKFO
 
 # Imported so the docstring `@ref`s below resolve in-module, as well as for dispatch.
-using ..PotentialEnergyEquation: PotentialEnergy
+using ..PotentialEnergyEquation: PotentialEnergy, BuoyancyTracerModel
 using ..BackgroundPotentialEnergyEquation: BackgroundPotentialEnergy, SortedReferenceHeightField,
                                            AbstractReferenceHeightMethod, reference_height,
                                            reference_buoyancy, sorted_height, ThreeDimensionalSort,
@@ -97,6 +101,198 @@ AvailablePotentialEnergy(model, z✶::SortedReferenceHeightField) = available_po
 # On the model grid the parcel's own height is the grid's; on a sorted column it has to be carried.
 available_potential_energy(z✶, b, ::Nothing) = KernelFunctionOperation{Center, Center, Center}(local_ape_ccc, z✶.grid, z✶.operand.reference_potential, b, z✶)
 available_potential_energy(z✶, b, z)         = KernelFunctionOperation{Center, Center, Center}(local_ape_ccc, z✶.grid, z✶.operand.reference_potential, b, z, z✶)
+#---
+
+#+++ Reference height on the model grid
+# `Υ` and `ε_A` both read the parcel's own height off the grid `z✶` lives on, so both need that to be
+# the model grid. [`VerticalSort`](@ref) answers on the sorted column instead, where the grid's own
+# `Zᶜᶜᶜ` *is* `z✶` (which would make `Υ` silently zero) and a horizontal gradient of `b` means nothing.
+validate_reference_height_grid(diagnostic, model, z✶) =
+    z✶.grid === model.grid ||
+        throw(ArgumentError("`$diagnostic` needs a reference height on the model grid, but this one lives on a \
+                             $(summary(z✶.grid)). Use `HeavisideIntegral()`, `ThreeDimensionalSort()` or \
+                             `ProfileLookup()` rather than `VerticalSort()`."))
+#---
+
+#+++ Buoyancy displacement potential
+@inline upsilon_ccc(i, j, k, grid, z✶) = @inbounds z✶[i, j, k] - Zᶜᶜᶜ(i, j, k, grid)
+
+const BuoyancyDisplacementPotential = CustomKFO{<:typeof(upsilon_ccc)}
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` computing the buoyancy displacement potential
+
+```
+    Υ = z✶ - z
+```
+
+how far below its actual height a parcel's reference height sits, and so how far it would have to
+travel to reach the adiabatically resorted state. It is the derivative of the local available potential
+energy with respect to buoyancy, `Υ = ∂Eₐ/∂b`, which is what makes it the natural conjugate of `b`:
+contracting it with a buoyancy gradient gives an APE dissipation rate
+([`AvailablePotentialEnergyDissipationRate`](@ref)), and contracting it with a sub-filter buoyancy flux
+gives a cross-scale APE flux.
+
+This is the buoyancy form of `Υ(ρ, z) = g(z - z✶(ρ))/ρ₀` as
+[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) write it in their Eq. (7) for
+density. The two differ by the factor `-g/ρ₀` that converts between buoyancy and density, which cancels
+wherever `Υ` is contracted with a buoyancy gradient. The result lives at `(Center, Center, Center)` and
+is a length (units `m`).
+
+`z✶` is the reference height computed by [`reference_height`](@ref); pass one explicitly to share a
+single sort with the other reference-state diagnostics, or pass `method` through to choose how it is
+built. It has to be one that lives on the model grid, so [`VerticalSort`](@ref) is rejected.
+
+[`HeavisideIntegral`](@ref) is the default here rather than the package-wide
+[`ThreeDimensionalSort`](@ref) because `Υ` is a map, and every use of it differentiates that map. Only
+Eq. (11) of Winters et al. makes `z✶` a function of buoyancy alone, so tied cells share one reference
+height; with [`ThreeDimensionalSort`](@ref) a run of equal buoyancy takes consecutive slots and spreads
+`z✶` over the depth it fills, which is harmless in a volume integral but shows up in `∇Υ` as grid-scale
+noise.
+
+```jldoctest
+using Oceananigans, Oceanostics
+
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+
+BuoyancyDisplacementPotential(model)
+
+# output
+
+BuoyancyDisplacementPotential KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: upsilon_ccc (generic function with 1 method)
+└── arguments: ("Field",)
+└── computes: buoyancy displacement potential  Υ = z✶ - z
+```
+"""
+function BuoyancyDisplacementPotential(model; method = HeavisideIntegral(),
+                                       geopotential_height = model_geopotential_height(model),
+                                       location = (Center, Center, Center))
+    validate_location(location, "BuoyancyDisplacementPotential")
+    return BuoyancyDisplacementPotential(model, reference_height(model; method, geopotential_height))
+end
+
+function BuoyancyDisplacementPotential(model, z✶::SortedReferenceHeightField)
+    validate_reference_height_grid("BuoyancyDisplacementPotential", model, z✶)
+    return KernelFunctionOperation{Center, Center, Center}(upsilon_ccc, z✶.grid, z✶)
+end
+#---
+
+#+++ Available potential energy dissipation rate
+# `ε_A = κ ∂ᵢb ∂ᵢΥ = -qᵢ ∂ᵢΥ`, where `qᵢ = -κ ∂ᵢb` is the buoyancy tracer's diffusive flux. Taking it
+# from the closure's own `diffusive_flux_*` rather than from a diffusivity of our own makes this follow
+# whatever closure the model runs with, and keeps the dissipation consistent with the diffusion the
+# model actually applied — the same conservative formulation `TracerVarianceDissipationRate` uses for
+# `χ = 2 ∂ⱼc·Fⱼ`. Each product is formed on the face where both factors live and only then interpolated
+# to the cell center, so a no-flux boundary (where the tracer halo is mirrored, making `δb` there
+# exactly zero) contributes nothing.
+@inline Axᶠᶜᶜ_δΥᶠᶜᶜ_q₁ᶠᶜᶜ(i, j, k, grid, Υ, closure, closure_fields, id, c, args...) =
+    - Axᶠᶜᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, Υ) * diffusive_flux_x(i, j, k, grid, closure, closure_fields, id, c, args...)
+
+@inline Ayᶜᶠᶜ_δΥᶜᶠᶜ_q₂ᶜᶠᶜ(i, j, k, grid, Υ, closure, closure_fields, id, c, args...) =
+    - Ayᶜᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, Υ) * diffusive_flux_y(i, j, k, grid, closure, closure_fields, id, c, args...)
+
+@inline Azᶜᶜᶠ_δΥᶜᶜᶠ_q₃ᶜᶜᶠ(i, j, k, grid, Υ, closure, closure_fields, id, c, args...) =
+    - Azᶜᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, Υ) * diffusive_flux_z(i, j, k, grid, closure, closure_fields, id, c, args...)
+
+@inline ape_dissipation_rate_ccc(i, j, k, grid, args...) =
+    (ℑxᶜᵃᵃ(i, j, k, grid, Axᶠᶜᶜ_δΥᶠᶜᶜ_q₁ᶠᶜᶜ, args...) + # F, C, C  → C, C, C
+     ℑyᵃᶜᵃ(i, j, k, grid, Ayᶜᶠᶜ_δΥᶜᶠᶜ_q₂ᶜᶠᶜ, args...) + # C, F, C  → C, C, C
+     ℑzᵃᵃᶜ(i, j, k, grid, Azᶜᶜᶠ_δΥᶜᶜᶠ_q₃ᶜᶜᶠ, args...)   # C, C, F  → C, C, C
+     ) / Vᶜᶜᶜ(i, j, k, grid) # this division by volume, against the `A δΥ` above, is what makes it a derivative
+
+const AvailablePotentialEnergyDissipationRate = CustomKFO{<:typeof(ape_dissipation_rate_ccc)}
+const DissipationRate = AvailablePotentialEnergyDissipationRate
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` computing the rate at which diffusion destroys available potential
+energy,
+
+```
+    ε_A = κ ∂ᵢb ∂ᵢΥ = κ [(∂z✶/∂b)|∇b|² - ∂b/∂z] ,
+```
+
+the sink of the local available potential energy equation of
+[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) (their Eqs. 11 and 14, where it
+appears as `-ε_A`), with `Υ` the [`BuoyancyDisplacementPotential`](@ref). It follows from
+`∂Eₐ/∂b = Υ`, which makes the diffusive part of `DEₐ/Dt` equal to `Υκ∇²b = ∇·(κΥ∇b) - κ∇Υ·∇b`: once
+the flux divergence is set aside, `ε_A = κ∇Υ·∇b` is what remains.
+
+Written out, the first part is the diapycnal mixing rate of
+[Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X), the work done rearranging the
+reference state, and the second is the diffusion that state undergoes on its own, which carries no APE
+with it. The two cancel exactly for a statically stable, horizontally uniform stratification, where
+`z✶ = z` and there is no available energy to destroy, so `ε_A` measures only the APE actually lost — it
+is not the sign-definite `κ|∇b|²`-like quantity the name might suggest.
+
+`κ ∂ᵢb` is taken from the closure's own diffusive flux rather than from a diffusivity supplied here, so
+this follows whatever closure the model runs with, and is written in the same conservative form
+[`TracerVarianceDissipationRate`](@ref Oceanostics.TracerVarianceEquation.DissipationRate) uses. The
+result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
+
+The buoyancy has to be a tracer the closure diffuses, so this is defined for `BuoyancyTracer` models
+only — `SeawaterBuoyancy` would need the diffusive fluxes of temperature and salinity combined through
+the equation of state.
+
+`z✶` is the reference height computed by [`reference_height`](@ref), and has to be one that lives on
+the model grid, since `∇b` is taken there; [`HeavisideIntegral`](@ref) is the default for the reason
+[`BuoyancyDisplacementPotential`](@ref) gives. `upsilon` takes a `Υ` you already have, so that writing
+both out costs one sort and one `Υ` rather than two of each:
+
+```jldoctest
+using Oceananigans, Oceanostics
+
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
+
+z✶ = reference_height(model, method=HeavisideIntegral())
+Υ = Field(BuoyancyDisplacementPotential(model, z✶))
+AvailablePotentialEnergyDissipationRate(model, z✶; upsilon=Υ)
+
+# output
+
+AvailablePotentialEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ape_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: ("Field", "ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "BuoyancyForce")
+└── computes: available potential energy dissipation rate  ε_A = κ ∂ᵢb ∂ᵢΥ
+```
+"""
+function AvailablePotentialEnergyDissipationRate(model; method = HeavisideIntegral(),
+                                                 geopotential_height = model_geopotential_height(model),
+                                                 location = (Center, Center, Center))
+    validate_location(location, "AvailablePotentialEnergyDissipationRate")
+    return AvailablePotentialEnergyDissipationRate(model, reference_height(model; method, geopotential_height))
+end
+
+function AvailablePotentialEnergyDissipationRate(model, z✶::SortedReferenceHeightField; upsilon = nothing)
+
+    model.buoyancy isa BuoyancyTracerModel ||
+        throw(ArgumentError("`AvailablePotentialEnergyDissipationRate` needs the buoyancy to be a tracer the closure \
+                             diffuses, so that `κ∇b` is the closure's own diffusive flux, but this model's buoyancy \
+                             is a $(summary(model.buoyancy)). Only `BuoyancyTracer` is supported for now."))
+
+    validate_reference_height_grid("AvailablePotentialEnergyDissipationRate", model, z✶)
+
+    Υ = isnothing(upsilon) ? Field(BuoyancyDisplacementPotential(model, z✶)) : upsilon
+    tracer_index = findfirst(n -> n === :b, propertynames(model.tracers))
+
+    return KernelFunctionOperation{Center, Center, Center}(ape_dissipation_rate_ccc, model.grid,
+                                                           Υ,
+                                                           model.closure,
+                                                           model.closure_fields,
+                                                           Val(tracer_index),
+                                                           model.tracers.b,
+                                                           model.clock,
+                                                           fields(model),
+                                                           model.buoyancy)
+end
 #---
 
 end # module
