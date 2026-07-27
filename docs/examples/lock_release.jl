@@ -164,14 +164,15 @@ wb  = KineticEnergyBuoyancyProduction(model)
 ∫ε_A = Integral(ε_A)
 
 # The second of the two parts ``\varepsilon_A`` is written out of, the diffusion of the reference state
-# on its own, is worth carrying separately. Oceanostics has no diagnostic for it and does not need one,
-# since it telescopes: no buoyancy crosses the top or the bottom, so
-# ``\int \kappa\, \partial b / \partial z\, dV`` collapses to ``\kappa A [b(z=H) - b(z=0)]`` and the flow
-# enters only through the buoyancy difference across the channel. Subtracting it from the growth rate of
-# ``E_b``, which is the Winters et al. diapycnal mixing rate, has to give ``\varepsilon_A`` back, and
-# that is checked below.
+# on its own, is a diagnostic of its own too. We write it as well, so that the identity
+# ``\varepsilon_A = \Phi_d - \Phi`` behind ``\varepsilon_A`` can be checked rather than taken on trust:
+# adding ``\Phi`` back to ``\varepsilon_A`` has to give the diapycnal mixing rate ``\Phi_d``, which is
+# the rate ``E_b`` grows at. Volume integrated it telescopes, since no buoyancy crosses the top or the
+# bottom, so it collapses to ``\kappa A [b(z=H) - b(z=0)]`` and the flow enters only through the
+# buoyancy difference across the channel.
 
-∫κ∂zb = Integral(κ * ∂z(b))
+Φ  = ReferenceStateDiffusionRate(model)
+∫Φ = Integral(Φ)
 
 using NCDatasets
 filename = "lock_release"
@@ -194,7 +195,7 @@ simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
 # The `∫APE_heaviside` written here is the tendency term that pairs with ``\varepsilon_A``, since the
 # two come off the same sort.
 
-integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫ε, ∫ε_A, ∫κ∂zb)
+integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫ε, ∫ε_A, ∫Φ)
 
 simulation.output_writers[:budget] = NetCDFWriter(model, integrals,
                                                   filename = joinpath(@__DIR__, filename * "_budget"),
@@ -450,7 +451,7 @@ KE_bud   = ds["∫KE"][:]
 wb_bud   = ds["∫wb"][:]
 ε_bud    = ds["∫ε"][:]
 ε_A_bud  = ds["∫ε_A"][:]
-κ∂zb_bud = ds["∫κ∂zb"][:]
+Φ_bud    = ds["∫Φ"][:]
 ## all four methods integrate to the same Eₐ, however they place cells of equal buoyancy  #hide
 @test ds["∫APE"][:]        ≈ APE_bud rtol=1e-8                                             #hide
 @test ds["∫APE_lookup"][:] ≈ APE_bud rtol=1e-8                                             #hide
@@ -530,10 +531,13 @@ rms(x) = √(sum(abs2, x) / length(x))                                       #hi
 @test rms(APE_resid) < 0.05 * rms(ε_A_pair)                                #hide
 ## `wb` is the same term in both, so it cancels from the sum of the two budgets                  #hide
 @test rms(KE_resid .+ APE_resid) < 0.02 * rms(ε_pair)                      #hide
-## and ε_A is what the docstring says it is: the diapycnal mixing rate that raises `E_b`, less    #hide
-## the reference state's own diffusion, which raises `Eₚ` without making any of it available      #hide
+## and ε_A + Φ is the diapycnal mixing rate, so it has to be both the growth rate of `E_b` and   #hide
+## non-negative, neither of which either term satisfies on its own                               #hide
 dBPEdt = (BPE_bud[idx2] .- BPE_bud[idx1]) ./ Δt_pair                       #hide
-@test rms(ε_A_pair .- (dBPEdt .- pair_mean(κ∂zb_bud))) < 0.1 * rms(ε_A_pair);  #hide
+Φ_pair = pair_mean(Φ_bud)                                                  #hide
+@test rms(dBPEdt .- (ε_A_pair .+ Φ_pair)) < 0.1 * rms(ε_A_pair)            #hide
+@test minimum(ε_A_pair .+ Φ_pair) > 0                                      #hide
+@test minimum(ε_A_pair) < 0;                                               #hide
 
 fig4 = Figure(size = (900, 760))
 
@@ -555,8 +559,8 @@ Legend(fig4[2, 2], ax_APE_bud; labelsize = 12, framevisible = false)
 
 # `ε_A` is small enough next to the exchange term that it sits on top of the axis in the panel above, so
 # the third panel drops the two large terms and keeps only the two dissipations and the residuals. This
-# is the panel that says the APE budget is actually closed: in rms the residual is under a percent of
-# `∫ε_A dV`, which is the smallest term in it.
+# is the panel that says the APE budget is actually closed: the residual is not merely small next to
+# `d(∫Eₐ)/dt`, it is small next to `∫ε_A dV`, the smallest term in the budget.
 
 ax_small = Axis(fig4[3, 1]; title = "The small terms, magnified", budget_kwargs...)
 lines!(ax_small, t_pair, -ε_A_pair, label = "-∫ε_A dV", color = Cycled(3))
@@ -573,8 +577,8 @@ nothing #hide
 #
 # `∫wb dV` is the mirror line running through both panels: the collapse converts `Eₐ` into `KE` while
 # the fronts accelerate, and the seiche hands it back each time the flow runs up against an end wall.
-# The two sinks are comparable in size here, `ε_A` reaching about three quarters of `ε` at the peak of
-# the mixing around `t = 6`, but they are not the same kind of quantity. `∫ε dV` only removes `KE`. `∫ε_A dV`
+# The two sinks are comparable in size, `ε_A` reaching about two thirds of `ε` at the peak of the mixing
+# around `t = 6`, but they are not the same kind of quantity. `∫ε dV` only ever removes `KE`. `∫ε_A dV`
 # is a sink for almost the whole run and briefly a small source around `t = 1` to `2`, which is what its
 # definition allows: at `t = 0` the lock is uniform in the vertical, the reference state has nothing to
 # diffuse along, and `ε_A` is the whole diapycnal mixing rate, but as the current lays the fluid out in

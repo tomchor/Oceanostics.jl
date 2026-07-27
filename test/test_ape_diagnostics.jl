@@ -644,6 +644,61 @@ function test_ape_dissipation_is_recomputed(grid)
 end
 
 """
+`Φ = κ ∂b/∂z` is fixed by the buoyancy and the closure alone, so a linear profile pins its value, its
+sign and the `κ` it picks up off the closure. The boundary treatment is the part worth guarding: no
+buoyancy crosses a no-flux wall, which halves the cells against it and is exactly what makes the volume
+integral telescope to `κ A [b(z_top) - b(z_bottom)]` however the interior is stirred. An interpolation
+that mishandled the walls would still look right cell by cell in the interior and would break that.
+"""
+function test_reference_state_diffusion_rate(grid)
+
+    κ = 1e-3
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(; ν=1e-6, κ))
+
+    Φ = ReferenceStateDiffusionRate(model)
+    @test Φ isa ReferenceStateDiffusionRate
+
+    set!(model, b = (x, y, z) -> 3z)
+    Φ_column = Array(interior(Field(Φ)))[1, 1, :]
+    @test all(Φ_column[2:end-1] .≈ 3κ)
+    @test Φ_column[1] ≈ 3κ / 2 && Φ_column[end] ≈ 3κ / 2   # the no-flux walls halve the outermost cells
+
+    set!(model, b = grid_noise)
+    b = Array(interior(model.tracers.b))
+    Δb = sum(b[:, :, end] .- b[:, :, 1]) / prod(size(b)[1:2])   # ⟨b(z_top) - b(z_bottom)⟩
+    @test volume_integral(Φ) ≈ κ * grid.Lx * grid.Ly * Δb
+
+    return nothing
+end
+
+"""
+`ε_A` is the diapycnal mixing rate less `Φ`, so adding the two back gives that mixing rate,
+`κ ∇b·∇z✶`, the quantity mixing raises `E_b` by. `z✶` rises with `b`, so the sum has to be non-negative,
+and that is the sharp check: neither `ε_A` nor `Φ` is sign-definite on its own, so getting either one's
+sign, scaling or grid metrics wrong shows up here as a negative. Checked cell by cell, which is the
+stronger statement, and in the volume integral, which is the one the budget rests on.
+"""
+function test_ape_dissipation_plus_reference_diffusion_is_the_mixing_rate(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
+    set!(model, b = (x, y, z) -> 2z + 0.4 * sin(7x) * cos(5z))
+
+    z✶  = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
+    Υ   = Field(BuoyancyDisplacementPotential(model, z✶))
+    ε_A = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = Υ)
+    Φ   = ReferenceStateDiffusionRate(model)
+
+    mixing_rate = interior(Field(ε_A)) .+ interior(Field(Φ))
+    scale = maximum(abs, interior(Field(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)))) / 2
+    @test scale > 0
+    @test minimum(mixing_rate) > -sqrt(eps(eltype(grid))) * scale
+    @test maximum(mixing_rate) > 0.01 * scale   # and it is not uniformly zero, which would pass trivially
+    @test volume_integral(ε_A) + volume_integral(Φ) > 0
+
+    return nothing
+end
+
+"""
 `ε_A` reads `κ∇b` off the closure's own diffusive flux, so the buoyancy has to be a tracer the closure
 diffuses; and both diagnostics read the parcel's height off the grid `z✶` lives on, so a
 [`VerticalSort`](@ref) column — where that height *is* `z✶`, and a horizontal gradient means nothing —
@@ -654,6 +709,7 @@ function test_upsilon_and_ape_dissipation_errors(grid)
     seawater = NonhydrostaticModel(grid; buoyancy=SeawaterBuoyancy(), tracers=(:S, :T), closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
     set!(seawater, S = grid_noise, T = grid_noise)
     @test_throws "BuoyancyTracer" AvailablePotentialEnergyDissipationRate(seawater)
+    @test_throws "BuoyancyTracer" ReferenceStateDiffusionRate(seawater)
 
     # `VerticalSort` stacks cells into a column, so it needs uniform cell volumes and cannot be built
     # on a stretched grid at all — there is nothing to reject there.
@@ -712,6 +768,10 @@ end
         test_ape_dissipation_vanishes_when_sorted(grid)
         test_ape_dissipation_is_recomputed(grid)
         test_upsilon_and_ape_dissipation_errors(grid)
+
+        @info "      Testing the reference state diffusion rate"
+        test_reference_state_diffusion_rate(grid)
+        test_ape_dissipation_plus_reference_diffusion_is_the_mixing_rate(grid)
 
         @info "      Testing the `ThreeDimensionalSort`, `HeavisideIntegral` and `VerticalSort` methods"
         test_heaviside_is_constant_on_isopycnals(grid)

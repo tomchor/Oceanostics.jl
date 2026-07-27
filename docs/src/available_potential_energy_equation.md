@@ -63,6 +63,30 @@ actually lost and is **not** the sign-definite ``\kappa|\nabla b|^2`` the name m
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate
 ```
 
+## Reference state diffusion
+
+The second of those two parts,
+
+```math
+\Phi = \kappa \frac{\partial b}{\partial z} ,
+```
+
+is the work diffusion does against gravity as it smooths the stratification. It is available separately
+because it is what separates ``\varepsilon_A`` from the diapycnal mixing rate: adding it back gives that
+rate, and hence the growth rate of ``E_b``,
+
+```math
+\frac{d}{dt}\int E_b\, dV = \int \left(\varepsilon_A + \Phi\right) dV \geq 0 ,
+```
+
+so the three of them close the background potential energy budget the way ``\varepsilon_A`` and the
+buoyancy production close the available one. Neither ``\varepsilon_A`` nor ``\Phi`` is sign-definite on
+its own; their sum is.
+
+```@docs
+Oceanostics.AvailablePotentialEnergyEquation.ReferenceStateDiffusionRate
+```
+
 The [Lock release](@ref lock_release_example) example closes
 
 ```math
