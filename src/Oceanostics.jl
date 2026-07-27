@@ -76,7 +76,7 @@ export BoxFilter, GaussianFilter, check_filter_staging
 #---
 
 #+++ PotentialEnergyEquation exports
-export PotentialEnergy
+export PotentialEnergy, ReferenceStateDiffusionRate
 #---
 
 #+++ BackgroundPotentialEnergyEquation exports
@@ -87,8 +87,7 @@ export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 #---
 
 #+++ AvailablePotentialEnergyEquation exports
-export AvailablePotentialEnergy, BuoyancyDisplacementPotential, AvailablePotentialEnergyDissipationRate,
-       ReferenceStateDiffusionRate
+export AvailablePotentialEnergy, BuoyancyDisplacementPotential, AvailablePotentialEnergyDissipationRate
 #---
 
 #+++ ProgressMessengers
@@ -412,7 +411,8 @@ end
 #---
 
 #+++ PotentialEnergyEquation
-@diagnostic_show PotentialEnergyEquation.PotentialEnergy "PotentialEnergy" "potential energy per unit volume  eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.PotentialEnergy             "PotentialEnergy"             "potential energy per unit volume  eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.ReferenceStateDiffusionRate "ReferenceStateDiffusionRate" "reference state diffusion rate  Φ = κ ∂b/∂z"
 #---
 
 #+++ BackgroundPotentialEnergyEquation
@@ -423,7 +423,6 @@ end
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy                "AvailablePotentialEnergy"                "local available potential energy density  eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
 @diagnostic_show AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential           "BuoyancyDisplacementPotential"           "buoyancy displacement potential  Υ = z✶ - z"
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  ε_A = κ ∂ᵢb ∂ᵢΥ"
-@diagnostic_show AvailablePotentialEnergyEquation.ReferenceStateDiffusionRate             "ReferenceStateDiffusionRate"             "reference state diffusion rate  Φ = κ ∂b/∂z"
 #---
 
 #+++ FlowDiagnostics

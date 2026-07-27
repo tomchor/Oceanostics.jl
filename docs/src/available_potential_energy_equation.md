@@ -83,9 +83,10 @@ so the three of them close the background potential energy budget the way ``\var
 buoyancy production close the available one. Neither ``\varepsilon_A`` nor ``\Phi`` is sign-definite on
 its own; their sum is.
 
-```@docs
-Oceanostics.AvailablePotentialEnergyEquation.ReferenceStateDiffusionRate
-```
+``\Phi`` needs no reference state of its own, and it is a term of the ``e_p`` equation before it is
+anything to do with ``e_a``, so it is defined in
+[the potential energy equation](potential_energy_equation.md#Reference-state-diffusion) and re-exported
+here. See [`ReferenceStateDiffusionRate`](@ref Oceanostics.PotentialEnergyEquation.ReferenceStateDiffusionRate).
 
 The [Lock release](@ref lock_release_example) example closes
 

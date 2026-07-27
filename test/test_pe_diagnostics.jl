@@ -66,6 +66,34 @@ function test_PEbuoyancytracer_equals_PElineareos(grid)
 end
 #---
 
+"""
+`Φ = κ ∂b/∂z` is fixed by the buoyancy and the closure alone, so a linear profile pins its value, its
+sign and the `κ` it picks up off the closure. The boundary treatment is the part worth guarding: no
+buoyancy crosses a no-flux wall, which halves the cells against it and is exactly what makes the volume
+integral telescope to `κ A [b(z_top) - b(z_bottom)]` however the interior is stirred. An interpolation
+that mishandled the walls would still look right cell by cell in the interior and would break that.
+"""
+function test_reference_state_diffusion_rate(grid)
+
+    κ = 1e-3
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(; ν=1e-6, κ))
+
+    Φ = ReferenceStateDiffusionRate(model)
+    @test Φ isa ReferenceStateDiffusionRate
+
+    set!(model, b = (x, y, z) -> 3z)
+    Φ_column = Array(interior(Field(Φ)))[1, 1, :]
+    @test all(Φ_column[2:end-1] .≈ 3κ)
+    @test Φ_column[1] ≈ 3κ / 2 && Φ_column[end] ≈ 3κ / 2   # the no-flux walls halve the outermost cells
+
+    set!(model, b = grid_noise)
+    b = Array(interior(model.tracers.b))
+    Δb = sum(b[:, :, end] .- b[:, :, 1]) / prod(size(b)[1:2])   # ⟨b(z_top) - b(z_bottom)⟩
+    @test volume_integral(Φ) ≈ κ * grid.Lx * grid.Ly * Δb
+
+    return nothing
+end
+
 @testset "Diagnostics tests" begin
     @info "  Testing Diagnostics"
     for (grid_class, grid) in zip(keys(grids), values(grids))
@@ -90,5 +118,7 @@ end
             end
             test_PEbuoyancytracer_equals_PElineareos(grid)
         end
+        @info "      Testing the reference state diffusion rate"
+        test_reference_state_diffusion_rate(grid)
     end
 end

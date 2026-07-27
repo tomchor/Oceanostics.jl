@@ -85,21 +85,32 @@ Oceanostics, and the rest have no diagnostic yet.
 | Advection | ``-\partial_j(u_j e_p)`` | not implemented |
 | Buoyancy conversion | ``wb`` | [`KineticEnergyBuoyancyProduction`](@ref Oceanostics.KineticEnergyEquation.BuoyancyProduction) |
 | Diffusive transport | ``\partial_j(z q_j)`` | not implemented |
-| Diffusive conversion | ``-q_3`` | [`ReferenceStateDiffusionRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceStateDiffusionRate) |
+| Diffusive conversion | ``-q_3`` | [`ReferenceStateDiffusionRate`](@ref Oceanostics.PotentialEnergyEquation.ReferenceStateDiffusionRate) |
 | Forcing | ``-z F_b`` | not implemented |
 
-Two caveats on the borrowed terms. `KineticEnergyBuoyancyProduction` computes ``u_i b_i``, which is the
+One caveat on the borrowed term. `KineticEnergyBuoyancyProduction` computes ``u_i b_i``, which is the
 source of *kinetic* energy, so the potential energy budget takes it with a minus sign; with the
-`NegativeZDirection` gravity this module requires, ``u_i b_i = wb``. And `ReferenceStateDiffusionRate`
-reads ``\kappa\,\partial b/\partial z`` off the closure's own diffusive flux, which needs the buoyancy
-to be a tracer the closure diffuses, so it is restricted to `BuoyancyTracer` models while
-`PotentialEnergy` is not.
+`NegativeZDirection` gravity this module requires, ``u_i b_i = wb``.
 
 ``e_p`` also splits into two parts that do have their own modules. The
 [background potential energy](background_potential_energy_equation.md) ``e_b`` is the portion the flow
 could never release, and the [available potential energy](available_potential_energy_equation.md)
 ``e_a = e_p - e_b`` is the remainder. Their budgets are the ones actually closed in practice, and
 [the lock release example](@ref lock_release_example) closes ``e_a`` against kinetic energy.
+
+## Reference state diffusion
+
+The diffusive conversion term is the one other diagnostic this module provides. It reads
+``\kappa\,\partial b/\partial z`` off the closure's own diffusive flux, which needs the buoyancy to be a
+tracer the closure diffuses, so unlike `PotentialEnergy` it is restricted to `BuoyancyTracer` models. It
+is also the second of the two parts
+[`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate)
+is written out of, which is where its name comes from and why
+[the available potential energy equation](available_potential_energy_equation.md) re-exports it.
+
+```@docs
+Oceanostics.PotentialEnergyEquation.ReferenceStateDiffusionRate
+```
 
 ## Buoyancy formulations
 

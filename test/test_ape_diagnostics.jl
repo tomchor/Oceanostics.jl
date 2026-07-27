@@ -16,9 +16,6 @@ include("test_utils.jl")
 @inline z_ccc(i, j, k, grid) = Zᶜᶜᶜ(i, j, k, grid)
 height_operation(grid) = KernelFunctionOperation{Center, Center, Center}(z_ccc, grid)
 
-volume_integral(op) = sum(Field(Integral(op))) # a scalar, without scalar indexing on GPUs
-volume_mean(op)     = sum(Field(Average(op)))  # ditto, volume-weighted over the whole domain
-
 """
 The reference profile a sorting method describes, as `(z✶, b✶)` ordered from the bottom of the sorted
 column up. `VerticalSort` already stores it that way; the two model-grid methods hold `z✶` and
@@ -644,34 +641,6 @@ function test_ape_dissipation_is_recomputed(grid)
 end
 
 """
-`Φ = κ ∂b/∂z` is fixed by the buoyancy and the closure alone, so a linear profile pins its value, its
-sign and the `κ` it picks up off the closure. The boundary treatment is the part worth guarding: no
-buoyancy crosses a no-flux wall, which halves the cells against it and is exactly what makes the volume
-integral telescope to `κ A [b(z_top) - b(z_bottom)]` however the interior is stirred. An interpolation
-that mishandled the walls would still look right cell by cell in the interior and would break that.
-"""
-function test_reference_state_diffusion_rate(grid)
-
-    κ = 1e-3
-    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(; ν=1e-6, κ))
-
-    Φ = ReferenceStateDiffusionRate(model)
-    @test Φ isa ReferenceStateDiffusionRate
-
-    set!(model, b = (x, y, z) -> 3z)
-    Φ_column = Array(interior(Field(Φ)))[1, 1, :]
-    @test all(Φ_column[2:end-1] .≈ 3κ)
-    @test Φ_column[1] ≈ 3κ / 2 && Φ_column[end] ≈ 3κ / 2   # the no-flux walls halve the outermost cells
-
-    set!(model, b = grid_noise)
-    b = Array(interior(model.tracers.b))
-    Δb = sum(b[:, :, end] .- b[:, :, 1]) / prod(size(b)[1:2])   # ⟨b(z_top) - b(z_bottom)⟩
-    @test volume_integral(Φ) ≈ κ * grid.Lx * grid.Ly * Δb
-
-    return nothing
-end
-
-"""
 `ε_A` is the diapycnal mixing rate less `Φ`, so adding the two back gives that mixing rate,
 `κ ∇b·∇z✶`, the quantity mixing raises `E_b` by. `z✶` rises with `b`, so the sum has to be non-negative,
 and that is the sharp check: neither `ε_A` nor `Φ` is sign-definite on its own, so getting either one's
@@ -769,8 +738,9 @@ end
         test_ape_dissipation_is_recomputed(grid)
         test_upsilon_and_ape_dissipation_errors(grid)
 
-        @info "      Testing the reference state diffusion rate"
-        test_reference_state_diffusion_rate(grid)
+        # `Φ` itself is tested with the rest of the `e_p` equation, in `test_pe_diagnostics.jl`; what
+        # belongs here is the identity that defines `ε_A` in terms of it.
+        @info "      Testing that ε_A + Φ is the diapycnal mixing rate"
         test_ape_dissipation_plus_reference_diffusion_is_the_mixing_rate(grid)
 
         @info "      Testing the `ThreeDimensionalSort`, `HeavisideIntegral` and `VerticalSort` methods"

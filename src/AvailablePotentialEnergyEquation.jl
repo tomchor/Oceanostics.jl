@@ -4,6 +4,8 @@ using DocStringExtensions
 
 export AvailablePotentialEnergy, BuoyancyDisplacementPotential
 export AvailablePotentialEnergyDissipationRate, DissipationRate
+# `Φ` is a term of the `e_p` equation and lives in `PotentialEnergyEquation`; re-exported here because
+# `ε_A` is defined as the diapycnal mixing rate less `Φ`, so the two are almost always wanted together.
 export ReferenceStateDiffusionRate
 # The reference state lives in `BackgroundPotentialEnergyEquation`; re-exported here so either module
 # can be used on its own without reaching across for the pieces that build `z✶`.
@@ -21,7 +23,8 @@ using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffu
 using Oceanostics: validate_location, CustomKFO
 
 # Imported so the docstring `@ref`s below resolve in-module, as well as for dispatch.
-using ..PotentialEnergyEquation: PotentialEnergy, BuoyancyTracerModel
+using ..PotentialEnergyEquation: PotentialEnergy, BuoyancyTracerModel, ReferenceStateDiffusionRate,
+                                 validate_buoyancy_is_a_diffused_tracer, buoyancy_diffusive_flux_arguments
 using ..BackgroundPotentialEnergyEquation: BackgroundPotentialEnergy, SortedReferenceHeightField,
                                            AbstractReferenceHeightMethod, reference_height,
                                            reference_buoyancy, sorted_height, ThreeDimensionalSort,
@@ -113,27 +116,6 @@ validate_reference_height_grid(diagnostic, model, z✶) =
         throw(ArgumentError("`$diagnostic` needs a reference height on the model grid, but this one lives on a \
                              $(summary(z✶.grid)). Use `HeavisideIntegral()`, `ThreeDimensionalSort()` or \
                              `ProfileLookup()` rather than `VerticalSort()`."))
-#---
-
-#+++ Buoyancy as a diffused tracer
-# `ε_A` and `Φ` both read `κ∇b` off the closure's own diffusive flux, which needs the buoyancy to be a
-# tracer the closure diffuses. `SeawaterBuoyancy` would need the fluxes of temperature and salinity
-# combined through the equation of state.
-validate_buoyancy_is_a_diffused_tracer(diagnostic, model) =
-    model.buoyancy isa BuoyancyTracerModel ||
-        throw(ArgumentError("`$diagnostic` needs the buoyancy to be a tracer the closure diffuses, so that `κ∇b` is \
-                             the closure's own diffusive flux, but this model's buoyancy is a \
-                             $(summary(model.buoyancy)). Only `BuoyancyTracer` is supported for now."))
-
-# The arguments every diagnostic built on `diffusive_flux_*` passes through to the closure.
-buoyancy_diffusive_flux_arguments(model) =
-    (model.closure,
-     model.closure_fields,
-     Val(findfirst(n -> n === :b, propertynames(model.tracers))),
-     model.tracers.b,
-     model.clock,
-     fields(model),
-     model.buoyancy)
 #---
 
 #+++ Buoyancy displacement potential
@@ -303,91 +285,6 @@ function AvailablePotentialEnergyDissipationRate(model, z✶::SortedReferenceHei
 
     return KernelFunctionOperation{Center, Center, Center}(ape_dissipation_rate_ccc, model.grid,
                                                            Υ, buoyancy_diffusive_flux_arguments(model)...)
-end
-#---
-
-#+++ Reference state diffusion rate
-# `Φ = κ ∂b/∂z = -q₃`, the vertical diffusive buoyancy flux taken upward, which is the second of the two
-# parts `ε_A` is written out of. It comes off the closure's own `diffusive_flux_z`, exactly as `ε_A`
-# does, so the two always carry the same `κ` and adding them back together recovers the diapycnal mixing
-# rate. The flux lives on the `z` face, so it is interpolated to the cell center where `ε_A` lives.
-@inline reference_state_diffusion_rate_ccc(i, j, k, grid, args...) =
-    -ℑzᵃᵃᶜ(i, j, k, grid, diffusive_flux_z, args...)
-
-const ReferenceStateDiffusionRate = CustomKFO{<:typeof(reference_state_diffusion_rate_ccc)}
-
-"""
-    $(SIGNATURES)
-
-Return a `KernelFunctionOperation` computing the rate at which the reference state's own diffusion
-raises the potential energy,
-
-```
-    Φ = κ ∂b/∂z ,
-```
-
-the upward diffusive buoyancy flux, which is the work diffusion does against gravity as it smooths the
-stratification. The result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
-
-`Φ` is the second of the two parts [`AvailablePotentialEnergyDissipationRate`](@ref) is written out of,
-
-```
-    ε_A = κ (∂z✶/∂b) |∇b|² - Φ ,
-```
-
-and it is the part that carries no available energy with it: `Φ` enters the `E_p` and `E_b` budgets
-identically, so it cancels from their difference, which is `E_a`. A statically stable, horizontally
-uniform stratification is its own reference state and has `ε_A = 0` cell by cell, so there `Φ` accounts
-for the whole of the diapycnal mixing rate. Adding it back to `ε_A` recovers that rate in general, and
-its volume integral is the rate [`BackgroundPotentialEnergy`](@ref) grows:
-
-```
-    d/dt ∫e_b dV = ∫(ε_A + Φ) dV .
-```
-
-`Φ` volume-integrates to a boundary term, since no buoyancy crosses the top or the bottom of a closed
-domain:
-
-```
-    ∫Φ dV = κ A [b(z_top) - b(z_bottom)] ,
-```
-
-with `A` the domain's horizontal area, so the flow enters only through the buoyancy difference across
-it. That collapse is exact rather than approximate, and it is what makes the cells against a wall report
-half of what the interior does: a no-flux wall zeroes the flux on the outer face, and the cell center
-averages the two faces bounding it. `Φ` is still returned as a field rather than as that number, since
-it is the pointwise partner of `ε_A`.
-
-`κ ∂b/∂z` is taken from the closure's own diffusive flux rather than from a diffusivity supplied here,
-so this follows whatever closure the model runs with and the identity above holds however `κ` is set.
-That needs the buoyancy to be a tracer the closure diffuses, so this is defined for `BuoyancyTracer`
-models only. It is the negative of `TracerEquation.ZDiffusiveFlux(model, :b)`, interpolated from the `z`
-face to the cell center so that it adds to `ε_A` cell by cell; reach for that one when you want the flux
-itself rather than its role in this budget.
-
-```jldoctest
-using Oceananigans, Oceanostics
-
-grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
-model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
-
-ReferenceStateDiffusionRate(model)
-
-# output
-
-ReferenceStateDiffusionRate KernelFunctionOperation at (Center, Center, Center)
-├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: reference_state_diffusion_rate_ccc (generic function with 1 method)
-└── arguments: ("ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "BuoyancyForce")
-└── computes: reference state diffusion rate  Φ = κ ∂b/∂z
-```
-"""
-function ReferenceStateDiffusionRate(model; location = (Center, Center, Center))
-    validate_location(location, "ReferenceStateDiffusionRate")
-    validate_buoyancy_is_a_diffused_tracer("ReferenceStateDiffusionRate", model)
-
-    return KernelFunctionOperation{Center, Center, Center}(reference_state_diffusion_rate_ccc, model.grid,
-                                                           buoyancy_diffusive_flux_arguments(model)...)
 end
 #---
 
