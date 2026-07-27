@@ -14,6 +14,87 @@ Potential energy is a key quantity in ocean energetics: its conversion to/from
 kinetic energy (via the buoyancy production term ``wb``) drives ocean circulation
 and mixing.
 
+## The potential energy equation
+
+Since ``E_p`` is just ``-z`` times the buoyancy, and ``z`` does not change in time, the equation for
+``E_p`` follows directly from [the tracer equation](tracer_equation.md) applied to ``b``. In the
+convention Oceananigans uses, that equation reads
+
+```math
+\partial_t b = -\partial_j (u_j b) - \partial_j q_j + F_b ,
+```
+
+where ``q_j`` is the diffusive flux of buoyancy supplied by the closure (``q_j = -\kappa\,\partial_j b``
+for Fickian diffusion with diffusivity ``\kappa``) and ``F_b`` is any applied forcing. Multiplying
+through by ``-z``,
+
+```math
+\partial_t E_p = -z\,\partial_t b
+               = z\,\partial_j(u_j b) + z\,\partial_j q_j - z F_b .
+```
+
+Neither of the first two terms is yet in a useful form: each mixes a redistribution, which moves
+``E_p`` around without creating any, with a genuine source. Pulling ``z`` inside the derivatives
+separates them: with ``\partial_j z = \delta_{j3}``, the product rule gives
+
+```math
+z\,\partial_j(u_j b) = -\partial_j(u_j E_p) - wb , \qquad
+z\,\partial_j q_j    = \partial_j(z q_j) - q_3 ,
+```
+
+so that
+
+```math
+\partial_t E_p = \underbrace{-\partial_j(u_j E_p)}_{\text{advection}}
+                 \underbrace{- wb}_{\text{buoyancy conversion}}
+                 + \underbrace{\partial_j(z q_j)}_{\text{diffusive transport}}
+                 \underbrace{- q_3}_{\text{diffusive conversion}}
+                 \underbrace{- z F_b}_{\text{forcing}} .
+```
+
+The two terms written as divergences move ``E_p`` from place to place and vanish when integrated over
+a closed domain with impermeable, insulating walls. What is left is the pair of conversion terms:
+
+```math
+\frac{d}{dt}\int E_p\, dV = -\int wb\, dV + \int \kappa \frac{\partial b}{\partial z}\, dV
+                            - \int z F_b\, dV ,
+```
+
+using ``-q_3 = \kappa\,\partial b/\partial z``. The first is the exchange with kinetic energy, positive
+into ``E_p`` when dense fluid is being lifted. The second is the work diffusion does against gravity as
+it smooths the stratification, which is the only way diffusion can change the total potential energy of
+a closed domain, and it is always positive for a statically stable fluid.
+
+## Terms and what is implemented
+
+Only ``E_p`` itself is implemented in this module. Two of the terms above are available elsewhere in
+Oceanostics, and the rest have no diagnostic yet.
+
+| Quantity | Expression | Diagnostic |
+|:---|:---|:---|
+| Potential energy | ``E_p = -bz`` | [`PotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergy) |
+| Tendency | ``\partial_t E_p`` | not implemented |
+| Advection | ``-\partial_j(u_j E_p)`` | not implemented |
+| Buoyancy conversion | ``-wb`` | [`KineticEnergyBuoyancyProduction`](@ref Oceanostics.KineticEnergyEquation.BuoyancyProduction), with the opposite sign |
+| Diffusive transport | ``\partial_j(z q_j)`` | not implemented |
+| Diffusive conversion | ``-q_3 = \kappa\,\partial b/\partial z`` | [`ReferenceStateDiffusionRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceStateDiffusionRate) |
+| Forcing | ``-z F_b`` | not implemented |
+
+Two caveats on the borrowed terms. `KineticEnergyBuoyancyProduction` computes ``u_i b_i``, which is the
+source of *kinetic* energy, so the potential energy budget takes it with a minus sign; with the
+`NegativeZDirection` gravity this module requires, ``u_i b_i = wb``. And `ReferenceStateDiffusionRate`
+reads ``\kappa\,\partial b/\partial z`` off the closure's own diffusive flux, which needs the buoyancy
+to be a tracer the closure diffuses, so it is restricted to `BuoyancyTracer` models while
+`PotentialEnergy` is not.
+
+``E_p`` also splits into two parts that do have their own modules. The
+[background potential energy](background_potential_energy_equation.md) ``E_b`` is the portion the flow
+could never release, and the [available potential energy](available_potential_energy_equation.md)
+``E_a = E_p - E_b`` is the remainder. Their budgets are the ones actually closed in practice, and
+[the lock release example](@ref lock_release_example) closes ``E_a`` against kinetic energy.
+
+## Buoyancy formulations
+
 `PotentialEnergy` is implemented for three buoyancy model types:
 
 - **`BuoyancyTracer`**: uses the buoyancy field ``b`` directly as ``E_p = -bz``.
