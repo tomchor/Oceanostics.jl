@@ -83,9 +83,9 @@ Oceanostics, and the rest have no diagnostic yet.
 | Potential energy | ``e_p = -bz`` | [`PotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergy) |
 | Tendency | ``\partial_t e_p`` | not implemented |
 | Advection | ``-\partial_j(u_j e_p)`` | not implemented |
-| Buoyancy conversion | ``-wb`` | [`KineticEnergyBuoyancyProduction`](@ref Oceanostics.KineticEnergyEquation.BuoyancyProduction), with the opposite sign |
+| Buoyancy conversion | ``wb`` | [`KineticEnergyBuoyancyProduction`](@ref Oceanostics.KineticEnergyEquation.BuoyancyProduction) |
 | Diffusive transport | ``\partial_j(z q_j)`` | not implemented |
-| Diffusive conversion | ``-q_3 = \kappa\,\partial b/\partial z`` | [`ReferenceStateDiffusionRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceStateDiffusionRate) |
+| Diffusive conversion | ``-q_3`` | [`ReferenceStateDiffusionRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceStateDiffusionRate) |
 | Forcing | ``-z F_b`` | not implemented |
 
 Two caveats on the borrowed terms. `KineticEnergyBuoyancyProduction` computes ``u_i b_i``, which is the
