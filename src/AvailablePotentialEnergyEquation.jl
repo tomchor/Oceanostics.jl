@@ -28,7 +28,7 @@ using ..BackgroundPotentialEnergyEquation: BackgroundPotentialEnergy, SortedRefe
                                            HeavisideIntegral, VerticalSort, ProfileLookup
 
 #+++ Available potential energy
-# The local available potential energy `Eₐ = ∫_{z✶}^{z} [b✶(z̃) - b] dz̃`, split into the part only the
+# The local available potential energy `eₐ = ∫_{z✶}^{z} [b✶(z̃) - b] dz̃`, split into the part only the
 # reference profile can supply (`Ψδ = Ψ(z) - Ψ(z✶)`, see `fill_reference_potential!`) and the
 # `-b(z - z✶)` the kernel does pointwise. The parcel's own height is the grid's `Zᶜᶜᶜ` on the model
 # grid, a carried field on a column.
@@ -43,7 +43,7 @@ const AvailablePotentialEnergy = CustomKFO{<:typeof(local_ape_ccc)}
 Return a `KernelFunctionOperation` computing the **local** available potential energy density,
 
 ```
-    Eₐ(b, z) = ∫_{z✶}^{z} [b✶(z̃) - b] dz̃ ,   equivalently   (g/ρ₀) ∫_{z✶}^{z} [ρ - ρ✶(z̃)] dz̃
+    eₐ(b, z) = ∫_{z✶}^{z} [b✶(z̃) - b] dz̃ ,   equivalently   (g/ρ₀) ∫_{z✶}^{z} [ρ - ρ✶(z̃)] dz̃
 ```
 
 the work needed to bring a parcel from the reference height `z✶` it would occupy in the adiabatically
@@ -61,14 +61,14 @@ it, the non-negativity guarantee.
 
 `z✶` is the reference height computed by [`reference_height`](@ref); pass one explicitly to share a
 single sort with [`BackgroundPotentialEnergy`](@ref), or pass `method` through to choose how it is
-built. All four give the same `Eₐ` volume integral when each sorts the field itself.
+built. All four give the same `eₐ` volume integral when each sorts the field itself.
 
-`Integral(Eₐ)` recovers the global APE `Integral(PotentialEnergy(model)) -
+`Integral(eₐ)` recovers the global APE `Integral(PotentialEnergy(model)) -
 Integral(BackgroundPotentialEnergy(model))` only in the continuum limit: the local density samples the
 reference profile at the model's cell centers while the global split effectively samples it at the
 sorted column's, and the two midpoint quadratures differ at finite `Δz`. The gap is second order in
 the vertical spacing, so it is a fraction of a percent on a well resolved grid but a few percent on a
-coarse one. `Eₐ` does vanish, cell by cell and exactly, for a statically stable and horizontally
+coarse one. `eₐ` does vanish, cell by cell and exactly, for a statically stable and horizontally
 uniform stratification.
 
 The result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻²`), and is defined for the
@@ -89,7 +89,7 @@ AvailablePotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: local_ape_ccc (generic function with 2 methods)
 └── arguments: ("Field", "Field", "Field")
-└── computes: local available potential energy density  Eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0
+└── computes: local available potential energy density  eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0
 ```
 """
 function AvailablePotentialEnergy(model; method = ThreeDimensionalSort(), geopotential_height = model_geopotential_height(model), location = (Center, Center, Center))
@@ -152,7 +152,7 @@ Return a `KernelFunctionOperation` computing the buoyancy displacement potential
 
 how far below its actual height a parcel's reference height sits, and so how far it would have to
 travel to reach the adiabatically resorted state. It is the derivative of the local available potential
-energy with respect to buoyancy, `Υ = ∂Eₐ/∂b`, which is what makes it the natural conjugate of `b`:
+energy with respect to buoyancy, `Υ = ∂eₐ/∂b`, which is what makes it the natural conjugate of `b`:
 contracting it with a buoyancy gradient gives an APE dissipation rate
 ([`AvailablePotentialEnergyDissipationRate`](@ref)), and contracting it with a sub-filter buoyancy flux
 gives a cross-scale APE flux.
@@ -243,7 +243,7 @@ energy,
 the sink of the local available potential energy equation of
 [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) (their Eqs. 11 and 14, where it
 appears as `-ε_A`), with `Υ` the [`BuoyancyDisplacementPotential`](@ref). It follows from
-`∂Eₐ/∂b = Υ`, which makes the diffusive part of `DEₐ/Dt` equal to `Υκ∇²b = ∇·(κΥ∇b) - κ∇Υ·∇b`: once
+`∂eₐ/∂b = Υ`, which makes the diffusive part of `Deₐ/Dt` equal to `Υκ∇²b = ∇·(κΥ∇b) - κ∇Υ·∇b`: once
 the flux divergence is set aside, `ε_A = κ∇Υ·∇b` is what remains.
 
 Written out, the first part is the diapycnal mixing rate of
@@ -335,14 +335,14 @@ stratification. The result lives at `(Center, Center, Center)`, per unit mass (u
     ε_A = κ (∂z✶/∂b) |∇b|² - Φ ,
 ```
 
-and it is the part that carries no available energy with it: `Φ` enters the `Eₚ` and `E_b` budgets
-identically, so it cancels from their difference, which is `Eₐ`. A statically stable, horizontally
+and it is the part that carries no available energy with it: `Φ` enters the `E_p` and `E_b` budgets
+identically, so it cancels from their difference, which is `E_a`. A statically stable, horizontally
 uniform stratification is its own reference state and has `ε_A = 0` cell by cell, so there `Φ` accounts
 for the whole of the diapycnal mixing rate. Adding it back to `ε_A` recovers that rate in general, and
 its volume integral is the rate [`BackgroundPotentialEnergy`](@ref) grows:
 
 ```
-    d/dt ∫E_b dV = ∫(ε_A + Φ) dV .
+    d/dt ∫e_b dV = ∫(ε_A + Φ) dV .
 ```
 
 `Φ` volume-integrates to a boundary term, since no buoyancy crosses the top or the bottom of a closed

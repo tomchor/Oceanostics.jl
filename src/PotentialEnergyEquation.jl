@@ -39,7 +39,7 @@ validate_gravity_unit_vector(gravity_unit_vector) =
 
 Return a `KernelFunctionOperation` to compute the `PotentialEnergy` per unit volume,
 ```math
-Eₚ = \\frac{gρ}{ρ₀}z = -bz
+eₚ = \\frac{gρ}{ρ₀}z = -bz
 ```
 at each grid `location` in `model`. `PotentialEnergy` is defined for both `BuoyancyTracer`
 and `SeawaterBuoyancy`. See the relevant Oceananigans.jl documentation on
@@ -47,7 +47,7 @@ and `SeawaterBuoyancy`. See the relevant Oceananigans.jl documentation on
 for more information about available options.
 
 The optional keyword argument `geopotential_height` is only used
-if ones wishes to calculate `Eₚ` with a potential density referenced to `geopotential_height`,
+if ones wishes to calculate `eₚ` with a potential density referenced to `geopotential_height`,
 rather than in-situ density, when using a `BoussinesqEquationOfState`.
 
 Example
@@ -78,7 +78,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("Field",)
-└── computes: potential energy per unit volume  Eₚ = -bz
+└── computes: potential energy per unit volume  eₚ = -bz
 ```
 
 The default behaviour of `PotentialEnergy` uses the *in-situ density* in the calculation
@@ -120,7 +120,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation", "NamedTuple")
-└── computes: potential energy per unit volume  Eₚ = -bz
+└── computes: potential energy per unit volume  eₚ = -bz
 ```
 
 To use a reference density set a constant value for the keyword argument `geopotential_height`
@@ -145,7 +145,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation", "NamedTuple")
-└── computes: potential energy per unit volume  Eₚ = -bz
+└── computes: potential energy per unit volume  eₚ = -bz
 ```
 """
 @inline function PotentialEnergy(model; location = (Center, Center, Center),

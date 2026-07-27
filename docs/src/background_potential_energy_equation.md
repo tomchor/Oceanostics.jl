@@ -8,16 +8,16 @@ reference height ``z^\star``, and the potential energy of that state is the back
 potential energy,
 
 ```math
-E_b = -b z^\star = \frac{g \rho}{\rho_0} z^\star .
+e_b = -b z^\star = \frac{g \rho}{\rho_0} z^\star .
 ```
 
-``E_b`` is the share of the potential energy ``E_p = -bz`` of
+``e_b`` is the share of the potential energy ``e_p = -bz`` of
 [the potential energy equation](potential_energy_equation.md) that the flow *cannot* release. What is
 left over is the [available potential energy](available_potential_energy_equation.md), so the two
 modules are the two halves of one split and share the reference state built here: `reference_height`,
 `reference_buoyancy` and the methods below are exported by both.
 
-Because it moves only with irreversible changes to the buoyancy field, ``\int E_b \, \mathrm{d}V`` is a
+Because it moves only with irreversible changes to the buoyancy field, ``\int e_b \, \mathrm{d}V`` is a
 standard measure of the diapycnal mixing a simulation actually produces, numerical as well as physical.
 
 ## The reference state
@@ -37,7 +37,7 @@ builds it with each of the four methods below so their costs and their differenc
 directly.
 
 `method` selects one of four strategies to calculate the reference state. All
-`method`s produce the same reference state in the continuous limit and the same ``\int E_a \, \mathrm{d}V``.
+`method`s produce the same reference state in the continuous limit and the same ``\int e_a \, \mathrm{d}V``.
 Mainly what differs is how cells of *equal* buoyancy are placed, and what grid the answer lands on.
 Here is a brief summary of the four, with more detail in the docstring of each:
 

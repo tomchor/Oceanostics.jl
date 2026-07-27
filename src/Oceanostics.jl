@@ -412,15 +412,15 @@ end
 #---
 
 #+++ PotentialEnergyEquation
-@diagnostic_show PotentialEnergyEquation.PotentialEnergy "PotentialEnergy" "potential energy per unit volume  Eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.PotentialEnergy "PotentialEnergy" "potential energy per unit volume  eₚ = -bz"
 #---
 
 #+++ BackgroundPotentialEnergyEquation
-@diagnostic_show BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  E_b = -bz✶"
+@diagnostic_show BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  e_b = -bz✶"
 #---
 
 #+++ AvailablePotentialEnergyEquation
-@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy                "AvailablePotentialEnergy"                "local available potential energy density  Eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy                "AvailablePotentialEnergy"                "local available potential energy density  eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
 @diagnostic_show AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential           "BuoyancyDisplacementPotential"           "buoyancy displacement potential  Υ = z✶ - z"
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  ε_A = κ ∂ᵢb ∂ᵢΥ"
 @diagnostic_show AvailablePotentialEnergyEquation.ReferenceStateDiffusionRate             "ReferenceStateDiffusionRate"             "reference state diffusion rate  Φ = κ ∂b/∂z"

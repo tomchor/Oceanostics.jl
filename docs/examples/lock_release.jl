@@ -110,7 +110,7 @@ KE            = KineticEnergy(model)
 #
 # ```math
 # \frac{d}{dt}\int \mathrm{KE}\, dV = \int wb\, dV - \int \varepsilon\, dV, \qquad
-# \frac{d}{dt}\int E_a\, dV = -\int wb\, dV - \int \varepsilon_A\, dV .
+# \frac{d}{dt}\int e_a\, dV = -\int wb\, dV - \int \varepsilon_A\, dV .
 # ```
 #
 # Advection and the pressure gradient integrate to zero for an incompressible flow in a closed box, and
@@ -120,7 +120,7 @@ KE            = KineticEnergy(model)
 #
 # ``\varepsilon_A`` is the term this example is built around. It is the contraction of the buoyancy
 # gradient with the [`BuoyancyDisplacementPotential`](@ref) ``\Upsilon = z^\star - z``, which is
-# ``\partial E_a / \partial b`` and hence the conjugate of ``b``:
+# ``\partial e_a / \partial b`` and hence the conjugate of ``b``:
 #
 # ```math
 # \varepsilon_A = \kappa\, \partial_i b\, \partial_i \Upsilon
@@ -330,7 +330,7 @@ nothing #hide
 
 # ## Flow animation and local energies
 #
-# The movie sets the flow beside the energy it carries: buoyancy, kinetic energy, and the local `Eₐ`
+# The movie sets the flow beside the energy it carries: buoyancy, kinetic energy, and the local `eₐ`
 # built from each of the three methods that answer on the model grid.
 
 KE_t   = FieldTimeSeries(filepath, "KE")
@@ -358,9 +358,9 @@ panel_kwargs = (ylabel = "z", height = 190, aspect = DataAspect())
 
 ax_b  = Axis(fig3[2, 1];  title = "Buoyancy b",                      panel_kwargs...)
 ax_KE = Axis(fig3[4, 1];  title = "Kinetic energy",                  panel_kwargs...)
-ax_E3 = Axis(fig3[6, 1];  title = "Eₐ,  ThreeDimensionalSort",       panel_kwargs...)
-ax_EH = Axis(fig3[8, 1];  title = "Eₐ,  HeavisideIntegral",          panel_kwargs...)
-ax_EL = Axis(fig3[10, 1]; title = "Eₐ,  ProfileLookup", xlabel = "x", panel_kwargs...)
+ax_E3 = Axis(fig3[6, 1];  title = "eₐ,  ThreeDimensionalSort",       panel_kwargs...)
+ax_EH = Axis(fig3[8, 1];  title = "eₐ,  HeavisideIntegral",          panel_kwargs...)
+ax_EL = Axis(fig3[10, 1]; title = "eₐ,  ProfileLookup", xlabel = "x", panel_kwargs...)
 
 bₙ  = @lift b_t[$n]
 KEₙ = @lift KE_t[$n]
@@ -368,7 +368,7 @@ E3ₙ = @lift APE3_t[$n]
 EHₙ = @lift APEH_t[$n]
 ELₙ = @lift APEL_t[$n]
 
-## `Eₐ` and the kinetic energy are both sign-definite, so they get one-sided ranges set from their own
+## `eₐ` and the kinetic energy are both sign-definite, so they get one-sided ranges set from their own
 ## peak over the run; the buoyancy keeps the symmetric range used above.
 KE_lim = maximum(maximum(interior(KE_t[k]))   for k in 1:length(times))
 Ea_lim = maximum(maximum(interior(APE3_t[k])) for k in 1:length(times))
@@ -402,9 +402,9 @@ nothing #hide
 
 # ![](lock_release.mp4)
 #
-# `Eₐ` drains from the lock as the fronts accelerate and refills wherever the seiche lifts dense fluid
-# back above its reference height. Being the local form, it is non-negative everywhere. The three `Eₐ`
-# panels are identical: the methods differ only in where inside a tied run they place `z✶`, and `Eₐ`
+# `eₐ` drains from the lock as the fronts accelerate and refills wherever the seiche lifts dense fluid
+# back above its reference height. Being the local form, it is non-negative everywhere. The three `eₐ`
+# panels are identical: the methods differ only in where inside a tied run they place `z✶`, and `eₐ`
 # cannot see that choice.
 
 # ## Energetics
@@ -422,7 +422,7 @@ KE_bud   = ds["∫KE"][:]
 wb_bud   = ds["∫wb"][:]
 ε_bud    = ds["∫ε"][:]
 ε_A_bud  = ds["∫ε_A"][:]
-## all four methods integrate to the same Eₐ, however they place cells of equal buoyancy  #hide
+## all four methods integrate to the same eₐ, however they place cells of equal buoyancy  #hide
 @test ds["∫APE"][:]        ≈ APE_bud rtol=1e-8                                             #hide
 @test ds["∫APE_lookup"][:] ≈ APE_bud rtol=1e-8                                             #hide
 @test ds["∫APE_column"][:] ≈ APE_bud rtol=1e-8                                             #hide
@@ -462,7 +462,7 @@ nothing #hide
 #
 # `BPE` never turns back, since mixing across density surfaces cannot be undone. Everything the flow
 # can still do sits in `APE`, which trades with `KE` as the box seiches, each cycle weaker than the
-# last. The dashed total is `∫KE + ∫Eₚ`, and it has no reason to fall monotonically: viscosity drains it
+# last. The dashed total is `∫KE + ∫eₚ`, and it has no reason to fall monotonically: viscosity drains it
 # at `∫ε` while diffusion working against gravity feeds it back at `∫κ ∂b/∂z`, and a run quiet enough
 # for the second to win would see the total edge back up. At `Re = 1000` the first stays the larger of
 # the two throughout, and the total ends down by about a fifth of the available energy the lock started
@@ -516,7 +516,7 @@ lines!(ax_KE_bud, t_pair, KE_resid; label = "residual", color = :black, linestyl
 Legend(fig4[1, 2], ax_KE_bud; labelsize = 12, framevisible = false)
 
 ax_APE_bud = Axis(fig4[2, 1]; title = "Volume-integrated APE budget", budget_kwargs...)
-lines!(ax_APE_bud, t_pair, -dAPEdt,   label = "-d(∫Eₐ)/dt")
+lines!(ax_APE_bud, t_pair, -dAPEdt,   label = "-d(∫eₐ)/dt")
 lines!(ax_APE_bud, t_pair, -wb_pair,  label = "-∫wb dV")
 lines!(ax_APE_bud, t_pair, -ε_A_pair, label = "-∫ε_A dV")
 lines!(ax_APE_bud, t_pair, APE_resid; label = "residual", color = :black, linestyle = :dash)
@@ -525,7 +525,7 @@ Legend(fig4[2, 2], ax_APE_bud; labelsize = 12, framevisible = false)
 # `ε_A` is small enough next to the exchange term that it sits on top of the axis in the panel above, so
 # the third panel drops the two large terms and keeps only the two dissipations and the residuals. This
 # is the panel that says the APE budget is actually closed: the residual is not merely small next to
-# `d(∫Eₐ)/dt`, it is small next to `∫ε_A dV`, the smallest term in the budget.
+# `d(∫eₐ)/dt`, it is small next to `∫ε_A dV`, the smallest term in the budget.
 
 ax_small = Axis(fig4[3, 1]; title = "The small terms, magnified", budget_kwargs...)
 lines!(ax_small, t_pair, -ε_A_pair, label = "-∫ε_A dV", color = Cycled(3))
@@ -540,7 +540,7 @@ nothing #hide
 
 # ![](lock_release_budgets.png)
 #
-# `∫wb dV` is the mirror line running through both panels: the collapse converts `Eₐ` into `KE` while
+# `∫wb dV` is the mirror line running through both panels: the collapse converts `eₐ` into `KE` while
 # the fronts accelerate, and the seiche hands it back each time the flow runs up against an end wall.
 # The two sinks are comparable in size, `ε_A` reaching about two thirds of `ε` at the peak of the mixing
 # around `t = 6`, but they are not the same kind of quantity. `∫ε dV` only ever removes `KE`. `∫ε_A dV`
@@ -551,9 +551,9 @@ nothing #hide
 # quantity like `κ|∇b|²` cannot go negative at all, which is the practical difference between `ε_A` and
 # the buoyancy variance dissipation it is easily confused with.
 #
-# Both residuals stay near zero. They do not vanish, and cannot: the discrete KE and `Eₐ` equations are
+# Both residuals stay near zero. They do not vanish, and cannot: the discrete KE and `eₐ` equations are
 # not derived from the discrete momentum and buoyancy equations the model steps, so the two sides agree
 # only to the truncation error of a well-resolved flow. The same caveat applies to the KE budget of
 # [the two-dimensional turbulence example](@ref two_d_turbulence_example), with one more source of
-# discrepancy here: `Integral(Eₐ)` of the local Holliday & McIntyre density samples the reference
+# discrepancy here: `Integral(eₐ)` of the local Holliday & McIntyre density samples the reference
 # profile at the model's cell centers, and that midpoint quadrature is itself second order in `Δz`.

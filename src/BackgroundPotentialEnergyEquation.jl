@@ -34,7 +34,7 @@ import Oceananigans.Fields: compute!
 # The sorting below needs the buoyancy of every cell as plain data, and the `BackgroundPotentialEnergy`
 # and `AvailablePotentialEnergy` kernels then read that same data, so `b` is materialized once here for
 # all three buoyancy formulations. The sign convention matches `PotentialEnergyEquation`'s
-# `minus_bz_ccc`: for a `BoussinesqEquationOfState` the buoyancy is `b = -gρ/ρ₀`, so the `Eₚ = -bz` it
+# `minus_bz_ccc`: for a `BoussinesqEquationOfState` the buoyancy is `b = -gρ/ρ₀`, so the `eₚ = -bz` it
 # computes is the same `(g/ρ₀)ρz`, and the three energies stay consistent with each other.
 @inline minus_gρ_over_ρ₀_ccc(i, j, k, grid, ρ, p) = @inbounds -(p.g / p.ρ₀) * ρ[i, j, k]
 
@@ -128,7 +128,7 @@ that buoyancy class occupies in the sorted column, so `z✶` is a function of bu
 constant on isopycnals. `z✶` comes back on the model grid.
 
 Prefer this to [`ThreeDimensionalSort`](@ref) when you want a cell-by-cell map: a horizontally uniform,
-statically stable stratification gives `z✶ = z` exactly here, hence `Eₐ = 0` cell by cell rather than
+statically stable stratification gives `z✶ = z` exactly here, hence `eₐ = 0` cell by cell rather than
 only in the integral. It costs a couple of extra passes over the sorted cells to find the tied runs.
 """
 struct HeavisideIntegral <: AbstractReferenceHeightMethod end
@@ -181,9 +181,9 @@ Like [`HeavisideIntegral`](@ref) this makes `z✶` a function of buoyancy alone,
 isopycnals: a tied run is placed at the mid-height of the band it fills, exactly as that method does.
 
 !!! warning "Non-negativity needs a profile that resolves the field"
-    `Eₐ ≥ 0` rests on a parcel carrying `b = b✶(z✶)` exactly, which holds when the profile contains the
+    `eₐ ≥ 0` rests on a parcel carrying `b = b✶(z✶)` exactly, which holds when the profile contains the
     buoyancies the field actually has. A profile sorted from the same field at the same time always
-    does, so `ProfileLookup()` and `ProfileLookup(z✶_column)` are safe. For other profiles `Eₐ` cannot
+    does, so `ProfileLookup()` and `ProfileLookup(z✶_column)` are safe. For other profiles `eₐ` cannot
     be guaranteed to be non-negative.
 
 All three forms describe the same reference state when the profile comes from the field being
@@ -547,7 +547,7 @@ function assign_reference_height!(z✶_field, s::SortedReferenceState, method::P
 
     # `b✶` is non-decreasing, so a cell's own buoyancy brackets a run of slots `[lo, hi]` by binary
     # search. Its reference height is the mid-height of the band that run fills, which is what
-    # `HeavisideIntegral` assigns and what leaves `∫E_b dV` independent of the method; taking the run's
+    # `HeavisideIntegral` assigns and what leaves `∫e_b dV` independent of the method; taking the run's
     # first slot instead would drag every tied layer down to its own floor. A single-slot run reduces to
     # that slot's own centre, so a field without ties is unaffected.
     lo  = clamp.(searchsortedfirst.(Ref(b✶), b), 1, M)
@@ -623,9 +623,9 @@ model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
 set!(model, b = (x, y, z) -> z)
 
 z✶ = reference_height(model)                  # sort the domain once
-E_b = BackgroundPotentialEnergy(model, z✶)    # and reuse it for both diagnostics
-E_a = AvailablePotentialEnergy(model, z✶)
-E_b.grid === E_a.grid === grid
+e_b = BackgroundPotentialEnergy(model, z✶)    # and reuse it for both diagnostics
+e_a = AvailablePotentialEnergy(model, z✶)
+e_b.grid === e_a.grid === grid
 
 # output
 
@@ -648,7 +648,7 @@ since it builds `z✶` from a volume fraction; the three methods that stack cell
 uniform cells and throw.
 
 `method` picks how the sorted state is built. Sorting the field itself, all four give the same
-`∫Eₐ dV` in the continuous limit, but have different limitations due to the discretization:
+`∫eₐ dV` in the continuous limit, but have different limitations due to the discretization:
 
   - [`ThreeDimensionalSort`](@ref) (the default) gives each cell the height of its own slot in the sorted
     column, on the model grid. Tied cells take consecutive slots, which spreads `z✶` over a grid cell
@@ -664,8 +664,8 @@ uniform cells and throw.
   - [`VerticalSort`](@ref) returns the sorted column itself, on a `1×1×N` grid of cells that span
     the domain's horizontal area, which is the form to use for a reference profile.
 
-Where they differ is `z✶`, and so `E_b`: the placement of tied cells is the only freedom they have,
-and `Eₐ` is blind to it, since a cell's `z✶` always lands inside the run of slots its own buoyancy
+Where they differ is `z✶`, and so `e_b`: the placement of tied cells is the only freedom they have,
+and `eₐ` is blind to it, since a cell's `z✶` always lands inside the run of slots its own buoyancy
 fills and the reference profile is flat across that run.
 
 ```jldoctest
@@ -735,7 +735,7 @@ function reference_height(b::Field; method = ThreeDimensionalSort())
     # of the grid rather than by indexing into GPU memory.
     z_bottom = convert(FT, znode(1, 1, 1, on_architecture(CPU(), grid), Center(), Center(), Face()))
     # Taking the horizontal area from the total volume (rather than from the surface area) makes the
-    # sorted column fill the domain's depth exactly, which is what keeps ∫Eₚ = ∫E_b for a sorted field.
+    # sorted column fill the domain's depth exactly, which is what keeps ∫eₚ = ∫e_b for a sorted field.
     horizontal_area = convert(FT, sum(cell_volume) / grid.Lz)
 
     method = build_sorting_method(method, grid, cell_volume, horizontal_area, z_bottom)
@@ -848,7 +848,7 @@ Return a `KernelFunctionOperation` computing the background (or reference) poten
 volume,
 
 ```
-    E_b = -b z✶ = (g/ρ₀) ρ z✶
+    e_b = -b z✶ = (g/ρ₀) ρ z✶
 ```
 
 the potential energy the fluid would retain if it were rearranged adiabatically into the state of
@@ -856,13 +856,13 @@ minimum potential energy ([Winters et al., 1995](https://doi.org/10.1017/S002211
 `z✶` is the reference height that rearrangement assigns to each parcel, computed by
 [`reference_height`](@ref); pass one explicitly to share a single sort with
 [`AvailablePotentialEnergy`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy), or pass `method` through to choose how it is built
-([`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref) or [`VerticalSort`](@ref); `Integral(E_b)` is
+([`ThreeDimensionalSort`](@ref), [`HeavisideIntegral`](@ref) or [`VerticalSort`](@ref); `Integral(e_b)` is
 the same either way).
 
-`E_b` responds only to irreversible changes in the buoyancy field, so in a closed domain the continuous
-equations make `Integral(E_b)` grow monotonically at the diapycnal mixing rate. Numerically it also
+`e_b` responds only to irreversible changes in the buoyancy field, so in a closed domain the continuous
+equations make `Integral(e_b)` grow monotonically at the diapycnal mixing rate. Numerically it also
 picks up whatever spurious diapycnal transport the advection scheme introduces, in either direction,
-which is what makes it a standard measure of a scheme's mixing. The remainder `Eₚ - E_b` is the
+which is what makes it a standard measure of a scheme's mixing. The remainder `eₚ - e_b` is the
 [`AvailablePotentialEnergy`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy), the part that can be converted to kinetic energy. The result lives
 at `(Center, Center, Center)`, per unit mass (units `m² s⁻²`), and is defined for the same buoyancy
 formulations as [`PotentialEnergy`](@ref).
@@ -881,7 +881,7 @@ BackgroundPotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: minus_bz✶_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field")
-└── computes: background potential energy per unit volume  E_b = -bz✶
+└── computes: background potential energy per unit volume  e_b = -bz✶
 ```
 """
 function BackgroundPotentialEnergy(model; method = ThreeDimensionalSort(), geopotential_height = model_geopotential_height(model), location = (Center, Center, Center))
