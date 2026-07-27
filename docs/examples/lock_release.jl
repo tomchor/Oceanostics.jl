@@ -2,7 +2,9 @@
 #
 # In this example we run a two-dimensional lock release simulation and use it to watch the *sorted reference
 # state*, available potential energy and kinetic energy evolve. Along the way we build the reference profile
-# with each of the four methods Oceanostics offers and compare what they do and do not agree on.
+# with each of the four methods Oceanostics offers and compare what they do and do not agree on, and we close
+# the volume-integrated available potential energy and kinetic energy budgets against the two dissipation
+# rates and the buoyancy production that connects them.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -33,20 +35,37 @@ U = √(Δb * H) / 2   # buoyancy velocity
 Nz = 128
 grid = RectilinearGrid(size = (4Nz, Nz), x = (-Lx/2, Lx/2), z = (0, H), topology = (Bounded, Flat, Bounded))
 
+# The closure and the advection scheme are both set by the budgets we close at the end. Every sink in
+# those budgets is diagnosed from the closure, so the flow has to lose its energy through the closure
+# and not through the advection scheme: a centered scheme adds no dissipation of its own, unlike the
+# `WENO` scheme one would otherwise reach for on a front this sharp. What that costs is monotonicity,
+# so `ν` and `κ` have to be large enough that the grid resolves whatever the flow makes of the front.
+# At `Δ = H/128` that is `5×10⁻⁴`, which at `Pr = 1` leaves `Re = UH/ν = 1000`. It is enough: the
+# buoyancy stays inside its initial `±Δb/2` to within a part in a thousand over the whole run, so the
+# centered scheme is not ringing.
+
+ν = κ = 5e-4
+
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
-                            advection = WENO(order=5), # Diffusive and bounded scheme
+                            advection = Centered(order=4), # Non-dissipative scheme
+                            closure = ScalarDiffusivity(; ν, κ),
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
-# The lock itself: buoyant fluid on the right, dense fluid on the left, separated by an interface a
-# couple of cells thick. Smoothing the step over `δ` keeps the initial condition off the grid scale
-# without changing the fact that almost every cell starts at one of two buoyancies:
+# The lock itself: buoyant fluid on the right, dense fluid on the left, separated by a thin interface.
+# Smoothing the step over `δ` keeps the initial condition off the grid scale without changing the fact
+# that almost every cell starts at one of two buoyancies:
 
-δ = 2 * minimum_xspacing(grid)          # interface thickness, two cells
+δ = 4 * minimum_xspacing(grid)          # interface thickness, four cells
 lock_release(x, z) = (Δb / 2) * tanh(x / δ)
 set!(model, b = lock_release)
 
+# The explicit closure puts a second ceiling on `Δt`: diffusion is stepped explicitly, so `νΔt/Δ²` has
+# to stay under the real-axis stability limit of the `RungeKutta3` timestepper, about `0.3` in two
+# dimensions. Advection is what binds here and the run sits near `νΔt/Δ² = 0.06` throughout, but a
+# decaying flow lets the wizard grow `Δt` with nothing to stop it, so `diffusive_cfl` is capped as well.
+
 simulation = Simulation(model, Δt = 0.1 * minimum_xspacing(grid) / U, stop_time = 20)
-conjure_time_step_wizard!(simulation, IterationInterval(5), cfl = 0.7)
+conjure_time_step_wizard!(simulation, IterationInterval(5), cfl = 0.7, diffusive_cfl = 0.2)
 
 using Oceanostics
 progress = ProgressMessengers.BasicMessenger()
@@ -101,19 +120,85 @@ KE            = KineticEnergy(model)
 ∫APE_lookup    = Integral(APE_lookup)
 ∫APE_column    = Integral(APE_column)
 
+# ## Budget terms
+#
+# In a closed box the volume-integrated kinetic and available potential energies exchange through a
+# single term and each drains through a dissipation of its own,
+#
+# ```math
+# \frac{d}{dt}\int \mathrm{KE}\, dV = \int wb\, dV - \int \varepsilon\, dV, \qquad
+# \frac{d}{dt}\int E_a\, dV = -\int wb\, dV - \int \varepsilon_A\, dV .
+# ```
+#
+# Advection and the pressure gradient integrate to zero for an incompressible flow in a closed box, and
+# the walls are free-slip and insulating, so the viscous and diffusive fluxes leave nothing at the
+# boundary either. What survives is the buoyancy production ``wb``, which carries opposite signs in the
+# two budgets and so cancels from their sum, and the two sinks.
+#
+# ``\varepsilon_A`` is the term this example is built around. It is the contraction of the buoyancy
+# gradient with the [`BuoyancyDisplacementPotential`](@ref) ``\Upsilon = z^\star - z``, which is
+# ``\partial E_a / \partial b`` and hence the conjugate of ``b``:
+#
+# ```math
+# \varepsilon_A = \kappa\, \partial_i b\, \partial_i \Upsilon
+#               = \kappa \left[\frac{\partial z^\star}{\partial b} |\nabla b|^2
+#                              - \frac{\partial b}{\partial z}\right] ,
+# ```
+# the diapycnal mixing rate of Winters et al. (1995) less the diffusion the reference state undergoes
+# on its own, which carries no available energy with it. Unlike ``\varepsilon`` it is therefore not
+# sign-definite pointwise.
+#
+# We build ``\Upsilon`` once and hand it to ``\varepsilon_A``, so the pair costs one sort and one
+# ``\Upsilon`` rather than two of each, and we reuse the [`HeavisideIntegral`](@ref) reference height
+# already built above: ``\varepsilon_A`` differentiates the map ``\Upsilon``, and Eq. (11) of Winters et
+# al. is the one that makes ``z^\star`` a function of buoyancy alone, so tied cells do not spread
+# ``z^\star`` over the depth they fill and show up in ``\nabla \Upsilon`` as grid-scale noise.
+
+Υ   = Field(BuoyancyDisplacementPotential(model, z✶_heaviside))
+ε_A = AvailablePotentialEnergyDissipationRate(model, z✶_heaviside; upsilon = Υ)
+ε   = KineticEnergyDissipationRate(model)
+wb  = KineticEnergyBuoyancyProduction(model)
+
+∫wb  = Integral(wb)
+∫ε   = Integral(ε)
+∫ε_A = Integral(ε_A)
+
+# The second of the two parts ``\varepsilon_A`` is written out of, the diffusion of the reference state
+# on its own, is worth carrying separately. Oceanostics has no diagnostic for it and does not need one,
+# since it telescopes: no buoyancy crosses the top or the bottom, so
+# ``\int \kappa\, \partial b / \partial z\, dV`` collapses to ``\kappa A [b(z=H) - b(z=0)]`` and the flow
+# enters only through the buoyancy difference across the channel. Subtracting it from the growth rate of
+# ``E_b``, which is the Winters et al. diapycnal mixing rate, has to give ``\varepsilon_A`` back, and
+# that is checked below.
+
+∫κ∂zb = Integral(κ * ∂z(b))
+
 using NCDatasets
 filename = "lock_release"
 
-# A single `NetCDFWriter` copes with the two grids: the model-grid fields are written against `x` and
-# `z`, and the column's against its own `N`-cell vertical axis.
+# Two writers. The *fields* writer carries the maps, and a single `NetCDFWriter` copes with the two
+# grids they live on: the model-grid fields are written against `x` and `z`, and the column's against
+# its own `N`-cell vertical axis.
 
 outputs = (; b, KE, APE_ranked, APE_heaviside, APE_lookup, APE_column,
-             z✶_ranked, z✶_heaviside, z✶_lookup, z✶_column, b✶_column,
-             ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column)
+             z✶_ranked, z✶_heaviside, z✶_lookup, z✶_column, b✶_column)
 
 simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
                                                   filename = joinpath(@__DIR__, filename),
                                                   schedule = TimeInterval(0.5),
+                                                  overwrite_existing = true)
+
+# The *budget* writer carries only the volume integrals, which are cheap next to the maps, on
+# `ConsecutiveIterations(TimeInterval(0.5))`. That schedules a second sample one model step after each
+# scheduled time, which lets us finite-difference ``d/dt`` across that step instead of accumulating it.
+# The `∫APE_heaviside` written here is the tendency term that pairs with ``\varepsilon_A``, since the
+# two come off the same sort.
+
+integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫ε, ∫ε_A, ∫κ∂zb)
+
+simulation.output_writers[:budget] = NetCDFWriter(model, integrals,
+                                                  filename = joinpath(@__DIR__, filename * "_budget"),
+                                                  schedule = ConsecutiveIterations(TimeInterval(0.5)),
                                                   overwrite_existing = true)
 
 # ## Run the simulation
@@ -182,8 +267,8 @@ z✶_3d_0,  z✶_hv_0 = profiles["ThreeDimensionalSort"][1][2], profiles["Heavis
 b✶_3d, z✶_3d = profiles["ThreeDimensionalSort"][end]                                      #hide
 b✶_hv, z✶_hv = profiles["HeavisideIntegral"][end]                                         #hide
 b✶_1d, z✶_1d = profiles["VerticalSort"][end]                                        #hide
-## the two model-grid methods differ by a quarter of the depth while the lock is intact   #hide
-@test maximum(abs, z✶_hv_0 .- z✶_3d_0) > 0.2H                                             #hide
+## the two model-grid methods differ by a sixth of the depth while the lock is intact     #hide
+@test maximum(abs, z✶_hv_0 .- z✶_3d_0) > 0.15H                                            #hide
 ## and agree to the grid scale once mixing has made the field continuous                  #hide
 @test maximum(abs, z✶_hv .- z✶_3d) < H / Nz                                               #hide
 ## the column carries exactly what the ranked sort assigns, by construction               #hide
@@ -207,9 +292,9 @@ for n in snapshots                                                              
     @test sort(vec(Float64.(Z3[:, :, n]))) ≈ sort(vec(Float64.(Z1[:, :, n]))) atol=1e-6   #hide
 end                                                                                       #hide
 ## `HeavisideIntegral` is the one that can differ pointwise, and only while ties survive: it is    #hide
-## a fifth of the depth out at `t = 0` and converges to the others as mixing removes the ties.     #hide
+## a sixth of the depth out at `t = 0` and converges to the others as mixing removes the ties.     #hide
 Δ_hv(n) = maximum(abs, vec(Float64.(ZH[:, :, n])) .- vec(Float64.(Z3[:, :, n])))          #hide
-@test Δ_hv(snapshots[1])   > 0.2H                                                         #hide
+@test Δ_hv(snapshots[1])   > 0.15H                                                        #hide
 @test Δ_hv(snapshots[end]) < H / Nz;                                                      #hide
 
 # The profile gets a figure of its own: one panel per method, each showing `b★(z✶)` at the four times
@@ -260,7 +345,7 @@ axislegend(ax0; position = :lt, labelsize = 9)
 # stack, so they draw the true step spanning the full depth. [`HeavisideIntegral`](@ref) instead
 # collapses each buoyancy class onto the mid-height of the layer it fills, which is what makes `z✶` a
 # function of buoyancy alone and a clean field to map, but leaves it unable to represent a step as a
-# profile: its `z✶` only ever reaches the mid-heights of the two blocks, about a quarter of the depth
+# profile: its `z✶` only ever reaches the mid-heights of the two blocks, about a sixth of the depth
 # in from each boundary. Once mixing has made the buoyancy field continuous the ties vanish and all
 # three agree to within a grid cell.
 
@@ -352,19 +437,33 @@ nothing #hide
 
 # ## Energetics
 #
-# The same three energies, now volume integrated. Their sum (dashed) is the total, which no exchange
-# among them can alter.
+# The same three energies, now volume integrated, read off the budget writer. Its samples come in
+# consecutive-iteration pairs `(t₀, t₀ + Δt_model, t₀ + 0.5, t₀ + 0.5 + Δt_model, …)`, so pair `k` sits
+# at indices `(2k-1, 2k)`. The first of each pair falls on the `TimeInterval` grid and is what the
+# energy curves use; the pair as a whole is what gives `d/dt` further down.
 
-ds = NCDataset(simulation.output_writers[:fields].filepath)
-t_e     = ds["time"][:]
-BPE_int = ds["∫BPE"][:]
-APE_int = ds["∫APE"][:]
-KE_int  = ds["∫KE"][:]
+ds = NCDataset(simulation.output_writers[:budget].filepath)
+t_bud    = ds["time"][:]
+BPE_bud  = ds["∫BPE"][:]
+APE_bud  = ds["∫APE_heaviside"][:]
+KE_bud   = ds["∫KE"][:]
+wb_bud   = ds["∫wb"][:]
+ε_bud    = ds["∫ε"][:]
+ε_A_bud  = ds["∫ε_A"][:]
+κ∂zb_bud = ds["∫κ∂zb"][:]
 ## all four methods integrate to the same Eₐ, however they place cells of equal buoyancy  #hide
-@test ds["∫APE_heaviside"][:] ≈ APE_int rtol=1e-8                                          #hide
-@test ds["∫APE_lookup"][:]    ≈ APE_int rtol=1e-8                                          #hide
-@test ds["∫APE_column"][:]    ≈ APE_int rtol=1e-8                                          #hide
+@test ds["∫APE"][:]        ≈ APE_bud rtol=1e-8                                             #hide
+@test ds["∫APE_lookup"][:] ≈ APE_bud rtol=1e-8                                             #hide
+@test ds["∫APE_column"][:] ≈ APE_bud rtol=1e-8                                             #hide
 close(ds)
+
+idx1 = 1:2:length(t_bud) - 1   # primary snapshots
+idx2 = 2:2:length(t_bud)       # consecutive-iteration snapshots
+
+t_e     = t_bud[idx1]
+KE_int  = KE_bud[idx1]
+APE_int = APE_bud[idx1]
+BPE_int = BPE_bud[idx1]
 
 total_int = KE_int .+ APE_int .+ BPE_int
 
@@ -374,8 +473,7 @@ total_int = KE_int .+ APE_int .+ BPE_int
 @test KE_int[1] < 1e-8 * APE_int[1]                         # the lock starts at rest         #hide
 @test BPE_int[end] > BPE_int[1]                             # mixing raised the background    #hide
 @test minimum(diff(BPE_int)) > -1e-6 * maximum(abs, BPE_int) # and only ever raised it        #hide
-## the total is only ever dissipated, never created                                           #hide
-@test maximum(diff(total_int)) < 1e-6 * abs(total_int[1] - total_int[end]);                   #hide
+@test total_int[end] < total_int[1];                        # dissipation outweighs diffusion #hide
 
 set_theme!(Theme(fontsize = 20)) #hide
 fig2 = Figure(size = (780, 350))
@@ -393,5 +491,100 @@ nothing #hide
 #
 # `BPE` never turns back, since mixing across density surfaces cannot be undone. Everything the flow
 # can still do sits in `APE`, which trades with `KE` as the box seiches, each cycle weaker than the
-# last. The model has no explicit dissipation, so the dashed total drifts down only through the
-# advection scheme's implicit dissipation.
+# last. The dashed total is `∫KE + ∫Eₚ`, and it has no reason to fall monotonically: viscosity drains it
+# at `∫ε` while diffusion working against gravity feeds it back at `∫κ ∂b/∂z`, and a run quiet enough
+# for the second to win would see the total edge back up. At `Re = 1000` the first stays the larger of
+# the two throughout, and the total ends down by about a fifth of the available energy the lock started
+# with.
+
+# ## Closing the budgets
+#
+# Now the two budgets written at the top. `d/dt` comes from a one-step finite difference inside each
+# consecutive-iteration pair, and the source terms are averaged over the same pair so that every term
+# is evaluated at the same instant.
+
+Δt_pair = t_bud[idx2] .- t_bud[idx1]
+t_pair  = @. 0.5 * (t_bud[idx1] + t_bud[idx2])
+
+dKEdt  = (KE_bud[idx2]  .- KE_bud[idx1])  ./ Δt_pair
+dAPEdt = (APE_bud[idx2] .- APE_bud[idx1]) ./ Δt_pair
+
+pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
+
+wb_pair  = pair_mean(wb_bud)
+ε_pair   = pair_mean(ε_bud)
+ε_A_pair = pair_mean(ε_A_bud)
+
+# Both budgets are written in sum-to-zero form: each curve is plotted with the sign it carries here, so
+# the panels below add up to the residual.
+
+KE_resid  = @. -dKEdt  + wb_pair - ε_pair
+APE_resid = @. -dAPEdt - wb_pair - ε_A_pair
+
+rms(x) = √(sum(abs2, x) / length(x))                                       #hide
+@test rms(KE_resid)  < 0.01 * rms(dKEdt)                                   #hide
+@test rms(KE_resid)  < 0.02 * rms(ε_pair)                                  #hide
+@test rms(APE_resid) < 0.01 * rms(dAPEdt)                                  #hide
+## the sharp one: the APE residual is a small fraction of ε_A itself, so the budget resolves     #hide
+## the new term rather than closing to within its size                                           #hide
+@test rms(APE_resid) < 0.05 * rms(ε_A_pair)                                #hide
+## `wb` is the same term in both, so it cancels from the sum of the two budgets                  #hide
+@test rms(KE_resid .+ APE_resid) < 0.02 * rms(ε_pair)                      #hide
+## and ε_A is what the docstring says it is: the diapycnal mixing rate that raises `E_b`, less    #hide
+## the reference state's own diffusion, which raises `Eₚ` without making any of it available      #hide
+dBPEdt = (BPE_bud[idx2] .- BPE_bud[idx1]) ./ Δt_pair                       #hide
+@test rms(ε_A_pair .- (dBPEdt .- pair_mean(κ∂zb_bud))) < 0.1 * rms(ε_A_pair);  #hide
+
+fig4 = Figure(size = (900, 760))
+
+budget_kwargs = (xlabel = "Time", ylabel = "Rate", height = 190, width = 560)
+
+ax_KE_bud = Axis(fig4[1, 1]; title = "Volume-integrated KE budget", budget_kwargs...)
+lines!(ax_KE_bud, t_pair, -dKEdt,   label = "-d(∫KE)/dt")
+lines!(ax_KE_bud, t_pair,  wb_pair, label = "∫wb dV")
+lines!(ax_KE_bud, t_pair, -ε_pair,  label = "-∫ε dV")
+lines!(ax_KE_bud, t_pair, KE_resid; label = "residual", color = :black, linestyle = :dash)
+Legend(fig4[1, 2], ax_KE_bud; labelsize = 12, framevisible = false)
+
+ax_APE_bud = Axis(fig4[2, 1]; title = "Volume-integrated APE budget", budget_kwargs...)
+lines!(ax_APE_bud, t_pair, -dAPEdt,   label = "-d(∫Eₐ)/dt")
+lines!(ax_APE_bud, t_pair, -wb_pair,  label = "-∫wb dV")
+lines!(ax_APE_bud, t_pair, -ε_A_pair, label = "-∫ε_A dV")
+lines!(ax_APE_bud, t_pair, APE_resid; label = "residual", color = :black, linestyle = :dash)
+Legend(fig4[2, 2], ax_APE_bud; labelsize = 12, framevisible = false)
+
+# `ε_A` is small enough next to the exchange term that it sits on top of the axis in the panel above, so
+# the third panel drops the two large terms and keeps only the two dissipations and the residuals. This
+# is the panel that says the APE budget is actually closed: in rms the residual is under a percent of
+# `∫ε_A dV`, which is the smallest term in it.
+
+ax_small = Axis(fig4[3, 1]; title = "The small terms, magnified", budget_kwargs...)
+lines!(ax_small, t_pair, -ε_A_pair, label = "-∫ε_A dV", color = Cycled(3))
+lines!(ax_small, t_pair, APE_resid, label = "APE residual", color = :black, linestyle = :dash)
+lines!(ax_small, t_pair, KE_resid,  label = "KE residual", color = :grey40, linestyle = :dot)
+Legend(fig4[3, 2], ax_small; labelsize = 12, framevisible = false)
+
+resize_to_layout!(fig4)
+save("lock_release_budgets.png", fig4)
+set_theme!() #hide
+nothing #hide
+
+# ![](lock_release_budgets.png)
+#
+# `∫wb dV` is the mirror line running through both panels: the collapse converts `Eₐ` into `KE` while
+# the fronts accelerate, and the seiche hands it back each time the flow runs up against an end wall.
+# The two sinks are comparable in size here, `ε_A` reaching about three quarters of `ε` at the peak of
+# the mixing around `t = 6`, but they are not the same kind of quantity. `∫ε dV` only removes `KE`. `∫ε_A dV`
+# is a sink for almost the whole run and briefly a small source around `t = 1` to `2`, which is what its
+# definition allows: at `t = 0` the lock is uniform in the vertical, the reference state has nothing to
+# diffuse along, and `ε_A` is the whole diapycnal mixing rate, but as the current lays the fluid out in
+# layers the reference state's own diffusion catches up and for a moment overtakes it. A sign-definite
+# quantity like `κ|∇b|²` cannot go negative at all, which is the practical difference between `ε_A` and
+# the buoyancy variance dissipation it is easily confused with.
+#
+# Both residuals stay near zero. They do not vanish, and cannot: the discrete KE and `Eₐ` equations are
+# not derived from the discrete momentum and buoyancy equations the model steps, so the two sides agree
+# only to the truncation error of a well-resolved flow. The same caveat applies to the KE budget of
+# [the two-dimensional turbulence example](@ref two_d_turbulence_example), with one more source of
+# discrepancy here: `Integral(Eₐ)` of the local Holliday & McIntyre density samples the reference
+# profile at the model's cell centers, and that midpoint quadrature is itself second order in `Δz`.

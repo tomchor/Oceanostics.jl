@@ -62,3 +62,12 @@ actually lost and is **not** the sign-definite ``\kappa|\nabla b|^2`` the name m
 ```@docs
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate
 ```
+
+The [Lock release](@ref lock_release_example) example closes
+
+```math
+\frac{d}{dt}\int E_a\, dV = -\int wb\, dV - \int \varepsilon_A\, dV
+```
+
+alongside the matching kinetic energy budget, and shows ``\varepsilon_A`` changing sign as the flow
+alternates between stirring and settling.
