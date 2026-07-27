@@ -137,8 +137,7 @@ KE            = KineticEnergy(model)
 # al. is the one that makes ``z^\star`` a function of buoyancy alone, so tied cells do not spread
 # ``z^\star`` over the depth they fill and show up in ``\nabla \Upsilon`` as grid-scale noise.
 
-Υ   = Field(BuoyancyDisplacementPotential(model, z✶_heaviside))
-ε_A = AvailablePotentialEnergyDissipationRate(model, z✶_heaviside; upsilon = Υ)
+ε_A = AvailablePotentialEnergyDissipationRate(model, z✶_heaviside)
 ε   = KineticEnergyDissipationRate(model)
 wb  = KineticEnergyBuoyancyProduction(model)
 
