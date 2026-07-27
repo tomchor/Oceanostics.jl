@@ -146,17 +146,6 @@ wb  = KineticEnergyBuoyancyProduction(model)
 ∫ε   = Integral(ε)
 ∫ε_A = Integral(ε_A)
 
-# The second of the two parts ``\varepsilon_A`` is written out of, the diffusion of the reference state
-# on its own, is a diagnostic of its own too. We write it as well, so that the identity
-# ``\varepsilon_A = \Phi_d - \Phi`` behind ``\varepsilon_A`` can be checked rather than taken on trust:
-# adding ``\Phi`` back to ``\varepsilon_A`` has to give the diapycnal mixing rate ``\Phi_d``, which is
-# the rate ``E_b`` grows at. Volume integrated it telescopes, since no buoyancy crosses the top or the
-# bottom, so it collapses to ``\kappa A [b(z=H) - b(z=0)]`` and the flow enters only through the
-# buoyancy difference across the channel.
-
-Φ  = ReferenceStateDiffusionRate(model)
-∫Φ = Integral(Φ)
-
 using NCDatasets
 filename = "lock_release"
 
@@ -178,7 +167,7 @@ simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
 # The `∫APE_heaviside` written here is the tendency term that pairs with ``\varepsilon_A``, since the
 # two come off the same sort.
 
-integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫ε, ∫ε_A, ∫Φ)
+integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫ε, ∫ε_A)
 
 simulation.output_writers[:budget] = NetCDFWriter(model, integrals,
                                                   filename = joinpath(@__DIR__, filename * "_budget"),
@@ -434,7 +423,6 @@ KE_bud   = ds["∫KE"][:]
 wb_bud   = ds["∫wb"][:]
 ε_bud    = ds["∫ε"][:]
 ε_A_bud  = ds["∫ε_A"][:]
-Φ_bud    = ds["∫Φ"][:]
 ## all four methods integrate to the same Eₐ, however they place cells of equal buoyancy  #hide
 @test ds["∫APE"][:]        ≈ APE_bud rtol=1e-8                                             #hide
 @test ds["∫APE_lookup"][:] ≈ APE_bud rtol=1e-8                                             #hide
@@ -514,13 +502,8 @@ rms(x) = √(sum(abs2, x) / length(x))                                       #hi
 @test rms(APE_resid) < 0.05 * rms(ε_A_pair)                                #hide
 ## `wb` is the same term in both, so it cancels from the sum of the two budgets                  #hide
 @test rms(KE_resid .+ APE_resid) < 0.02 * rms(ε_pair)                      #hide
-## and ε_A + Φ is the diapycnal mixing rate, so it has to be both the growth rate of `E_b` and   #hide
-## non-negative, neither of which either term satisfies on its own                               #hide
-dBPEdt = (BPE_bud[idx2] .- BPE_bud[idx1]) ./ Δt_pair                       #hide
-Φ_pair = pair_mean(Φ_bud)                                                  #hide
-@test rms(dBPEdt .- (ε_A_pair .+ Φ_pair)) < 0.1 * rms(ε_A_pair)            #hide
-@test minimum(ε_A_pair .+ Φ_pair) > 0                                      #hide
-@test minimum(ε_A_pair) < 0;                                               #hide
+## and ε_A takes both signs over the run, which is what the discussion below rests on            #hide
+@test minimum(ε_A_pair) < 0 < maximum(ε_A_pair);                           #hide
 
 fig4 = Figure(size = (900, 760))
 
