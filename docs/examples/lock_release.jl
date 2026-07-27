@@ -1,8 +1,8 @@
 # # [Lock release and the sorted reference state](@id lock_release_example)
 #
-# In this example we run a two-dimensional lock release simulation and use it to watch the *sorted reference
-# state*, available potential energy and kinetic energy evolve. Along the way we build the reference profile
-# with each of the four methods Oceanostics offers and compare what they do and do not agree on, and we close
+# In this example we run a two-dimensional lock release simulation and use it to watch the available potential
+# energy and kinetic energy evolve. Along the way we build the reference profile
+# with each of the four methods Oceanostics provides and close
 # the volume-integrated available potential energy and kinetic energy budgets against the two dissipation
 # rates and the buoyancy production that connects them.
 #
@@ -30,58 +30,42 @@ U = √(Δb * H) / 2   # buoyancy velocity
 
 # The domain is walled at both ends and at top and bottom, so the fronts eventually reflect and the
 # channel fills with a mixed intermediate layer. That is what we want here: it drives the reference
-# profile all the way from a step to something smooth. The grid is isotropic at `Δ = H/128`:
+# profile all the way from a step to something smooth. The grid is isotropic at `Δ = H/Nz`:
 
 Nz = 128
 grid = RectilinearGrid(size = (4Nz, Nz), x = (-Lx/2, Lx/2), z = (0, H), topology = (Bounded, Flat, Bounded))
 
-# The closure and the advection scheme are both set by the budgets we close at the end. Every sink in
-# those budgets is diagnosed from the closure, so the flow has to lose its energy through the closure
-# and not through the advection scheme: a centered scheme adds no dissipation of its own, unlike the
-# `WENO` scheme one would otherwise reach for on a front this sharp. What that costs is monotonicity,
-# so `ν` and `κ` have to be large enough that the grid resolves whatever the flow makes of the front.
-# At `Δ = H/128` that is `5×10⁻⁴`, which at `Pr = 1` leaves `Re = UH/ν = 1000`. It is enough: the
-# buoyancy stays inside its initial `±Δb/2` to within a part in a thousand over the whole run, so the
-# centered scheme is not ringing.
+# The closure and the advection scheme are chosen to facilitate closing the budgets at the end: we
+# choose a centered scheme, which adds no dissipation of its own and constant diffusivity with
+# `ν` and `κ` large enough that the grid resolves whatever the flow makes of the front.
 
 ν = κ = 5e-4
-
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
                             advection = Centered(order=4), # Non-dissipative scheme
                             closure = ScalarDiffusivity(; ν, κ),
-                            buoyancy = BuoyancyTracer(), tracers = :b)
+                            buoyancy = BuoyancyTracer(), tracers = :b);
 
 # The lock itself: buoyant fluid on the right, dense fluid on the left, separated by a thin interface.
-# Smoothing the step over `δ` keeps the initial condition off the grid scale without changing the fact
-# that almost every cell starts at one of two buoyancies:
+# Smoothing the step over `δ` keeps the initial condition off the grid scale:
 
 δ = 4 * minimum_xspacing(grid)          # interface thickness, four cells
 lock_release(x, z) = (Δb / 2) * tanh(x / δ)
 set!(model, b = lock_release)
 
-# The explicit closure puts a second ceiling on `Δt`: diffusion is stepped explicitly, so `νΔt/Δ²` has
-# to stay under the real-axis stability limit of the `RungeKutta3` timestepper, about `0.3` in two
-# dimensions. Advection is what binds here and the run sits near `νΔt/Δ² = 0.06` throughout, but a
-# decaying flow lets the wizard grow `Δt` with nothing to stop it, so `diffusive_cfl` is capped as well.
+# We create a simulation with conservative choices for the initial time step and the CFL number.
+# Since we anticipate the fllow to be fairly viscous, we also set a target diffusive CFL:
 
 simulation = Simulation(model, Δt = 0.1 * minimum_xspacing(grid) / U, stop_time = 20)
-conjure_time_step_wizard!(simulation, IterationInterval(5), cfl = 0.7, diffusive_cfl = 0.2)
+conjure_time_step_wizard!(simulation, IterationInterval(2), cfl = 0.7, diffusive_cfl = 0.2)
 
 using Oceanostics
 progress = ProgressMessengers.BasicMessenger()
-simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(500));
 
 # ## Diagnostics
 #
-# We build one `z✶` per method and write all of them, so the reference state comes out of the run
-# rather than being rebuilt afterwards. They are ordinary `Field`s that re-sort themselves whenever
-# they are computed, so they can be passed to an output writer.
-#
-# What each method gives you to write differs, and that difference is the same one the figures below
-# show. The three model-grid methods produce a *map* of the reference height, one value per cell, on the
-# model grid. [`VerticalSort`](@ref) instead produces the sorted column itself, so its `z✶` and
-# the buoyancy that goes with it are already the profile, in order, and need no post-processing at all.
-#
+# We build one `z✶` per method and write all of them for later comparison. They are ordinary `Field`s
+# that re-sort themselves whenever they are computed, so they can be passed to an output writer.
 # Given that the referece height calculation is nonnlocal, it is generally a computationally-heavy operation
 # and its cost grows faster than the number of cells: see [Computational cost per method](@ref) for how different
 # methods compare and how they scale.
@@ -92,16 +76,15 @@ z✶_ranked    = reference_height(model, method = ThreeDimensionalSort())
 z✶_heaviside = reference_height(model, method = HeavisideIntegral())
 z✶_lookup    = reference_height(model, method = ProfileLookup())
 z✶_column    = reference_height(model, method = VerticalSort())
-b✶_column   = reference_buoyancy(z✶_column)
+b✶_column    = reference_buoyancy(z✶_column)
 
 # Both background and available potential energies are built from the same reference height, so we share one rather than letting each
-# diagnostic sort the domain for itself. Note that `Eₐ` here is the *local* available potential energy
-# (as defined by Holliday & McIntyre (1981)) and it should always be non-negative
-
+# diagnostic sort the domain for itself. Note that `APE` here is the *local* available potential energy
+# (as defined by Holliday & McIntyre (1981)) and it should always be non-negative.
 #
-# We build one `Eₐ` per method. Three of the four answer on the model grid and give a map over the
-# domain, which is what the animation below compares. [`VerticalSort`](@ref) answers on the sorted
-# column, so its `Eₐ` is ordered by rank rather than by position and is not a map of the flow; it is
+# We build one APE calculation per method. Three of the four answer on the model grid and give a map over the
+# domain, which is what the animation below compares. [`VerticalSort`](@ref) is given on the sorted
+# column, so its APE is ordered by rank rather than by position and is not a map of the flow; it is
 # written anyway because the volume integral comes out the same whichever method builds the reference
 # state. [`ProfileLookup`](@ref) is that same column read back onto the model grid, matching each cell
 # to the profile through its buoyancy rather than through where it came from.
