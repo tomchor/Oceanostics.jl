@@ -85,7 +85,7 @@ Oceanostics, and the rest have no diagnostic yet.
 | Advection | ``-\partial_j(u_j e_p)`` | not implemented |
 | Buoyancy conversion | ``wb`` | [`KineticEnergyBuoyancyProduction`](@ref Oceanostics.KineticEnergyEquation.BuoyancyProduction) |
 | Diffusive transport | ``\partial_j(z q_j)`` | not implemented |
-| Diffusive conversion | ``-q_3`` | [`ReferenceStateDiffusionRate`](@ref Oceanostics.PotentialEnergyEquation.ReferenceStateDiffusionRate) |
+| Diffusive conversion | ``-q_3`` | [`DiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux) |
 | Forcing | ``-z F_b`` | not implemented |
 
 One caveat on the borrowed term. `KineticEnergyBuoyancyProduction` computes ``u_i b_i``, which is the
@@ -98,18 +98,22 @@ could never release, and the [available potential energy](available_potential_en
 ``e_a = e_p - e_b`` is the remainder. Their budgets are the ones actually closed in practice, and
 [the lock release example](@ref lock_release_example) closes ``e_a`` against kinetic energy.
 
-## Reference state diffusion
+## Diffusive buoyancy flux
 
 The diffusive conversion term is the one other diagnostic this module provides. It reads
 ``\kappa\,\partial b/\partial z`` off the closure's own diffusive flux, which needs the buoyancy to be a
 tracer the closure diffuses, so unlike `PotentialEnergy` it is restricted to `BuoyancyTracer` models. It
 is also the second of the two parts
 [`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate)
-is written out of, which is where its name comes from and why
+is written out of, which is why
 [the available potential energy equation](available_potential_energy_equation.md) re-exports it.
 
+Within the module it is `DiffusiveBuoyancyFlux`; `using Oceanostics` brings in the prefixed alias
+`PotentialEnergyDiffusiveBuoyancyFlux`, which is the same type and keeps the bare name from colliding
+with the tracer-equation fluxes.
+
 ```@docs
-Oceanostics.PotentialEnergyEquation.ReferenceStateDiffusionRate
+Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux
 ```
 
 ## Buoyancy formulations

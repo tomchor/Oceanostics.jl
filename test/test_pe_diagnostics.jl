@@ -73,13 +73,13 @@ buoyancy crosses a no-flux wall, which halves the cells against it and is exactl
 integral telescope to `κ A [b(z_top) - b(z_bottom)]` however the interior is stirred. An interpolation
 that mishandled the walls would still look right cell by cell in the interior and would break that.
 """
-function test_reference_state_diffusion_rate(grid)
+function test_diffusive_buoyancy_flux(grid)
 
     κ = 1e-3
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(; ν=1e-6, κ))
 
-    Φ = ReferenceStateDiffusionRate(model)
-    @test Φ isa ReferenceStateDiffusionRate
+    Φ = PotentialEnergyDiffusiveBuoyancyFlux(model)
+    @test Φ isa PotentialEnergyDiffusiveBuoyancyFlux
 
     set!(model, b = (x, y, z) -> 3z)
     Φ_column = Array(interior(Field(Φ)))[1, 1, :]
@@ -118,7 +118,7 @@ end
             end
             test_PEbuoyancytracer_equals_PElineareos(grid)
         end
-        @info "      Testing the reference state diffusion rate"
-        test_reference_state_diffusion_rate(grid)
+        @info "      Testing the diffusive buoyancy flux"
+        test_diffusive_buoyancy_flux(grid)
     end
 end

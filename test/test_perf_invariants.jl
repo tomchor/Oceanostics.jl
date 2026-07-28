@@ -183,7 +183,7 @@ end
         test_kfo_invariants("BuoyancyDisplacementPotential", BuoyancyDisplacementPotential(model, z✶ₕ))
         test_kfo_invariants("AvailablePotentialEnergyDissipationRate",
                             AvailablePotentialEnergyDissipationRate(model, z✶ₕ; upsilon = Υ))
-        test_kfo_invariants("ReferenceStateDiffusionRate", ReferenceStateDiffusionRate(model))
+        test_kfo_invariants("DiffusiveBuoyancyFlux", DiffusiveBuoyancyFlux(model))  # short name, via `using ...PotentialEnergyEquation`
     end
 
     @testset "FlowDiagnostics" begin

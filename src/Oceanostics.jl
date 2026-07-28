@@ -76,7 +76,7 @@ export BoxFilter, GaussianFilter, check_filter_staging
 #---
 
 #+++ PotentialEnergyEquation exports
-export PotentialEnergy, ReferenceStateDiffusionRate
+export PotentialEnergy, PotentialEnergyDiffusiveBuoyancyFlux
 #---
 
 #+++ BackgroundPotentialEnergyEquation exports
@@ -412,7 +412,7 @@ end
 
 #+++ PotentialEnergyEquation
 @diagnostic_show PotentialEnergyEquation.PotentialEnergy             "PotentialEnergy"             "potential energy per unit volume  eₚ = -bz"
-@diagnostic_show PotentialEnergyEquation.ReferenceStateDiffusionRate "ReferenceStateDiffusionRate" "reference state diffusion rate  Φ = κ ∂b/∂z"
+@diagnostic_show PotentialEnergyEquation.DiffusiveBuoyancyFlux "PotentialEnergyDiffusiveBuoyancyFlux" "diffusive buoyancy flux  Φ = κ ∂b/∂z = -q₃"
 #---
 
 #+++ BackgroundPotentialEnergyEquation

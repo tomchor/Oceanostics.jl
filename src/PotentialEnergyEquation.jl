@@ -2,7 +2,9 @@ module PotentialEnergyEquation
 
 using DocStringExtensions
 
-export PotentialEnergy, ReferenceStateDiffusionRate
+export PotentialEnergy
+# Short name inside the module, prefixed alias for `using Oceanostics`, as elsewhere in the package.
+export DiffusiveBuoyancyFlux, PotentialEnergyDiffusiveBuoyancyFlux
 
 using Oceananigans: fields
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -212,31 +214,35 @@ buoyancy_diffusive_flux_arguments(model) =
      model.buoyancy)
 #---
 
-#+++ Reference state diffusion rate
+#+++ Diffusive buoyancy flux
 # `Φ = κ ∂b/∂z = -q₃`, the vertical diffusive buoyancy flux taken upward. It is the diffusive conversion
 # term of the `e_p` equation, the only way diffusion changes the potential energy of a closed domain,
 # and it is also the second of the two parts `ε_A` is written out of. It comes off the closure's own
 # `diffusive_flux_z`, exactly as `ε_A` does, so the two always carry the same `κ`. The flux lives on the
 # `z` face, so it is interpolated to the cell center.
-@inline reference_state_diffusion_rate_ccc(i, j, k, grid, args...) =
+@inline diffusive_buoyancy_flux_ccc(i, j, k, grid, args...) =
     -ℑzᵃᵃᶜ(i, j, k, grid, diffusive_flux_z, args...)
 
-const ReferenceStateDiffusionRate = CustomKFO{<:typeof(reference_state_diffusion_rate_ccc)}
+const DiffusiveBuoyancyFlux = CustomKFO{<:typeof(diffusive_buoyancy_flux_ccc)}
+const PotentialEnergyDiffusiveBuoyancyFlux = DiffusiveBuoyancyFlux
 
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` computing the rate at which the reference state's own diffusion
-raises the potential energy,
+Return a `KernelFunctionOperation` computing the vertical diffusive buoyancy flux, taken upward,
 
 ```
-    Φ = κ ∂b/∂z ,
+    Φ = κ ∂b/∂z = -q₃ ,
 ```
 
-the upward diffusive buoyancy flux, which is the work diffusion does against gravity as it smooths the
-stratification. The result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
+which is the work diffusion does against gravity as it smooths the stratification. It is the diffusive
+conversion term of the `e_p` equation, and the only way diffusion can change the potential energy of a
+closed domain: the rest of the diffusive contribution is a flux divergence that integrates to zero. The
+result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
 
-`Φ` is the second of the two parts [`AvailablePotentialEnergyDissipationRate`](@ref) is written out of,
+`Φ` is also the second of the two parts
+[`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate)
+is written out of,
 
 ```
     ε_A = κ (∂z✶/∂b) |∇b|² - Φ ,
@@ -246,7 +252,9 @@ and it is the part that carries no available energy with it: `Φ` enters the `E_
 identically, so it cancels from their difference, which is `E_a`. A statically stable, horizontally
 uniform stratification is its own reference state and has `ε_A = 0` cell by cell, so there `Φ` accounts
 for the whole of the diapycnal mixing rate. Adding it back to `ε_A` recovers that rate in general, and
-its volume integral is the rate [`BackgroundPotentialEnergy`](@ref) grows:
+its volume integral is the rate
+[`BackgroundPotentialEnergy`](@ref Oceanostics.BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy)
+grows:
 
 ```
     d/dt ∫e_b dV = ∫(ε_A + Φ) dV .
@@ -268,9 +276,12 @@ it is the pointwise partner of `ε_A`.
 `κ ∂b/∂z` is taken from the closure's own diffusive flux rather than from a diffusivity supplied here,
 so this follows whatever closure the model runs with and the identity above holds however `κ` is set.
 That needs the buoyancy to be a tracer the closure diffuses, so this is defined for `BuoyancyTracer`
-models only. It is the negative of `TracerEquation.ZDiffusiveFlux(model, :b)`, interpolated from the `z`
-face to the cell center so that it adds to `ε_A` cell by cell; reach for that one when you want the flux
-itself rather than its role in this budget.
+models only.
+
+Not to be confused with `TracerEquation.ZDiffusiveFlux(model, :b)`, which is the same closure call read
+raw: that one is `q₃` itself, down-gradient and on the `z` face. This is `-q₃`, interpolated to the cell
+center, which are the sign and the location the energy budgets want. Reach for the tracer diagnostic
+when you want the flux as a flux, and this one when you want it as a term of the `e_p` equation.
 
 ```jldoctest
 using Oceananigans, Oceanostics
@@ -278,22 +289,22 @@ using Oceananigans, Oceanostics
 grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
 model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
 
-ReferenceStateDiffusionRate(model)
+PotentialEnergyDiffusiveBuoyancyFlux(model)   # or `DiffusiveBuoyancyFlux` inside the module
 
 # output
 
-ReferenceStateDiffusionRate KernelFunctionOperation at (Center, Center, Center)
+PotentialEnergyDiffusiveBuoyancyFlux KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: reference_state_diffusion_rate_ccc (generic function with 1 method)
+├── kernel_function: diffusive_buoyancy_flux_ccc (generic function with 1 method)
 └── arguments: ("ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "BuoyancyForce")
-└── computes: reference state diffusion rate  Φ = κ ∂b/∂z
+└── computes: diffusive buoyancy flux  Φ = κ ∂b/∂z = -q₃
 ```
 """
-function ReferenceStateDiffusionRate(model; location = (Center, Center, Center))
-    validate_location(location, "ReferenceStateDiffusionRate")
-    validate_buoyancy_is_a_diffused_tracer("ReferenceStateDiffusionRate", model)
+function DiffusiveBuoyancyFlux(model; location = (Center, Center, Center))
+    validate_location(location, "DiffusiveBuoyancyFlux")
+    validate_buoyancy_is_a_diffused_tracer("DiffusiveBuoyancyFlux", model)
 
-    return KernelFunctionOperation{Center, Center, Center}(reference_state_diffusion_rate_ccc, model.grid,
+    return KernelFunctionOperation{Center, Center, Center}(diffusive_buoyancy_flux_ccc, model.grid,
                                                            buoyancy_diffusive_flux_arguments(model)...)
 end
 #---

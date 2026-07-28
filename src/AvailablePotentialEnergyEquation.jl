@@ -6,7 +6,7 @@ export AvailablePotentialEnergy, BuoyancyDisplacementPotential
 export AvailablePotentialEnergyDissipationRate, DissipationRate
 # `Φ` is a term of the `e_p` equation and lives in `PotentialEnergyEquation`; re-exported here because
 # `ε_A` is defined as the diapycnal mixing rate less `Φ`, so the two are almost always wanted together.
-export ReferenceStateDiffusionRate
+export PotentialEnergyDiffusiveBuoyancyFlux
 # The reference state lives in `BackgroundPotentialEnergyEquation`; re-exported here so either module
 # can be used on its own without reaching across for the pieces that build `z✶`.
 export BackgroundPotentialEnergy, reference_height, reference_buoyancy
@@ -23,7 +23,7 @@ using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffu
 using Oceanostics: validate_location, CustomKFO
 
 # Imported so the docstring `@ref`s below resolve in-module, as well as for dispatch.
-using ..PotentialEnergyEquation: PotentialEnergy, BuoyancyTracerModel, ReferenceStateDiffusionRate,
+using ..PotentialEnergyEquation: PotentialEnergy, BuoyancyTracerModel, PotentialEnergyDiffusiveBuoyancyFlux,
                                  validate_buoyancy_is_a_diffused_tracer, buoyancy_diffusive_flux_arguments
 using ..BackgroundPotentialEnergyEquation: BackgroundPotentialEnergy, SortedReferenceHeightField,
                                            AbstractReferenceHeightMethod, reference_height,
@@ -230,7 +230,8 @@ the flux divergence is set aside, `ε_A = κ∇Υ·∇b` is what remains.
 
 Written out, the first part is the diapycnal mixing rate of
 [Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X), the work done rearranging the
-reference state, and the second is [`ReferenceStateDiffusionRate`](@ref), the diffusion that state
+reference state, and the second is
+[`PotentialEnergyDiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux), the diffusion that state
 undergoes on its own, which carries no APE with it. The two cancel exactly for a statically stable,
 horizontally uniform stratification, where `z✶ = z` and there is no available energy to destroy, so
 `ε_A` measures only the APE actually lost — it is not the sign-definite `κ|∇b|²`-like quantity the name

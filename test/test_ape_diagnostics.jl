@@ -647,7 +647,7 @@ and that is the sharp check: neither `ε_A` nor `Φ` is sign-definite on its own
 sign, scaling or grid metrics wrong shows up here as a negative. Checked cell by cell, which is the
 stronger statement, and in the volume integral, which is the one the budget rests on.
 """
-function test_ape_dissipation_plus_reference_diffusion_is_the_mixing_rate(grid)
+function test_ape_dissipation_plus_diffusive_flux_is_the_mixing_rate(grid)
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
     set!(model, b = (x, y, z) -> 2z + 0.4 * sin(7x) * cos(5z))
@@ -655,7 +655,7 @@ function test_ape_dissipation_plus_reference_diffusion_is_the_mixing_rate(grid)
     z✶  = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
     Υ   = Field(BuoyancyDisplacementPotential(model, z✶))
     ε_A = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = Υ)
-    Φ   = ReferenceStateDiffusionRate(model)
+    Φ   = PotentialEnergyDiffusiveBuoyancyFlux(model)
 
     mixing_rate = interior(Field(ε_A)) .+ interior(Field(Φ))
     scale = maximum(abs, interior(Field(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)))) / 2
@@ -678,7 +678,7 @@ function test_upsilon_and_ape_dissipation_errors(grid)
     seawater = NonhydrostaticModel(grid; buoyancy=SeawaterBuoyancy(), tracers=(:S, :T), closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
     set!(seawater, S = grid_noise, T = grid_noise)
     @test_throws "BuoyancyTracer" AvailablePotentialEnergyDissipationRate(seawater)
-    @test_throws "BuoyancyTracer" ReferenceStateDiffusionRate(seawater)
+    @test_throws "BuoyancyTracer" PotentialEnergyDiffusiveBuoyancyFlux(seawater)
 
     # `VerticalSort` stacks cells into a column, so it needs uniform cell volumes and cannot be built
     # on a stretched grid at all — there is nothing to reject there.
@@ -741,7 +741,7 @@ end
         # `Φ` itself is tested with the rest of the `e_p` equation, in `test_pe_diagnostics.jl`; what
         # belongs here is the identity that defines `ε_A` in terms of it.
         @info "      Testing that ε_A + Φ is the diapycnal mixing rate"
-        test_ape_dissipation_plus_reference_diffusion_is_the_mixing_rate(grid)
+        test_ape_dissipation_plus_diffusive_flux_is_the_mixing_rate(grid)
 
         @info "      Testing the `ThreeDimensionalSort`, `HeavisideIntegral` and `VerticalSort` methods"
         test_heaviside_is_constant_on_isopycnals(grid)
