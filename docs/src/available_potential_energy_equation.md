@@ -91,15 +91,17 @@ here. See [`PotentialEnergyDiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEne
 The [Lock release](@ref lock_release_example) example closes
 
 ```math
-\frac{d}{dt}\int e_a\, dV = -\int wb\, dV - \int \varepsilon_A\, dV
+\frac{d}{dt}\int e_a\, dV = -\int u_j b_j\, dV - \int \varepsilon_A\, dV
 ```
 
 alongside the matching kinetic energy budget, and shows ``\varepsilon_A`` changing sign as the flow
 alternates between stirring and settling.
 
-The ``wb`` in that budget is the term the two exchange, so this module re-exports
+The ``u_j b_j`` in that budget is the term the two exchange, the same conversion
+[the potential energy equation](potential_energy_equation.md) derives, so this module re-exports
 [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) from
 [the kinetic energy equation](kinetic_energy_equation.md), under that name and under the shorter alias
 `KineticEnergyConversion`, which is scoped to this module and to
-[the potential energy equation](potential_energy_equation.md). It computes ``u_i b_i``, the source of
-kinetic energy, so this budget takes it with a minus sign.
+that page. It computes ``u_j b_j``, the source of kinetic energy, so this budget takes it with a minus
+sign. With the vertical gravity these modules require it reduces to ``wb``, but the diagnostic keeps
+all three components.

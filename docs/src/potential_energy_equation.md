@@ -11,7 +11,7 @@ where ``b = -g\rho/\rho_0`` is buoyancy, ``z`` is the vertical coordinate, ``g``
 acceleration, ``\rho`` is density, and ``\rho_0`` is a reference density. The quantity
 ``e_p`` has units of m² s⁻² (energy per unit mass).
 Potential energy is a key quantity in ocean energetics: its conversion to/from
-kinetic energy (via the buoyancy production term ``wb``) drives ocean circulation
+kinetic energy (via the term ``u_j b_j`` derived below) drives ocean circulation
 and mixing.
 
 !!! note "Lower case for densities, upper case for their integrals"
@@ -41,22 +41,32 @@ through by ``-z``,
                = z\,\partial_j(u_j b) + z\,\partial_j q_j - z F_b .
 ```
 
-Pulling ``z`` inside the derivatives separates them: with ``\partial_j z = \delta_{z}``, the product rule gives
+Pulling ``z`` inside the derivatives separates them. Buoyancy enters the momentum equation as an
+acceleration ``b_j = \hat{g}_j b``, the component along each direction of the unit vector ``\hat{g}``
+that buoyancy acts along, and this module requires that vector to be vertical
+(`NegativeZDirection`), so ``\partial_j z = \hat{g}_j`` and the product rule gives
 
 ```math
-z\,\partial_j(u_j b) = -\partial_j(u_j e_p) - wb , \qquad
-z\,\partial_j q_j    = \partial_j(z q_j) - q_3 ,
+z\,\partial_j(u_j b) = -\partial_j(u_j e_p) - u_j b \hat{g}_j = -\partial_j(u_j e_p) - u_j b_j ,
+\qquad
+z\,\partial_j q_j    = \partial_j(z q_j) - q_j \hat{g}_j = \partial_j(z q_j) - q_3 ,
 ```
 
 so that
 
 ```math
 \partial_t e_p = \underbrace{-\partial_j(u_j e_p)}_{\text{advection}}
-                 \underbrace{- wb}_{\text{PE to KE conversion}}
+                 \underbrace{- u_j b_j}_{\text{PE to KE conversion}}
                  + \underbrace{\partial_j(z q_j)}_{\text{diffusive transport}}
                  \underbrace{- q_3}_{\text{diffusive buoyancy flux}}
                  \underbrace{- z F_b}_{\text{forcing}}.
 ```
+
+``u_j b_j`` is the general form of the conversion, and it is what the diagnostic computes. It is often
+written ``wb``, which is what it reduces to here: with ``\hat{g} = \hat{z}`` the horizontal components
+``b_1`` and ``b_2`` vanish and ``b_3 = b``, leaving ``u_j b_j = wb``. The two are the same number for
+every model this module accepts, but the diagnostic keeps all three components, so it stays correct in
+a kinetic energy budget with a tilted gravity vector, where this page's ``e_p = -bz`` would not.
 
 The two terms written as divergences move ``e_p`` vanish when integrated over a periodic or closed domains
 (with impermeable, insulating walls).
@@ -71,14 +81,13 @@ Oceanostics, and the rest have no diagnostic yet.
 | Potential energy | ``e_p = -bz`` | [`PotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergy) |
 | Tendency | ``\partial_t e_p`` | not implemented |
 | Advection | ``-\partial_j(u_j e_p)`` | not implemented |
-| PE to KE conversion | ``wb`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
+| PE to KE conversion | ``u_j b_j`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
 | Diffusive transport | ``\partial_j(z q_j)`` | not implemented |
 | Diffusive buoyancy flux | ``-q_3`` | [`DiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux) |
 | Forcing | ``-z F_b`` | not implemented |
 
-One caveat on the borrowed term. It computes ``u_i b_i``, the source of *kinetic* energy, so the
-potential energy budget takes it with a minus sign; with the `NegativeZDirection` gravity this module
-requires, ``u_i b_i = wb``.
+One caveat on the borrowed term: it computes ``u_j b_j`` as the source of *kinetic* energy, so the
+potential energy budget takes it with a minus sign.
 
 It goes by three names, because it is the one term the two budgets share and each side reads it
 differently. It stays defined in [the kinetic energy equation](kinetic_energy_equation.md), where
