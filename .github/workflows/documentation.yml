@@ -24,7 +24,6 @@ jobs:
           - two_dimensional_turbulence
           - kelvin_helmholtz
           - rayleigh_taylor_instability
-          - tilted_bottom_boundary_layer
           - spatial_filtering
           - lock_release
     steps:
