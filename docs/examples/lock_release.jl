@@ -138,11 +138,11 @@ KE            = KineticEnergy(model)
 # ``z^\star`` over the depth they fill and show up in ``\nabla \Upsilon`` as grid-scale noise.
 
 ε_A = AvailablePotentialEnergyDissipationRate(model, z✶_heaviside)
-ε   = KineticEnergyDissipationRate(model)
+ε_K = KineticEnergyDissipationRate(model)
 wb  = KineticEnergyBuoyancyProduction(model)
 
 ∫wb  = Integral(wb)
-∫ε   = Integral(ε)
+∫ε_K = Integral(ε_K)
 ∫ε_A = Integral(ε_A)
 
 using NCDatasets
@@ -166,7 +166,7 @@ simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
 # The `∫APE_heaviside` written here is the tendency term that pairs with ``\varepsilon_A``, since the
 # two come off the same sort.
 
-integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫ε, ∫ε_A)
+integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫ε_K, ∫ε_A)
 
 simulation.output_writers[:budget] = NetCDFWriter(model, integrals,
                                                   filename = joinpath(@__DIR__, filename * "_budget"),
@@ -420,7 +420,7 @@ BPE_bud  = ds["∫BPE"][:]
 APE_bud  = ds["∫APE_heaviside"][:]
 KE_bud   = ds["∫KE"][:]
 wb_bud   = ds["∫wb"][:]
-ε_bud    = ds["∫ε"][:]
+ε_bud    = ds["∫ε_K"][:]
 ε_A_bud  = ds["∫ε_A"][:]
 ## all four methods integrate to the same eₐ, however they place cells of equal buoyancy  #hide
 @test ds["∫APE"][:]        ≈ APE_bud rtol=1e-8                                             #hide
@@ -463,7 +463,7 @@ nothing #hide
 # `BPE` never turns back, since mixing across density surfaces cannot be undone. Everything the flow
 # can still do sits in `APE`, which trades with `KE` as the box seiches, each cycle weaker than the
 # last. The dashed total is `∫KE + ∫eₚ`, and it has no reason to fall monotonically: viscosity drains it
-# at `∫ε` while diffusion working against gravity feeds it back at `∫κ ∂b/∂z`, and a run quiet enough
+# at `∫ε_K` while diffusion working against gravity feeds it back at `∫κ ∂b/∂z`, and a run quiet enough
 # for the second to win would see the total edge back up. At `Re = 1000` the first stays the larger of
 # the two throughout, and the total ends down by about a fifth of the available energy the lock started
 # with.
@@ -511,7 +511,7 @@ budget_kwargs = (xlabel = "Time", ylabel = "Rate", height = 190, width = 560)
 ax_KE_bud = Axis(fig4[1, 1]; title = "Volume-integrated KE budget", budget_kwargs...)
 lines!(ax_KE_bud, t_pair, -dKEdt,   label = "-d(∫KE)/dt")
 lines!(ax_KE_bud, t_pair,  wb_pair, label = "∫wb dV")
-lines!(ax_KE_bud, t_pair, -ε_pair,  label = "-∫ε dV")
+lines!(ax_KE_bud, t_pair, -ε_pair,  label = "-∫ε_K dV")
 lines!(ax_KE_bud, t_pair, KE_resid; label = "residual", color = :black, linestyle = :dash)
 Legend(fig4[1, 2], ax_KE_bud; labelsize = 12, framevisible = false)
 
@@ -542,8 +542,8 @@ nothing #hide
 #
 # `∫wb dV` is the mirror line running through both panels: the collapse converts `eₐ` into `KE` while
 # the fronts accelerate, and the seiche hands it back each time the flow runs up against an end wall.
-# The two sinks are comparable in size, `ε_A` reaching about two thirds of `ε` at the peak of the mixing
-# around `t = 6`, but they are not the same kind of quantity. `∫ε dV` only ever removes `KE`. `∫ε_A dV`
+# The two sinks are comparable in size, `ε_A` reaching about two thirds of `ε_K` at the peak of the mixing
+# around `t = 6`, but they are not the same kind of quantity. `∫ε_K dV` only ever removes `KE`. `∫ε_A dV`
 # is a sink for almost the whole run and briefly a small source around `t = 1` to `2`, which is what its
 # definition allows: at `t = 0` the lock is uniform in the vertical, the reference state has nothing to
 # diffuse along, and `ε_A` is the whole diapycnal mixing rate, but as the current lays the fluid out in
