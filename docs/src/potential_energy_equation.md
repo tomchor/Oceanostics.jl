@@ -41,9 +41,7 @@ through by ``-z``,
                = z\,\partial_j(u_j b) + z\,\partial_j q_j - z F_b .
 ```
 
-Neither of the first two terms is yet in a useful form: each mixes a redistribution, which moves
-``e_p`` around without creating any, with a genuine source. Pulling ``z`` inside the derivatives
-separates them: with ``\partial_j z = \delta_{j3}``, the product rule gives
+Pulling ``z`` inside the derivatives separates them: with ``\partial_j z = \delta_{z}``, the product rule gives
 
 ```math
 z\,\partial_j(u_j b) = -\partial_j(u_j e_p) - wb , \qquad
@@ -54,24 +52,14 @@ so that
 
 ```math
 \partial_t e_p = \underbrace{-\partial_j(u_j e_p)}_{\text{advection}}
-                 \underbrace{- wb}_{\text{buoyancy conversion}}
+                 \underbrace{- wb}_{\text{PE to KE conversion}}
                  + \underbrace{\partial_j(z q_j)}_{\text{diffusive transport}}
-                 \underbrace{- q_3}_{\text{diffusive conversion}}
-                 \underbrace{- z F_b}_{\text{forcing}} .
+                 \underbrace{- q_3}_{\text{diffusive buoyancy flux}}
+                 \underbrace{- z F_b}_{\text{forcing}}.
 ```
 
-The two terms written as divergences move ``e_p`` from place to place and vanish when integrated over
-a closed domain with impermeable, insulating walls. What is left is the pair of conversion terms:
-
-```math
-\frac{d}{dt}\int e_p\, dV = -\int wb\, dV + \int \kappa \frac{\partial b}{\partial z}\, dV
-                            - \int z F_b\, dV ,
-```
-
-using ``-q_3 = \kappa\,\partial b/\partial z``. The first is the exchange with kinetic energy, positive
-into ``e_p`` when dense fluid is being lifted. The second is the work diffusion does against gravity as
-it smooths the stratification, which is the only way diffusion can change the total potential energy of
-a closed domain, and it is always positive for a statically stable fluid.
+The two terms written as divergences move ``e_p`` vanish when integrated over a periodic or closed domains
+(with impermeable, insulating walls).
 
 ## Terms and what is implemented
 
@@ -83,9 +71,9 @@ Oceanostics, and the rest have no diagnostic yet.
 | Potential energy | ``e_p = -bz`` | [`PotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergy) |
 | Tendency | ``\partial_t e_p`` | not implemented |
 | Advection | ``-\partial_j(u_j e_p)`` | not implemented |
-| Buoyancy conversion | ``wb`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
+| PE to KE conversion | ``wb`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
 | Diffusive transport | ``\partial_j(z q_j)`` | not implemented |
-| Diffusive conversion | ``-q_3`` | [`DiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux) |
+| Diffusive buoyancy flux | ``-q_3`` | [`DiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux) |
 | Forcing | ``-z F_b`` | not implemented |
 
 One caveat on the borrowed term. It computes ``u_i b_i``, the source of *kinetic* energy, so the
