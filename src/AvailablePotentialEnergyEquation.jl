@@ -239,7 +239,7 @@ might suggest.
 
 `κ ∂ᵢb` is taken from the closure's own diffusive flux rather than from a diffusivity supplied here, so
 this follows whatever closure the model runs with, and is written in the same conservative form
-[`TracerVarianceDissipationRate`](@ref Oceanostics.TracerVarianceEquation.DissipationRate) uses. The
+[`TracerVarianceDissipationRate`](@ref Oceanostics.TracerVarianceEquation.TracerVarianceDissipationRate) uses. The
 result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
 
 The buoyancy has to be a tracer the closure diffuses, so this is defined for `BuoyancyTracer` models
