@@ -7,7 +7,7 @@ export PotentialEnergy
 export DiffusiveBuoyancyFlux, PotentialEnergyDiffusiveBuoyancyFlux
 # `wb` is the one term the kinetic and potential energy budgets share, so it is defined in
 # `KineticEnergyEquation` and re-exported here under both its own name and a budget-neutral alias.
-export KineticEnergyBuoyancyProduction, KineticEnergyConversion
+export PotentialToKineticEnergyConversion, KineticEnergyConversion
 
 using Oceananigans: fields
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -23,14 +23,14 @@ using Oceananigans.TurbulenceClosures: diffusive_flux_z
 using Oceanostics: validate_location, CustomKFO
 using SeawaterPolynomials: BoussinesqEquationOfState
 
-using ..KineticEnergyEquation: KineticEnergyBuoyancyProduction
+using ..KineticEnergyEquation: PotentialToKineticEnergyConversion
 
-# `uᵢbᵢ` is the source of kinetic energy and, with the same sign flipped, the buoyancy conversion term
-# of the `e_p` equation. `KineticEnergyBuoyancyProduction` names it from the kinetic energy side; this
-# alias names the exchange itself, for use where the potential energy side is the one being written.
-# It is exported from this module and from `AvailablePotentialEnergyEquation`, but not from
-# `Oceanostics`, where the unprefixed name would be ambiguous about which budget it belongs to.
-const KineticEnergyConversion = KineticEnergyBuoyancyProduction
+# `uᵢbᵢ` is the source of kinetic energy and, with the sign flipped, the buoyancy conversion term of the
+# `e_p` equation. It is defined in `KineticEnergyEquation`, whose local alias `PotentialEnergyConversion`
+# names the reservoir the energy comes from; this one names where it goes. Each module names the other
+# side, so the term reads correctly whichever budget is being written. It is exported from this module and from `AvailablePotentialEnergyEquation`, but not from
+# `Oceanostics`, where unprefixed it would say nothing about which budget it belongs to.
+const KineticEnergyConversion = PotentialToKineticEnergyConversion
 
 const NoBuoyancyModel = Union{Nothing, ShallowWaterModel}
 const BuoyancyTracerModel = BuoyancyForce{<:BuoyancyTracer, g} where g

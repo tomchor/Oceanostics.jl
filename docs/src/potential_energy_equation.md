@@ -83,20 +83,23 @@ Oceanostics, and the rest have no diagnostic yet.
 | Potential energy | ``e_p = -bz`` | [`PotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergy) |
 | Tendency | ``\partial_t e_p`` | not implemented |
 | Advection | ``-\partial_j(u_j e_p)`` | not implemented |
-| Buoyancy conversion | ``wb`` | [`KineticEnergyBuoyancyProduction`](@ref Oceanostics.KineticEnergyEquation.BuoyancyProduction) |
+| Buoyancy conversion | ``wb`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
 | Diffusive transport | ``\partial_j(z q_j)`` | not implemented |
 | Diffusive conversion | ``-q_3`` | [`DiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux) |
 | Forcing | ``-z F_b`` | not implemented |
 
-One caveat on the borrowed term. `KineticEnergyBuoyancyProduction` computes ``u_i b_i``, which is the
-source of *kinetic* energy, so the potential energy budget takes it with a minus sign; with the
-`NegativeZDirection` gravity this module requires, ``u_i b_i = wb``. It stays defined in
-[the kinetic energy equation](kinetic_energy_equation.md), since it is the one term the two budgets
-share, but this module and
-[the available potential energy equation](available_potential_energy_equation.md) both re-export it, and
-both give it the alias `KineticEnergyConversion` for writing the exchange from the potential energy
-side. That alias is scoped to those two modules: `using Oceanostics` does not bring it in, because
-unprefixed it says nothing about which budget it belongs to.
+One caveat on the borrowed term. It computes ``u_i b_i``, the source of *kinetic* energy, so the
+potential energy budget takes it with a minus sign; with the `NegativeZDirection` gravity this module
+requires, ``u_i b_i = wb``.
+
+It goes by three names, because it is the one term the two budgets share and each side reads it
+differently. It stays defined in [the kinetic energy equation](kinetic_energy_equation.md), where
+`PotentialEnergyConversion` names what it does to the kinetic energy. `using Oceanostics` brings in
+`PotentialToKineticEnergyConversion`, which names the exchange and says which way it runs. This module
+and [the available potential energy equation](available_potential_energy_equation.md) both re-export
+that and additionally give it `KineticEnergyConversion`, short enough to read well beside the other
+terms of a potential energy budget. That last alias is scoped to those two modules: `using Oceanostics`
+does not bring it in, because unprefixed it says nothing about which budget it belongs to.
 
 ``e_p`` also splits into two parts that do have their own modules. The
 [background potential energy](background_potential_energy_equation.md) ``e_b`` is the portion the flow

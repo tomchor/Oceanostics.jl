@@ -106,12 +106,12 @@ function test_kinetic_energy_conversion_alias()
 
     PE, APE = Oceanostics.PotentialEnergyEquation, Oceanostics.AvailablePotentialEnergyEquation
 
-    @test PE.KineticEnergyConversion === Oceanostics.KineticEnergyEquation.KineticEnergyBuoyancyProduction
+    @test PE.KineticEnergyConversion === Oceanostics.KineticEnergyEquation.PotentialToKineticEnergyConversion
     @test APE.KineticEnergyConversion === PE.KineticEnergyConversion
 
     for M in (PE, APE)
         @test :KineticEnergyConversion in names(M)
-        @test :KineticEnergyBuoyancyProduction in names(M)
+        @test :PotentialToKineticEnergyConversion in names(M)
     end
     @test !(:KineticEnergyConversion in names(Oceanostics))
 

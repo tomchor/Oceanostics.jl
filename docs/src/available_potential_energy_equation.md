@@ -98,7 +98,8 @@ alongside the matching kinetic energy budget, and shows ``\varepsilon_A`` changi
 alternates between stirring and settling.
 
 The ``wb`` in that budget is the term the two exchange, so this module re-exports
-[`KineticEnergyBuoyancyProduction`](@ref Oceanostics.KineticEnergyEquation.BuoyancyProduction) from
-[the kinetic energy equation](kinetic_energy_equation.md), under that name and under the alias
-`KineticEnergyConversion`. It computes ``u_i b_i``, the source of kinetic energy, so this budget takes
-it with a minus sign.
+[`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) from
+[the kinetic energy equation](kinetic_energy_equation.md), under that name and under the shorter alias
+`KineticEnergyConversion`, which is scoped to this module and to
+[the potential energy equation](potential_energy_equation.md). It computes ``u_i b_i``, the source of
+kinetic energy, so this budget takes it with a minus sign.

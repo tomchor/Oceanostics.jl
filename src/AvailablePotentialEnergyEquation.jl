@@ -8,7 +8,7 @@ export AvailablePotentialEnergyDissipationRate, DissipationRate
 # `ε_A` is defined as the diapycnal mixing rate less `Φ`, so the two are almost always wanted together.
 export PotentialEnergyDiffusiveBuoyancyFlux
 # `wb` is the term this budget exchanges with the kinetic energy one; see `PotentialEnergyEquation`.
-export KineticEnergyBuoyancyProduction, KineticEnergyConversion
+export PotentialToKineticEnergyConversion, KineticEnergyConversion
 # The reference state lives in `BackgroundPotentialEnergyEquation`; re-exported here so either module
 # can be used on its own without reaching across for the pieces that build `z✶`.
 export BackgroundPotentialEnergy, reference_height, reference_buoyancy
@@ -26,7 +26,7 @@ using Oceanostics: validate_location, CustomKFO
 
 # Imported so the docstring `@ref`s below resolve in-module, as well as for dispatch.
 using ..PotentialEnergyEquation: PotentialEnergy, BuoyancyTracerModel, PotentialEnergyDiffusiveBuoyancyFlux,
-                                 KineticEnergyBuoyancyProduction, KineticEnergyConversion,
+                                 PotentialToKineticEnergyConversion, KineticEnergyConversion,
                                  validate_buoyancy_is_a_diffused_tracer, buoyancy_diffusive_flux_arguments
 using ..BackgroundPotentialEnergyEquation: BackgroundPotentialEnergy, SortedReferenceHeightField,
                                            AbstractReferenceHeightMethod, reference_height,

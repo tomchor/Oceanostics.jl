@@ -139,7 +139,7 @@ KE            = KineticEnergy(model)
 
 ε_A = AvailablePotentialEnergyDissipationRate(model, z✶_heaviside)
 ε_K = KineticEnergyDissipationRate(model)
-wb  = KineticEnergyBuoyancyProduction(model)
+wb  = PotentialToKineticEnergyConversion(model)
 
 ∫wb  = Integral(wb)
 ∫ε_K = Integral(ε_K)
