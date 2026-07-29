@@ -5,6 +5,9 @@ using DocStringExtensions
 export PotentialEnergy
 # Short name inside the module, prefixed alias for `using Oceanostics`, as elsewhere in the package.
 export DiffusiveBuoyancyFlux, PotentialEnergyDiffusiveBuoyancyFlux
+# `wb` is the one term the kinetic and potential energy budgets share, so it is defined in
+# `KineticEnergyEquation` and re-exported here under both its own name and a budget-neutral alias.
+export KineticEnergyBuoyancyProduction, KineticEnergyConversion
 
 using Oceananigans: fields
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -19,6 +22,15 @@ using Oceananigans.Operators: ℑzᵃᵃᶜ
 using Oceananigans.TurbulenceClosures: diffusive_flux_z
 using Oceanostics: validate_location, CustomKFO
 using SeawaterPolynomials: BoussinesqEquationOfState
+
+using ..KineticEnergyEquation: KineticEnergyBuoyancyProduction
+
+# `uᵢbᵢ` is the source of kinetic energy and, with the same sign flipped, the buoyancy conversion term
+# of the `e_p` equation. `KineticEnergyBuoyancyProduction` names it from the kinetic energy side; this
+# alias names the exchange itself, for use where the potential energy side is the one being written.
+# It is exported from this module and from `AvailablePotentialEnergyEquation`, but not from
+# `Oceanostics`, where the unprefixed name would be ambiguous about which budget it belongs to.
+const KineticEnergyConversion = KineticEnergyBuoyancyProduction
 
 const NoBuoyancyModel = Union{Nothing, ShallowWaterModel}
 const BuoyancyTracerModel = BuoyancyForce{<:BuoyancyTracer, g} where g

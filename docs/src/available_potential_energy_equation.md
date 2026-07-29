@@ -63,7 +63,7 @@ actually lost and is **not** the sign-definite ``\kappa|\nabla b|^2`` the name m
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate
 ```
 
-## Reference state diffusion
+## Diffusive buoyancy flux
 
 The second of those two parts,
 
@@ -96,3 +96,9 @@ The [Lock release](@ref lock_release_example) example closes
 
 alongside the matching kinetic energy budget, and shows ``\varepsilon_A`` changing sign as the flow
 alternates between stirring and settling.
+
+The ``wb`` in that budget is the term the two exchange, so this module re-exports
+[`KineticEnergyBuoyancyProduction`](@ref Oceanostics.KineticEnergyEquation.BuoyancyProduction) from
+[the kinetic energy equation](kinetic_energy_equation.md), under that name and under the alias
+`KineticEnergyConversion`. It computes ``u_i b_i``, the source of kinetic energy, so this budget takes
+it with a minus sign.

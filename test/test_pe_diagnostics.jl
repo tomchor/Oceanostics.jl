@@ -94,6 +94,30 @@ function test_diffusive_buoyancy_flux(grid)
     return nothing
 end
 
+"""
+`wb` is the one term the kinetic and potential energy budgets share, so it is defined once in
+`KineticEnergyEquation` and re-exported by the two potential energy modules, where `KineticEnergyConversion`
+names the exchange rather than the side it feeds. The alias is deliberately *not* exported from
+`Oceanostics`, since unprefixed it says nothing about which budget it belongs to. Nothing about that
+arrangement is enforced by the code, so it is asserted here: a stray `export` in `Oceanostics.jl`, or a
+re-export dropped from either module, would otherwise pass unnoticed.
+"""
+function test_kinetic_energy_conversion_alias()
+
+    PE, APE = Oceanostics.PotentialEnergyEquation, Oceanostics.AvailablePotentialEnergyEquation
+
+    @test PE.KineticEnergyConversion === Oceanostics.KineticEnergyEquation.KineticEnergyBuoyancyProduction
+    @test APE.KineticEnergyConversion === PE.KineticEnergyConversion
+
+    for M in (PE, APE)
+        @test :KineticEnergyConversion in names(M)
+        @test :KineticEnergyBuoyancyProduction in names(M)
+    end
+    @test !(:KineticEnergyConversion in names(Oceanostics))
+
+    return nothing
+end
+
 @testset "Diagnostics tests" begin
     @info "  Testing Diagnostics"
     for (grid_class, grid) in zip(keys(grids), values(grids))
@@ -118,6 +142,9 @@ end
             end
             test_PEbuoyancytracer_equals_PElineareos(grid)
         end
+        @info "      Testing the `KineticEnergyConversion` alias and its export scope"
+        test_kinetic_energy_conversion_alias()
+
         @info "      Testing the diffusive buoyancy flux"
         test_diffusive_buoyancy_flux(grid)
     end

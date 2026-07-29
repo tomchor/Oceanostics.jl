@@ -90,7 +90,13 @@ Oceanostics, and the rest have no diagnostic yet.
 
 One caveat on the borrowed term. `KineticEnergyBuoyancyProduction` computes ``u_i b_i``, which is the
 source of *kinetic* energy, so the potential energy budget takes it with a minus sign; with the
-`NegativeZDirection` gravity this module requires, ``u_i b_i = wb``.
+`NegativeZDirection` gravity this module requires, ``u_i b_i = wb``. It stays defined in
+[the kinetic energy equation](kinetic_energy_equation.md), since it is the one term the two budgets
+share, but this module and
+[the available potential energy equation](available_potential_energy_equation.md) both re-export it, and
+both give it the alias `KineticEnergyConversion` for writing the exchange from the potential energy
+side. That alias is scoped to those two modules: `using Oceanostics` does not bring it in, because
+unprefixed it says nothing about which budget it belongs to.
 
 ``e_p`` also splits into two parts that do have their own modules. The
 [background potential energy](background_potential_energy_equation.md) ``e_b`` is the portion the flow
