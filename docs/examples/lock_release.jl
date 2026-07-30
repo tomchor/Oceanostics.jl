@@ -109,7 +109,7 @@ KE            = KineticEnergy(model)
 # single term and each drains through a dissipation of its own,
 #
 # ```math
-# \frac{d}{dt}\int \mathrm{KE}\, dV = \int wb\, dV - \int \varepsilon\, dV, \qquad
+# \frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon\, dV, \qquad
 # \frac{d}{dt}\int e_a\, dV = -\int wb\, dV - \int \varepsilon_A\, dV .
 # ```
 #
@@ -128,7 +128,7 @@ KE            = KineticEnergy(model)
 #                              - \frac{\partial b}{\partial z}\right] ,
 # ```
 # the diapycnal mixing rate of Winters et al. (1995) less the diffusion the reference state undergoes
-# on its own, which carries no available energy with it. Unlike ``\varepsilon`` it is therefore not
+# on its own, which carries no available energy with it. Unlike ``\varepsilon_A`` it is therefore not
 # sign-definite pointwise.
 #
 # We build ``\Upsilon`` once and hand it to ``\varepsilon_A``, so the pair costs one sort and one
@@ -310,6 +310,11 @@ lines!(ax0, b✶_c, z✶_c; linewidth = 2, linestyle = :dash, color = :black, la
 scatter!(ax0, b✶_h, z✶_h; markersize = 9, color = :crimson, label = "HeavisideIntegral")
 axislegend(ax0; position = :lt, labelsize = 9)
 
+resize_to_layout!(fig)
+save("lock_release_profiles.png", fig)
+set_theme!() #hide
+nothing #hide
+
 # The three method panels are identical except while the lock is still intact, and that difference is
 # informative rather than an error. At `t = 0` almost every cell is tied with thousands of others at
 # one of two buoyancies, and the methods place tied cells differently.
@@ -320,11 +325,6 @@ axislegend(ax0; position = :lt, labelsize = 9)
 # profile: its `z✶` only ever reaches the mid-heights of the two blocks, about a sixth of the depth
 # in from each boundary. Once mixing has made the buoyancy field continuous the ties vanish and all
 # three agree to within a grid cell.
-
-resize_to_layout!(fig)
-save("lock_release_profiles.png", fig)
-set_theme!() #hide
-nothing #hide
 
 # ![](lock_release_profiles.png)
 
