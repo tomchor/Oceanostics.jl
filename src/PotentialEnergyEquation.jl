@@ -64,7 +64,7 @@ and `SeawaterBuoyancy`. See the relevant Oceananigans.jl documentation on
 for more information about available options.
 
 The optional keyword argument `geopotential_height` is only used
-if ones wishes to calculate `eₚ` with a potential density referenced to `geopotential_height`,
+if one wishes to calculate `eₚ` with a potential density referenced to `geopotential_height`,
 rather than in-situ density, when using a `BoussinesqEquationOfState`.
 
 Example
