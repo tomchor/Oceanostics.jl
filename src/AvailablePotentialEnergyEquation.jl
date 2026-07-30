@@ -14,7 +14,6 @@ export PotentialToKineticEnergyConversion, KineticEnergyConversion
 export BackgroundPotentialEnergy, reference_height, reference_buoyancy
 export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 
-using Oceananigans: fields
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Fields: Field
 using Oceananigans.Grids: Center, Face
@@ -25,7 +24,7 @@ using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffu
 using Oceanostics: validate_location, CustomKFO
 
 # Imported so the docstring `@ref`s below resolve in-module, as well as for dispatch.
-using ..PotentialEnergyEquation: PotentialEnergy, BuoyancyTracerModel, PotentialEnergyDiffusiveBuoyancyFlux,
+using ..PotentialEnergyEquation: PotentialEnergy, PotentialEnergyDiffusiveBuoyancyFlux,
                                  PotentialToKineticEnergyConversion, KineticEnergyConversion,
                                  validate_buoyancy_is_a_diffused_tracer, buoyancy_diffusive_flux_arguments
 using ..BackgroundPotentialEnergyEquation: BackgroundPotentialEnergy, SortedReferenceHeightField,
