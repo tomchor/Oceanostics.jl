@@ -232,8 +232,7 @@ buoyancy_diffusive_flux_arguments(model) =
 # and it is also the second of the two parts `ε_A` is written out of. It comes off the closure's own
 # `diffusive_flux_z`, exactly as `ε_A` does, so the two always carry the same `κ`. The flux lives on the
 # `z` face, so it is interpolated to the cell center.
-@inline diffusive_buoyancy_flux_ccc(i, j, k, grid, args...) =
-    -ℑzᵃᵃᶜ(i, j, k, grid, diffusive_flux_z, args...)
+@inline diffusive_buoyancy_flux_ccc(i, j, k, grid, args...) = -ℑzᵃᵃᶜ(i, j, k, grid, diffusive_flux_z, args...)
 
 const DiffusiveBuoyancyFlux = CustomKFO{<:typeof(diffusive_buoyancy_flux_ccc)}
 const PotentialEnergyDiffusiveBuoyancyFlux = DiffusiveBuoyancyFlux
