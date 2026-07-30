@@ -68,7 +68,7 @@ written ``wb``, which is what it reduces to here: with ``\hat{g} = \hat{z}`` the
 every model this module accepts, but the diagnostic keeps all three components, so it stays correct in
 a kinetic energy budget with a tilted gravity vector, where this page's ``e_p = -bz`` would not.
 
-The two terms written as divergences move ``e_p`` vanish when integrated over a periodic or closed domains
+The two terms written as divergences transport ``e_p`` and vanish when integrated over a periodic or closed domain
 (with impermeable, insulating walls).
 
 ## Terms and what is implemented
