@@ -53,7 +53,7 @@ lock_release(x, z) = (Δb / 2) * tanh(x / δ)
 set!(model, b = lock_release)
 
 # We create a simulation with conservative choices for the initial time step and the CFL number.
-# Since we anticipate the fllow to be fairly viscous, we also set a target diffusive CFL:
+# Since we anticipate the flow to be fairly viscous, we also set a target diffusive CFL:
 
 simulation = Simulation(model, Δt = 0.1 * minimum_xspacing(grid) / U, stop_time = 20)
 conjure_time_step_wizard!(simulation, IterationInterval(2), cfl = 0.7, diffusive_cfl = 0.2)
