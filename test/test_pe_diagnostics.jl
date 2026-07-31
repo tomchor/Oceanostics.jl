@@ -176,10 +176,10 @@ end
             end
             test_PEbuoyancytracer_equals_PElineareos(grid)
         end
-        @info "      Testing the `KineticEnergyConversion` alias and its export scope"
-        test_kinetic_energy_conversion_alias()
-
         @info "      Testing the diffusive buoyancy flux"
         test_diffusive_buoyancy_flux(grid)
     end
+
+    @info "  Testing the `KineticEnergyConversion` alias and its export scope"
+    test_kinetic_energy_conversion_alias()
 end

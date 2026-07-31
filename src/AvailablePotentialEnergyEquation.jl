@@ -249,6 +249,10 @@ The buoyancy has to be a tracer the closure diffuses, so this is defined for `Bu
 only — `SeawaterBuoyancy` would need the diffusive fluxes of temperature and salinity combined through
 the equation of state.
 
+`upsilon` is a keyword of the two-argument form only. Anyone holding a `Υ` also holds the `z✶` it was
+built from, and passing that is both cheaper and unambiguous: this form would have to sort the domain
+to build a `z✶` it then uses for nothing but a grid check.
+
 `z✶` is the reference height computed by [`reference_height`](@ref), and has to be one that lives on
 the model grid, since `∇b` is taken there; [`HeavisideIntegral`](@ref) is the default for the reason
 [`BuoyancyDisplacementPotential`](@ref) gives. `upsilon` takes a `Υ` you already have, so that writing
