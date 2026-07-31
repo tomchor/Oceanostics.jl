@@ -109,7 +109,7 @@ KE            = KineticEnergy(model)
 # single term and each drains through a dissipation of its own,
 #
 # ```math
-# \frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon\, dV, \qquad
+# \frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon_k\, dV, \qquad
 # \frac{d}{dt}\int e_a\, dV = -\int wb\, dV - \int \varepsilon_a\, dV .
 # ```
 #
@@ -128,8 +128,7 @@ KE            = KineticEnergy(model)
 #                              - \frac{\partial b}{\partial z}\right] ,
 # ```
 # the diapycnal mixing rate of Winters et al. (1995) less the diffusion the reference state undergoes
-# on its own, which carries no available energy with it. Unlike ``\varepsilon_a`` it is therefore not
-# sign-definite pointwise.
+# on its own, which carries no available energy with it.
 #
 # We hand ``\varepsilon_a`` the [`HeavisideIntegral`](@ref) reference height already built above rather
 # than letting it sort the domain again, and that method rather than another because
