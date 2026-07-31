@@ -66,7 +66,7 @@ simulation.callbacks[:progress] = Callback(progress, IterationInterval(500));
 #
 # We build one `z✶` per method and write all of them for later comparison. They are ordinary `Field`s
 # that re-sort themselves whenever they are computed, so they can be passed to an output writer.
-# Given that the referece height calculation is nonnlocal, it is generally a computationally-heavy operation
+# Given that the reference height calculation is nonlocal, it is generally a computationally-heavy operation
 # and its cost grows faster than the number of cells: see [Computational cost per method](@ref) for how different
 # methods compare and how they scale.
 
@@ -131,11 +131,11 @@ KE            = KineticEnergy(model)
 # on its own, which carries no available energy with it. Unlike ``\varepsilon_A`` it is therefore not
 # sign-definite pointwise.
 #
-# We build ``\Upsilon`` once and hand it to ``\varepsilon_A``, so the pair costs one sort and one
-# ``\Upsilon`` rather than two of each, and we reuse the [`HeavisideIntegral`](@ref) reference height
-# already built above: ``\varepsilon_A`` differentiates the map ``\Upsilon``, and Eq. (11) of Winters et
-# al. is the one that makes ``z^\star`` a function of buoyancy alone, so tied cells do not spread
-# ``z^\star`` over the depth they fill and show up in ``\nabla \Upsilon`` as grid-scale noise.
+# We hand ``\varepsilon_A`` the [`HeavisideIntegral`](@ref) reference height already built above rather
+# than letting it sort the domain again, and that method rather than another because
+# ``\varepsilon_A`` differentiates the map ``\Upsilon``: Eq. (11) of Winters et al. is the one that makes
+# ``z^\star`` a function of buoyancy alone, so tied cells do not spread ``z^\star`` over the depth they
+# fill and show up in ``\nabla \Upsilon`` as grid-scale noise.
 
 εₐ = AvailablePotentialEnergyDissipationRate(model, z✶_heaviside)
 εₖ = KineticEnergyDissipationRate(model)
