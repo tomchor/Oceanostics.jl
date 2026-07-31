@@ -690,7 +690,7 @@ nonlinear equation of state, prefer a fixed value (`geopotential_height = 0` for
 meaningful for a variable the flow conserves, which in-situ density is not.
 
 A second method, `reference_height(b::Field)`, sorts a `Field` you supply instead of the model's
-buoyancy, which is what you want for a reference state built from a coarse-grained buoyancy `filter(b)`.
+buoyancy, which is what you want for a reference state built from a filtered buoyancy `filter(b)`.
 It sorts in ascending order, so `b` has to be buoyancy-like (large where the fluid is light); pass
 `-ρ` rather than `ρ` for a density.
 

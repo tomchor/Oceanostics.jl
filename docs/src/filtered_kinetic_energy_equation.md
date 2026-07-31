@@ -109,7 +109,7 @@ filter = GaussianFilter(; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(le
 
 FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 16×16×16 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
+├── kernel_function: filtered_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
 └── computes: filtered kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·τ̄ᵢⱼ
 ```
@@ -132,7 +132,7 @@ Oceanostics.FilteredKineticEnergyEquation.subfilter_stress_tensor
 Oceanostics.FilteredKineticEnergyEquation.KineticEnergyCrossScaleFlux
 ```
 
-## Coarse-grained kinetic energy dissipation
+## Filtered kinetic energy dissipation
 
 ```@docs
 Oceanostics.FilteredKineticEnergyEquation.FilteredKineticEnergyDissipationRate

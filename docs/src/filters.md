@@ -108,7 +108,7 @@ dim, or a tuple of odd integers sets one count per dim.
 
 `dims` and `boundary` work identically to `BoxFilter`.
 
-For a worked end-to-end example — coarse-graining a turbulent flow, a filter-width sweep, and a
+For a worked end-to-end example — filtering a turbulent flow, a filter-width sweep, and a
 subfilter tracer flux — see the [Spatial filtering example](@ref spatial_filtering_example).
 
 ### Variably spaced (stretched) grids

@@ -15,7 +15,7 @@ K^s = \tfrac{1}{2}\,\tau^r_{ii}
     = \tfrac{1}{2}\left(\tau^r_{11} + \tau^r_{22} + \tau^r_{33}\right) ,
 ```
 
-computed by [`SubFilterKineticEnergy`](@ref). Following the coarse-graining framework of
+computed by [`SubFilterKineticEnergy`](@ref). Following the filtering framework of
 [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1), its volume-integrated budget (with the
 transport terms vanishing over a closed or periodic domain) reads
 
