@@ -1,11 +1,15 @@
-# # Eady baroclinic instability
+# # [Eady baroclinic instability](@id eady_example)
 #
 # This example simulates the [Eady problem](https://en.wikipedia.org/wiki/Eady_model): the
 # baroclinic instability of a uniformly stratified, uniformly sheared flow held in thermal-wind
 # balance on an ``f``-plane. The setup is a port of the classic
 # [Eady turbulence example](https://numericalearth.github.io/OceananigansMuseum/v0.74.1/generated/eady_turbulence/)
-# to up-to-date Oceananigans syntax, with the bottom drag removed. We then use Oceanostics to close a
-# *sub-filter-scale* (coarse-grained) kinetic-energy budget of the developing mesoscale eddies.
+# to up-to-date Oceananigans syntax, with the bottom drag removed. We then use Oceanostics to close the
+# volume-integrated kinetic and potential energy budgets of the growing eddies.
+#
+# The mean flow enters as a pair of `BackgroundField`s, so the model steps *perturbations* about it.
+# That is what makes this example worth doing: each background field puts an extra term into the budget
+# of the perturbation energy it acts on, and neither budget closes without it.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -84,12 +88,17 @@ biharmonic_diffusivity = HorizontalScalarBiharmonicDiffusivity(ν=κ₄h, κ=κ�
 
 # ## Model
 #
-# We build a `NonhydrostaticModel` with fifth-order `WENO` advection, a third-order Runge-Kutta
-# timestepper, the buoyancy `b` as the active tracer, and the background fields and closures defined
-# above. Following the request, there is no bottom drag, so the vertical boundaries are free-slip.
+# We build a `NonhydrostaticModel` with a third-order Runge-Kutta timestepper, the buoyancy `b` as the
+# active tracer, and the background fields and closures defined above. There is no bottom drag, so the
+# vertical boundaries are free-slip.
+#
+# The advection scheme is `Centered`, not `WENO`: an upwind scheme dissipates energy implicitly, and
+# that dissipation appears in neither ``\varepsilon`` nor any other term we compute, so it would show up
+# as a residual. With a centered scheme every sink in the two budgets is one we write down, and the
+# biharmonic closure handles the grid scale.
 
 model = NonhydrostaticModel(grid;
-                            advection = WENO(order=5),
+                            advection = Centered(order=4),
                             timestepper = :RungeKutta3,
                             coriolis = coriolis,
                             tracers = :b,
@@ -101,7 +110,10 @@ model = NonhydrostaticModel(grid;
 #
 # We seed the instability with small-amplitude random noise, damped toward the top and bottom
 # boundaries so it projects onto interior modes, and then remove any net horizontal-mean velocity the
-# noise introduces:
+# noise introduces. The random seed is fixed so the run is reproducible:
+
+using Random
+Random.seed!(772)
 
 Ξ(z) = randn() * z / H * (z / H + 1) # noise that vanishes at z = 0 and z = -H
 
@@ -127,89 +139,88 @@ max_Δt = min(Δx / Ū, Δx^4 / κ₄h, Δx^2 / κ₂z, 1 / N)
 
 simulation = Simulation(model, Δt = max_Δt, stop_time = 10days)
 
-wizard = TimeStepWizard(cfl=0.85, max_change=1.1, max_Δt=max_Δt)
+wizard = TimeStepWizard(cfl=0.7, max_change=1.1, max_Δt=max_Δt)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
 
 # We report progress with a simple messenger:
 
 using Oceanostics.ProgressMessengers: TimedMessenger
-add_callback!(simulation, TimedMessenger(), IterationInterval(20))
+add_callback!(simulation, TimedMessenger(), IterationInterval(100))
 
-# ## Coarse-grained kinetic-energy budget
+# ## Energy budgets
 #
-# As the front rolls up, kinetic energy moves between scales. We follow it with a *coarse-graining*
-# (filtered-flow) analysis in the spirit of [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1),
-# closing the volume-integrated budget of the filtered kinetic energy
-# ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i``. A low-pass Gaussian filter of width `ℓ`
-# defines the resolved (`> ℓ`) scales; we apply it horizontally (`dims = (1, 2)`), since the flow is
-# statistically homogeneous in the horizontal.
-#
-# Because the mean geostrophic flow `U(z) = α(z + H)` is imposed as a `BackgroundField`, it is not part
-# of the resolved velocity, so its shear `∂U/∂z = α` enters the budget as an explicit production term.
-# Volume-integrated (advection and pressure work integrate to zero on the doubly-periodic, free-slip
-# domain), the budget reads
+# The model's `u` and `b` are perturbations about `U` and `B`, so `K = ½uᵢuᵢ` and `eₚ = -bz` are the
+# *perturbation* energies, and each background field puts a term of its own into the budget of the
+# energy it acts on. Volume integrated over the doubly-periodic, free-slip domain, advection, the
+# pressure work and the two transport terms all drop out, and what is left is
 #
 # ```math
-# \frac{d}{dt} \int \overline{K}\, dV
-#   = -α \int \overline{u}\,\overline{w}\, dV
-#   + \int \overline{w}\,\overline{b}\, dV
-#   - \int \Pi_K\, dV
-#   - \int \overline{\varepsilon}\, dV ,
+# \frac{d}{dt}\int K\, dV = \int \mathrm{SP}\, dV + \int wb\, dV - \int \varepsilon\, dV , \qquad
+# \frac{d}{dt}\int e_p\, dV = \int \mathrm{ADV}_B\, dV - \int wb\, dV + \int \Phi\, dV .
 # ```
 #
-# with a production ``-α\,\overline{u}\,\overline{w}`` by the background shear, a buoyancy production
-# ``\overline{w}\,\overline{b}`` (conversion between filtered kinetic and potential energy), the
-# cross-scale kinetic-energy flux ``\Pi_K = -\tau^{ij}\overline{S}^{ij}`` to sub-filter scales
-# ([`KineticEnergyCrossScaleFlux`](@ref)), and the coarse-grained dissipation ``\overline{\varepsilon}``
-# ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)).
+# The kinetic energy is fed by the shear production ``\mathrm{SP} = -u_i u_j \partial_j U_i``, which
+# here is ``-\alpha\, u w``, and drained by the dissipation ``\varepsilon``
+# ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)). The potential
+# energy picks up ``\mathrm{ADV}_B = z\,\partial_j(u_j B)``, the advection of the background buoyancy by
+# the perturbation flow ([`PotentialEnergyBackgroundAdvection`](@ref)), and exchanges with the
+# stratification through the diffusive buoyancy flux ``\Phi = \kappa\,\partial b/\partial z``
+# ([`PotentialEnergyDiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux)). The buoyancy conversion ``wb``
+# ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion)) is the one term the two budgets share, with opposite
+# signs, so it cancels from their sum.
+#
+# ``\mathrm{SP}`` is
+# [`TurbulentKineticEnergyShearProductionRate`](@ref) handed the background velocity as the mean flow:
+# the model's velocities are already the perturbations, so we pass them straight through rather than
+# letting the constructor subtract a mean.
 
 using Oceanostics
-using Oceananigans.AbstractOperations: @at
-
-ℓ  = 3 * Δx                          # filter scale (full width at half maximum)
-σℓ = ℓ / (2 * sqrt(2 * log(2)))      # corresponding Gaussian standard deviation
-filt = GaussianFilter(; dims=(1, 2), σ=σℓ, boundary=:shrink)
+using Oceananigans.Fields: ZeroField
 
 u, v, w = model.velocities
-b = model.tracers.b
-ū, v̄, w̄, b̄ = filt(u), filt(v), filt(w), filt(b)
+U_background = model.background_fields.velocities.u
 
-Kˡ = @at (Center, Center, Center) (ū^2 + v̄^2 + w̄^2) / 2   # filtered (coarse-grained) kinetic energy
-uw = @at (Center, Center, Center) (ū * w̄)                 # resolved flux of along-front momentum, ū w̄
-Pu = -α * uw                                              # production by the background shear α = ∂U/∂z
-wb = @at (Center, Center, Center) (w̄ * b̄)                 # buoyancy production
-Πₖ = KineticEnergyCrossScaleFlux(model, filt)             # cross-scale flux to sub-filter scales
-εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filt)  # coarse-grained dissipation
+K  = KineticEnergy(model)
+SP = TurbulentKineticEnergyShearProductionRate(u, v, w, U_background, ZeroField(), ZeroField())
+wb = PotentialToKineticEnergyConversion(model)
+ε  = KineticEnergyDissipationRate(model)
 
-∫Kˡ = Integral(Kˡ)
-∫Pu = Integral(Pu)
-∫wb = Integral(wb)
-∫Πₖ = Integral(Πₖ)
-∫εˡ = Integral(εˡ)
+eₚ    = PotentialEnergy(model)
+ADV_B = PotentialEnergyBackgroundAdvection(model)
+Φ     = PotentialEnergyDiffusiveBuoyancyFlux(model)
 
-# For the movie we also keep the surface vertical vorticity `ζ` and the cross-scale flux `Πₖ`:
+∫K     = Integral(K)
+∫SP    = Integral(SP)
+∫wb    = Integral(wb)
+∫ε     = Integral(ε)
+∫eₚ    = Integral(eₚ)
+∫ADV_B = Integral(ADV_B)
+∫Φ     = Integral(Φ)
+
+# For the movie we also keep the surface vertical vorticity `ζ` and the surface buoyancy perturbation:
 
 ζ = ∂x(v) - ∂y(u)
+b = model.tracers.b
 
 # ## Output
 #
 # We use two NetCDF writers: a *snapshot* writer for the surface fields, and a *budget* writer for the
 # volume integrals on `ConsecutiveIterations(TimeInterval(4hours))`, which takes a second sample one
-# model step after each output time. That lets us finite-difference `∫K̄` across the step to estimate
-# `d/dt`, as in the [Kelvin-Helmholtz example](@ref kelvin_helmholtz_example).
+# model step after each output time. That lets us finite-difference the integrated energies across the
+# step to estimate `d/dt`, as in the [two-dimensional turbulence example](@ref two_d_turbulence_example).
 
 using NCDatasets
 filename = joinpath(@__DIR__, "eady_baroclinic_instability")
 
 simulation.output_writers[:fields] =
-    NetCDFWriter(model, (; ζ, Πₖ),
+    NetCDFWriter(model, (; ζ, b),
                  filename = filename,
                  schedule = TimeInterval(4hours),
                  indices = (:, :, grid.Nz),
                  overwrite_existing = true)
 
 simulation.output_writers[:budget] =
-    NetCDFWriter(model, (; ∫Kˡ, ∫Pu, ∫wb, ∫Πₖ, ∫εˡ),
+    NetCDFWriter(model, (; ∫K, ∫SP, ∫wb, ∫ε, ∫eₚ, ∫ADV_B, ∫Φ),
                  filename = filename * "_budget",
                  schedule = ConsecutiveIterations(TimeInterval(4hours)),
                  overwrite_existing = true)
@@ -226,85 +237,157 @@ using CairoMakie
 
 ds = NCDataset(simulation.output_writers[:fields].filepath)
 times = ds["time"][:]
-x_faa = ds["x_faa"][:]; y_afa = ds["y_afa"][:]   # ζ  at (Face, Face)
-x_caa = ds["x_caa"][:]; y_aca = ds["y_aca"][:]   # Πₖ at (Center, Center)
+x_faa = ds["x_faa"][:]; y_afa = ds["y_afa"][:]   # ζ at (Face, Face)
+x_caa = ds["x_caa"][:]; y_aca = ds["y_aca"][:]   # b at (Center, Center)
 ζ_arr = ds["ζ"][:, :, 1, :]
-Π_arr = ds["Πₖ"][:, :, 1, :]
+b_arr = ds["b"][:, :, 1, :]
 close(ds)
 
 ζlim = maximum(abs, ζ_arr)
-Πlim = maximum(abs, Π_arr)
+blim = maximum(abs, b_arr)
 
 # The integrated budget scalars come in consecutive-iteration pairs `(2k-1, 2k)`; a one-step finite
-# difference inside each pair gives `d(∫K̄)/dt`, and each source term is evaluated at the pair midpoint.
-# The residual measures how well the coarse-grained budget closes.
+# difference inside each pair gives the tendencies, and each source term is evaluated at the pair
+# midpoint.
 
 ds_b = NCDataset(simulation.output_writers[:budget].filepath)
-tb    = ds_b["time"][:]
-∫Kˡ_t = ds_b["∫Kˡ"][:]
-∫Pu_t = ds_b["∫Pu"][:]
-∫wb_t = ds_b["∫wb"][:]
-∫Πₖ_t = ds_b["∫Πₖ"][:]
-∫εˡ_t = ds_b["∫εˡ"][:]
+t_bud  = ds_b["time"][:]
+K_bud  = ds_b["∫K"][:]
+SP_bud = ds_b["∫SP"][:]
+wb_bud = ds_b["∫wb"][:]
+ε_bud  = ds_b["∫ε"][:]
+eₚ_bud = ds_b["∫eₚ"][:]
+ADV_bud = ds_b["∫ADV_B"][:]
+Φ_bud   = ds_b["∫Φ"][:]
 close(ds_b)
 
-i1 = 1:2:length(tb)-1
-i2 = 2:2:length(tb)
-Δtp = tb[i2] .- tb[i1]
-tp  = @. 0.5 * (tb[i1] + tb[i2])
+idx1 = 1:2:length(t_bud) - 1   # primary snapshots
+idx2 = 2:2:length(t_bud)       # consecutive-iteration snapshots
 
-dKdt = (∫Kˡ_t[i2] .- ∫Kˡ_t[i1]) ./ Δtp
-Pu_p = @. 0.5 * (∫Pu_t[i1] + ∫Pu_t[i2])
-wb_p = @. 0.5 * (∫wb_t[i1] + ∫wb_t[i2])
-Πₖ_p = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2])
-εˡ_p = @. 0.5 * (∫εˡ_t[i1] + ∫εˡ_t[i2])
-resid = dKdt .- (Pu_p .+ wb_p .- Πₖ_p .- εˡ_p)
+Δt_pair = t_bud[idx2] .- t_bud[idx1]
+t_pair  = @. 0.5 * (t_bud[idx1] + t_bud[idx2])
 
-# We now build the figure: surface maps of `ζ` and `Πₖ` on top, and the coarse-grained kinetic-energy
-# budget below.
+dKdt  = (K_bud[idx2]  .- K_bud[idx1])  ./ Δt_pair
+deₚdt = (eₚ_bud[idx2] .- eₚ_bud[idx1]) ./ Δt_pair
+
+pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
+
+SP_pair  = pair_mean(SP_bud)
+wb_pair  = pair_mean(wb_bud)
+ε_pair   = pair_mean(ε_bud)
+ADV_pair = pair_mean(ADV_bud)
+Φ_pair   = pair_mean(Φ_bud)
+
+# Both budgets are written in sum-to-zero form: every curve is plotted with the sign it carries here, so
+# the panels below add up to the residual.
+
+K_resid  = @. -dKdt  + SP_pair + wb_pair - ε_pair
+eₚ_resid = @. -deₚdt + ADV_pair - wb_pair + Φ_pair
+
+using Test                                                                         #hide
+rms(x) = √(sum(abs2, x) / length(x))                                               #hide
+## both budgets close to a small fraction of their own tendency ...                #hide
+@test rms(K_resid)  < 0.05 * rms(dKdt)                                             #hide
+@test rms(eₚ_resid) < 0.01 * rms(deₚdt)                                            #hide
+## ... and of `wb`, the largest term in either of them                             #hide
+@test rms(K_resid)  < 0.04 * rms(wb_pair)                                          #hide
+@test rms(eₚ_resid) < 0.01 * rms(wb_pair)                                          #hide
+## `wb` is the same term in both, so it cancels from the sum of the two budgets    #hide
+@test rms(K_resid .+ eₚ_resid) < 0.05 * rms(wb_pair)                               #hide
+## The background terms are the point of this example. Neither is a leading term, but each is       #hide
+## several times the residual of its own budget, so dropping either leaves a visible imbalance      #hide
+## rather than something lost in the truncation error.                                              #hide
+@test rms(@. K_resid  + SP_pair)  > 2 * rms(K_resid)                               #hide
+@test rms(@. eₚ_resid + ADV_pair) > 5 * rms(eₚ_resid);                             #hide
+
+# The instability also does what it should: the eddies grow by orders of magnitude, drawing on the
+# background shear and on the potential energy the tilted isopycnals hold.
+
+K_int  = K_bud[idx1]
+eₚ_int = eₚ_bud[idx1]
+
+@test K_int[end] > 100 * K_int[1]              # the perturbations grow, and by a lot     #hide
+@test mean(SP_pair) > 0                        # fed by the background shear ...          #hide
+@test mean(wb_pair) > 0                        # ... and by the conversion eₚ → K         #hide
+@test eₚ_int[end] < 0                          # which drains eₚ well below where it started  #hide
+## and the potential energy released exceeds the kinetic energy gained, the rest having gone to    #hide
+## dissipation and to the background terms                                                         #hide
+@test -(eₚ_int[end] - eₚ_int[1]) > K_int[end] - K_int[1]                           #hide
+@test all(ε_pair .≥ 0);                        # viscosity only ever removes energy       #hide
+
+# ## Plotting
+#
+# Every term grows by four orders of magnitude as the instability develops, so each budget is plotted
+# normalized by the instantaneous `∫K dV`. That turns the curves into rates per day and keeps the early,
+# small-amplitude stage readable next to the saturated one; the residual then reads directly as a
+# relative error.
 
 set_theme!(Theme(fontsize = 18))
-fig = Figure(size = (1100, 850))
+fig = Figure(size = (1100, 1000))
 
 n = Observable(1)
 
 axζ = Axis(fig[2, 1]; title = "vertical vorticity, ζ", xlabel="x [km]", ylabel="y [km]", aspect=1)
-axΠ = Axis(fig[2, 3]; title = "cross-scale KE flux, Πₖ", xlabel="x [km]", ylabel="y [km]", aspect=1)
+axb = Axis(fig[2, 3]; title = "buoyancy perturbation, b", xlabel="x [km]", ylabel="y [km]", aspect=1)
 
 ζₙ = @lift ζ_arr[:, :, $n]
-Πₙ = @lift Π_arr[:, :, $n]
+bₙ = @lift b_arr[:, :, $n]
 
 hmζ = heatmap!(axζ, x_faa ./ 1e3, y_afa ./ 1e3, ζₙ; colormap = :balance, colorrange = (-ζlim, ζlim))
 Colorbar(fig[2, 2], hmζ)
 
-hmΠ = heatmap!(axΠ, x_caa ./ 1e3, y_aca ./ 1e3, Πₙ; colormap = :balance, colorrange = (-Πlim, Πlim))
-Colorbar(fig[2, 4], hmΠ)
+hmb = heatmap!(axb, x_caa ./ 1e3, y_aca ./ 1e3, bₙ; colormap = :balance, colorrange = (-blim, blim))
+Colorbar(fig[2, 4], hmb)
 
-ax_bud = Axis(fig[3, 1:4]; xlabel="time [days]", ylabel="[m⁵ s⁻³]",
-              title="Coarse-grained KE budget (ℓ = $(round(Int, ℓ/1e3)) km)")
-lines!(ax_bud, tp ./ day, dKdt,   label="d(∫K̄)/dt")
-lines!(ax_bud, tp ./ day, Pu_p,   label="−α∫ū w̄ dV  (background shear production)")
-lines!(ax_bud, tp ./ day, wb_p,   label="∫w̄ b̄ dV  (buoyancy production)")
-lines!(ax_bud, tp ./ day, -Πₖ_p,  label="−∫Πₖ dV  (flux to sub-filter scales)")
-lines!(ax_bud, tp ./ day, -εˡ_p,  label="−∫ε̄ dV  (dissipation)")
-lines!(ax_bud, tp ./ day, resid,  label="residual", color=:black, linestyle=:dash)
-axislegend(ax_bud; position=:lt, labelsize=10)
+rate = day ./ pair_mean(K_bud)   # normalization: turns every term into a rate per day
+budget_kwargs = (xlabel = "time [days]", ylabel = "[day⁻¹]")
 
-vlines!(ax_bud, @lift(times[$n] / day), color=:black, linestyle=:dash)
+ax_K = Axis(fig[3, 1:4]; title = "Volume-integrated kinetic energy budget, normalized by ∫K dV", budget_kwargs...)
+lines!(ax_K, t_pair ./ day, -dKdt    .* rate, label = "-d(∫K)/dt")
+lines!(ax_K, t_pair ./ day,  SP_pair .* rate, label = "∫SP dV  (background shear production)")
+lines!(ax_K, t_pair ./ day,  wb_pair .* rate, label = "∫wb dV  (buoyancy conversion)")
+lines!(ax_K, t_pair ./ day, -ε_pair  .* rate, label = "-∫ε dV  (dissipation)")
+lines!(ax_K, t_pair ./ day,  K_resid .* rate, label = "residual", color = :black, linestyle = :dash)
+axislegend(ax_K; position = :lt, labelsize = 10, nbanks = 2)
+
+ax_p = Axis(fig[4, 1:4]; title = "Volume-integrated potential energy budget, normalized by ∫K dV", budget_kwargs...)
+lines!(ax_p, t_pair ./ day, -deₚdt    .* rate, label = "-d(∫eₚ)/dt")
+lines!(ax_p, t_pair ./ day,  ADV_pair .* rate, label = "∫ADV_B dV  (background buoyancy advection)")
+lines!(ax_p, t_pair ./ day, -wb_pair  .* rate, label = "-∫wb dV  (buoyancy conversion)")
+lines!(ax_p, t_pair ./ day,  Φ_pair   .* rate, label = "∫Φ dV  (diffusive buoyancy flux)")
+lines!(ax_p, t_pair ./ day,  eₚ_resid .* rate, label = "residual", color = :black, linestyle = :dash)
+axislegend(ax_p; position = :lt, labelsize = 10, nbanks = 2)
+
+vlines!(ax_K, @lift(times[$n] / day), color = :black, linestyle = :dot)
+vlines!(ax_p, @lift(times[$n] / day), color = :black, linestyle = :dot)
 
 title = @lift "Eady turbulence, t = " * prettytime(times[$n])
-fig[1, 1:4] = Label(fig, title, fontsize=22, tellwidth=false)
+fig[1, 1:4] = Label(fig, title, fontsize = 22, tellwidth = false)
 
 @info "Animating..."
-record(fig, "eady_baroclinic_instability.mp4", 1:length(times), framerate=12) do i
+record(fig, "eady_baroclinic_instability.mp4", 1:length(times), framerate = 12) do i
     n[] = i
 end
+set_theme!() #hide
+nothing #hide
 
 # ![](eady_baroclinic_instability.mp4)
 #
-# As the front becomes baroclinically unstable it rolls up into mesoscale eddies (left), while the
-# cross-scale flux `Πₖ` (right) marks where kinetic energy crosses the filter scale: mostly forward
-# (downscale, `Πₖ > 0`) along the sharpening eddy edges, with patches of backscatter (`Πₖ < 0`). The
-# bottom panel shows the volume-integrated coarse-grained kinetic-energy budget: the background-shear
-# and buoyancy productions feed the filtered kinetic energy, part of it passes to the sub-filter scales
-# through `∫Πₖ dV` and is dissipated, and the small residual shows how well the budget closes.
+# The front becomes baroclinically unstable and rolls up into mesoscale eddies, and the two budget
+# panels show where their energy comes from. `∫wb dV` runs through both with opposite signs and is the
+# largest term in either: the eddies flatten the tilted isopycnals, `∫eₚ dV` falls, and the released
+# potential energy shows up as `∫K dV`. The background shear feeds `∫K dV` directly through `∫SP dV`,
+# an order of magnitude smaller than the conversion but positive through most of the growth, and
+# dissipation takes back a sizeable fraction of what comes in.
+#
+# The background buoyancy term `∫ADV_B dV` is about the size of `∫SP dV` and changes sign, since it is
+# the depth-weighted flow across the background gradient rather than a production of anything positive
+# definite. Small as it is, it is some sixty times the residual of the `eₚ` budget: leaving it out, as
+# one would if the background field were forgotten, turns a budget that closes to two parts in a
+# thousand into one off by more than a tenth. `∫Φ dV` is smaller than either by orders of magnitude,
+# which is what a mesoscale run at this resolution should look like.
+#
+# Both residuals stay near zero, and cannot be exactly zero: the discrete `K` and `eₚ` equations are not
+# derived from the discrete momentum and buoyancy equations the model steps, so the two sides agree only
+# to the truncation error of a well-resolved flow. The same caveat applies to
+# [the two-dimensional turbulence example](@ref two_d_turbulence_example).

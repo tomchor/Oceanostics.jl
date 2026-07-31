@@ -71,20 +71,55 @@ a kinetic energy budget with a tilted gravity vector, where this page's ``e_p = 
 The two terms written as divergences transport ``e_p`` and vanish when integrated over a periodic or closed domain
 (with impermeable, insulating walls).
 
+## Background fields
+
+When ``b`` is given a `BackgroundField` ``B``, the model prognoses the perturbation and its equation
+picks up one more term, the advection of ``B`` by the perturbation flow, so that
+
+```math
+\partial_t b = -\partial_j (u_j^{\rm tot} b) - \partial_j (u_j B) - \partial_j q_j + F_b ,
+```
+
+with ``u_j^{\rm tot}`` the perturbation plus background velocity. Weighted by ``-z`` that new term is
+
+```math
+\partial_t e_p \supset \underbrace{z\,\partial_j (u_j B)}_{\text{background advection}} ,
+```
+
+and ``e_p`` is then the potential energy of the perturbation alone. This one is a production rather
+than a transport: it does not integrate away, and a budget that leaves it out will not close. The
+[Eady example](@ref eady_example) is a run where it matters.
+
 ## Terms and what is implemented
 
-Only ``e_p`` itself is implemented in this module. Two of the terms above are available elsewhere in
-Oceanostics, and the rest have no diagnostic yet.
+Every term is implemented, two of them elsewhere in Oceanostics.
 
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
 | Potential energy | ``e_p = -bz`` | [`PotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergy) |
-| Tendency | ``\partial_t e_p`` | not implemented |
-| Advection | ``-\partial_j(u_j e_p)`` | not implemented |
+| Tendency | ``\partial_t e_p = -z\,\partial_t b`` | [`PotentialEnergyTendency`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyTendency) |
+| Advection | ``z\,\partial_j(u_j b) = -\partial_j(u_j e_p) - u_j b_j`` | [`PotentialEnergyAdvection`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyAdvection) |
 | PE to KE conversion | ``u_j b_j`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
-| Diffusive transport | ``\partial_j(z q_j)`` | not implemented |
+| Background advection | ``z\,\partial_j(u_j B)`` | [`PotentialEnergyBackgroundAdvection`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyBackgroundAdvection) |
+| Diffusion | ``z\,\partial_j q_j = \partial_j(z q_j) - q_3`` | [`PotentialEnergyDiffusion`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyDiffusion) |
 | Diffusive buoyancy flux | ``-q_3`` | [`DiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux) |
-| Forcing | ``-z F_b`` | not implemented |
+| Forcing | ``-z F_b`` | [`PotentialEnergyForcing`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyForcing) |
+
+`Advection` and `Diffusion` are the ``-z\,\times`` forms rather than the rearranged ones, which is the
+convention [the kinetic energy equation](kinetic_energy_equation.md) follows as well
+(``u_i\partial_j(u_ju_i)`` rather than ``\partial_j(u_jK)``). Taken that way the four terms are the
+model's own buoyancy tendency split apart, so they sum to `PotentialEnergyTendency` cell by cell rather
+than to within a truncation error. The rearranged forms are what a *volume-integrated* budget wants,
+since the transports drop out and leave
+
+```math
+\int \texttt{Advection}\, \mathrm{d}V = -\int u_j b_j\, \mathrm{d}V, \qquad
+\int \texttt{Diffusion}\, \mathrm{d}V = \int \Phi\, \mathrm{d}V ,
+```
+
+so an integrated budget is usually written with `PotentialToKineticEnergyConversion` and
+`DiffusiveBuoyancyFlux` in their place. Those two identities come from the continuum product rule, so
+unlike the split above they hold to the truncation error of the discretization.
 
 One caveat on the borrowed term: it computes ``u_j b_j`` as the source of *kinetic* energy, so the
 potential energy budget takes it with a minus sign.
@@ -106,7 +141,7 @@ could never release, and the [available potential energy](available_potential_en
 
 ## Diffusive buoyancy flux
 
-The diffusive conversion term is the one other diagnostic this module provides. It reads
+The diffusive conversion term reads
 ``\kappa\,\partial b/\partial z`` off the closure's own diffusive flux, which needs the buoyancy to be a
 tracer the closure diffuses, so unlike `PotentialEnergy` it is restricted to `BuoyancyTracer` models. It
 is also the second of the two parts
@@ -158,4 +193,18 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 
 ```@docs
 Oceanostics.PotentialEnergyEquation.PotentialEnergy
+```
+
+## Terms of the ``e_p`` equation
+
+Inside the module these go by the short names `Tendency`, `Advection`, `BackgroundAdvection`,
+`Diffusion` and `Forcing`; `using Oceanostics` brings in the prefixed aliases below, which are the same
+types. The [Eady example](@ref eady_example) closes an integrated ``e_p`` budget with them.
+
+```@docs
+Oceanostics.PotentialEnergyEquation.PotentialEnergyTendency
+Oceanostics.PotentialEnergyEquation.PotentialEnergyAdvection
+Oceanostics.PotentialEnergyEquation.PotentialEnergyBackgroundAdvection
+Oceanostics.PotentialEnergyEquation.PotentialEnergyDiffusion
+Oceanostics.PotentialEnergyEquation.PotentialEnergyForcing
 ```
