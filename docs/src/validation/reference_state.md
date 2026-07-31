@@ -8,10 +8,10 @@ The checks lean on three facts that hold no matter which
 [`AbstractReferenceHeightMethod`](@ref Oceanostics.BackgroundPotentialEnergyEquation.AbstractReferenceHeightMethod) is
 used:
 
-  - a field that is already sorted **is** its own reference state, which fixes ``\int E_b \, \mathrm{d}V``
-    and ``\int E_a \, \mathrm{d}V`` in closed form;
+  - a field that is already sorted **is** its own reference state, which fixes ``\int e_b \, \mathrm{d}V``
+    and ``\int e_a \, \mathrm{d}V`` in closed form;
   - the methods describe one reference state, so they must agree on the volume integrals;
-  - the local ``E_a`` is non-negative everywhere in space.
+  - the local ``e_a`` is non-negative everywhere in space.
 
 ```@example validation_reference_state
 using Oceananigans, Oceanostics, CairoMakie, Printf
@@ -53,7 +53,7 @@ potential energy, so the state of minimum potential energy is the state it is al
 energies without reference to any particular method:
 
 ```math
-\int E_b \, \mathrm{d}V = \int E_p \, \mathrm{d}V , \qquad \int E_a \, \mathrm{d}V = 0 .
+\int e_b \, \mathrm{d}V = \int e_p \, \mathrm{d}V , \qquad \int e_a \, \mathrm{d}V = 0 .
 ```
 
 The column below is built in three layers of four cells, so every cell is tied in buoyancy with three
@@ -68,7 +68,7 @@ column = RectilinearGrid(size = N, z = (-1, 0), topology = (Flat, Flat, Bounded)
 sorted_model = NonhydrostaticModel(column; buoyancy = BuoyancyTracer(), tracers = :b)
 set!(sorted_model, b = reshape(repeat(collect(0:(n_layers - 1)), inner = N ÷ n_layers), 1, 1, N))
 
-∫Eₚ = volume_integral(PotentialEnergy(sorted_model))
+∫eₚ = volume_integral(PotentialEnergy(sorted_model))
 sorted_E_b, sorted_E_a, sorted_z✶ = Dict(), Dict(), Dict()
 
 for (name, method) in methods
@@ -77,15 +77,15 @@ for (name, method) in methods
     sorted_E_a[name] = volume_integral(AvailablePotentialEnergy(sorted_model, z✶))
     sorted_z✶[name]  = vec(Array(interior(z✶)))
 
-    check("$name: ∫E_b = ∫Eₚ on a sorted field", sorted_E_b[name], ∫Eₚ; rtol = 1e-10)
-    check("$name: ∫Eₐ = 0 on a sorted field",    sorted_E_a[name], 0;  atol = 1e-12)
+    check("$name: ∫e_b = ∫eₚ on a sorted field", sorted_E_b[name], ∫eₚ; rtol = 1e-10)
+    check("$name: ∫eₐ = 0 on a sorted field",    sorted_E_a[name], 0;  atol = 1e-12)
 end
 
-@printf("exact:  ∫E_b dV = ∫Eₚ dV = %+.8f,   ∫Eₐ dV = 0\n\n", ∫Eₚ)
-@printf("  %-22s %14s %12s %14s\n", "method", "∫E_b dV", "error", "∫Eₐ dV")
+@printf("exact:  ∫e_b dV = ∫eₚ dV = %+.8f,   ∫eₐ dV = 0\n\n", ∫eₚ)
+@printf("  %-22s %14s %12s %14s\n", "method", "∫e_b dV", "error", "∫eₐ dV")
 for (name, _) in methods
     @printf("  %-22s %+14.8f %11.2e %14.2e\n", name, sorted_E_b[name],
-            (sorted_E_b[name] - ∫Eₚ) / abs(∫Eₚ), sorted_E_a[name])
+            (sorted_E_b[name] - ∫eₚ) / abs(∫eₚ), sorted_E_a[name])
 end
 ```
 
@@ -111,14 +111,14 @@ hlines!(ax, [-1 + 1/3, -1 + 2/3]; color = (:gray, 0.5), linewidth = 0.8)  # the 
 axislegend(ax; position = :rb, labelsize = 9)
 
 names = first.(methods)
-ax2 = Axis(fig1[1, 2]; ylabel = "∫E_b dV", title = "against the analytic value",
+ax2 = Axis(fig1[1, 2]; ylabel = "∫e_b dV", title = "against the analytic value",
            xticks = (1:4, ["3D\nSort", "Heaviside\nIntegral", "Vertical\nSort", "Profile\nLookup"]),
            xticklabelsize = 9)
 barplot!(ax2, 1:4, [sorted_E_b[n] for n in names]; color = :steelblue)
-hlines!(ax2, [∫Eₚ]; color = :black, linestyle = :dash, linewidth = 2)
-text!(ax2, 0.55, ∫Eₚ; text = " exact: ∫E_b = ∫Eₚ = $(round(∫Eₚ, digits = 4))",
+hlines!(ax2, [∫eₚ]; color = :black, linestyle = :dash, linewidth = 2)
+text!(ax2, 0.55, ∫eₚ; text = " exact: ∫e_b = ∫eₚ = $(round(∫eₚ, digits = 4))",
       align = (:left, :bottom), fontsize = 10)
-ylims!(ax2, 0, 1.35∫Eₚ)
+ylims!(ax2, 0, 1.35∫eₚ)
 
 fig1
 ```
@@ -193,12 +193,12 @@ fig2
 
 ## The local available potential energy is non-negative
 
-`Oceanostics` computes ``E_a`` in its local form, the density of
+`Oceanostics` computes ``e_a`` in its local form, the density of
 [Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742). A parcel carries
 ``b = b^\star(z^\star)`` and ``b^\star`` is non-decreasing, so the integrand ``b^\star(\tilde z) - b`` takes
 the sign of ``\tilde z - z^\star`` along the whole path and the integral comes out positive whichever side
-of its reference height the parcel sits. Unlike the global difference ``E_p - E_b`` this holds cell by
-cell, which is what makes ``E_a`` worth mapping as a field.
+of its reference height the parcel sits. Unlike the global difference ``e_p - e_b`` this holds cell by
+cell, which is what makes ``e_a`` worth mapping as a field.
 
 The check below sweeps three fields that stress the sort differently: a lock-release step where almost
 every cell is tied, a smooth stratification with a horizontal disturbance, and unstructured noise.
@@ -214,14 +214,14 @@ for (field_name, setter) in fields, (name, method) in methods
     model = NonhydrostaticModel(box; buoyancy = BuoyancyTracer(), tracers = :b)
     set!(model, b = setter)
     z✶  = reference_height(model; method)
-    E_a = interior(Field(AvailablePotentialEnergy(model, z✶)))
-    scale = max(maximum(abs, E_a), eps(Float64))
+    e_a = interior(Field(AvailablePotentialEnergy(model, z✶)))
+    scale = max(maximum(abs, e_a), eps(Float64))
 
-    worst["$field_name / $name"] = minimum(E_a) / scale
-    check("$field_name / $name: Eₐ ≥ 0", min(minimum(E_a) / scale, 0), 0; atol = 1e-10)
+    worst["$field_name / $name"] = minimum(e_a) / scale
+    check("$field_name / $name: eₐ ≥ 0", min(minimum(e_a) / scale, 0), 0; atol = 1e-10)
 end
 
-@printf("  %-22s %22s\n", "field", "worst min(Eₐ)/max|Eₐ|")
+@printf("  %-22s %22s\n", "field", "worst min(eₐ)/max|eₐ|")
 for (field_name, _) in fields
     w = minimum(worst["$field_name / $(n)"] for (n, _) in methods)
     @printf("  %-22s %22.2e\n", field_name, w)
@@ -230,8 +230,8 @@ end
 
 ```@example validation_reference_state
 fig3 = Figure(size = (760, 380))
-ax = Axis(fig3[1, 1]; ylabel = "min(Eₐ) / max|Eₐ|",
-          title = "the smallest Eₐ in the field, against the field's own scale",
+ax = Axis(fig3[1, 1]; ylabel = "min(eₐ) / max|eₐ|",
+          title = "the smallest eₐ in the field, against the field's own scale",
           xticks = (1:length(fields), [f for (f, _) in fields]), xticklabelsize = 10)
 
 for (i, (name, _)) in enumerate(methods)
@@ -250,7 +250,7 @@ fig3
 ```
 
 Read against the zero line: a bar above it means every cell in that field carries a strictly positive
-``E_a``, and a bar below it means the smallest value dipped negative by a few floating-point epsilons.
+``e_a``, and a bar below it means the smallest value dipped negative by a few floating-point epsilons.
 Either way the excursion scales with the field rather than with the grid, which is what marks it as
 round-off in the ``\Psi`` integral rather than a breach of the bound.
 

@@ -8,17 +8,105 @@ reference height ``z^\star``, and the potential energy of that state is the back
 potential energy,
 
 ```math
-E_b = -b z^\star = \frac{g \rho}{\rho_0} z^\star .
+e_b = -b z^\star = \frac{g \rho}{\rho_0} z^\star .
 ```
 
-``E_b`` is the share of the potential energy ``E_p = -bz`` of
+``e_b`` is the share of the potential energy ``e_p = -bz`` of
 [the potential energy equation](potential_energy_equation.md) that the flow *cannot* release. What is
 left over is the [available potential energy](available_potential_energy_equation.md), so the two
 modules are the two halves of one split and share the reference state built here: `reference_height`,
 `reference_buoyancy` and the methods below are exported by both.
 
-Because it moves only with irreversible changes to the buoyancy field, ``\int E_b \, \mathrm{d}V`` is a
-standard measure of the diapycnal mixing a simulation actually produces, numerical as well as physical.
+## The background potential energy equation
+
+``e_p`` is ``-z`` times the buoyancy with ``z`` fixed, so its equation follows from the buoyancy
+equation cell by cell. ``e_b`` is ``-z^\star`` times the same buoyancy, and ``z^\star`` is a functional
+of the *whole* field: it comes out of a sort, so a change anywhere in the domain can move it. There is
+no local ``e_b`` equation in the sense [the potential energy page](potential_energy_equation.md) derives
+one. What follows is the equation for the volume integral, which is what ``E_b`` is used for anyway.
+
+Two facts carry the derivation. The first is that ``E_b`` depends on the buoyancy field only through its
+*distribution*, the volume of fluid holding each buoyancy: sorting discards where every parcel sits and
+keeps only how much fluid is at each value. The second is that advection moves parcels around without
+changing the buoyancy they carry, so it leaves that distribution untouched. Adiabatic motion therefore
+cannot change ``E_b`` at all, however violent, and only the diffusive part of ``\partial_t b`` survives
+([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X)):
+
+```math
+\frac{d}{dt}\int e_b \, \mathrm{d}V
+    = -\int z^\star \, \partial_t b \big|_\mathrm{diffusive} \, \mathrm{d}V
+    = \int z^\star \, \partial_j q_j \, \mathrm{d}V ,
+```
+
+with ``q_j`` the closure's diffusive flux of buoyancy, in the convention
+[the potential energy page](potential_energy_equation.md) sets out. Pulling ``z^\star`` inside the
+derivative splits that the same way, except that ``z^\star`` varies through ``b`` rather than through
+position, so ``\partial_j z^\star = (\partial z^\star/\partial b)\,\partial_j b``:
+
+```math
+z^\star \partial_j q_j = \partial_j (z^\star q_j) - q_j \partial_j z^\star
+                       = \partial_j (z^\star q_j)
+                         + \kappa \frac{\partial z^\star}{\partial b} \left|\nabla b\right|^2 .
+```
+
+The divergence integrates to a flux through the boundary, which vanishes for insulating walls, leaving
+one term:
+
+```math
+\frac{d}{dt}\int e_b \, \mathrm{d}V
+    = \int \kappa \frac{\partial z^\star}{\partial b} \left|\nabla b\right|^2 \mathrm{d}V
+    \equiv \phi_d \ge 0 ,
+```
+
+the diapycnal mixing rate of Winters et al. It is non-negative because ``z^\star`` rises with ``b``, so
+mixing across buoyancy surfaces can only raise the background potential energy. That one-way property is
+what makes ``\int e_b \, \mathrm{d}V`` a mixing measure, and it is also why it measures a scheme's
+*spurious* mixing: the continuous equations say advection cannot move ``E_b``, so whatever motion of it
+survives in a simulation with no explicit diffusion came from the advection scheme.
+
+``\phi_d`` has no diagnostic of its own, and needs none, because it splits into two that do. Writing it
+as ``\kappa \nabla b \cdot \nabla z^\star`` and substituting ``z^\star = z + \Upsilon``, with
+``\Upsilon`` the [buoyancy displacement potential](available_potential_energy_equation.md),
+
+```math
+\phi_d = \kappa \nabla b \cdot \nabla z^\star
+        = \underbrace{\kappa \nabla b \cdot \nabla \Upsilon}_{\varepsilon_A}
+        + \underbrace{\kappa \, \partial b / \partial z}_{\Phi} ,
+```
+
+the [APE dissipation rate](available_potential_energy_equation.md) and the
+[diffusive buoyancy flux](potential_energy_equation.md#Diffusive-buoyancy-flux). The two split the
+mixing by what it costs the flow: ``\varepsilon_A`` is the part paid for out of available potential
+energy, and ``\Phi`` is the part diffusion does to the reference state on its own, which carries no
+available energy with it. So
+
+```math
+\frac{d}{dt}\int e_b \, \mathrm{d}V = \int \left(\varepsilon_A + \Phi\right) \mathrm{d}V .
+```
+
+Neither term is sign-definite on its own; their sum is, which is the sharpest check available on either
+of them.
+
+### Terms and what is implemented
+
+| Quantity | Expression | Diagnostic |
+|:---|:---|:---|
+| Background potential energy | ``e_b = -b z^\star`` | [`BackgroundPotentialEnergy`](@ref Oceanostics.BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy) |
+| Reference height | ``z^\star`` | [`reference_height`](@ref Oceanostics.BackgroundPotentialEnergyEquation.reference_height) |
+| Advection | vanishes identically | not applicable |
+| Diffusive transport | ``\partial_j(z^\star q_j)`` | not implemented |
+| Diapycnal mixing rate | ``\phi_d = \kappa \nabla b \cdot \nabla z^\star = \varepsilon_A + \Phi`` | the sum of the two below |
+| APE dissipation rate | ``\varepsilon_A = \kappa \nabla b \cdot \nabla \Upsilon`` | [`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate) |
+| Diffusive buoyancy flux | ``\Phi = \kappa \, \partial b / \partial z`` | [`DiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux) |
+
+!!! note "``\partial z^\star / \partial b`` needs ``z^\star`` to be a function of ``b``"
+    The chain rule step above assumes the reference height depends on position only through the
+    buoyancy, which is exact in the continuum but a choice at finite resolution. It holds cell by cell
+    for [`HeavisideIntegral`](@ref) and [`ProfileLookup`](@ref), which give every cell of a tied run the
+    same ``z^\star``. [`ThreeDimensionalSort`](@ref) hands tied cells consecutive slots instead, so
+    ``z^\star`` spreads over the depth the run fills. That spread is the volume-weighted mean of what
+    the other two assign, so every volume integral on this page is unaffected; only pointwise use of
+    ``\partial z^\star/\partial b`` is.
 
 ## The reference state
 
@@ -37,7 +125,7 @@ builds it with each of the four methods below so their costs and their differenc
 directly.
 
 `method` selects one of four strategies to calculate the reference state. All
-`method`s produce the same reference state in the continuous limit and the same ``\int E_a \, \mathrm{d}V``.
+`method`s produce the same reference state in the continuous limit and the same ``\int e_a \, \mathrm{d}V``.
 Mainly what differs is how cells of *equal* buoyancy are placed, and what grid the answer lands on.
 Here is a brief summary of the four, with more detail in the docstring of each:
 

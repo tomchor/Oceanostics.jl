@@ -133,17 +133,17 @@ function test_buoyancy_production_term(grid; model_type=NonhydrostaticModel)
     w₀ = 2; b₀ = 3
     set!(model, w=w₀, b=b₀, enforce_incompressibility=false)
 
-    wb = KineticEnergyEquation.BuoyancyProduction(model)
+    wb = KineticEnergyEquation.PotentialEnergyConversion(model)
     wb_field = Field(wb)
-    @test wb isa KineticEnergyEquation.BuoyancyProduction
+    @test wb isa KineticEnergyEquation.PotentialEnergyConversion
     @test wb_field isa Field
     @test Array(interior(wb_field, 1, 1, 2)) .== w₀ * b₀
 
     w′ = Field(model.velocities.w - Field(Average(model.velocities.w)))
     b′ = Field(model.tracers.b - Field(Average(model.tracers.b)))
-    w′b′ = KineticEnergyEquation.BuoyancyProduction(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
+    w′b′ = KineticEnergyEquation.PotentialEnergyConversion(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
     w′b′_field = Field(w′b′)
-    @test w′b′ isa KineticEnergyEquation.BuoyancyProduction
+    @test w′b′ isa KineticEnergyEquation.PotentialEnergyConversion
     @test w′b′_field isa Field
     @test .≈(Array(interior(w′b′_field, 1, 1, 2)), 0, rtol=1e-12, atol=1e-13) # less accurate for stretched grid
 

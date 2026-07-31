@@ -37,7 +37,7 @@ export TracerVarianceTendency, TracerVarianceDissipationRate, TracerVarianceDiff
 #---
 
 #+++ KineticEnergyEquation exports
-export KineticEnergy, KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyBuoyancyProduction,
+export KineticEnergy, KineticEnergyForcing, KineticEnergyPressureRedistribution, PotentialToKineticEnergyConversion,
        KineticEnergyDissipationRate, KineticEnergyIsotropicDissipationRate
 #---
 
@@ -76,7 +76,7 @@ export BoxFilter, GaussianFilter, check_filter_staging
 #---
 
 #+++ PotentialEnergyEquation exports
-export PotentialEnergy
+export PotentialEnergy, PotentialEnergyDiffusiveBuoyancyFlux
 #---
 
 #+++ BackgroundPotentialEnergyEquation exports
@@ -87,7 +87,7 @@ export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 #---
 
 #+++ AvailablePotentialEnergyEquation exports
-export AvailablePotentialEnergy
+export AvailablePotentialEnergy, BuoyancyDisplacementPotential, AvailablePotentialEnergyDissipationRate
 #---
 
 #+++ ProgressMessengers
@@ -384,7 +384,7 @@ end
 @diagnostic_show KineticEnergyEquation.KineticEnergyStress                   "KineticEnergyStress"                   "kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyForcing                  "KineticEnergyForcing"                  "kinetic energy forcing  uᵢFᵤᵢ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyPressureRedistribution   "KineticEnergyPressureRedistribution"   "kinetic energy pressure redistribution  uᵢ∂ᵢp"
-@diagnostic_show KineticEnergyEquation.KineticEnergyBuoyancyProduction       "KineticEnergyBuoyancyProduction"       "kinetic energy buoyancy production  uᵢbᵢ"
+@diagnostic_show KineticEnergyEquation.PotentialToKineticEnergyConversion    "PotentialToKineticEnergyConversion"    "potential to kinetic energy conversion  uᵢbᵢ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"          "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·τᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyIsotropicDissipationRate "KineticEnergyIsotropicDissipationRate" "isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ"
 #---
@@ -411,15 +411,18 @@ end
 #---
 
 #+++ PotentialEnergyEquation
-@diagnostic_show PotentialEnergyEquation.PotentialEnergy "PotentialEnergy" "potential energy per unit volume  Eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.PotentialEnergy             "PotentialEnergy"             "potential energy per unit volume  eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.DiffusiveBuoyancyFlux "PotentialEnergyDiffusiveBuoyancyFlux" "diffusive buoyancy flux  Φ = κ ∂b/∂z = -q₃"
 #---
 
 #+++ BackgroundPotentialEnergyEquation
-@diagnostic_show BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  E_b = -bz✶"
+@diagnostic_show BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  e_b = -bz✶"
 #---
 
 #+++ AvailablePotentialEnergyEquation
-@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy  "AvailablePotentialEnergy"  "local available potential energy density  Eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy                "AvailablePotentialEnergy"                "local available potential energy density  eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
+@diagnostic_show AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential           "BuoyancyDisplacementPotential"           "buoyancy displacement potential  Υ = z✶ - z"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  ε_A = κ ∂ᵢb ∂ᵢΥ"
 #---
 
 #+++ FlowDiagnostics

@@ -16,9 +16,6 @@ include("test_utils.jl")
 @inline z_ccc(i, j, k, grid) = Zᶜᶜᶜ(i, j, k, grid)
 height_operation(grid) = KernelFunctionOperation{Center, Center, Center}(z_ccc, grid)
 
-volume_integral(op) = sum(Field(Integral(op))) # a scalar, without scalar indexing on GPUs
-volume_mean(op)     = sum(Field(Average(op)))  # ditto, volume-weighted over the whole domain
-
 """
 The reference profile a sorting method describes, as `(z✶, b✶)` ordered from the bottom of the sorted
 column up. `VerticalSort` already stores it that way; the two model-grid methods hold `z✶` and
@@ -545,6 +542,161 @@ function test_sorting_rejects_immersed_boundaries(grid)
 
     return nothing
 end
+
+"""
+`Υ = z✶ - z` is the displacement a parcel would have to undo to reach the resorted state, so it is
+fixed by `z✶` and the grid alone. Checking it against that difference pins the sign, which is the one
+thing about `Υ` a reader cannot verify from the result. Sorting moves cells between heights but no
+volume, so `Υ` also has to average to zero over the domain.
+"""
+function test_buoyancy_displacement_potential(grid; method = HeavisideIntegral())
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = grid_noise)
+
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model; method)
+    Υ  = BuoyancyDisplacementPotential(model, z✶)
+    @test Υ isa BuoyancyDisplacementPotential
+
+    @test interior(Field(Υ)) ≈ interior(z✶) .- interior(Field(height_operation(grid)))
+    @test volume_mean(Υ) ≈ 0 atol = sqrt(eps(eltype(grid))) * grid.Lz
+
+    return nothing
+end
+
+"""
+Handed the buoyancy in place of `Υ`, the dissipation kernel computes `κ ∂ᵢb ∂ᵢb` in exactly the
+conservative discretization [`TracerVarianceDissipationRate`](@ref) uses for `χ = 2 ∂ⱼb·Fⱼ`, so the two
+have to agree to roundoff, `χ` carrying the extra factor of two. That pins the sign, the factor, the
+grid metrics and the boundary treatment against a diagnostic tested independently — none of which the
+approximate checks elsewhere could separate.
+"""
+function test_ape_dissipation_matches_tracer_variance_discretization(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
+    set!(model, b = grid_noise)
+
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
+    ε_A = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = model.tracers.b)
+    @test ε_A isa AvailablePotentialEnergyDissipationRate
+
+    χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)
+    @test interior(Field(ε_A)) ≈ interior(Field(χ)) ./ 2
+
+    return nothing
+end
+
+"""
+A horizontally uniform, statically stable stratification is its own sorted state, so under
+[`HeavisideIntegral`](@ref) it gets `z✶ = z` and holds no available energy to destroy: `Υ` and `ε_A`
+both vanish cell by cell. `ε_A` is the sharper of the two, since the diapycnal mixing rate and the
+diffusion of the reference state have to cancel rather than each being small — `κ|∇b|²`, which `ε_A` is
+sometimes mistaken for, would be nowhere near zero here. `χ/2` is that non-cancelling scale, so it is
+what the residual is measured against.
+"""
+function test_ape_dissipation_vanishes_when_sorted(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
+    set!(model, b = (x, y, z) -> 3z)
+
+    FT = eltype(grid)
+    scale = maximum(abs, interior(Field(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)))) / 2
+    @test scale > 0   # otherwise the assertion below would hold for any implementation
+
+    @test maximum(abs, interior(Field(BuoyancyDisplacementPotential(model)))) < sqrt(eps(FT)) * grid.Lz
+    @test maximum(abs, interior(Field(AvailablePotentialEnergyDissipationRate(model)))) < sqrt(eps(FT)) * scale
+
+    return nothing
+end
+
+"""
+`ε_A` holds `Υ`, which holds `z✶`, so a `compute!` has to refresh the whole chain rather than read a
+stale displacement. A frozen `Υ` would not throw or look obviously wrong — it would just report the
+previous step's dissipation — so this moves the flow on and checks the result against a diagnostic
+built fresh from the new state.
+
+The `upsilon` keyword, which exists so a pair of outputs can share one `Υ` and one sort, has to give
+that same answer.
+"""
+function test_ape_dissipation_is_recomputed(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
+    set!(model, b = (x, y, z) -> z + 0.3 * sin(9x))
+
+    ε_A = Field(AvailablePotentialEnergyDissipationRate(model))
+    stirred = maximum(abs, interior(ε_A))
+    @test stirred > 0
+
+    set!(model, b = (x, y, z) -> 2z + 0.5 * sin(7x) * cos(5z))
+    compute!(ε_A)
+
+    @test maximum(abs, interior(ε_A)) != stirred
+    @test interior(ε_A) ≈ interior(Field(AvailablePotentialEnergyDissipationRate(model)))
+
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
+    shared = Field(BuoyancyDisplacementPotential(model, z✶))
+    @test interior(Field(AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = shared))) ≈ interior(ε_A)
+
+    return nothing
+end
+
+"""
+`ε_A` is the diapycnal mixing rate less `Φ`, so adding the two back gives that mixing rate,
+`κ ∇b·∇z✶`, the quantity mixing raises `E_b` by. `z✶` rises with `b`, so the sum has to be non-negative,
+and that is the sharp check: neither `ε_A` nor `Φ` is sign-definite on its own, so getting either one's
+sign, scaling or grid metrics wrong shows up here as a negative. Checked cell by cell, which is the
+stronger statement, and in the volume integral, which is the one the budget rests on.
+"""
+function test_ape_dissipation_plus_diffusive_flux_is_the_mixing_rate(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
+    set!(model, b = (x, y, z) -> 2z + 0.4 * sin(7x) * cos(5z))
+
+    z✶  = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
+    Υ   = Field(BuoyancyDisplacementPotential(model, z✶))
+    ε_A = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = Υ)
+    Φ   = PotentialEnergyDiffusiveBuoyancyFlux(model)
+
+    mixing_rate = interior(Field(ε_A)) .+ interior(Field(Φ))
+    scale = maximum(abs, interior(Field(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)))) / 2
+    @test scale > 0
+    @test minimum(mixing_rate) > -sqrt(eps(eltype(grid))) * scale
+    @test maximum(mixing_rate) > 0.01 * scale   # and it is not uniformly zero, which would pass trivially
+    @test volume_integral(ε_A) + volume_integral(Φ) > 0
+
+    return nothing
+end
+
+"""
+`ε_A` reads `κ∇b` off the closure's own diffusive flux, so the buoyancy has to be a tracer the closure
+diffuses; and both diagnostics read the parcel's height off the grid `z✶` lives on, so a
+[`VerticalSort`](@ref) column — where that height *is* `z✶`, and a horizontal gradient means nothing —
+has to be rejected rather than silently returning zero.
+"""
+function test_upsilon_and_ape_dissipation_errors(grid)
+
+    seawater = NonhydrostaticModel(grid; buoyancy=SeawaterBuoyancy(), tracers=(:S, :T), closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
+    set!(seawater, S = grid_noise, T = grid_noise)
+    @test_throws "BuoyancyTracer" AvailablePotentialEnergyDissipationRate(seawater)
+    @test_throws "BuoyancyTracer" PotentialEnergyDiffusiveBuoyancyFlux(seawater)
+
+    # `κ∇b` comes off the closure, so a model without one has to be refused at construction
+    closureless = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    @test_throws "no closure" AvailablePotentialEnergyDissipationRate(closureless)
+
+    # `VerticalSort` stacks cells into a column, so it needs uniform cell volumes and cannot be built
+    # on a stretched grid at all — there is nothing to reject there.
+    BackgroundPotentialEnergyEquation.stretched_grid(grid) && return nothing
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
+    set!(model, b = grid_noise)
+    column = AvailablePotentialEnergyEquation.reference_height(model, method=VerticalSort())
+
+    @test_throws "model grid" BuoyancyDisplacementPotential(model, column)
+    @test_throws "model grid" AvailablePotentialEnergyDissipationRate(model, column)
+
+    return nothing
+end
 #---
 
 @testset "Available potential energy diagnostics" begin
@@ -582,6 +734,18 @@ end
 
         @info "      Testing that the local available potential energy is non-negative"
         test_local_ape_is_non_negative(grid)
+
+        @info "      Testing the buoyancy displacement potential and the APE dissipation rate"
+        test_buoyancy_displacement_potential(grid; method = grid_method)
+        test_ape_dissipation_matches_tracer_variance_discretization(grid)
+        test_ape_dissipation_vanishes_when_sorted(grid)
+        test_ape_dissipation_is_recomputed(grid)
+        test_upsilon_and_ape_dissipation_errors(grid)
+
+        # `Φ` itself is tested with the rest of the `e_p` equation, in `test_pe_diagnostics.jl`; what
+        # belongs here is the identity that defines `ε_A` in terms of it.
+        @info "      Testing that ε_A + Φ is the diapycnal mixing rate"
+        test_ape_dissipation_plus_diffusive_flux_is_the_mixing_rate(grid)
 
         @info "      Testing the `ThreeDimensionalSort`, `HeavisideIntegral` and `VerticalSort` methods"
         test_heaviside_is_constant_on_isopycnals(grid)
