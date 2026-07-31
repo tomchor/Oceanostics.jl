@@ -26,7 +26,8 @@ using Oceanostics: validate_location, CustomKFO
 # Imported so the docstring `@ref`s below resolve in-module, as well as for dispatch.
 using ..PotentialEnergyEquation: PotentialEnergy, PotentialEnergyDiffusiveBuoyancyFlux,
                                  PotentialToKineticEnergyConversion, KineticEnergyConversion,
-                                 validate_buoyancy_is_a_diffused_tracer, buoyancy_diffusive_flux_arguments
+                                 validate_buoyancy_is_a_diffused_tracer, validate_closure_supplies_a_flux,
+                                 buoyancy_diffusive_flux_arguments
 using ..BackgroundPotentialEnergyEquation: BackgroundPotentialEnergy, SortedReferenceHeightField,
                                            AbstractReferenceHeightMethod, reference_height,
                                            reference_buoyancy, sorted_height, ThreeDimensionalSort,
@@ -282,6 +283,7 @@ end
 function AvailablePotentialEnergyDissipationRate(model, z✶::SortedReferenceHeightField; upsilon = nothing)
 
     validate_buoyancy_is_a_diffused_tracer("AvailablePotentialEnergyDissipationRate", model)
+    validate_closure_supplies_a_flux("AvailablePotentialEnergyDissipationRate", model)
     validate_reference_height_grid("AvailablePotentialEnergyDissipationRate", model, z✶)
 
     Υ = isnothing(upsilon) ? Field(BuoyancyDisplacementPotential(model, z✶)) : upsilon

@@ -210,6 +210,17 @@ end
 # diffusive flux, which needs the buoyancy to be a tracer the closure diffuses. `SeawaterBuoyancy` would
 # need the fluxes of temperature and salinity combined through the equation of state. Both helpers live
 # here because this is the module the two diagnostics have in common.
+# `Oceanostics.validate_dissipative_closure` is the wrong tool here: it admits only
+# `AbstractScalarDiffusivity`, so it would reject Smagorinsky, AMD and every other closure that defines
+# `diffusive_flux_*` and works fine. What actually breaks is having no closure at all, which is a legal
+# model and which otherwise surfaces as a `MethodError` from inside the kernel naming none of the
+# caller's code.
+validate_closure_supplies_a_flux(diagnostic, model) =
+    isnothing(model.closure) &&
+        throw(ArgumentError("`$diagnostic` reads `κ∇b` off the model's closure, but this model has no \
+                             closure, so there is no diffusive flux to read. Build the model with one, \
+                             e.g. `closure = ScalarDiffusivity(κ=...)`."))
+
 validate_buoyancy_is_a_diffused_tracer(diagnostic, model) =
     model.buoyancy isa BuoyancyTracerModel ||
         throw(ArgumentError("`$diagnostic` needs the buoyancy to be a tracer the closure diffuses, so that `κ∇b` is \
@@ -327,6 +338,7 @@ PotentialEnergyDiffusiveBuoyancyFlux KernelFunctionOperation at (Center, Center,
 function DiffusiveBuoyancyFlux(model; location = (Center, Center, Center))
     validate_location(location, "DiffusiveBuoyancyFlux")
     validate_buoyancy_is_a_diffused_tracer("DiffusiveBuoyancyFlux", model)
+    validate_closure_supplies_a_flux("DiffusiveBuoyancyFlux", model)
 
     return KernelFunctionOperation{Center, Center, Center}(diffusive_buoyancy_flux_ccc, model.grid,
                                                            buoyancy_diffusive_flux_arguments(model)...)

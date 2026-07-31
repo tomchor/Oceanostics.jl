@@ -112,6 +112,19 @@ function test_diffusive_buoyancy_flux(grid)
     @test !isapprox(volume_integral(PotentialEnergyDiffusiveBuoyancyFlux(varying)),
                     1e-3 * grid.Lx * grid.Ly * 3 * grid.Lz; rtol = 0.1)
 
+    # A model without a closure is legal and has no flux to read, so it has to be refused at
+    # construction rather than at `compute!`, where the failure is a `MethodError` from inside the
+    # kernel that names none of the caller's code.
+    @test_throws "no closure" PotentialEnergyDiffusiveBuoyancyFlux(
+        NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b))
+
+    # Closures that compute their own κ do define a flux and must keep working.
+    for closure in (SmagorinskyLilly(), AnisotropicMinimumDissipation())
+        eddy = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure)
+        set!(eddy, b = grid_noise)
+        @test volume_integral(PotentialEnergyDiffusiveBuoyancyFlux(eddy)) isa Number
+    end
+
     return nothing
 end
 

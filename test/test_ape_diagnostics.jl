@@ -680,6 +680,10 @@ function test_upsilon_and_ape_dissipation_errors(grid)
     @test_throws "BuoyancyTracer" AvailablePotentialEnergyDissipationRate(seawater)
     @test_throws "BuoyancyTracer" PotentialEnergyDiffusiveBuoyancyFlux(seawater)
 
+    # `κ∇b` comes off the closure, so a model without one has to be refused at construction
+    closureless = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    @test_throws "no closure" AvailablePotentialEnergyDissipationRate(closureless)
+
     # `VerticalSort` stacks cells into a column, so it needs uniform cell volumes and cannot be built
     # on a stretched grid at all — there is nothing to reject there.
     BackgroundPotentialEnergyEquation.stretched_grid(grid) && return nothing
