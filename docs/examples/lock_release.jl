@@ -110,7 +110,7 @@ KE            = KineticEnergy(model)
 #
 # ```math
 # \frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon\, dV, \qquad
-# \frac{d}{dt}\int e_a\, dV = -\int wb\, dV - \int \varepsilon_A\, dV .
+# \frac{d}{dt}\int e_a\, dV = -\int wb\, dV - \int \varepsilon_a\, dV .
 # ```
 #
 # Advection and the pressure gradient integrate to zero for an incompressible flow in a closed box, and
@@ -118,22 +118,22 @@ KE            = KineticEnergy(model)
 # boundary either. What survives is the buoyancy production ``wb``, which carries opposite signs in the
 # two budgets and so cancels from their sum, and the two sinks.
 #
-# ``\varepsilon_A`` is the term this example is built around. It is the contraction of the buoyancy
+# ``\varepsilon_a`` is the term this example is built around. It is the contraction of the buoyancy
 # gradient with the [`BuoyancyDisplacementPotential`](@ref) ``\Upsilon = z^\star - z``, which is
 # ``\partial e_a / \partial b`` and hence the conjugate of ``b``:
 #
 # ```math
-# \varepsilon_A = \kappa\, \partial_i b\, \partial_i \Upsilon
+# \varepsilon_a = \kappa\, \partial_i b\, \partial_i \Upsilon
 #               = \kappa \left[\frac{\partial z^\star}{\partial b} |\nabla b|^2
 #                              - \frac{\partial b}{\partial z}\right] ,
 # ```
 # the diapycnal mixing rate of Winters et al. (1995) less the diffusion the reference state undergoes
-# on its own, which carries no available energy with it. Unlike ``\varepsilon_A`` it is therefore not
+# on its own, which carries no available energy with it. Unlike ``\varepsilon_a`` it is therefore not
 # sign-definite pointwise.
 #
-# We hand ``\varepsilon_A`` the [`HeavisideIntegral`](@ref) reference height already built above rather
+# We hand ``\varepsilon_a`` the [`HeavisideIntegral`](@ref) reference height already built above rather
 # than letting it sort the domain again, and that method rather than another because
-# ``\varepsilon_A`` differentiates the map ``\Upsilon``: Eq. (11) of Winters et al. is the one that makes
+# ``\varepsilon_a`` differentiates the map ``\Upsilon``: Eq. (11) of Winters et al. is the one that makes
 # ``z^\star`` a function of buoyancy alone, so tied cells do not spread ``z^\star`` over the depth they
 # fill and show up in ``\nabla \Upsilon`` as grid-scale noise.
 
@@ -163,7 +163,7 @@ simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
 # The *budget* writer carries only the volume integrals, which are cheap next to the maps, on
 # `ConsecutiveIterations(TimeInterval(0.5))`. That schedules a second sample one model step after each
 # scheduled time, which lets us finite-difference ``d/dt`` across that step instead of accumulating it.
-# The `∫APE_heaviside` written here is the tendency term that pairs with ``\varepsilon_A``, since the
+# The `∫APE_heaviside` written here is the tendency term that pairs with ``\varepsilon_a``, since the
 # two come off the same sort.
 
 integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫εₖ, ∫εₐ)
