@@ -443,7 +443,11 @@ total_int = KE_int .+ APE_int .+ BPE_int
 @test KE_int[1] < 1e-8 * APE_int[1]                         # the lock starts at rest         #hide
 @test BPE_int[end] > BPE_int[1]                             # mixing raised the background    #hide
 @test minimum(diff(BPE_int)) > -1e-6 * maximum(abs, BPE_int) # and only ever raised it        #hide
-@test total_int[end] < total_int[1];                        # dissipation outweighs diffusion #hide
+@test total_int[end] < total_int[1]                          # dissipation outweighs diffusion #hide
+## Diffusion working against gravity can feed the total back, so it need not fall monotonically. But  #hide
+## an endpoint test alone would pass a run that spiked mid-simulation and decayed below its start, so #hide
+## bound the rise: measured, the worst interval falls, so any rise at all is already anomalous.       #hide
+@test maximum(diff(total_int)) < 0.02 * abs(total_int[1] - total_int[end]);                           #hide
 
 set_theme!(Theme(fontsize = 20)) #hide
 fig2 = Figure(size = (780, 350))
