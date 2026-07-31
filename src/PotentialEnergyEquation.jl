@@ -28,8 +28,9 @@ using ..KineticEnergyEquation: PotentialToKineticEnergyConversion
 # `uᵢbᵢ` is the source of kinetic energy and, with the sign flipped, the buoyancy conversion term of the
 # `e_p` equation. It is defined in `KineticEnergyEquation`, whose local alias `PotentialEnergyConversion`
 # names the reservoir the energy comes from; this one names where it goes. Each module names the other
-# side, so the term reads correctly whichever budget is being written. It is exported from this module and from `AvailablePotentialEnergyEquation`, but not from
-# `Oceanostics`, where unprefixed it would say nothing about which budget it belongs to.
+# side, so the term reads correctly whichever budget is being written. It is exported from this module
+# and from `AvailablePotentialEnergyEquation`, but not from `Oceanostics`, where unprefixed it would say
+# nothing about which budget it belongs to.
 const KineticEnergyConversion = PotentialToKineticEnergyConversion
 
 const NoBuoyancyModel = Union{Nothing, ShallowWaterModel}

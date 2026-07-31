@@ -98,7 +98,7 @@ Oceanostics.KineticEnergyEquation.KineticEnergyForcing
 Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution
 ```
 
-## Buoyancy production
+## Potential energy conversion
 
 ```@docs
 Oceanostics.KineticEnergyEquation.PotentialEnergyConversion
