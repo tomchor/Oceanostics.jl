@@ -1,10 +1,7 @@
 # # [Kelvin-Helmholtz instability](@id kelvin_helmholtz_example)
 #
-# This example simulates a simple 2D Kelvin-Helmholtz instability and is based on the similar
-# [Oceananigans
-# example](https://clima.github.io/OceananigansDocumentation/stable/literated/kelvin_helmholtz_instability/).
-# We then use Oceanostics to close the volume-integrated *coarse-grained* (filtered-flow) kinetic-energy
-# budget of the developing billows.
+# In this example we simulate a simple 2D Kelvin-Helmholtz instability and then use
+# Oceanostics to close the volume-integrated kinetic-energy budget of the filtered flow.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -29,26 +26,26 @@ using Oceananigans
 U   = 1     # velocity scale (half the velocity difference across the shear layer)
 h   = 1     # length scale (shear-layer half-width)
 Ri₀ = 0.1   # Richardson number
-Re  = 5e4   # Reynolds number
+Re  = 4e3   # Reynolds number (bounded by the grid; see the resolution note below)
 Pr  = 1     # Prandtl number
 
 ν = U * h / Re   # viscosity
 κ = ν / Pr       # buoyancy diffusivity
 
-# We begin by creating a model with this isotropic diffusivity and fifth-order advection on a `xz`
+# We begin by creating a model with this isotropic diffusivity and centered advection on a `xz`
 # grid, using a buoyancy `b` as the active scalar. We make the box one wavelength of the most
 # unstable Kelvin-Helmholtz mode wide (`k_max = 0.4446 / h`; [Michalke,
 # 1964](https://doi.org/10.1017/S0022112064000908)), so that the perturbation we seed below fits
 # periodically:
 
-N = 128
+N = 256
 k_max = 0.4446 / h   # most unstable KH wavenumber (Michalke, 1964)
 Lx = 2π / k_max      # one most-unstable wavelength
 Lz = 10
 grid = RectilinearGrid(size=(N, N), x=(-Lx/2, +Lx/2), z=(-Lz/2, +Lz/2), topology=(Periodic, Flat, Bounded))
 
 model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
-                            advection = UpwindBiased(order=5),
+                            advection = Centered(order=4), # A centered scheme is used here to minimize numerical dissipation
                             closure = ScalarDiffusivity(; ν, κ),
                             buoyancy = BuoyancyTracer(), tracers = :b)
 
@@ -78,11 +75,8 @@ set!(model, u=shear_flow, b=stratification, w=perturbation)
 # adapts it as the flow evolves:
 
 Δx = minimum_xspacing(grid)
-simulation = Simulation(model, Δt = 0.1 * Δx / U, stop_time=120)
-
-wizard = TimeStepWizard(cfl=0.8, max_Δt=1)
-simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(2))
-
+simulation = Simulation(model, Δt = 0.2 * Δx / U, stop_time=120)
+conjure_time_step_wizard!(simulation, IterationInterval(2), cfl=0.8, max_Δt=1)
 
 # ## Model diagnostics
 #
@@ -113,7 +107,7 @@ Q = QVelocityGradientTensorInvariant(model)
 # Kelvin-Helmholtz billows draw kinetic energy from the mean shear and pass it down to ever-smaller
 # scales, so this is a natural flow in which to look at a *coarse-grained* (filtered) kinetic-energy
 # budget in the spirit of [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1). We define a
-# Gaussian filter whose width is comparable to the shear-layer half-width `h` and use it to build every
+# box filter whose width is comparable to the shear-layer half-width `h` and use it to build every
 # term in the budget of the filtered kinetic energy ``\overline{K} = \tfrac{1}{2}\overline{u}_i\overline{u}_i``.
 # Volume-integrated — advection and pressure work integrate to zero, since the flow is periodic in `x`
 # and `w = 0` with free slip at the `z` walls — that budget reads
@@ -128,20 +122,28 @@ Q = QVelocityGradientTensorInvariant(model)
 # with a buoyancy production ``\overline{w}\,\overline{b}`` (the conversion between filtered kinetic and
 # potential energy), the cross-scale kinetic-energy flux ``\Pi_K`` to subfilter scales
 # ([`KineticEnergyCrossScaleFlux`](@ref)), and viscous dissipation due to the coarse-grained
-# flow ``\overline{\varepsilon}`` ([`CoarseGrainedKineticEnergyDissipationRate`](@ref)).
+# flow ``\overline{\varepsilon}`` ([`FilteredKineticEnergyDissipationRate`](@ref)).
 
 using Oceananigans.AbstractOperations: @at
 
-filter = GaussianFilter(; dims=(1, 3), σ=h / 2, boundary=:shrink)  # FWHM ≈ h, the shear-layer width
+# A box filter is specified by its stencil size `N` in grid points rather than by a physical width, so
+# we pick the odd `N` whose stencil spans roughly the shear-layer half-width `h`. The grid is slightly
+# anisotropic here (`Δx ≈ 0.11 h`, `Δz ≈ 0.078 h`), so no single `N` matches `h` exactly in both
+# directions; `N = 11` brackets it, spanning `11Δx ≈ 1.2 h` in `x` and `11Δz ≈ 0.86 h` in `z`.
+
+bfilter = BoxFilter(; dims=(1, 3), N=11, boundary=:shrink)  # stencil ≈ h wide, the shear-layer half-width
 
 u, w = model.velocities.u, model.velocities.w
 b = model.tracers.b
-ū, w̄, b̄ = filter(u), filter(w), filter(b)
+## Materialize each filtered field so the multi-direction filter takes its fast staged (separable)
+## path; composing the raw `bfilter(u)` into `ū^2 + w̄^2` below would instead run it fused (see the
+## filter performance notes and `check_filter_staging`).
+ū, w̄, b̄ = Field(bfilter(u)), Field(bfilter(w)), Field(bfilter(b))
 
 Kˡ = @at (Center, Center, Center) (ū^2 + w̄^2) / 2   # filtered kinetic energy ½ūᵢūᵢ
 w̄b̄ = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy production of the filtered flow
-Πₖ = KineticEnergyCrossScaleFlux(model, filter; dims=(1, 3))
-εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filter)
+Πₖ = KineticEnergyCrossScaleFlux(model, bfilter; dims=(1, 3))
+εˡ = FilteredKineticEnergyDissipationRate(model, bfilter)
 
 # The budget only needs the (cheap) volume integrals of these terms:
 
@@ -213,7 +215,8 @@ w̄b̄_pair = @. 0.5 * (∫w̄b̄_t[i1] + ∫w̄b̄_t[i2])
 Πₖ_pair = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2])
 εˡ_pair = @. 0.5 * (∫εˡ_t[i1] + ∫εˡ_t[i2])
 
-resid = @. dKˡdt - (w̄b̄_pair - Πₖ_pair - εˡ_pair)
+# Residual in sum-to-zero form: the negative tendency plus the three sources, so the plotted curves add to it
+resid = @. -dKˡdt + w̄b̄_pair - Πₖ_pair - εˡ_pair
 
 using Test                              #hide
 rms(x) = √(sum(abs2, x) / length(x))    #hide
@@ -274,12 +277,13 @@ Colorbar(fig[5, 2], hm5, vertical=false, height=8)
 hm6 = heatmap!(ax6, εˡₙ; colormap=:magma, colorrange=(0, ε_lim))
 Colorbar(fig[5, 3], hm6, vertical=false, height=8);
 
-# The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget: `d(∫Kˡ)/dt`
-# against its three sources — buoyancy production `∫w̄b̄ dV`, minus the cross-scale flux `−∫Πₖ dV`, and
-# minus the coarse-grained dissipation `−∫εˡ dV` — with the residual.
+# The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget. We plot the negative
+# tendency `−d(∫Kˡ)/dt` together with its three sources: buoyancy production `∫w̄b̄ dV`, the cross-scale
+# flux `−∫Πₖ dV`, and the coarse-grained dissipation `−∫εˡ dV`. With the tendency negated, the four curves
+# sum to the residual.
 
 ax_bud = Axis(fig[6, 1:3]; xlabel="Time", title="Coarse-grained KE budget", height=140)
-lines!(ax_bud, t_pair, dKˡdt, label="d(∫Kˡ)/dt")
+lines!(ax_bud, t_pair, -dKˡdt, label="−d(∫Kˡ)/dt")
 lines!(ax_bud, t_pair, w̄b̄_pair, label="∫w̄b̄ dV")
 lines!(ax_bud, t_pair, -Πₖ_pair, label="−∫Πₖ dV")
 lines!(ax_bud, t_pair, -εˡ_pair, label="−∫εˡ dV")
@@ -308,8 +312,7 @@ end
 # The bottom panel shows the volume-integrated coarse-grained kinetic-energy budget. As the billows
 # grow and overturn, the filtered flow mostly loses kinetic energy to potential energy (`∫w̄b̄ dV < 0`) and
 # feeds the subfilter scales through the cross-scale flux (`−∫Πₖ dV`), while the coarse-grained viscous
-# dissipation `∫εˡ dV` stays comparatively small at this Reynolds number. The residual (dashed) is the
-# gap between `d(∫Kˡ)/dt` and the sum of the three terms. Unlike the centered-advection
-# [Two-dimensional turbulence example](@ref two_d_turbulence_example), the upwind scheme here adds some
-# numerical dissipation, but because it acts mostly at the grid scale it barely projects onto the
-# smooth filtered budget, which still closes to within a few percent.
+# dissipation `∫εˡ dV` stays comparatively small at this Reynolds number. The residual (dashed), the
+# sum of the negative tendency `−d(∫Kˡ)/dt` and the three source terms, stays small. As in the
+# [Two-dimensional turbulence example](@ref two_d_turbulence_example), the centered scheme contributes no
+# numerical dissipation of its own, so the budget closes against the explicit `∫εˡ dV` alone with a negligible residual.

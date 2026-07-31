@@ -25,7 +25,7 @@ where ``\tau_{ij}`` is the viscous/subgrid stress tensor, ``p`` is pressure,
 This decomposition is essential for understanding how kinetic energy is generated
 (e.g. by buoyancy production or forcing), redistributed (by advection or pressure work),
 and removed (by viscous dissipation). The module also provides two formulations of the
-dissipation rate: a general one based on the full stress tensor (``\varepsilon = \partial_j u_i \cdot F_{ij}``),
+dissipation rate: a general one based on the full stress tensor (``\varepsilon = \partial_j u_i \cdot \tau_{ij}``),
 and an isotropic version (``\varepsilon = 2\nu S_{ij} S_{ij}``) valid when the
 turbulence closure uses a single scalar viscosity.
 
@@ -54,12 +54,12 @@ KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
 └── computes: isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ
 
-julia> wb = KineticEnergyEquation.BuoyancyProduction(model)
-KineticEnergyBuoyancyProduction KernelFunctionOperation at (Center, Center, Center)
+julia> wb = KineticEnergyEquation.PotentialEnergyConversion(model)
+PotentialToKineticEnergyConversion KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "BuoyancyForce", "NamedTuple")
-└── computes: kinetic energy buoyancy production  uᵢbᵢ
+└── computes: potential to kinetic energy conversion  uᵢbᵢ
 ```
 
 ## Kinetic energy
@@ -98,10 +98,10 @@ Oceanostics.KineticEnergyEquation.KineticEnergyForcing
 Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution
 ```
 
-## Buoyancy production
+## Potential energy conversion
 
 ```@docs
-Oceanostics.KineticEnergyEquation.BuoyancyProduction
+Oceanostics.KineticEnergyEquation.PotentialEnergyConversion
 ```
 
 ## Dissipation rate

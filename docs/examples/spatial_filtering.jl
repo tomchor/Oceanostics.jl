@@ -93,9 +93,9 @@ using Oceanostics
 
 filter = GaussianFilter(; dims=(1, 2), σ=σ)
 
-ω  = ∂x(v) - ∂y(u) # vorticity
-ω̄  = filter(ω)     # filtered (large-scale) vorticity
-ω′ = Field(ω - ω̄)  # subfilter fluctuation
+ω  = ∂x(v) - ∂y(u)      # vorticity
+ω̄  = Field(filter(ω))   # filtered (large-scale) vorticity, materialized so the filter runs staged
+ω′ = Field(ω - ω̄)       # subfilter fluctuation
 
 # We plot the vorticity, filtered vorticity, and subfilter fluctuations side by side:
 
@@ -151,17 +151,20 @@ fig_sweep
 # ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``: the difference between the filtered advective
 # flux and the flux carried by the filtered fields. We reuse the same `filter` object on each piece —
 # the two velocities, the tracer, and the two advective products ``u_i c`` — before combining: one
-# filter object, applied to five different fields.
+# filter object, applied to five different fields. Each filtered piece is wrapped in a `Field` so the
+# multi-direction filter takes its fast staged (separable) path; composing a raw `filter(u)` into the
+# products below would instead run it fused (see the filter performance notes and
+# [`check_filter_staging`](@ref)).
 
 using Oceananigans.AbstractOperations: @at
 
-ū  = filter(u)
-v̄  = filter(v)
-c̄  = filter(c)
+ū  = Field(filter(u))
+v̄  = Field(filter(v))
+c̄  = Field(filter(c))
 
-τx = filter(u * c) - ū * c̄   # overline(u c) - ū c̄
-τy = filter(v * c) - v̄ * c̄
-τ  = √(τx^2 + τy^2)          # subfilter flux magnitude
+τx = Field(filter(u * c)) - ū * c̄   # overline(u c) - ū c̄
+τy = Field(filter(v * c)) - v̄ * c̄
+τ  = √(τx^2 + τy^2)                  # subfilter flux magnitude
 
 # Finally we plot the tracer, its filtered version, and the magnitude of the subfilter flux:
 
@@ -225,17 +228,18 @@ fig_Π
 
 # ## Coarse-grained kinetic energy dissipation
 #
-# We can also calculate the dissipation acting on the *filtered* flow using [`CoarseGrainedKineticEnergyDissipationRate`](@ref):
+# We can also calculate the dissipation acting on the *filtered* flow using [`FilteredKineticEnergyDissipationRate`](@ref):
 #
 # ```math
 # \varepsilon^l = \frac{\partial \overline{u}_i}{\partial x_j}\,\overline{F}_{ij},
 # ```
 #
-# where ``\varepsilon^l `` indicates the dissipation of the filtered flow and ``\overline{F}_{ij}``
-# is the filtered viscous stress tensor. In our case (width a constant-viscosity run)
-# ``\overline{F}_{ij}`` simplifies to ``\nu\,\partial_j\overline{u}_i\,\partial_\overline{u}_i``:
+# where ``\varepsilon^l`` indicates the dissipation of the filtered flow and ``\overline{F}_{ij}`` is
+# the filtered viscous stress tensor — filtered from the full flow, rather than rebuilt from
+# ``\bar{u}_i``. For the constant viscosity used here the two coincide, and ``\varepsilon^l`` reduces
+# to ``2\nu\,\bar{S}_{ij}\bar{S}_{ij}``, the dissipation of the resolved strain:
 
-εˡ = CoarseGrainedKineticEnergyDissipationRate(model, filter)
+εˡ = FilteredKineticEnergyDissipationRate(model, filter)
 
 fig_ε = Figure()
 ax_ε = Axis(fig_ε[1, 1]; title = "Coarse-grained KE dissipation εˡ", axis_kwargs...)

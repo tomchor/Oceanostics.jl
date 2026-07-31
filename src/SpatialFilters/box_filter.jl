@@ -141,6 +141,8 @@ intermediate fields — `d × N` reads per output cell instead of `Nᵈ`. If the
 into another `AbstractOperation` (e.g. `2 * bf(c)`) the original fused single-kernel evaluation runs
 instead.
 
+See [Performance notes](@ref filter_performance) in the documentation for what that costs and how to avoid it.
+
 ## Boundary handling
 
 Stencil offsets that leave the interior `1:Nd_grid` of a direction (where `Nd_grid` is the number of

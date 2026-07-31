@@ -49,7 +49,7 @@ Return the (true) horizontal velocity magnitude.
     û² = ℑxᶜᵃᵃ(i, j, k, grid, ψ², û) # F, C, C  → C, C, C
     v̂² = ℑyᵃᶜᵃ(i, j, k, grid, ψ², v̂) # C, F, C  → C, C, C
     ŵ² = ℑzᵃᵃᶜ(i, j, k, grid, ψ², ŵ) # C, C, F  → C, C, C
-    return √(û² + v̂² + ŵ² - w²_from_u⃗_tilted_ccc(i, j, k, grid, û, v̂, ŵ, vertical_dir))
+    return √(max(zero(grid), û² + v̂² + ŵ² - w²_from_u⃗_tilted_ccc(i, j, k, grid, û, v̂, ŵ, vertical_dir))) # clamp at 0: GPU roundoff can make the radicand slightly negative, which would throw in sqrt
 end
 
 @inline function richardson_number_ccf(i, j, k, grid, û, v̂, ŵ, b, vertical_dir)

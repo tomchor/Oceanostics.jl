@@ -1,4 +1,5 @@
 using Test
+import Logging
 using CUDA: has_cuda_gpu, @allowscalar
 using Oceananigans
 using Oceananigans: fill_halo_regions!, location
@@ -201,6 +202,23 @@ function test_kfo_input(grid, Filter, fkw)
     outer = Filter(inner; dims=(2,), N=3, fkw...)
     @test outer isa KernelFunctionOperation
     @test location(outer) == (Center, Center, Center)
+end
+
+# Regression test: a windowed output field (e.g. an output writer's `indices=(:, :, Nz)`
+# slice) must compute through the staged path without writing out of bounds, and must agree
+# with the matching slice of the full field.
+function test_windowed_output_matches_full(grid, Filter, fkw)
+    c = center_field_from(grid, (x, y, z) -> sin(2π*x) * cos(2π*y) + sin(2π*z))
+    Nx, Ny, Nz = size(grid)
+    for (dims, indices) in [((1, 2),    (:, :, Nz)),     # window outside the filtered dims
+                            ((1, 2),    (:, Ny, :)),     # window inside a filtered dim
+                            ((1, 2, 3), (:, :, Nz))]     # 3D staged path, windowed
+        full = Field(Filter(c; dims=dims, N=3, fkw...))
+        win  = Field(Filter(c; dims=dims, N=3, fkw...); indices=indices)
+        compute!(full); compute!(win)
+        ref_indices = ntuple(d -> indices[d] isa Colon ? Colon() : (indices[d]:indices[d]), 3)
+        @test Array(interior(win)) ≈ Array(view(interior(full), ref_indices...))
+    end
 end
 
 function test_dims_validation(grid, Filter, fkw)
@@ -497,9 +515,9 @@ end
 function direction_coords_and_spacings(grid, d, loc)
     N = size(grid, d)
     ℓ = map(L -> L(), loc)
-    d == 1 && return ([xnode(m, 1, 1, grid, ℓ...) for m in 1:N], [xspacing(m, 1, 1, grid, ℓ...) for m in 1:N])
-    d == 2 && return ([ynode(1, m, 1, grid, ℓ...) for m in 1:N], [yspacing(1, m, 1, grid, ℓ...) for m in 1:N])
-    return ([znode(1, 1, m, grid, ℓ...) for m in 1:N], [zspacing(1, 1, m, grid, ℓ...) for m in 1:N])
+    d == 1 && return @allowscalar ([xnode(m, 1, 1, grid, ℓ...) for m in 1:N], [xspacing(m, 1, 1, grid, ℓ...) for m in 1:N])
+    d == 2 && return @allowscalar ([ynode(1, m, 1, grid, ℓ...) for m in 1:N], [yspacing(1, m, 1, grid, ℓ...) for m in 1:N])
+    return @allowscalar ([znode(1, 1, m, grid, ℓ...) for m in 1:N], [zspacing(1, 1, m, grid, ℓ...) for m in 1:N])
 end
 
 # Independent reference for a 1D stretched Gaussian filter: the discrete quadrature
@@ -693,13 +711,13 @@ function test_reusable_box_filter(grid)
     @test F isa BoxFilterOperator
 
     # Same KFO as the field-first constructor (identically assembled).
-    @test F(c) == BoxFilter(c; dims=(1, 2), N=5)
+    @allowscalar @test F(c) == BoxFilter(c; dims=(1, 2), N=5)
 
     # Computed interiors match too.
     @test Array(interior(Field(F(c)))) ≈ Array(interior(Field(BoxFilter(c; dims=(1, 2), N=5))))
 
     # Reusing the operator on a second field gives that field's own result.
-    @test F(d) == BoxFilter(d; dims=(1, 2), N=5)
+    @allowscalar @test F(d) == BoxFilter(d; dims=(1, 2), N=5)
     @test Array(interior(Field(F(d)))) ≈ Array(interior(Field(BoxFilter(d; dims=(1, 2), N=5))))
 
     # The two filtered fields differ (the operator did not capture the field).
@@ -707,7 +725,7 @@ function test_reusable_box_filter(grid)
 
     # The boundary keyword is threaded through.
     Fb = BoxFilter(; dims=(1,), N=5, boundary=:edge)
-    @test Fb(c) == BoxFilter(c; dims=(1,), N=5, boundary=:edge)
+    @allowscalar @test Fb(c) == BoxFilter(c; dims=(1,), N=5, boundary=:edge)
 
     # show prints something tidy.
     @test occursin("BoxFilter(dims=", sprint(show, F))
@@ -724,17 +742,17 @@ function test_reusable_gaussian_filter(grid)
     F = GaussianFilter(; dims=(1, 2), σ=0.1)
     @test F isa GaussianFilterOperator
 
-    @test F(c) == GaussianFilter(c; dims=(1, 2), σ=0.1)
+    @allowscalar @test F(c) == GaussianFilter(c; dims=(1, 2), σ=0.1)
     @test Array(interior(Field(F(c)))) ≈ Array(interior(Field(GaussianFilter(c; dims=(1, 2), σ=0.1))))
 
-    @test F(d) == GaussianFilter(d; dims=(1, 2), σ=0.1)
+    @allowscalar @test F(d) == GaussianFilter(d; dims=(1, 2), σ=0.1)
     @test Array(interior(Field(F(d)))) ≈ Array(interior(Field(GaussianFilter(d; dims=(1, 2), σ=0.1))))
 
     @test !(Array(interior(Field(F(c)))) ≈ Array(interior(Field(F(d)))))
 
     # The N and boundary keywords are threaded through.
     FN = GaussianFilter(; dims=(1,), σ=0.1, N=5, boundary=:edge)
-    @test FN(c) == GaussianFilter(c; dims=(1,), σ=0.1, N=5, boundary=:edge)
+    @allowscalar @test FN(c) == GaussianFilter(c; dims=(1,), σ=0.1, N=5, boundary=:edge)
 
     @test occursin("GaussianFilter(dims=", sprint(show, F))
 
@@ -745,6 +763,46 @@ function test_reusable_gaussian_filter(grid)
     # A single integer `dims` is shorthand for one direction.
     @test GaussianFilter(; dims=1, σ=0.1).dims === (1,)
     @test Array(interior(Field(GaussianFilter(c; dims=1, σ=0.1)))) ≈ Array(interior(Field(GaussianFilter(c; dims=(1,), σ=0.1))))
+end
+#---
+
+#+++ Staged-vs-fused detection (`check_filter_staging`)
+# A multi-direction filter runs on its fast staged path only as the *direct* operand of a `Field`;
+# nesting it in any other operation silently falls back to the slow fused path. `check_filter_staging`
+# flags that, returning `true` when everything is staged and `false` (plus a `@warn`) when some filter
+# will run fused. 1D filters always use the single unrolled kernel, so they are never flagged.
+function test_check_filter_staging()
+    grid = make_grid()
+    c = center_field_from(grid, (x, y, z) -> sin(2π*x) + cos(2π*z))
+    φ = center_field_from(grid, (x, y, z) -> cos(2π*y))
+
+    gf2 = GaussianFilter(; dims=(1, 2), σ=0.1)      # multi-direction (2D)
+    bf3 = BoxFilter(; dims=(1, 2, 3), N=3)          # multi-direction (3D)
+    gf1 = GaussianFilter(; dims=1, σ=0.1)           # single direction — always staged
+
+    # Positioned to run staged: returns `true` and stays silent.
+    staged = (gf2(c),                               # a bare filter is staged once wrapped in a `Field`
+              Field(gf2(c)),                        # the canonical staged form
+              Field(gf2(c)) - φ,                    # filtered field materialized before composing
+              2 * Field(gf2(c)),
+              Field(Integral(Field(bf3(c)))),       # materialized before the reduction
+              gf1(c) - φ,                           # 1D filters never fuse, even when nested
+              Field(gf1(c) - φ))
+    for op in staged
+        @test check_filter_staging(op; warn=false) == true
+        @test_logs min_level=Logging.Warn check_filter_staging(op)   # warn=true stays silent
+    end
+
+    # Will run fused: returns `false` and warns.
+    fused = (gf2(c) - φ,
+             Field(gf2(c) - φ),
+             2 * gf2(c),
+             bf3(c) * φ,
+             Field(Integral(gf2(c))))               # filter nested inside the reduction
+    for op in fused
+        @test check_filter_staging(op; warn=false) == false
+        @test_logs (:warn,) check_filter_staging(op)                 # exactly one warning
+    end
 end
 #---
 
@@ -793,6 +851,10 @@ filter_configs = [
                 test_kfo_input(grid, Filter, fkw)
             end
 
+            @testset "Windowed output" begin
+                test_windowed_output_matches_full(grid, Filter, fkw)
+            end
+
             @testset "Argument validation" begin
                 test_dims_validation(grid, Filter, fkw)
                 test_N_validation(grid, Filter, fkw)
@@ -826,6 +888,10 @@ filter_configs = [
     @testset "Reusable (field-less) filter objects" begin
         test_reusable_box_filter(make_grid())
         test_reusable_gaussian_filter(make_grid())
+    end
+
+    @testset "check_filter_staging (staged vs fused)" begin
+        test_check_filter_staging()
     end
 end
 #---

@@ -2,7 +2,7 @@ using Test
 using CUDA: has_cuda_gpu, @allowscalar
 
 using Oceananigans
-using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ
+using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: seawater_density, model_geopotential_height
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
@@ -66,6 +66,92 @@ function test_PEbuoyancytracer_equals_PElineareos(grid)
 end
 #---
 
+"""
+`Φ = κ ∂b/∂z` is fixed by the buoyancy and the closure alone, so a linear profile pins its value, its
+sign and the `κ` it picks up off the closure. The boundary treatment is the part worth guarding: no
+buoyancy crosses a no-flux wall, which halves the cells against it and is exactly what makes the volume
+integral telescope to `κ A [b(z_top) - b(z_bottom)]` however the interior is stirred. An interpolation
+that mishandled the walls would still look right cell by cell in the interior and would break that.
+
+That telescoping needs `κ` to come out of the sum, so a constant-`κ` test cannot see whether `Φ` is the
+flux the closure actually returns or something reconstructed from the boundary values. The depth-varying
+case below is what separates them, and it is the case the docstring warns not to apply the boundary form
+to.
+"""
+function test_diffusive_buoyancy_flux(grid)
+
+    κ = 1e-3
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(; ν=1e-6, κ))
+
+    Φ = PotentialEnergyDiffusiveBuoyancyFlux(model)
+    @test Φ isa PotentialEnergyDiffusiveBuoyancyFlux
+
+    set!(model, b = (x, y, z) -> 3z)
+    Φ_column = Array(interior(Field(Φ)))[1, 1, :]
+    @test all(Φ_column[2:end-1] .≈ 3κ)
+    @test Φ_column[1] ≈ 3κ / 2 && Φ_column[end] ≈ 3κ / 2   # the no-flux walls halve the outermost cells
+
+    set!(model, b = grid_noise)
+    b = Array(interior(model.tracers.b))
+    Δb = sum(b[:, :, end] .- b[:, :, 1]) / prod(size(b)[1:2])   # ⟨b(z_top) - b(z_bottom)⟩
+    @test volume_integral(Φ) ≈ κ * grid.Lx * grid.Ly * Δb
+
+    # With `κ` a function of depth, `b = 3z` still gives `3κ` on every face, so `Φ` is that averaged
+    # onto the centre with the wall faces zeroed. The boundary form no longer applies.
+    κ_of_z(x, y, z, t) = 1e-3 * (1 + 5z)
+    varying = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b,
+                                  closure=ScalarDiffusivity(ν=1e-6, κ=κ_of_z))
+    set!(varying, b = (x, y, z) -> 3z)
+
+    κ_face = [κ_of_z(0, 0, z, 0) for z in znodes(grid, Face())]
+    κ_face[1] = κ_face[end] = 0                                # no buoyancy crosses the walls
+    @test Array(interior(Field(PotentialEnergyDiffusiveBuoyancyFlux(varying))))[1, 1, :] ≈
+          3 .* (κ_face[1:end-1] .+ κ_face[2:end]) ./ 2
+
+    # ... and the constant-κ collapse is not merely inexact here, it is the wrong answer
+    @test !isapprox(volume_integral(PotentialEnergyDiffusiveBuoyancyFlux(varying)),
+                    1e-3 * grid.Lx * grid.Ly * 3 * grid.Lz; rtol = 0.1)
+
+    # A model without a closure is legal and has no flux to read, so it has to be refused at
+    # construction rather than at `compute!`, where the failure is a `MethodError` from inside the
+    # kernel that names none of the caller's code.
+    @test_throws "no closure" PotentialEnergyDiffusiveBuoyancyFlux(
+        NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b))
+
+    # Closures that compute their own κ do define a flux and must keep working.
+    for closure in (SmagorinskyLilly(), AnisotropicMinimumDissipation())
+        eddy = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure)
+        set!(eddy, b = grid_noise)
+        @test volume_integral(PotentialEnergyDiffusiveBuoyancyFlux(eddy)) isa Number
+    end
+
+    return nothing
+end
+
+"""
+`wb` is the one term the kinetic and potential energy budgets share, so it is defined once in
+`KineticEnergyEquation` and re-exported by the two potential energy modules, where `KineticEnergyConversion`
+names the exchange rather than the side it feeds. The alias is deliberately *not* exported from
+`Oceanostics`, since unprefixed it says nothing about which budget it belongs to. Nothing about that
+arrangement is enforced by the code, so it is asserted here: a stray `export` in `Oceanostics.jl`, or a
+re-export dropped from either module, would otherwise pass unnoticed.
+"""
+function test_kinetic_energy_conversion_alias()
+
+    PE, APE = Oceanostics.PotentialEnergyEquation, Oceanostics.AvailablePotentialEnergyEquation
+
+    @test PE.KineticEnergyConversion === Oceanostics.KineticEnergyEquation.PotentialToKineticEnergyConversion
+    @test APE.KineticEnergyConversion === PE.KineticEnergyConversion
+
+    for M in (PE, APE)
+        @test :KineticEnergyConversion in names(M)
+        @test :PotentialToKineticEnergyConversion in names(M)
+    end
+    @test !(:KineticEnergyConversion in names(Oceanostics))
+
+    return nothing
+end
+
 @testset "Diagnostics tests" begin
     @info "  Testing Diagnostics"
     for (grid_class, grid) in zip(keys(grids), values(grids))
@@ -90,5 +176,10 @@ end
             end
             test_PEbuoyancytracer_equals_PElineareos(grid)
         end
+        @info "      Testing the diffusive buoyancy flux"
+        test_diffusive_buoyancy_flux(grid)
     end
+
+    @info "  Testing the `KineticEnergyConversion` alias and its export scope"
+    test_kinetic_energy_conversion_alias()
 end

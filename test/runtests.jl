@@ -40,8 +40,12 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
         include("test_kinetic_energy_equation.jl")
     end
 
-    if group == :coarse_grained_ke_diagnostics || group == :all
-        include("test_coarse_grained_kinetic_energy_equation.jl")
+    if group == :filtered_ke_diagnostics || group == :all
+        include("test_filtered_kinetic_energy_equation.jl")
+    end
+
+    if group == :subfilter_ke_diagnostics || group == :all
+        include("test_subfilter_kinetic_energy_equation.jl")
     end
 
     if group == :tke_diagnostics || group == :all
@@ -50,6 +54,10 @@ group     = get(ENV, "TEST_GROUP", :all) |> Symbol
 
     if group == :pe_diagnostics || group == :all
         include("test_pe_diagnostics.jl")
+    end
+
+    if group == :ape_diagnostics || group == :all
+        include("test_ape_diagnostics.jl")
     end
 
     if group == :active_tracer_diagnostics || group == :all

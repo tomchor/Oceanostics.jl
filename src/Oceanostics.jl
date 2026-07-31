@@ -5,12 +5,13 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, F}
 
 #+++ Module export
-export TracerEquation, KineticEnergyEquation, CoarseGrainedKineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
-       UMomentumEquation, VMomentumEquation, WMomentumEquation
+export TracerEquation, KineticEnergyEquation, FilteredKineticEnergyEquation, SubFilterKineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
+       BackgroundPotentialEnergyEquation, AvailablePotentialEnergyEquation, UMomentumEquation, VMomentumEquation, WMomentumEquation
 #---
 
 #+++ TracerEquation exports
-export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing
+export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing,
+       TracerXDiffusiveFlux, TracerYDiffusiveFlux,TracerZDiffusiveFlux
 #---
 
 #+++ UMomentumEquation exports
@@ -36,12 +37,16 @@ export TracerVarianceTendency, TracerVarianceDissipationRate, TracerVarianceDiff
 #---
 
 #+++ KineticEnergyEquation exports
-export KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyBuoyancyProduction,
+export KineticEnergy, KineticEnergyForcing, KineticEnergyPressureRedistribution, PotentialToKineticEnergyConversion,
        KineticEnergyDissipationRate, KineticEnergyIsotropicDissipationRate
 #---
 
-#+++ CoarseGrainedKineticEnergyEquation exports
-export subfilter_stress_tensor, KineticEnergyCrossScaleFlux, CoarseGrainedKineticEnergyDissipationRate
+#+++ FilteredKineticEnergyEquation exports
+export subfilter_stress_tensor, KineticEnergyCrossScaleFlux, FilteredKineticEnergyDissipationRate, FilteredKineticEnergy
+#---
+
+#+++ SubFilterKineticEnergyEquation exports
+export SubFilterKineticEnergy, SubFilterKineticEnergyDissipationRate
 #---
 
 #+++ TurbulentKineticEnergyEquation exports
@@ -67,11 +72,22 @@ export BottomCellValue
 #---
 
 #+++ SpatialFilters exports
-export BoxFilter, GaussianFilter
+export BoxFilter, GaussianFilter, check_filter_staging
 #---
 
-#+++ PotentialEnergyEquationTerms exports
-export PotentialEnergy
+#+++ PotentialEnergyEquation exports
+export PotentialEnergy, PotentialEnergyDiffusiveBuoyancyFlux
+#---
+
+#+++ BackgroundPotentialEnergyEquation exports
+# `reference_height`, `reference_buoyancy` and the reference-height methods are defined here and
+# re-exported by `AvailablePotentialEnergyEquation`, since both budgets are built on them.
+export BackgroundPotentialEnergy, reference_height, reference_buoyancy
+export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
+#---
+
+#+++ AvailablePotentialEnergyEquation exports
+export AvailablePotentialEnergy, BuoyancyDisplacementPotential, AvailablePotentialEnergyDissipationRate
 #---
 
 #+++ ProgressMessengers
@@ -188,15 +204,20 @@ include("TracerVarianceEquation.jl")
 include("KineticEnergyEquation.jl")
 include("TurbulentKineticEnergyEquation.jl")
 include("PotentialEnergyEquation.jl")
+include("BackgroundPotentialEnergyEquation.jl")
+include("AvailablePotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
 include("SpatialFilters/SpatialFilters.jl")
-include("CoarseGrainedKineticEnergyEquation.jl")
+include("FilteredKineticEnergyEquation.jl")
+include("SubFilterKineticEnergyEquation.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
+using .BackgroundPotentialEnergyEquation, .AvailablePotentialEnergyEquation
 using .FlowDiagnostics
 using .SpatialFilters
-using .CoarseGrainedKineticEnergyEquation
+using .FilteredKineticEnergyEquation
+using .SubFilterKineticEnergyEquation
 using .ProgressMessengers
 
 #+++ Custom `show` for diagnostics
@@ -305,6 +326,9 @@ end
 @diagnostic_show TracerEquation.Diffusion         "TracerDiffusion"          "tracer diffusion (interior)  ∂ⱼqᶜⱼ"
 @diagnostic_show TracerEquation.ImmersedDiffusion "TracerImmersedDiffusion"  "tracer diffusion through immersed boundaries  ∂ⱼ𝓆ᶜⱼ"
 @diagnostic_show TracerEquation.TotalDiffusion    "TracerTotalDiffusion"     "total tracer diffusion (interior + immersed)  ∂ⱼqᶜⱼ + ∂ⱼ𝓆ᶜⱼ"
+@diagnostic_show TracerEquation.XDiffusiveFlux    "TracerXDiffusiveFlux"     "subgrid tracer diffusion in x determined by the configured closure"
+@diagnostic_show TracerEquation.YDiffusiveFlux    "TracerYDiffusiveFlux"     "subgrid tracer diffusion in y determined by the configured closure"
+@diagnostic_show TracerEquation.ZDiffusiveFlux    "TracerZDiffusiveFlux"     "subgrid tracer diffusion in z determined by the configured closure"
 #---
 
 #+++ UMomentumEquation
@@ -348,9 +372,9 @@ end
 #---
 
 #+++ TracerVarianceEquation
-@diagnostic_show TracerVarianceEquation.Tendency        "TracerVarianceTendency"        "tracer variance tendency  2c ∂ₜc"
-@diagnostic_show TracerVarianceEquation.Diffusion       "TracerVarianceDiffusion"       "tracer variance diffusion  2c ∂ⱼFⱼ"
-@diagnostic_show TracerVarianceEquation.DissipationRate "TracerVarianceDissipationRate" "tracer variance dissipation rate  χ = 2 ∂ⱼc·Fⱼ"
+@diagnostic_show TracerVarianceEquation.TracerVarianceTendency        "TracerVarianceTendency"        "tracer variance tendency  2c ∂ₜc"
+@diagnostic_show TracerVarianceEquation.TracerVarianceDiffusion       "TracerVarianceDiffusion"       "tracer variance diffusion  2c ∂ⱼFⱼ"
+@diagnostic_show TracerVarianceEquation.TracerVarianceDissipationRate "TracerVarianceDissipationRate" "tracer variance dissipation rate  χ = 2 ∂ⱼc·Fⱼ"
 #---
 
 #+++ KineticEnergyEquation
@@ -360,16 +384,22 @@ end
 @diagnostic_show KineticEnergyEquation.KineticEnergyStress                   "KineticEnergyStress"                   "kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyForcing                  "KineticEnergyForcing"                  "kinetic energy forcing  uᵢFᵤᵢ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyPressureRedistribution   "KineticEnergyPressureRedistribution"   "kinetic energy pressure redistribution  uᵢ∂ᵢp"
-@diagnostic_show KineticEnergyEquation.KineticEnergyBuoyancyProduction       "KineticEnergyBuoyancyProduction"       "kinetic energy buoyancy production  uᵢbᵢ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"          "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·Fᵢⱼ"
+@diagnostic_show KineticEnergyEquation.PotentialToKineticEnergyConversion    "PotentialToKineticEnergyConversion"    "potential to kinetic energy conversion  uᵢbᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"          "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·τᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyIsotropicDissipationRate "KineticEnergyIsotropicDissipationRate" "isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ"
 #---
 
-#+++ CoarseGrainedKineticEnergyEquation
+#+++ FilteredKineticEnergyEquation
 # The single-`KernelFunctionOperation` diagnostics get a custom display; `subfilter_stress_tensor`
 # returns a `NamedTuple` of components, like `StressTensor`/`StrainRateTensor`, so it has none.
-@diagnostic_show CoarseGrainedKineticEnergyEquation.KineticEnergyCrossScaleFlux               "KineticEnergyCrossScaleFlux"               "cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ"
-@diagnostic_show CoarseGrainedKineticEnergyEquation.CoarseGrainedKineticEnergyDissipationRate "CoarseGrainedKineticEnergyDissipationRate" "coarse-grained kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·F̄ᵢⱼ"
+@diagnostic_show FilteredKineticEnergyEquation.FilteredKineticEnergy                "FilteredKineticEnergy"                "kinetic energy of the filtered flow  Kˡ = ½ūᵢūᵢ"
+@diagnostic_show FilteredKineticEnergyEquation.KineticEnergyCrossScaleFlux          "KineticEnergyCrossScaleFlux"          "cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ"
+@diagnostic_show FilteredKineticEnergyEquation.FilteredKineticEnergyDissipationRate "FilteredKineticEnergyDissipationRate" "filtered kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·τ̄ᵢⱼ"
+#---
+
+#+++ SubFilterKineticEnergyEquation
+@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergy                 "SubFilterKineticEnergy"                 "sub-filter kinetic energy  Kˢ = ½τⁱⁱ"
+@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate  "SubFilterKineticEnergyDissipationRate"  "sub-filter kinetic energy dissipation rate  εˢ = filter(ε) - εˡ"
 #---
 
 #+++ TurbulentKineticEnergyEquation
@@ -381,7 +411,18 @@ end
 #---
 
 #+++ PotentialEnergyEquation
-@diagnostic_show PotentialEnergyEquation.PotentialEnergy "PotentialEnergy" "potential energy per unit volume  Eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.PotentialEnergy             "PotentialEnergy"             "potential energy per unit volume  eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.DiffusiveBuoyancyFlux "PotentialEnergyDiffusiveBuoyancyFlux" "diffusive buoyancy flux  Φ = κ ∂b/∂z = -q₃"
+#---
+
+#+++ BackgroundPotentialEnergyEquation
+@diagnostic_show BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  e_b = -bz✶"
+#---
+
+#+++ AvailablePotentialEnergyEquation
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy                "AvailablePotentialEnergy"                "local available potential energy density  eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
+@diagnostic_show AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential           "BuoyancyDisplacementPotential"           "buoyancy displacement potential  Υ = z✶ - z"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  ε_A = κ ∂ᵢb ∂ᵢΥ"
 #---
 
 #+++ FlowDiagnostics

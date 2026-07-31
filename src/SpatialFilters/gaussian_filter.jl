@@ -163,6 +163,11 @@ end
 
 StretchedGaussianFilterKernel{D}(σ::S, loc::L, period::S) where {D, S, L} = StretchedGaussianFilterKernel{D, S, L}(σ, loc, period)
 
+# `StretchedGaussianFilterKernel` has as many type params as fields, which trips Adapt heuristics
+# for `<:Function` structs (it drops the `D` param); adapt_structure keeps `D` on the GPU.
+Adapt.adapt_structure(to, k::StretchedGaussianFilterKernel{D}) where {D} =
+    StretchedGaussianFilterKernel{D}(Adapt.adapt(to, k.σ), Adapt.adapt(to, k.loc), Adapt.adapt(to, k.period))
+
 # `(coordinate, cell width)` of the stencil cell at the (possibly out-of-range)
 # index `m` along a filtered direction, honoring the boundary policy's geometry.
 # Only *interior* nodes/spacings are read (the index is wrapped or clamped into
@@ -439,6 +444,8 @@ which is the main reason multi-direction filters with wide stencils are competit
 Mixed-spacing filters stage the same way — each direction's 1D pass uses its own (uniform or
 stretched) kernel. If the filtered field is composed into another `AbstractOperation` (e.g.
 `2 * gf(c)`) it falls back to the fused, single-kernel evaluation.
+
+See [Performance notes](@ref filter_performance) in the documentation for what that costs and how to avoid it.
 
 ## Examples
 

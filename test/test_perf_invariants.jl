@@ -13,6 +13,7 @@ using Oceanostics.KineticEnergyEquation
 using Oceanostics.TurbulentKineticEnergyEquation
 using Oceanostics.TracerVarianceEquation
 using Oceanostics.PotentialEnergyEquation
+using Oceanostics.AvailablePotentialEnergyEquation
 using Oceanostics.FlowDiagnostics
 
 # These tests defend "the repo doesn't get accidentally slower" without
@@ -167,6 +168,22 @@ end
 
     @testset "PotentialEnergyEquation" begin
         test_kfo_invariants("PotentialEnergy",         PotentialEnergyEquation.PotentialEnergy(model))
+    end
+
+    @testset "AvailablePotentialEnergyEquation" begin
+        # The sorting behind `z✶` is a whole-field operation done in `compute!`, but the kernels that
+        # read the resulting field still have to be allocation-free per cell like every other one.
+        z✶ = AvailablePotentialEnergyEquation.reference_height(model)
+        test_kfo_invariants("BackgroundPotentialEnergy", AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶))
+        test_kfo_invariants("AvailablePotentialEnergy",  AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶))
+
+        # The three that read `κ∇b` off the closure, so they run its `diffusive_flux_*` per cell.
+        z✶ₕ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
+        Υ   = Field(AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential(model, z✶ₕ))
+        test_kfo_invariants("BuoyancyDisplacementPotential", BuoyancyDisplacementPotential(model, z✶ₕ))
+        test_kfo_invariants("AvailablePotentialEnergyDissipationRate",
+                            AvailablePotentialEnergyDissipationRate(model, z✶ₕ; upsilon = Υ))
+        test_kfo_invariants("DiffusiveBuoyancyFlux", DiffusiveBuoyancyFlux(model))  # short name, via `using ...PotentialEnergyEquation`
     end
 
     @testset "FlowDiagnostics" begin
