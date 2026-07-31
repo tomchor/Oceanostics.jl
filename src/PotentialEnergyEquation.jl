@@ -272,21 +272,33 @@ grows:
     d/dt ∫e_b dV = ∫(ε_A + Φ) dV .
 ```
 
-`Φ` volume-integrates to a boundary term, since no buoyancy crosses the top or the bottom of a closed
-domain:
+For a **constant** `κ`, `Φ` volume-integrates to a boundary term, since no buoyancy crosses the top or
+the bottom of a closed domain:
 
 ```
-    ∫Φ dV = κ A [b(z_top) - b(z_bottom)] ,
+    ∫Φ dV = κ A [b(z_top) - b(z_bottom)]        (constant κ only)
 ```
 
 with `A` the domain's horizontal area, so the flow enters only through the buoyancy difference across
-it. That collapse is exact rather than approximate, and it is what makes the cells against a wall report
-half of what the interior does: a no-flux wall zeroes the flux on the outer face, and the cell center
-averages the two faces bounding it. `Φ` is still returned as a field rather than as that number, since
-it is the pointwise partner of `ε_A`.
+it. That collapse is exact rather than approximate: the discrete sum telescopes, which is also what
+makes the cells against a wall report half of what the interior does, since a no-flux wall zeroes the
+flux on the outer face and the cell center averages the two faces bounding it.
+
+A `κ` that varies in space breaks the telescoping, and the boundary form is then simply wrong. What the
+integral always is, is the flux summed over the interior `z` faces,
+
+```
+    ∫Φ dV = A Σ κ [b(above) - b(below)] ,
+```
+
+which collapses only when `κ` factors out of the sum. Under a depth-dependent diffusivity or any closure
+that computes `κ` from the flow, the integral depends on the interior arrangement and can come out with
+the opposite sign to `κ A [b(z_top) - b(z_bottom)]`, so do not reach for the boundary form as a check
+there. `Φ` is returned as a field rather than as either number, since it is the pointwise partner of
+`ε_A`.
 
 `κ ∂b/∂z` is taken from the closure's own diffusive flux rather than from a diffusivity supplied here,
-so this follows whatever closure the model runs with and the identity above holds however `κ` is set.
+so this follows whatever closure the model runs with, including ones that compute `κ` from the flow.
 That needs the buoyancy to be a tracer the closure diffuses, so this is defined for `BuoyancyTracer`
 models only.
 

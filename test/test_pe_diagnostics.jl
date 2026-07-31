@@ -72,6 +72,11 @@ sign and the `κ` it picks up off the closure. The boundary treatment is the par
 buoyancy crosses a no-flux wall, which halves the cells against it and is exactly what makes the volume
 integral telescope to `κ A [b(z_top) - b(z_bottom)]` however the interior is stirred. An interpolation
 that mishandled the walls would still look right cell by cell in the interior and would break that.
+
+That telescoping needs `κ` to come out of the sum, so a constant-`κ` test cannot see whether `Φ` is the
+flux the closure actually returns or something reconstructed from the boundary values. The depth-varying
+case below is what separates them, and it is the case the docstring warns not to apply the boundary form
+to.
 """
 function test_diffusive_buoyancy_flux(grid)
 
@@ -90,6 +95,22 @@ function test_diffusive_buoyancy_flux(grid)
     b = Array(interior(model.tracers.b))
     Δb = sum(b[:, :, end] .- b[:, :, 1]) / prod(size(b)[1:2])   # ⟨b(z_top) - b(z_bottom)⟩
     @test volume_integral(Φ) ≈ κ * grid.Lx * grid.Ly * Δb
+
+    # With `κ` a function of depth, `b = 3z` still gives `3κ` on every face, so `Φ` is that averaged
+    # onto the centre with the wall faces zeroed. The boundary form no longer applies.
+    κ_of_z(x, y, z, t) = 1e-3 * (1 + 5z)
+    varying = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b,
+                                  closure=ScalarDiffusivity(ν=1e-6, κ=κ_of_z))
+    set!(varying, b = (x, y, z) -> 3z)
+
+    κ_face = [κ_of_z(0, 0, z, 0) for z in znodes(grid, Face())]
+    κ_face[1] = κ_face[end] = 0                                # no buoyancy crosses the walls
+    @test Array(interior(Field(PotentialEnergyDiffusiveBuoyancyFlux(varying))))[1, 1, :] ≈
+          3 .* (κ_face[1:end-1] .+ κ_face[2:end]) ./ 2
+
+    # ... and the constant-κ collapse is not merely inexact here, it is the wrong answer
+    @test !isapprox(volume_integral(PotentialEnergyDiffusiveBuoyancyFlux(varying)),
+                    1e-3 * grid.Lx * grid.Ly * 3 * grid.Lz; rtol = 0.1)
 
     return nothing
 end
