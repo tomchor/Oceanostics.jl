@@ -129,6 +129,7 @@ set!(model, u=uᵢ, v=vᵢ, b=bᵢ)
 using Statistics: mean
 parent(model.velocities.u) .-= mean(interior(model.velocities.u))
 parent(model.velocities.v) .-= mean(interior(model.velocities.v))
+nothing #hide
 
 # ## Simulation
 #
