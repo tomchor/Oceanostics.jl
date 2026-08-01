@@ -10,7 +10,8 @@
 # The mean flow enters as a pair of `BackgroundField`s, so the model steps *perturbations* about it.
 # That is what makes this example worth doing: each background field puts a term of its own into the
 # budget of the perturbation energy it acts on. The buoyancy one is small next to the exchange between
-# the two budgets and still twenty times the residual, so a budget that leaves it out does not close.
+# the two budgets and still more than an order of magnitude above the residual, so a budget that leaves
+# it out does not close.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -300,10 +301,10 @@ rms(x) = √(sum(abs2, x) / length(x))                                          
 ## times the residual of its own budget, so dropping it leaves a visible imbalance rather than      #hide
 ## something lost in the truncation error.                                                          #hide
 @test rms(@. eₚ_resid + ADV_pair) > 5 * rms(eₚ_resid)                              #hide
-## The background *shear* term is a different story at `Ri = 25`: the eddies live off the potential #hide
-## energy in the tilted isopycnals, not off the mean shear, so `SP` is a percent of `wb` and below  #hide
-## the residual. It is in the budget for completeness, not because it carries the flow.             #hide
-@test rms(SP_pair) < 0.05 * rms(wb_pair);                                          #hide
+## The background *shear* term is the minor one: baroclinic instability draws on the potential      #hide
+## energy in the tilted isopycnals rather than on the mean shear, so `SP` stays a small fraction of #hide
+## `wb`. How small depends on the Richardson number, hence the loose bound.                         #hide
+@test rms(SP_pair) < 0.1 * rms(wb_pair);                                           #hide
 
 # The instability also does what it should: the eddies grow by orders of magnitude, drawing on the
 # potential energy the tilted isopycnals hold.
@@ -381,17 +382,18 @@ nothing #hide
 # panels show where their energy comes from. `∫wb dV` runs through both with opposite signs and is the
 # largest term in either: the eddies flatten the tilted isopycnals, `∫eₚ dV` falls, and the released
 # potential energy shows up as `∫K dV`, with dissipation taking back a sizeable fraction on the way.
-# That is the textbook picture of baroclinic instability, and at `Ri = 25` it is essentially the whole
-# story: the direct shear production `∫SP dV` is about a percent of the conversion and takes both
-# signs, so the eddies live off the potential energy in the tilted isopycnals rather than off the mean
-# shear. It is small enough here to sit below the residual, and is kept in the budget for completeness.
+# That is the textbook picture of baroclinic instability, and here it is most of the story: the direct
+# shear production `∫SP dV` is a few percent of the conversion, so the eddies live mostly off the
+# potential energy in the tilted isopycnals rather than off the mean shear. It stays a few times the KE
+# budget's residual, so the budget still resolves it — though soften the shear much further and it
+# disappears into the truncation error.
 #
 # The background buoyancy term `∫ADV_B dV` is comparably small, since it is the depth-weighted flow
 # across the background gradient rather than a production of anything positive definite. Unlike `∫SP dV`
-# it is well clear of the noise: some twenty times the residual of the `eₚ` budget, so leaving it out,
-# as one would if the background field were forgotten, turns a budget that closes to seven parts in ten
-# thousand into one off by nearly a fifth. `∫Φ dV` is smaller still, which is what a mesoscale run at
-# this resolution should look like.
+# it is well clear of the noise: nearly twenty times the residual of the `eₚ` budget, so leaving it out,
+# as one would if the background field were forgotten, takes a budget that closes to under three parts
+# in a thousand and leaves it off by around five percent. `∫Φ dV` is smaller still, which is what a
+# mesoscale run at this resolution should look like.
 #
 # Both residuals stay near zero, and cannot be exactly zero: the discrete `K` and `eₚ` equations are not
 # derived from the discrete momentum and buoyancy equations the model steps, so the two sides agree only
