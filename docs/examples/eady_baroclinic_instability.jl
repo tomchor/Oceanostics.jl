@@ -33,7 +33,7 @@ H  = 4e3        # [m]   depth
 
 ## Physical parameters
 f = 1e-4        # [s⁻¹] Coriolis frequency
-α = 2 * f       # [s⁻¹] geostrophic shear ∂U/∂z
+α = 5 * f       # [s⁻¹] geostrophic shear ∂U/∂z
 N = 1e-3        # [s⁻¹] buoyancy frequency
 
 # ## Derived dynamical quantities
@@ -81,7 +81,7 @@ B_field = BackgroundField(B, parameters=background_parameters)
 # diffusivity, applied simultaneously as a tuple of two closures:
 
 Δx = minimum_xspacing(grid)
-κ₂z = 1e-2                # [m² s⁻¹] Laplacian vertical viscosity and diffusivity
+κ₂z = 2e-2                # [m² s⁻¹] Laplacian vertical viscosity and diffusivity
 κ₄h = 1e-1 / day * Δx^4   # [m⁴ s⁻¹] biharmonic horizontal viscosity and diffusivity
 
 vertical_diffusivity   = VerticalScalarDiffusivity(ν=κ₂z, κ=κ₂z)
