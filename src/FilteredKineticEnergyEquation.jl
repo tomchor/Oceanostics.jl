@@ -351,14 +351,14 @@ FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center,
 ```
 
 The viscosity and fluxes come from `model.closure`/`model.closure_fields`, exactly as in
-[`KineticEnergyDissipationRate`](@ref), so the model
+[`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate), so the model
 needs a closure whose viscous fluxes are defined. The filtered velocities and the filtered fluxes are
 materialized as `Field`s internally (and refreshed on recompute), so the returned object is a lazy
 operation ready for `Field`, `Integral`, and `OutputWriter`s and recomputes as the simulation evolves.
 
 Unlike the cross-scale flux and the stress tensor, this diagnostic takes no `dims` argument: it always
 forms the full viscous contraction (matching
-[`KineticEnergyDissipationRate`](@ref)). The directions
+[`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)). The directions
 the filter acts in are set inside `filter`.
 
 A convenience method `FilteredKineticEnergyDissipationRate(model; σ, dims, boundary, N)` builds the
