@@ -41,7 +41,7 @@ filtered flow:
     Kˢ = filter(K) - Kˡ ,   K = ½ uᵢuᵢ ,   Kˡ = ½ ūᵢūᵢ ,   ūᵢ = filter(uᵢ)
 ```
 
-equivalently `Kˢ = ½ τⁱⁱ` with the sub-filter stress `τⁱʲ = filter(uⁱuʲ) - ūⁱūʲ` (coarse-graining
+equivalently `Kˢ = ½ τⁱⁱ` with the sub-filter stress `τⁱʲ = filter(uⁱuʲ) - ūⁱūʲ` (filtering
 framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). It is assembled from
 the full kinetic energy `K` and [`FilteredKineticEnergy`](@ref) `Kˡ`, which share the same
 interpolate-the-square (`½⟨uᵢ²⟩`) discretization, so the discrete decomposition `filter(K) = Kˡ + Kˢ` holds
@@ -108,7 +108,7 @@ where `ε` is the dissipation rate of the full flow
 ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) and `εˡ` is the
 dissipation rate of the filtered flow ([`FilteredKineticEnergyDissipationRate`](@ref)). It is the viscous
 sink in the budget of the sub-filter kinetic energy `Kˢ` ([`SubFilterKineticEnergy`](@ref);
-coarse-graining framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). For a
+filtering framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). For a
 constant viscosity it reduces to `2ν[filter(SⁱʲSⁱʲ) - S̄ⁱʲ S̄ⁱʲ] ≥ 0`, a strictly positive sink.
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
