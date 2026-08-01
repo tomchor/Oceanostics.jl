@@ -8,8 +8,9 @@
 # volume-integrated kinetic and potential energy budgets of the growing eddies.
 #
 # The mean flow enters as a pair of `BackgroundField`s, so the model steps *perturbations* about it.
-# That is what makes this example worth doing: each background field puts an extra term into the budget
-# of the perturbation energy it acts on, and neither budget closes without it.
+# That is what makes this example worth doing: each background field puts a term of its own into the
+# budget of the perturbation energy it acts on. The buoyancy one is small next to the exchange between
+# the two budgets and still twenty times the residual, so a budget that leaves it out does not close.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -32,7 +33,7 @@ H  = 4e3        # [m]   depth
 
 ## Physical parameters
 f = 1e-4        # [s⁻¹] Coriolis frequency
-α = 10 * f      # [s⁻¹] geostrophic shear ∂U/∂z
+α = 2 * f       # [s⁻¹] geostrophic shear ∂U/∂z
 N = 1e-3        # [s⁻¹] buoyancy frequency
 
 # ## Derived dynamical quantities
@@ -138,7 +139,7 @@ nothing #hide
 
 max_Δt = min(Δx / Ū, Δx^4 / κ₄h, Δx^2 / κ₂z, 1 / N)
 
-simulation = Simulation(model, Δt = max_Δt, stop_time = 10days)
+simulation = Simulation(model, Δt = max_Δt, stop_time = 20days)
 
 wizard = TimeStepWizard(cfl=0.7, max_change=1.1, max_Δt=max_Δt)
 simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
@@ -160,8 +161,8 @@ add_callback!(simulation, TimedMessenger(), IterationInterval(100))
 # \frac{d}{dt}\int e_p\, dV = \int \mathrm{ADV}_B\, dV - \int wb\, dV + \int \Phi\, dV .
 # ```
 #
-# The kinetic energy is fed by the shear production ``\mathrm{SP} = -u_i u_j \partial_j U_i``, which
-# here is ``-\alpha\, u w``, and drained by the dissipation ``\varepsilon``
+# The kinetic energy picks up the shear production ``\mathrm{SP} = -u_i u_j \partial_j U_i``, which
+# here is ``-\alpha\, u w``, and is drained by the dissipation ``\varepsilon``
 # ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)). The potential
 # energy picks up ``\mathrm{ADV}_B = z\,\partial_j(u_j B)``, the advection of the background buoyancy by
 # the perturbation flow ([`PotentialEnergyBackgroundAdvection`](@ref)), and exchanges with the
@@ -206,7 +207,7 @@ b = model.tracers.b
 # ## Output
 #
 # We use two NetCDF writers: a *snapshot* writer for the surface fields, and a *budget* writer for the
-# volume integrals on `ConsecutiveIterations(TimeInterval(4hours))`, which takes a second sample one
+# volume integrals on `ConsecutiveIterations(TimeInterval(8hours))`, which takes a second sample one
 # model step after each output time. That lets us finite-difference the integrated energies across the
 # step to estimate `d/dt`, as in the [two-dimensional turbulence example](@ref two_d_turbulence_example).
 
@@ -216,14 +217,14 @@ filename = joinpath(@__DIR__, "eady_baroclinic_instability")
 simulation.output_writers[:fields] =
     NetCDFWriter(model, (; ζ, b),
                  filename = filename,
-                 schedule = TimeInterval(4hours),
+                 schedule = TimeInterval(8hours),
                  indices = (:, :, grid.Nz),
                  overwrite_existing = true)
 
 simulation.output_writers[:budget] =
     NetCDFWriter(model, (; ∫K, ∫SP, ∫wb, ∫ε, ∫eₚ, ∫ADV_B, ∫Φ),
                  filename = filename * "_budget",
-                 schedule = ConsecutiveIterations(TimeInterval(4hours)),
+                 schedule = ConsecutiveIterations(TimeInterval(8hours)),
                  overwrite_existing = true)
 
 # ## Run the simulation and process results
@@ -295,24 +296,26 @@ rms(x) = √(sum(abs2, x) / length(x))                                          
 @test rms(eₚ_resid) < 0.01 * rms(wb_pair)                                          #hide
 ## `wb` is the same term in both, so it cancels from the sum of the two budgets    #hide
 @test rms(K_resid .+ eₚ_resid) < 0.05 * rms(wb_pair)                               #hide
-## The background terms are the point of this example. Neither is a leading term, but each is       #hide
-## several times the residual of its own budget, so dropping either leaves a visible imbalance      #hide
-## rather than something lost in the truncation error.                                              #hide
-@test rms(@. K_resid  + SP_pair)  > 2 * rms(K_resid)                               #hide
-@test rms(@. eₚ_resid + ADV_pair) > 5 * rms(eₚ_resid);                             #hide
+## The background buoyancy term is the point of this example: small next to `wb`, and still twenty  #hide
+## times the residual of its own budget, so dropping it leaves a visible imbalance rather than      #hide
+## something lost in the truncation error.                                                          #hide
+@test rms(@. eₚ_resid + ADV_pair) > 5 * rms(eₚ_resid)                              #hide
+## The background *shear* term is a different story at `Ri = 25`: the eddies live off the potential #hide
+## energy in the tilted isopycnals, not off the mean shear, so `SP` is a percent of `wb` and below  #hide
+## the residual. It is in the budget for completeness, not because it carries the flow.             #hide
+@test rms(SP_pair) < 0.05 * rms(wb_pair);                                          #hide
 
 # The instability also does what it should: the eddies grow by orders of magnitude, drawing on the
-# background shear and on the potential energy the tilted isopycnals hold.
+# potential energy the tilted isopycnals hold.
 
 K_int  = K_bud[idx1]
 eₚ_int = eₚ_bud[idx1]
 
 @test K_int[end] > 100 * K_int[1]              # the perturbations grow, and by a lot     #hide
-@test mean(SP_pair) > 0                        # fed by the background shear ...          #hide
-@test mean(wb_pair) > 0                        # ... and by the conversion eₚ → K         #hide
+@test mean(wb_pair) > 0                        # fed by the conversion eₚ → K             #hide
 @test eₚ_int[end] < 0                          # which drains eₚ well below where it started  #hide
 ## and the potential energy released exceeds the kinetic energy gained, the rest having gone to    #hide
-## dissipation and to the background terms                                                         #hide
+## dissipation                                                                                     #hide
 @test -(eₚ_int[end] - eₚ_int[1]) > K_int[end] - K_int[1]                           #hide
 @test all(ε_pair .≥ 0);                        # viscosity only ever removes energy       #hide
 
@@ -349,7 +352,7 @@ lines!(ax_K, t_pair ./ day,  SP_pair .* rate, label = "∫SP dV  (background she
 lines!(ax_K, t_pair ./ day,  wb_pair .* rate, label = "∫wb dV  (buoyancy conversion)")
 lines!(ax_K, t_pair ./ day, -ε_pair  .* rate, label = "-∫ε dV  (dissipation)")
 lines!(ax_K, t_pair ./ day,  K_resid .* rate, label = "residual", color = :black, linestyle = :dash)
-axislegend(ax_K; position = :lt, labelsize = 10, nbanks = 2)
+axislegend(ax_K; position = :rt, labelsize = 10, nbanks = 2)
 
 ax_p = Axis(fig[4, 1:4]; title = "Volume-integrated potential energy budget, normalized by ∫K dV", budget_kwargs...)
 lines!(ax_p, t_pair ./ day, -deₚdt    .* rate, label = "-d(∫eₚ)/dt")
@@ -357,7 +360,7 @@ lines!(ax_p, t_pair ./ day,  ADV_pair .* rate, label = "∫ADV_B dV  (background
 lines!(ax_p, t_pair ./ day, -wb_pair  .* rate, label = "-∫wb dV  (buoyancy conversion)")
 lines!(ax_p, t_pair ./ day,  Φ_pair   .* rate, label = "∫Φ dV  (diffusive buoyancy flux)")
 lines!(ax_p, t_pair ./ day,  eₚ_resid .* rate, label = "residual", color = :black, linestyle = :dash)
-axislegend(ax_p; position = :lt, labelsize = 10, nbanks = 2)
+axislegend(ax_p; position = :rt, labelsize = 10, nbanks = 2)
 
 vlines!(ax_K, @lift(times[$n] / day), color = :black, linestyle = :dot)
 vlines!(ax_p, @lift(times[$n] / day), color = :black, linestyle = :dot)
@@ -377,16 +380,18 @@ nothing #hide
 # The front becomes baroclinically unstable and rolls up into mesoscale eddies, and the two budget
 # panels show where their energy comes from. `∫wb dV` runs through both with opposite signs and is the
 # largest term in either: the eddies flatten the tilted isopycnals, `∫eₚ dV` falls, and the released
-# potential energy shows up as `∫K dV`. The background shear feeds `∫K dV` directly through `∫SP dV`,
-# an order of magnitude smaller than the conversion but positive through most of the growth, and
-# dissipation takes back a sizeable fraction of what comes in.
+# potential energy shows up as `∫K dV`, with dissipation taking back a sizeable fraction on the way.
+# That is the textbook picture of baroclinic instability, and at `Ri = 25` it is essentially the whole
+# story: the direct shear production `∫SP dV` is about a percent of the conversion and takes both
+# signs, so the eddies live off the potential energy in the tilted isopycnals rather than off the mean
+# shear. It is small enough here to sit below the residual, and is kept in the budget for completeness.
 #
-# The background buoyancy term `∫ADV_B dV` is about the size of `∫SP dV` and changes sign, since it is
-# the depth-weighted flow across the background gradient rather than a production of anything positive
-# definite. Small as it is, it is some sixty times the residual of the `eₚ` budget: leaving it out, as
-# one would if the background field were forgotten, turns a budget that closes to two parts in a
-# thousand into one off by more than a tenth. `∫Φ dV` is smaller than either by orders of magnitude,
-# which is what a mesoscale run at this resolution should look like.
+# The background buoyancy term `∫ADV_B dV` is comparably small, since it is the depth-weighted flow
+# across the background gradient rather than a production of anything positive definite. Unlike `∫SP dV`
+# it is well clear of the noise: some twenty times the residual of the `eₚ` budget, so leaving it out,
+# as one would if the background field were forgotten, turns a budget that closes to seven parts in ten
+# thousand into one off by nearly a fifth. `∫Φ dV` is smaller still, which is what a mesoscale run at
+# this resolution should look like.
 #
 # Both residuals stay near zero, and cannot be exactly zero: the discrete `K` and `eₚ` equations are not
 # derived from the discrete momentum and buoyancy equations the model steps, so the two sides agree only
