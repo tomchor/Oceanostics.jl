@@ -31,7 +31,7 @@ using Oceananigans.Units
 
 ## Domain size
 Lx = Ly = 1e3   # [m]   horizontal extent (1 km)
-H  = 140.0      # [m]   depth
+H_target = 140.0  # [m] requested depth; the stretched grid below lands a little deeper
 h  = 60.0       # [m]   mixed-layer depth
 
 ## Physical parameters
@@ -39,6 +39,27 @@ f      = 1e-4    # [s⁻¹] Coriolis frequency
 M²     = 3e-8    # [s⁻²] cross-front buoyancy gradient |∂B/∂y|, held fixed with depth
 N²_ml  = 9e-8    # [s⁻²] mixed-layer stratification (z > -h)
 N²_int = 1.8e-6  # [s⁻²] interior stratification (z < -h)
+
+# ## Grid
+#
+# The vertical coordinate is surface-intensified: `ReferenceToStretchedDiscretization` holds a constant
+# 4 m spacing over the top 64 m, which resolves the mixed layer the instability lives in, and stretches
+# it geometrically below that. The number of levels follows from those choices rather than being set,
+# and so does the actual depth, which overshoots `H_target` slightly since the stretched cells have to
+# land on a face:
+
+z = ReferenceToStretchedDiscretization(extent = H_target,
+                                       bias = :right, bias_edge = 0,   # fine spacing at the surface
+                                       constant_spacing = 4,
+                                       constant_spacing_extent = 64,
+                                       stretching = PowerLawStretching(1.08))
+
+grid = RectilinearGrid(size = (64, 64, length(z)), x = (0, Lx), y = (0, Ly), z = z,
+                       topology = (Periodic, Periodic, Bounded))
+
+H = grid.Lz   # [m] the depth the grid actually has, which the background fields are built on
+
+@info "Grid: $(size(grid)), depth $(round(H, digits=1)) m, Δz from $(round(minimum_zspacing(grid), digits=2)) m at the surface to $(round(maximum(zspacings(grid, Center())), digits=2)) m at the bottom"
 
 # ## Derived dynamical quantities
 #
@@ -60,14 +81,6 @@ Ri_int = N²_int / α^2      # []      ... and interior
 @info "Mixed-layer deformation radius Ld = $(round(Ld, digits=1)) m, fastest wavelength λ = $(round(λ, digits=1)) m, in a $(round(Int, Lx)) m box"
 @info "Balanced Richardson number Ri = $(round(Ri_ml, digits=2)) (mixed layer), $(round(Ri_int, digits=2)) (interior)"
 @info "Thermal-wind velocity Ū = $(round(100Ū, digits=2)) cm/s, growth time 1/σ = $(prettytime(1/σ))"
-
-# ## Grid
-#
-# We use a submesoscale-resolving grid, periodic in the horizontal and bounded in the vertical. The
-# box is sized so that the fastest-growing mixed-layer mode is a little smaller than the domain, which
-# is what makes the instability roll up into a single eddy rather than a field of them:
-
-grid = RectilinearGrid(size = (48, 48, 16), extent = (Lx, Ly, H))
 
 # ## Coriolis and background state
 #
@@ -91,16 +104,15 @@ B_field = BackgroundField(B, parameters=background_parameters)
 
 # ## Turbulence closure
 #
-# As in the [lock release example](@ref lock_release_example), a single constant, isotropic
-# `ScalarDiffusivity` supplies all the dissipation, so every sink in the budgets below comes from one
-# closure and nothing else:
+# The dissipation comes from a single `SmagorinskyLilly` closure, which sets its eddy viscosity from
+# the resolved strain rate and the local cell size rather than from a number fixed in advance. That
+# suits a stretched grid, where no single constant is right at both the 4 m surface cells and the 16 m
+# ones at the bottom, and it means the closure only acts where the flow has actually made gradients:
 
 Δx = minimum_xspacing(grid)
 Δz = minimum_zspacing(grid)
 
-ν = κ = 5e-4   # [m² s⁻¹] viscosity and diffusivity
-
-closure = ScalarDiffusivity(; ν, κ)
+closure = SmagorinskyLilly(C=0.3)
 
 # ## Model
 #
@@ -125,15 +137,17 @@ model = NonhydrostaticModel(grid;
 #
 # We seed the instability with small-amplitude random noise, damped toward the top and bottom
 # boundaries so it projects onto interior modes, and then remove any net horizontal-mean velocity the
-# noise introduces. The random seed is fixed so the run is reproducible:
+# noise introduces. The amplitude is a few parts in ten thousand of the thermal wind, low enough that
+# the mode spends its first several days growing exponentially before it saturates. The random seed is
+# fixed so the run is reproducible:
 
 using Random
 Random.seed!(772)
 
 Ξ(z) = randn() * z / H * (z / H + 1) # noise that vanishes at z = 0 and z = -H
 
-Ũ = 1e-1 * α * H   # velocity-noise amplitude
-B̃ = 1e-2 * α * f   # buoyancy-noise amplitude
+Ũ = 1e-3 * α * H   # velocity-noise amplitude, ~2.5e-4 of the thermal wind
+B̃ = 1e-4 * α * f   # buoyancy-noise amplitude
 
 uᵢ(x, y, z) = Ũ * Ξ(z)
 vᵢ(x, y, z) = Ũ * Ξ(z)
@@ -151,7 +165,7 @@ nothing #hide
 # The initial time step is set from the most restrictive of the advective and diffusive limits, and a
 # `TimeStepWizard` adapts it as the eddies spin up:
 
-max_Δt = min(Δx / Ū, Δz^2 / ν, 1 / N_int)
+max_Δt = min(Δx / Ū, 1 / N_int)   # Smagorinsky sets ν from the flow, so no fixed diffusive bound
 
 simulation = Simulation(model, Δt = max_Δt, stop_time = 20days)
 
@@ -308,15 +322,15 @@ rms(x) = √(sum(abs2, x) / length(x))                                          
 ## depending only on how nearly those terms cancel.                                                   #hide
 K_terms  = (dKdt, SP_pair, wb_pair, ε_pair)                                        #hide
 eₚ_terms = (deₚdt, ADV_pair, wb_pair, Φ_pair)                                      #hide
-@test rms(K_resid)  < 0.12 * maximum(rms, K_terms)                                 #hide
-@test rms(eₚ_resid) < 0.03 * maximum(rms, eₚ_terms)                                #hide
+@test rms(K_resid)  < 0.03 * maximum(rms, K_terms)                                 #hide
+@test rms(eₚ_resid) < 0.015 * maximum(rms, eₚ_terms)                               #hide
 ## `wb` is the same term in both, so it cancels from the sum of the two budgets    #hide
-@test rms(K_resid .+ eₚ_resid) < 0.15 * rms(wb_pair)                               #hide
+@test rms(K_resid .+ eₚ_resid) < 0.05 * rms(wb_pair)                               #hide
 ## Both background terms are the point of this example, and at `Ri = 1` both are leading terms:      #hide
 ## dropping either leaves an imbalance many times its budget's residual rather than something lost   #hide
 ## in the truncation error.                                                                          #hide
-@test rms(@. eₚ_resid + ADV_pair) > 5 * rms(eₚ_resid)                              #hide
-@test rms(@. K_resid  + SP_pair)  > 2 * rms(K_resid)                               #hide
+@test rms(@. eₚ_resid + ADV_pair) > 10 * rms(eₚ_resid)                             #hide
+@test rms(@. K_resid  + SP_pair)  > 5 * rms(K_resid)                               #hide
 ## At `Ri = 1` the shear is strong enough that `SP` is a sizeable fraction of the buoyancy           #hide
 ## conversion, rather than the afterthought it is at large `Ri`.                                     #hide
 @test rms(SP_pair) > 0.1 * rms(wb_pair);                                           #hide
@@ -327,7 +341,7 @@ eₚ_terms = (deₚdt, ADV_pair, wb_pair, Φ_pair)                              
 K_int  = K_bud[idx1]
 eₚ_int = eₚ_bud[idx1]
 
-@test K_int[end] > 10 * K_int[1]               # the perturbations grow                        #hide
+@test K_int[end] > 1e3 * K_int[1]              # the perturbations grow, and by a lot          #hide
 @test mean(wb_pair) > 0                        # fed by the conversion eₚ → K ...              #hide
 @test mean(SP_pair) > 0                        # ... and by the background shear               #hide
 @test eₚ_int[end] < 0                          # which drains eₚ below where it started        #hide
@@ -400,18 +414,17 @@ nothing #hide
 # energy budget is off by dozens of times its residual; drop `∫ADV_B dV` and the potential energy budget
 # is off by more than its own tendency.
 #
-# The dissipation is about half the conversion and the diffusive flux smaller still, so neither sink
-# dominates the budgets and the instability grows freely, by a factor of about 60 in energy.
+# The low initial noise leaves room for a long exponential phase, and the perturbation energy grows
+# through five orders of magnitude before it saturates. `∫ε dV` is about half the conversion and
+# `∫Φ dV` smaller still, so neither sink dominates: `SmagorinskyLilly` turns its eddy viscosity on only
+# where the resolved strain calls for it, which on this grid means at the front and in the eddy core
+# rather than everywhere at once.
 #
-# The price is the kinetic energy budget's residual, which is larger here than in the other examples:
-# around 8% of the budget's largest term, against under 2% for
-# [two-dimensional turbulence](@ref two_d_turbulence_example) and
-# [lock release](@ref lock_release_example). The reason is the grid Reynolds number. Lock release runs
-# this same diffusivity at `UΔ/ν ≈ 8`, so its flow is resolved down to the grid; here `Δx` is 21 m and
-# `UΔx/ν` is in the thousands, which leaves the centered scheme with grid-scale structure that neither
-# the closure nor the budget's discretization handles cleanly. The residual jumps to that level when the
-# instability saturates around day 5 and is flat afterwards, so it is a resolution limit rather than a
-# drift. Refining the grid, not retuning the closure, is what would bring it down.
+# Both budgets close to between half and one and a half percent of their largest term, which is the
+# level the other examples reach. The surface-intensified grid is what buys that. The mixed layer the
+# instability lives in gets fifteen 4 m levels instead of seven 8.75 m ones, while the quiescent
+# interior below is covered by stretched cells that cost little, so the resolution goes where the
+# gradients are.
 #
 # Both residuals stay near zero, and cannot be exactly zero: the discrete `K` and `eₚ` equations are not
 # derived from the discrete momentum and buoyancy equations the model steps, so the two sides agree only
