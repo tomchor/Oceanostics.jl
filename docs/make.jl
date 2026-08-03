@@ -19,6 +19,7 @@ examples = [
     "Kelvin-Helmholtz instability" => "kelvin_helmholtz", # Filtered KE budget (~8 min)
     "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability", # SFS budget (~6 min)
     "Lock release"                 => "lock_release", # APE and reference profiles calculation (~ 5 min)
+    "Eady baroclinic instability"  => "eady_baroclinic_instability", # KE and PE budgets with background fields (~5 min)
     ]
 
 example_pages = [ k => "generated/$v.md" for (k, v) in examples ]
