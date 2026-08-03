@@ -147,10 +147,10 @@ w̄b̄ = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy productio
 
 # The budget only needs the (cheap) volume integrals of these terms:
 
-∫Kˡ = Integral(Kˡ)
-∫w̄b̄ = Integral(w̄b̄)
-∫Πₖ = Integral(Πₖ)
-∫εˡ = Integral(εˡ)
+∫Kˡ = ∫dV(Kˡ)
+∫w̄b̄ = ∫dV(w̄b̄)
+∫Πₖ = ∫dV(Πₖ)
+∫εˡ = ∫dV(εˡ)
 
 
 # We use two NetCDF writers. A *snapshot* writer stores the 2D fields on a plain `TimeInterval(1)`,
