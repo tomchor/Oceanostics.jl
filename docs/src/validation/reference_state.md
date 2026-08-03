@@ -24,7 +24,7 @@ methods = ("ThreeDimensionalSort" => ThreeDimensionalSort(),
            "VerticalSort"         => VerticalSort(),
            "ProfileLookup"        => ProfileLookup())
 
-volume_integral(op) = sum(Field(Integral(op)))
+volume_integral(op) = sum(∫dV(op))
 
 # Pair the buoyancy with the reference height it was assigned and order by z✶. On the model grid that
 # reordering is what recovers the profile; on the sorted column it is already in order.

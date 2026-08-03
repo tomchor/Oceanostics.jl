@@ -785,7 +785,7 @@ function test_check_filter_staging()
               Field(gf2(c)),                        # the canonical staged form
               Field(gf2(c)) - φ,                    # filtered field materialized before composing
               2 * Field(gf2(c)),
-              Field(Integral(Field(bf3(c)))),       # materialized before the reduction
+              ∫dV(Field(bf3(c))),                   # materialized before the reduction
               gf1(c) - φ,                           # 1D filters never fuse, even when nested
               Field(gf1(c) - φ))
     for op in staged
@@ -798,7 +798,7 @@ function test_check_filter_staging()
              Field(gf2(c) - φ),
              2 * gf2(c),
              bf3(c) * φ,
-             Field(Integral(gf2(c))))               # filter nested inside the reduction
+             ∫dV(gf2(c)))                           # filter nested inside the reduction
     for op in fused
         @test check_filter_staging(op; warn=false) == false
         @test_logs (:warn,) check_filter_staging(op)                 # exactly one warning

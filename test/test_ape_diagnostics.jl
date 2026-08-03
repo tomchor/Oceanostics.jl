@@ -135,8 +135,8 @@ function test_reference_state_is_recomputed(grid; method = ThreeDimensionalSort(
     set!(model, b = (x, y, z) -> z + 0.5 * sin(6z) + 0.2 * sin(7x))
 
     z✶   = AvailablePotentialEnergyEquation.reference_height(model; method)
-    ∫E_b = Field(Integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)))
-    ∫Eₚ  = Field(Integral(PotentialEnergyEquation.PotentialEnergy(model)))
+    ∫E_b = ∫dV(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶))
+    ∫Eₚ  = ∫dV(PotentialEnergyEquation.PotentialEnergy(model))
 
     stirred_E_b = sum(∫E_b)
     @test stirred_E_b < sum(∫Eₚ) # an unsorted field holds available potential energy

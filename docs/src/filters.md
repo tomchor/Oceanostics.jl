@@ -211,8 +211,8 @@ nothing # hide
 Timing both, after a warm-up call so that compilation is not counted:
 
 ```@repl filters_perf
-∫εˢ_fused  = Field(Integral(      gf(ε)  - εˡ));
-∫εˢ_staged = Field(Integral(Field(gf(ε)) - εˡ));
+∫εˢ_fused  = ∫dV(      gf(ε)  - εˡ);
+∫εˢ_staged = ∫dV(Field(gf(ε)) - εˡ);
 compute!(∫εˢ_fused); compute!(∫εˢ_staged);   # warm up so compilation is not timed
 t_fused  = @elapsed compute!(∫εˢ_fused)
 t_staged = @elapsed compute!(∫εˢ_staged)
