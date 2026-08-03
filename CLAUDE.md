@@ -50,8 +50,17 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 - **`TurbulentKineticEnergyEquation`**: TKE, isotropic dissipation, shear production rates (X/Y/Z and total)
 - **`TracerVarianceEquation`**: Tendency, dissipation rate, diffusion of tracer variance
 - **`PotentialEnergyEquation`**: Potential energy for BuoyancyTracer, linear/nonlinear SeawaterBuoyancy
-  (`PotentialEnergy`, Eₚ = -bz). It owns the buoyancy-formulation type aliases
-  (`BuoyancyTracerModel`, `BuoyancyLinearEOSModel`, `BuoyancyBoussinesqEOSModel`, …) and
+  (`PotentialEnergy`, Eₚ = -bz) plus the terms of its budget: `DiffusiveBuoyancyFlux` (Φ = κ∂b/∂z) and
+  the `-z ×` forms of the buoyancy equation's own terms — `Tendency` (-z∂ₜb, off Oceananigans'
+  `tracer_tendency`), `Advection` (z∂ⱼ(uⱼb), total velocities), `BackgroundAdvection` (z∂ⱼ(uⱼB), the
+  term a `BackgroundField` buoyancy adds), `Diffusion` (z∂ⱼqⱼ) and `Forcing` (-zFᵇ). Keeping the
+  `-z ×` form rather than the rearranged `-∂ⱼ(uⱼeₚ)` makes the four sum to `Tendency` *exactly* (it is
+  the model's own tendency taken apart), while `∫Advection = -∫wb` and `∫Diffusion = ∫Φ` hold only to
+  truncation error; the budget terms need `BuoyancyTracer`. Closed end-to-end by
+  `docs/examples/baroclinic_adjustment.jl`, a double-front run whose buoyancy is periodic and whose
+  `∫eₚ dV` is therefore finite — a single Eady front is not a valid test, since its uniform background
+  gradient makes the domain's potential energy infinite. It owns the buoyancy-formulation type
+  aliases (`BuoyancyTracerModel`, `BuoyancyLinearEOSModel`, `BuoyancyBoussinesqEOSModel`, …) and
   `validate_gravity_unit_vector`, which `AvailablePotentialEnergyEquation` imports.
 - **`BackgroundPotentialEnergyEquation`**: the reference state and `BackgroundPotentialEnergy`
   (E_b = -bz✶). The reference height z✶ comes from `reference_height`, which returns a `Field` whose

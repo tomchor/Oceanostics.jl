@@ -26,6 +26,7 @@ jobs:
           - rayleigh_taylor_instability
           - spatial_filtering
           - lock_release
+          - baroclinic_adjustment
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
