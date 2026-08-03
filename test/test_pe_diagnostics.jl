@@ -129,84 +129,6 @@ function test_diffusive_buoyancy_flux(grid)
 end
 
 """
-The terms of the `eₚ = -bz` equation are `-z` times the terms of the equation the model steps for `b`,
-each built on Oceananigans' own kernel for that term. Their sum is therefore the model's own buoyancy
-tendency taken apart and put back together, so it has to match `PotentialEnergyTendency` to machine
-precision — on any grid, with background fields and forcing in play, whatever the flow is doing. That
-exactness is the whole point of keeping the `-z ×` form, and it is what the rearranged
-`-∂ⱼ(uⱼeₚ)` form would give up, so it is checked to `atol` rather than `rtol`.
-
-The two integral identities are the other half of the arrangement: pulling `z` inside the derivative
-turns `Advection` into a transport plus `-uⱼbⱼ` and `Diffusion` into a transport plus `Φ`, so over a
-periodic domain `∫Advection = -∫wb` and `∫Diffusion = ∫Φ`. Those come from the continuum product rule
-and need `∂ⱼuⱼ = 0`, which is why the model is stepped first: the pressure projection is what makes the
-velocity field divergence-free, and a random one straight out of `set!` is not.
-"""
-function test_potential_energy_budget_terms(grid)
-
-    B(x, y, z, t) = -1e-6 * y + 1e-5 * z            # background buoyancy, sheared and stratified
-    U(x, y, z, t) = 1e-2 * z                        # background velocity in thermal-wind balance with it
-    Fᵇ(x, y, z, t) = 1e-9 * sin(2π * z)
-
-    model = NonhydrostaticModel(grid; buoyancy = BuoyancyTracer(), tracers = :b,
-                                advection = Centered(order=4),
-                                closure = ScalarDiffusivity(ν=1e-4, κ=1e-4),
-                                background_fields = (b = BackgroundField(B), u = BackgroundField(U)),
-                                forcing = (; b = Forcing(Fᵇ)))
-
-    smooth(x, y, z) = 1e-2 * sin(2π * x) * cos(2π * y) * sin(π * z)
-    set!(model, u = smooth, v = smooth, b = smooth)
-    for _ in 1:3
-        time_step!(model, 1e-2)   # the pressure projection makes u⃗ divergence-free
-    end
-
-    TEND = PotentialEnergyTendency(model)
-    ADV  = PotentialEnergyAdvection(model)
-    BADV = PotentialEnergyBackgroundAdvection(model)
-    DIFF = PotentialEnergyDiffusion(model)
-    FORC = PotentialEnergyForcing(model)
-
-    @test TEND isa PotentialEnergyTendency
-    @test ADV  isa PotentialEnergyAdvection
-    @test BADV isa PotentialEnergyBackgroundAdvection
-    @test DIFF isa PotentialEnergyDiffusion
-    @test FORC isa PotentialEnergyForcing
-
-    tendency = Array(interior(Field(TEND)))
-    terms = sum(Array(interior(Field(term))) for term in (ADV, BADV, DIFF, FORC))
-    @test maximum(abs, tendency .- terms) < 1e-12 * maximum(abs, tendency)
-
-    # Every term has to be doing something, or the sum above would be checking nothing
-    for term in (ADV, BADV, DIFF, FORC)
-        @test maximum(abs, Array(interior(Field(term)))) > 1e-6 * maximum(abs, tendency)
-    end
-
-    # `∫Diffusion = ∫Φ` telescopes and comes out to a dozen digits, but `∫Advection = -∫wb` is second
-    # order in the grid spacing and the shared test grids are six cells wide, so it is only good to a
-    # few percent here. The Eady example, on a grid that resolves something, is where it is checked in
-    # earnest.
-    @test volume_integral(ADV)  ≈ -volume_integral(PotentialToKineticEnergyConversion(model)) rtol=0.1
-    @test volume_integral(DIFF) ≈  volume_integral(PotentialEnergyDiffusiveBuoyancyFlux(model)) rtol=1e-6
-
-    # `BackgroundAdvection` is the term a run without a background buoyancy does not have, and it has to
-    # come out identically zero there rather than merely small.
-    plain = NonhydrostaticModel(grid; buoyancy = BuoyancyTracer(), tracers = :b)
-    set!(plain, u = smooth, v = smooth, b = smooth)
-    @test all(Array(interior(Field(PotentialEnergyBackgroundAdvection(plain)))) .== 0)
-
-    # These are terms of the `b` equation weighted by `-z`, so they need `b` to be a tracer
-    seawater = NonhydrostaticModel(grid; buoyancy = SeawaterBuoyancy(), tracers = (:T, :S),
-                                   closure = ScalarDiffusivity(κ=1e-4))
-    for diagnostic in (PotentialEnergyTendency, PotentialEnergyAdvection,
-                       PotentialEnergyBackgroundAdvection, PotentialEnergyDiffusion, PotentialEnergyForcing)
-        @test_throws ArgumentError diagnostic(seawater)
-    end
-    @test_throws "no closure" PotentialEnergyDiffusion(plain)   # ... and `Diffusion` needs a closure too
-
-    return nothing
-end
-
-"""
 `wb` is the one term the kinetic and potential energy budgets share, so it is defined once in
 `KineticEnergyEquation` and re-exported by the two potential energy modules, where `KineticEnergyConversion`
 names the exchange rather than the side it feeds. The alias is deliberately *not* exported from
@@ -256,9 +178,6 @@ end
         end
         @info "      Testing the diffusive buoyancy flux"
         test_diffusive_buoyancy_flux(grid)
-
-        @info "      Testing the terms of the potential energy equation"
-        test_potential_energy_budget_terms(grid)
     end
 
     @info "  Testing the `KineticEnergyConversion` alias and its export scope"

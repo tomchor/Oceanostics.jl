@@ -179,25 +179,25 @@ add_callback!(simulation, TimedMessenger(), IterationInterval(100))
 
 # ## Energy budgets
 #
-# The model's `u` and `b` are perturbations about `U` and `B`, so `K = ½uᵢuᵢ` and `eₚ = -bz` are the
-# *perturbation* energies, and each background field puts a term of its own into the budget of the
-# energy it acts on. Volume integrated over the doubly-periodic, free-slip domain, advection, the
-# pressure work and the two transport terms all drop out, and what is left is
+# The model's `u` is a perturbation about `U`, so `K = ½uᵢuᵢ` is the *perturbation* kinetic energy, and
+# the background velocity puts a term of its own into its budget. Volume integrated over the
+# doubly-periodic, free-slip domain, advection and the pressure work drop out, and what is left is
 #
 # ```math
-# \frac{d}{dt}\int K\, dV = \int \mathrm{SP}\, dV + \int wb\, dV - \int \varepsilon\, dV , \qquad
-# \frac{d}{dt}\int e_p\, dV = \int \mathrm{ADV}_B\, dV - \int wb\, dV + \int \Phi\, dV .
+# \frac{d}{dt}\int K\, dV = \int \mathrm{SP}\, dV + \int wb\, dV - \int \varepsilon\, dV .
 # ```
 #
-# The kinetic energy picks up the shear production ``\mathrm{SP} = -u_i u_j \partial_j U_i``, which
-# here is ``-\alpha\, u w``, and is drained by the dissipation ``\varepsilon``
-# ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)). The potential
-# energy picks up ``\mathrm{ADV}_B = z\,\partial_j(u_j B)``, the advection of the background buoyancy by
-# the perturbation flow ([`PotentialEnergyBackgroundAdvection`](@ref)), and exchanges with the
-# stratification through the diffusive buoyancy flux ``\Phi = \kappa\,\partial b/\partial z``
-# ([`PotentialEnergyDiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux)). The buoyancy conversion ``wb``
-# ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion)) is the one term the two budgets share, with opposite
-# signs, so it cancels from their sum.
+# The kinetic energy picks up the shear production ``\mathrm{SP} = -u_i u_j \partial_j U_i``, which here
+# is ``-\alpha\, u w``, gains the buoyancy conversion ``wb``
+# ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion)),
+# and is drained by the dissipation ``\varepsilon``
+# ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)).
+#
+# We stop at the kinetic energy. The other half of the exchange, the potential energy, is not a
+# well-posed budget for an Eady front: the background buoyancy gradient is uniform and unbounded in `y`,
+# so the domain's potential energy is infinite and only the perturbation part of it is finite. A
+# configuration where the buoyancy field is genuinely periodic, and the potential energy therefore
+# finite, is the place to close that budget instead.
 #
 # ``\mathrm{SP}`` is
 # [`TurbulentKineticEnergyShearProductionRate`](@ref) handed the background velocity as the mean flow:
@@ -215,17 +215,10 @@ SP = TurbulentKineticEnergyShearProductionRate(u, v, w, U_background, ZeroField(
 wb = PotentialToKineticEnergyConversion(model)
 ε  = KineticEnergyDissipationRate(model)
 
-eₚ    = PotentialEnergy(model)
-ADV_B = PotentialEnergyBackgroundAdvection(model)
-Φ     = PotentialEnergyDiffusiveBuoyancyFlux(model)
-
-∫K     = Integral(K)
-∫SP    = Integral(SP)
-∫wb    = Integral(wb)
-∫ε     = Integral(ε)
-∫eₚ    = Integral(eₚ)
-∫ADV_B = Integral(ADV_B)
-∫Φ     = Integral(Φ)
+∫K  = Integral(K)
+∫SP = Integral(SP)
+∫wb = Integral(wb)
+∫ε  = Integral(ε)
 
 # For the movie we also keep the surface vertical vorticity `ζ` and the surface buoyancy perturbation:
 
@@ -250,7 +243,7 @@ simulation.output_writers[:fields] =
                  overwrite_existing = true)
 
 simulation.output_writers[:budget] =
-    NetCDFWriter(model, (; ∫K, ∫SP, ∫wb, ∫ε, ∫eₚ, ∫ADV_B, ∫Φ),
+    NetCDFWriter(model, (; ∫K, ∫SP, ∫wb, ∫ε),
                  filename = filename * "_budget",
                  schedule = ConsecutiveIterations(TimeInterval(8hours)),
                  overwrite_existing = true)
@@ -286,9 +279,6 @@ K_bud  = ds_b["∫K"][:]
 SP_bud = ds_b["∫SP"][:]
 wb_bud = ds_b["∫wb"][:]
 ε_bud  = ds_b["∫ε"][:]
-eₚ_bud = ds_b["∫eₚ"][:]
-ADV_bud = ds_b["∫ADV_B"][:]
-Φ_bud   = ds_b["∫Φ"][:]
 close(ds_b)
 
 idx1 = 1:2:length(t_bud) - 1   # primary snapshots
@@ -297,40 +287,31 @@ idx2 = 2:2:length(t_bud)       # consecutive-iteration snapshots
 Δt_pair = t_bud[idx2] .- t_bud[idx1]
 t_pair  = @. 0.5 * (t_bud[idx1] + t_bud[idx2])
 
-dKdt  = (K_bud[idx2]  .- K_bud[idx1])  ./ Δt_pair
-deₚdt = (eₚ_bud[idx2] .- eₚ_bud[idx1]) ./ Δt_pair
+dKdt = (K_bud[idx2] .- K_bud[idx1]) ./ Δt_pair
 
 pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
 
-SP_pair  = pair_mean(SP_bud)
-wb_pair  = pair_mean(wb_bud)
-ε_pair   = pair_mean(ε_bud)
-ADV_pair = pair_mean(ADV_bud)
-Φ_pair   = pair_mean(Φ_bud)
+SP_pair = pair_mean(SP_bud)
+wb_pair = pair_mean(wb_bud)
+ε_pair  = pair_mean(ε_bud)
 
-# Both budgets are written in sum-to-zero form: every curve is plotted with the sign it carries here, so
-# the panels below add up to the residual.
+# The budget is written in sum-to-zero form: every curve is plotted with the sign it carries here, so
+# the panel below adds up to the residual.
 
-K_resid  = @. -dKdt  + SP_pair + wb_pair - ε_pair
-eₚ_resid = @. -deₚdt + ADV_pair - wb_pair + Φ_pair
+K_resid = @. -dKdt + SP_pair + wb_pair - ε_pair
 
 using Test                                                                         #hide
 rms(x) = √(sum(abs2, x) / length(x))                                               #hide
-## Each budget closes to a small fraction of its own largest term. Normalizing by the largest term    #hide
+## The budget closes to a small fraction of its own largest term. Normalizing by the largest term     #hide
 ## rather than by the tendency is the honest test here: at `Ri = 1` the tendency is itself a small    #hide
 ## residual of several larger, opposing terms, so scaling by it would flatter or punish the budget    #hide
 ## depending only on how nearly those terms cancel.                                                   #hide
-K_terms  = (dKdt, SP_pair, wb_pair, ε_pair)                                        #hide
-eₚ_terms = (deₚdt, ADV_pair, wb_pair, Φ_pair)                                      #hide
-@test rms(K_resid)  < 0.03 * maximum(rms, K_terms)                                 #hide
-@test rms(eₚ_resid) < 0.015 * maximum(rms, eₚ_terms)                               #hide
-## `wb` is the same term in both, so it cancels from the sum of the two budgets    #hide
-@test rms(K_resid .+ eₚ_resid) < 0.05 * rms(wb_pair)                               #hide
-## Both background terms are the point of this example, and at `Ri = 1` both are leading terms:      #hide
-## dropping either leaves an imbalance many times its budget's residual rather than something lost   #hide
-## in the truncation error.                                                                          #hide
-@test rms(@. eₚ_resid + ADV_pair) > 10 * rms(eₚ_resid)                             #hide
-@test rms(@. K_resid  + SP_pair)  > 5 * rms(K_resid)                               #hide
+K_terms = (dKdt, SP_pair, wb_pair, ε_pair)                                         #hide
+@test rms(K_resid) < 0.03 * maximum(rms, K_terms)                                  #hide
+## The background shear term is the point of this example, and at `Ri = 1` it is a leading term:      #hide
+## dropping it leaves an imbalance many times the residual rather than something lost in the          #hide
+## truncation error.                                                                                  #hide
+@test rms(@. K_resid + SP_pair) > 5 * rms(K_resid)                                 #hide
 ## At `Ri = 1` the shear is strong enough that `SP` is a sizeable fraction of the buoyancy           #hide
 ## conversion, rather than the afterthought it is at large `Ri`.                                     #hide
 @test rms(SP_pair) > 0.1 * rms(wb_pair);                                           #hide
@@ -338,24 +319,22 @@ eₚ_terms = (deₚdt, ADV_pair, wb_pair, Φ_pair)                              
 # The instability also does what it should: the eddies grow, drawing on both the mean shear and the
 # potential energy the tilted isopycnals hold.
 
-K_int  = K_bud[idx1]
-eₚ_int = eₚ_bud[idx1]
+K_int = K_bud[idx1]
 
 @test K_int[end] > 1e3 * K_int[1]              # the perturbations grow, and by a lot          #hide
-@test mean(wb_pair) > 0                        # fed by the conversion eₚ → K ...              #hide
+@test mean(wb_pair) > 0                        # fed by the buoyancy conversion ...            #hide
 @test mean(SP_pair) > 0                        # ... and by the background shear               #hide
-@test eₚ_int[end] < 0                          # which drains eₚ below where it started        #hide
 @test all(ε_pair .≥ 0);                        # viscosity only ever removes energy            #hide
 
 # ## Plotting
 #
-# Every term grows by four orders of magnitude as the instability develops, so each budget is plotted
+# Every term grows by orders of magnitude as the instability develops, so the budget is plotted
 # normalized by the instantaneous `∫K dV`. That turns the curves into rates per day and keeps the early,
 # small-amplitude stage readable next to the saturated one; the residual then reads directly as a
 # relative error.
 
 set_theme!(Theme(fontsize = 18))
-fig = Figure(size = (1100, 1000))
+fig = Figure(size = (1100, 800))
 
 n = Observable(1)
 
@@ -382,16 +361,7 @@ lines!(ax_K, t_pair ./ day, -ε_pair  .* rate, label = "-∫ε dV  (dissipation)
 lines!(ax_K, t_pair ./ day,  K_resid .* rate, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_K; position = :rt, labelsize = 10, nbanks = 2)
 
-ax_p = Axis(fig[4, 1:4]; title = "Volume-integrated potential energy budget, normalized by ∫K dV", budget_kwargs...)
-lines!(ax_p, t_pair ./ day, -deₚdt    .* rate, label = "-d(∫eₚ)/dt")
-lines!(ax_p, t_pair ./ day,  ADV_pair .* rate, label = "∫ADV_B dV  (background buoyancy advection)")
-lines!(ax_p, t_pair ./ day, -wb_pair  .* rate, label = "-∫wb dV  (buoyancy conversion)")
-lines!(ax_p, t_pair ./ day,  Φ_pair   .* rate, label = "∫Φ dV  (diffusive buoyancy flux)")
-lines!(ax_p, t_pair ./ day,  eₚ_resid .* rate, label = "residual", color = :black, linestyle = :dash)
-axislegend(ax_p; position = :rt, labelsize = 10, nbanks = 2)
-
 vlines!(ax_K, @lift(times[$n] / day), color = :black, linestyle = :dot)
-vlines!(ax_p, @lift(times[$n] / day), color = :black, linestyle = :dot)
 
 title = @lift "Eady turbulence, t = " * prettytime(times[$n])
 fig[1, 1:4] = Label(fig, title, fontsize = 22, tellwidth = false)
@@ -405,28 +375,26 @@ nothing #hide
 
 # ![](eady_baroclinic_instability.mp4)
 #
-# The front becomes baroclinically unstable and rolls up into a submesoscale eddy, and the two budget
-# panels show where its energy comes from. Both background terms matter here, which is the point of the
-# example. `∫wb dV` runs through both budgets with opposite signs: the eddy flattens the tilted
-# isopycnals, `∫eₚ dV` falls, and the released potential energy shows up as `∫K dV`. But at `Ri = 1` the
-# mean shear is strong enough that the direct shear production `∫SP dV` is comparable to it, so the
-# perturbations feed on the shear and on the stratification at once. Drop `∫SP dV` and the kinetic
-# energy budget is off by dozens of times its residual; drop `∫ADV_B dV` and the potential energy budget
-# is off by more than its own tendency.
+# The front becomes baroclinically unstable and rolls up into a submesoscale eddy, and the budget panel
+# shows where its energy comes from. `∫wb dV` is the larger source: the eddy flattens the tilted
+# isopycnals and the released potential energy shows up as `∫K dV`. But at `Ri = 1` the mean shear is
+# strong enough that the direct shear production `∫SP dV` is a sizeable fraction of it, so the
+# perturbations feed on the shear and on the stratification at once. That background term is the point
+# of the example: drop it and the budget is off by many times its residual, rather than by something
+# lost in the truncation error.
 #
 # The low initial noise leaves room for a long exponential phase, and the perturbation energy grows
-# through five orders of magnitude before it saturates. `∫ε dV` is about half the conversion and
-# `∫Φ dV` smaller still, so neither sink dominates: `SmagorinskyLilly` turns its eddy viscosity on only
-# where the resolved strain calls for it, which on this grid means at the front and in the eddy core
-# rather than everywhere at once.
+# through five orders of magnitude before it saturates. `∫ε dV` is about half the conversion, so the
+# sink never dominates: `SmagorinskyLilly` turns its eddy viscosity on only where the resolved strain
+# calls for it, which on this grid means at the front and in the eddy core rather than everywhere at
+# once.
 #
-# Both budgets close to between half and one and a half percent of their largest term, which is the
-# level the other examples reach. The surface-intensified grid is what buys that. The mixed layer the
-# instability lives in gets fifteen 4 m levels instead of seven 8.75 m ones, while the quiescent
-# interior below is covered by stretched cells that cost little, so the resolution goes where the
-# gradients are.
+# The budget closes to a percent or so of its largest term, the level the other examples reach. The
+# surface-intensified grid is what buys that. The mixed layer the instability lives in gets fifteen 4 m
+# levels instead of seven 8.75 m ones, while the quiescent interior below is covered by stretched cells
+# that cost little, so the resolution goes where the gradients are.
 #
-# Both residuals stay near zero, and cannot be exactly zero: the discrete `K` and `eₚ` equations are not
-# derived from the discrete momentum and buoyancy equations the model steps, so the two sides agree only
-# to the truncation error of a well-resolved flow. The same caveat applies to
+# The residual stays near zero, and cannot be exactly zero: the discrete `K` equation is not derived
+# from the discrete momentum equation the model steps, so the two sides agree only to the truncation
+# error of a well-resolved flow. The same caveat applies to
 # [the two-dimensional turbulence example](@ref two_d_turbulence_example).

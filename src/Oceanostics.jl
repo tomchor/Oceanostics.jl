@@ -77,8 +77,6 @@ export BoxFilter, GaussianFilter, check_filter_staging
 
 #+++ PotentialEnergyEquation exports
 export PotentialEnergy, PotentialEnergyDiffusiveBuoyancyFlux
-export PotentialEnergyTendency, PotentialEnergyAdvection, PotentialEnergyBackgroundAdvection,
-       PotentialEnergyDiffusion, PotentialEnergyForcing
 #---
 
 #+++ BackgroundPotentialEnergyEquation exports
@@ -415,11 +413,6 @@ end
 #+++ PotentialEnergyEquation
 @diagnostic_show PotentialEnergyEquation.PotentialEnergy             "PotentialEnergy"             "potential energy per unit volume  eₚ = -bz"
 @diagnostic_show PotentialEnergyEquation.DiffusiveBuoyancyFlux "PotentialEnergyDiffusiveBuoyancyFlux" "diffusive buoyancy flux  Φ = κ ∂b/∂z = -q₃"
-@diagnostic_show PotentialEnergyEquation.Tendency             "PotentialEnergyTendency"             "potential energy tendency  ∂ₜeₚ = -z ∂ₜb"
-@diagnostic_show PotentialEnergyEquation.Advection            "PotentialEnergyAdvection"            "potential energy advection  z ∂ⱼ(uⱼb)"
-@diagnostic_show PotentialEnergyEquation.BackgroundAdvection   "PotentialEnergyBackgroundAdvection"  "potential energy background advection  z ∂ⱼ(uⱼB)"
-@diagnostic_show PotentialEnergyEquation.Diffusion            "PotentialEnergyDiffusion"            "potential energy diffusion  z ∂ⱼqⱼ"
-@diagnostic_show PotentialEnergyEquation.Forcing              "PotentialEnergyForcing"              "potential energy forcing  -z Fᵇ"
 #---
 
 #+++ BackgroundPotentialEnergyEquation

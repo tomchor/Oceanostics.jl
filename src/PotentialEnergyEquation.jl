@@ -5,28 +5,21 @@ using DocStringExtensions
 export PotentialEnergy
 # Short name inside the module, prefixed alias for `using Oceanostics`, as elsewhere in the package.
 export DiffusiveBuoyancyFlux, PotentialEnergyDiffusiveBuoyancyFlux
-export Tendency, PotentialEnergyTendency
-export Advection, PotentialEnergyAdvection
-export BackgroundAdvection, PotentialEnergyBackgroundAdvection
-export Diffusion, PotentialEnergyDiffusion
-export Forcing, PotentialEnergyForcing
 # `wb` is the one term the kinetic and potential energy budgets share, so it is defined in
 # `KineticEnergyEquation` and re-exported here under both its own name and a budget-neutral alias.
 export PotentialToKineticEnergyConversion, KineticEnergyConversion
 
-using Oceananigans: NonhydrostaticModel, fields
+using Oceananigans: fields
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Models: seawater_density
 using Oceananigans.Models: model_geopotential_height
-using Oceananigans.Models.NonhydrostaticModels: div_Uc, tracer_tendency
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Grids: NegativeZDirection
 using Oceananigans.BuoyancyFormulations: BuoyancyForce, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
 using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ
 using Oceananigans.Models: ShallowWaterModel
 using Oceananigans.Operators: ℑzᵃᵃᶜ
-using Oceananigans.TurbulenceClosures: diffusive_flux_z, ∇_dot_qᶜ
-using Oceananigans.Utils: sum_of_velocities
+using Oceananigans.TurbulenceClosures: diffusive_flux_z
 using Oceanostics: validate_location, CustomKFO
 using SeawaterPolynomials: BoussinesqEquationOfState
 
@@ -234,19 +227,6 @@ validate_buoyancy_is_a_diffused_tracer(diagnostic, model) =
                              the closure's own diffusive flux, but this model's buoyancy is a \
                              $(summary(model.buoyancy)). Only `BuoyancyTracer` is supported for now."))
 
-# The terms of the `eₚ` equation are `-z` times the terms of the equation the model steps for `b`, so
-# they need `b` to be one of the model's tracers. That is weaker than the condition above, which also
-# wants the closure to diffuse it, so advection, forcing and the tendency get their own check.
-validate_buoyancy_is_a_tracer(diagnostic, model) =
-    model.buoyancy isa BuoyancyTracerModel ||
-        throw(ArgumentError("`$diagnostic` is a term of the `eₚ = -bz` equation, which is `-z` times the equation \
-                             the model steps for the tracer `b`, but this model's buoyancy is a \
-                             $(summary(model.buoyancy)). Only `BuoyancyTracer` is supported for now."))
-
-# Every term below reads `b`'s slot in `model.tracers`, which `validate_buoyancy_is_a_tracer` has
-# already established is there.
-buoyancy_tracer_index(model) = Val(findfirst(n -> n === :b, propertynames(model.tracers)))
-
 # The arguments every diagnostic built on `diffusive_flux_*` passes through to the closure.
 buoyancy_diffusive_flux_arguments(model) =
     (model.closure,
@@ -363,297 +343,6 @@ function DiffusiveBuoyancyFlux(model; location = (Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(diffusive_buoyancy_flux_ccc, model.grid,
                                                            buoyancy_diffusive_flux_arguments(model)...)
 end
-#---
-
-#+++ The rest of the `eₚ` equation
-# `eₚ = -bz` and `z` does not change in time, so every term of the `eₚ` equation is `-z` times the
-# matching term of the equation the model steps for `b`. Each diagnostic below is built that way, on
-# Oceananigans' own kernel for that term, which is the convention `KineticEnergyEquation` follows too
-# (`uᵢ∂ⱼ(uⱼuᵢ)` rather than `∂ⱼ(uⱼK)`): the split is then the model's own tendency taken apart term by
-# term, rather than a continuum rearrangement of it, so it holds at the discrete level.
-#
-# What the rearrangement buys is the pair of terms that survive a volume integral. Pulling `z` inside
-# the derivative turns `Advection` into a transport plus `-uⱼbⱼ`, and `Diffusion` into a transport plus
-# `Φ`, so over a periodic or closed domain
-#
-#     ∫Advection dV = -∫uⱼbⱼ dV        and        ∫Diffusion dV = ∫Φ dV ,
-#
-# which is why an integrated budget is usually written with `PotentialToKineticEnergyConversion` and
-# `DiffusiveBuoyancyFlux` in their place. Those two identities are continuum ones, so they hold to the
-# truncation error of the discretization rather than exactly.
-
-#+++ Tendency
-@inline minus_z_∂ₜb_ccc(i, j, k, grid, args...) = -Zᶜᶜᶜ(i, j, k, grid) * tracer_tendency(i, j, k, grid, args...)
-
-const PotentialEnergyTendency = CustomKFO{<:typeof(minus_z_∂ₜb_ccc)}
-const Tendency = PotentialEnergyTendency
-
-"""
-    $(SIGNATURES)
-
-Return a `KernelFunctionOperation` computing the tendency of the potential energy `eₚ = -bz`,
-
-```
-    ∂ₜeₚ = -z ∂ₜb ,
-```
-
-where `∂ₜb` is Oceananigans' own tracer tendency for the buoyancy. Since that kernel is the one the
-model steps, this is the whole right-hand side of the `eₚ` equation in one term: advection by the total
-(perturbation plus background) flow, advection of a background buoyancy field, diffusion, and forcing.
-The individual terms are [`PotentialEnergyAdvection`](@ref),
-[`PotentialEnergyBackgroundAdvection`](@ref), [`PotentialEnergyDiffusion`](@ref) and
-[`PotentialEnergyForcing`](@ref), and they sum to this one cell by cell.
-
-Defined for `BuoyancyTracer` models, where `b` is one of the model's tracers.
-
-```jldoctest
-using Oceananigans, Oceanostics
-
-grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
-model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
-
-PotentialEnergyTendency(model)   # or `Tendency` inside the module
-
-# output
-
-PotentialEnergyTendency KernelFunctionOperation at (Center, Center, Center)
-├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: minus_z_∂ₜb_ccc (generic function with 1 method)
-└── arguments: ("Val", "Val", "Centered", "ScalarDiffusivity", "Nothing", "BuoyancyForce", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Clock", "Returns")
-└── computes: potential energy tendency  ∂ₜeₚ = -z ∂ₜb
-```
-"""
-function PotentialEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
-    validate_location(location, "PotentialEnergyTendency")
-    validate_buoyancy_is_a_tracer("PotentialEnergyTendency", model)
-
-    dependencies = (buoyancy_tracer_index(model),
-                    Val(:b),
-                    model.advection,
-                    model.closure,
-                    model.tracers.b.boundary_conditions.immersed,
-                    model.buoyancy,
-                    model.biogeochemistry,
-                    model.background_fields,
-                    model.velocities,
-                    model.tracers,
-                    model.auxiliary_fields,
-                    model.closure_fields,
-                    model.clock,
-                    model.forcing.b)
-
-    return KernelFunctionOperation{Center, Center, Center}(minus_z_∂ₜb_ccc, model.grid, dependencies...)
-end
-#---
-
-#+++ Advection
-@inline z_div_Uc_ccc(i, j, k, grid, advection, U, c) = Zᶜᶜᶜ(i, j, k, grid) * div_Uc(i, j, k, grid, advection, U, c)
-
-const PotentialEnergyAdvection = CustomKFO{<:typeof(z_div_Uc_ccc)}
-const Advection = PotentialEnergyAdvection
-
-"""
-    $(SIGNATURES)
-
-Return a `KernelFunctionOperation` computing the advective term of the `eₚ = -bz` equation,
-
-```
-    ADV = z ∂ⱼ(uⱼb) ,
-```
-
-the advection of the buoyancy weighted by `-z`. `uⱼ` defaults to the *total* velocity, perturbation
-plus background, which is what the model advects with; pass `velocities` to override it.
-
-Pulling `z` inside the derivative writes this as a transport of `eₚ` plus the conversion term,
-`ADV = -∂ⱼ(uⱼeₚ) - uⱼbⱼ`, so over a periodic or closed domain its volume integral is
-`-∫uⱼbⱼ dV`, the (negated)
-[`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion).
-
-A background buoyancy field is advected by a term of its own, which this one does not include: see
-[`PotentialEnergyBackgroundAdvection`](@ref).
-
-```jldoctest
-using Oceananigans, Oceanostics
-
-grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
-model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
-
-PotentialEnergyAdvection(model)   # or `Advection` inside the module
-
-# output
-
-PotentialEnergyAdvection KernelFunctionOperation at (Center, Center, Center)
-├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: z_div_Uc_ccc (generic function with 1 method)
-└── arguments: ("Centered", "NamedTuple", "Field")
-└── computes: potential energy advection  z ∂ⱼ(uⱼb)
-```
-"""
-function PotentialEnergyAdvection(model::NonhydrostaticModel;
-                                  velocities = sum_of_velocities(model.velocities, model.background_fields.velocities),
-                                  location = (Center, Center, Center))
-    validate_location(location, "PotentialEnergyAdvection")
-    validate_buoyancy_is_a_tracer("PotentialEnergyAdvection", model)
-
-    return KernelFunctionOperation{Center, Center, Center}(z_div_Uc_ccc, model.grid,
-                                                           model.advection, velocities, model.tracers.b)
-end
-#---
-
-#+++ Background advection
-# Same expression as `z_div_Uc_ccc`, but a `CustomKFO` alias is keyed on the kernel's type, so the two
-# terms need one kernel each to `show` as themselves.
-@inline z_div_UB_ccc(i, j, k, grid, advection, U, B) = z_div_Uc_ccc(i, j, k, grid, advection, U, B)
-
-const PotentialEnergyBackgroundAdvection = CustomKFO{<:typeof(z_div_UB_ccc)}
-const BackgroundAdvection = PotentialEnergyBackgroundAdvection
-
-"""
-    $(SIGNATURES)
-
-Return a `KernelFunctionOperation` computing the term a background buoyancy field `B` contributes to
-the `eₚ = -bz` equation,
-
-```
-    ADVᴮ = z ∂ⱼ(uⱼB) ,
-```
-
-the advection of `B` by the perturbation velocity, weighted by `-z`. When `b` is set up with a
-`BackgroundField`, the model prognoses the perturbation and picks up `-∂ⱼ(uⱼB)` as a source in its
-equation; this is that source carried into the budget of `eₚ`, which is then the potential energy of
-the perturbation alone. It is a production term rather than a transport, so it does not drop out of a
-volume integral, and a budget that leaves it out will not close.
-
-For a model with no background buoyancy this returns zero everywhere, since `B` is then a `ZeroField`.
-
-```jldoctest
-using Oceananigans, Oceanostics
-
-grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
-B(x, y, z, t) = 1e-5 * z
-model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b,
-                            background_fields = (; b = BackgroundField(B)))
-
-PotentialEnergyBackgroundAdvection(model)   # or `BackgroundAdvection` inside the module
-
-# output
-
-PotentialEnergyBackgroundAdvection KernelFunctionOperation at (Center, Center, Center)
-├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: z_div_UB_ccc (generic function with 1 method)
-└── arguments: ("Centered", "NamedTuple", "Oceananigans.Fields.FunctionField")
-└── computes: potential energy background advection  z ∂ⱼ(uⱼB)
-```
-"""
-function PotentialEnergyBackgroundAdvection(model::NonhydrostaticModel; location = (Center, Center, Center))
-    validate_location(location, "PotentialEnergyBackgroundAdvection")
-    validate_buoyancy_is_a_tracer("PotentialEnergyBackgroundAdvection", model)
-
-    return KernelFunctionOperation{Center, Center, Center}(z_div_UB_ccc, model.grid,
-                                                           model.advection, model.velocities,
-                                                           model.background_fields.tracers.b)
-end
-#---
-
-#+++ Diffusion
-@inline z_∇_dot_qᶜ_ccc(i, j, k, grid, args...) = Zᶜᶜᶜ(i, j, k, grid) * ∇_dot_qᶜ(i, j, k, grid, args...)
-
-const PotentialEnergyDiffusion = CustomKFO{<:typeof(z_∇_dot_qᶜ_ccc)}
-const Diffusion = PotentialEnergyDiffusion
-
-"""
-    $(SIGNATURES)
-
-Return a `KernelFunctionOperation` computing the diffusive term of the `eₚ = -bz` equation,
-
-```
-    DIFF = z ∂ⱼqⱼ ,
-```
-
-where `qⱼ` is the closure's own diffusive flux of buoyancy (`qⱼ = -κ ∂ⱼb` for Fickian diffusion).
-
-Pulling `z` inside the derivative writes this as a transport plus the vertical flux,
-`DIFF = ∂ⱼ(zqⱼ) - q₃`, so over a periodic or closed domain its volume integral is `∫Φ dV`, the
-[`DiffusiveBuoyancyFlux`](@ref). Diffusion in the horizontal drops out of that integral entirely, since
-`z` does not vary along it.
-
-Like `Φ`, this reads `κ∇b` off the closure, so it needs the buoyancy to be a tracer the closure
-diffuses.
-
-```jldoctest
-using Oceananigans, Oceanostics
-
-grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
-model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
-
-PotentialEnergyDiffusion(model)   # or `Diffusion` inside the module
-
-# output
-
-PotentialEnergyDiffusion KernelFunctionOperation at (Center, Center, Center)
-├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: z_∇_dot_qᶜ_ccc (generic function with 1 method)
-└── arguments: ("ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "BuoyancyForce")
-└── computes: potential energy diffusion  z ∂ⱼqⱼ
-```
-"""
-function PotentialEnergyDiffusion(model; location = (Center, Center, Center))
-    validate_location(location, "PotentialEnergyDiffusion")
-    validate_buoyancy_is_a_diffused_tracer("PotentialEnergyDiffusion", model)
-    validate_closure_supplies_a_flux("PotentialEnergyDiffusion", model)
-
-    return KernelFunctionOperation{Center, Center, Center}(z_∇_dot_qᶜ_ccc, model.grid,
-                                                           model.closure, model.closure_fields,
-                                                           buoyancy_tracer_index(model), model.tracers.b,
-                                                           model.clock, fields(model), model.buoyancy)
-end
-#---
-
-#+++ Forcing
-@inline minus_z_Fᵇ_ccc(i, j, k, grid, forcing, clock, model_fields) =
-    -Zᶜᶜᶜ(i, j, k, grid) * forcing(i, j, k, grid, clock, model_fields)
-
-const PotentialEnergyForcing = CustomKFO{<:typeof(minus_z_Fᵇ_ccc)}
-const Forcing = PotentialEnergyForcing
-
-"""
-    $(SIGNATURES)
-
-Return a `KernelFunctionOperation` computing the forcing term of the `eₚ = -bz` equation,
-
-```
-    FORC = -z Fᵇ ,
-```
-
-where `Fᵇ` is whatever forcing is applied to the buoyancy. Unlike the transport terms this does not
-drop out of a volume integral, so a forced run needs it in the budget.
-
-```jldoctest
-using Oceananigans, Oceanostics
-
-grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
-model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b,
-                            forcing = (; b = Forcing((x, y, z, t) -> 1e-8)))
-
-PotentialEnergyForcing(model)
-
-# output
-
-PotentialEnergyForcing KernelFunctionOperation at (Center, Center, Center)
-├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: minus_z_Fᵇ_ccc (generic function with 1 method)
-└── arguments: ("Oceananigans.Forcings.ContinuousForcing", "Clock", "NamedTuple")
-└── computes: potential energy forcing  -z Fᵇ
-```
-"""
-function PotentialEnergyForcing(model::NonhydrostaticModel; location = (Center, Center, Center))
-    validate_location(location, "PotentialEnergyForcing")
-    validate_buoyancy_is_a_tracer("PotentialEnergyForcing", model)
-
-    return KernelFunctionOperation{Center, Center, Center}(minus_z_Fᵇ_ccc, model.grid,
-                                                           model.forcing.b, model.clock, fields(model))
-end
-#---
 #---
 
 end # module
