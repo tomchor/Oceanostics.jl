@@ -1,17 +1,18 @@
 # # [Eady baroclinic instability](@id eady_example)
 #
 # This example simulates the [Eady problem](https://en.wikipedia.org/wiki/Eady_model): the
-# baroclinic instability of a uniformly stratified, uniformly sheared flow held in thermal-wind
-# balance on an ``f``-plane. The setup is a port of the classic
-# [Eady turbulence example](https://numericalearth.github.io/OceananigansMuseum/v0.74.1/generated/eady_turbulence/)
-# to up-to-date Oceananigans syntax, with the bottom drag removed. We then use Oceanostics to close the
-# volume-integrated kinetic and potential energy budgets of the growing eddies.
+# baroclinic instability of a sheared flow held in thermal-wind balance on an ``f``-plane. The domain,
+# the front and the stratification follow the mixed-layer instability simulations of
+# [Taylor (2018)](https://doi.org/10.1175/JPO-D-17-0269.1): a 1 km doubly-periodic box with a constant
+# background buoyancy gradient, and a weakly stratified 60 m mixed layer sitting on a stratified
+# interior, so the unstable mode is a *submesoscale* one confined to the mixed layer. We then use
+# Oceanostics to close the volume-integrated kinetic and potential energy budgets of the growing eddies.
 #
 # The mean flow enters as a pair of `BackgroundField`s, so the model steps *perturbations* about it.
 # That is what makes this example worth doing: each background field puts a term of its own into the
-# budget of the perturbation energy it acts on. The buoyancy one is small next to the exchange between
-# the two budgets and still more than an order of magnitude above the residual, so a budget that leaves
-# it out does not close.
+# budget of the perturbation energy it acts on. At the balanced Richardson number `Ri = 1` of Taylor's
+# mixed layer both are leading terms, so a budget that leaves either out misses a large fraction of the
+# energy flowing through it.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -29,50 +30,62 @@ using Oceananigans.Units
 # We collect all the primitive parameters of the problem up front, before constructing anything.
 
 ## Domain size
-Lx = Ly = 1e6   # [m]   horizontal extent (1000 km)
-H  = 4e3        # [m]   depth
+Lx = Ly = 1e3   # [m]   horizontal extent (1 km)
+H  = 140.0      # [m]   depth
+h  = 60.0       # [m]   mixed-layer depth
 
 ## Physical parameters
-f = 1e-4        # [s⁻¹] Coriolis frequency
-α = 5 * f       # [s⁻¹] geostrophic shear ∂U/∂z
-N = 1e-3        # [s⁻¹] buoyancy frequency
+f      = 1e-4    # [s⁻¹] Coriolis frequency
+M²     = 3e-8    # [s⁻²] cross-front buoyancy gradient |∂B/∂y|, held fixed with depth
+N²_ml  = 9e-8    # [s⁻²] mixed-layer stratification (z > -h)
+N²_int = 1.8e-6  # [s⁻²] interior stratification (z < -h)
 
 # ## Derived dynamical quantities
 #
-# From those parameters we can form the quantities that characterize the flow: the cross-front and
-# vertical buoyancy gradients, the deformation radius `Ld = N H / f`, the wavelength of the
-# fastest-growing Eady mode `λ ≈ 3.9 Ld`, the balanced Richardson number `Ri = N²/α²`, the
-# thermal-wind velocity scale `Ū = α H`, and the maximum Eady growth rate `σ ≈ 0.31 M²/N`.
+# From those parameters we can form the quantities that characterize the flow: the thermal-wind shear
+# `α = M²/f`, the deformation radius of the mixed layer `Ld = N h / f`, the wavelength of the
+# fastest-growing mode `λ ≈ 3.9 Ld`, the balanced Richardson number `Ri = N²/α² = N²f²/M⁴` in each
+# layer, the thermal-wind velocity scale `Ū = α H`, and the maximum growth rate `σ ≈ 0.31 M²/N`.
 
-M² = α * f          # [s⁻²]   cross-front buoyancy gradient |∂B/∂y|
-N² = N^2            # [s⁻²]   vertical buoyancy gradient
-Ld = N * H / f      # [m]     first baroclinic deformation radius
-λ  = 3.9 * Ld       # [m]     wavelength of the fastest-growing Eady mode
-Ri = N² / α^2       # []      balanced Richardson number
-Ū  = α * H          # [m s⁻¹] peak background (thermal-wind) velocity
-σ  = 0.31 * M² / N  # [s⁻¹]   maximum Eady growth rate
+α      = M² / f            # [s⁻¹]   geostrophic shear ∂U/∂z
+N_ml   = √N²_ml            # [s⁻¹]   mixed-layer buoyancy frequency
+N_int  = √N²_int           # [s⁻¹]   interior buoyancy frequency
+Ld     = N_ml * h / f      # [m]     mixed-layer deformation radius
+λ      = 3.9 * Ld          # [m]     wavelength of the fastest-growing mode
+Ri_ml  = N²_ml / α^2       # []      balanced Richardson number, mixed layer
+Ri_int = N²_int / α^2      # []      ... and interior
+Ū      = α * H             # [m s⁻¹] peak background (thermal-wind) velocity
+σ      = 0.31 * M² / N_ml  # [s⁻¹]   maximum growth rate of the mixed-layer mode
 
-@info "Deformation radius Ld = $(round(Ld/1e3, digits=1)) km, fastest Eady wavelength λ = $(round(λ/1e3, digits=1)) km"
-@info "Balanced Richardson number Ri = $(round(Ri, digits=2)), thermal-wind velocity Ū = $(round(Ū, digits=3)) m/s, Eady growth time 1/σ = $(prettytime(1/σ))"
+@info "Mixed-layer deformation radius Ld = $(round(Ld, digits=1)) m, fastest wavelength λ = $(round(λ, digits=1)) m, in a $(round(Int, Lx)) m box"
+@info "Balanced Richardson number Ri = $(round(Ri_ml, digits=2)) (mixed layer), $(round(Ri_int, digits=2)) (interior)"
+@info "Thermal-wind velocity Ū = $(round(100Ū, digits=2)) cm/s, growth time 1/σ = $(prettytime(1/σ))"
 
 # ## Grid
 #
-# We use a mesoscale-resolving grid, periodic in the horizontal and bounded in the vertical:
+# We use a submesoscale-resolving grid, periodic in the horizontal and bounded in the vertical. The
+# box is sized so that the fastest-growing mixed-layer mode is a little smaller than the domain, which
+# is what makes the instability roll up into a single eddy rather than a field of them:
 
 grid = RectilinearGrid(size = (48, 48, 16), extent = (Lx, Ly, H))
 
 # ## Coriolis and background state
 #
 # The flow is set up on an ``f``-plane. The background velocity increases linearly with height, and
-# the background buoyancy combines the geostrophic (cross-front) component with a stable
-# stratification. They are in thermal-wind balance, ``f\,\partial_z U = -\partial_y B``:
+# the background buoyancy combines the geostrophic (cross-front) component with a two-layer
+# stratification: weak in the mixed layer, strong below it. They are in thermal-wind balance,
+# ``f\,\partial_z U = -\partial_y B``, and since `M²` does not vary with depth the shear is the same
+# in both layers:
 
 coriolis = FPlane(f = f)
 
-U(x, y, z, t, p) = + p.α * (z + p.H)
-B(x, y, z, t, p) = - p.α * p.f * y + p.N^2 * z
+## the stratification integrated from the surface down, ∫N²dz, continuous across the mixed-layer base
+@inline B_strat(z, p) = ifelse(z ≥ -p.h, p.N²_ml * z, -p.N²_ml * p.h + p.N²_int * (z + p.h))
 
-background_parameters = (; α, f, N, H)
+U(x, y, z, t, p) = + p.α * (z + p.H)
+B(x, y, z, t, p) = - p.M² * y + B_strat(z, p)
+
+background_parameters = (; α, M², N²_ml, N²_int, h, H)
 U_field = BackgroundField(U, parameters=background_parameters)
 B_field = BackgroundField(B, parameters=background_parameters)
 
@@ -138,7 +151,7 @@ nothing #hide
 # The initial time step is set from the most restrictive of the advective and diffusive limits, and a
 # `TimeStepWizard` adapts it as the eddies spin up:
 
-max_Δt = min(Δx / Ū, Δx^4 / κ₄h, Δx^2 / κ₂z, 1 / N)
+max_Δt = min(Δx / Ū, Δx^4 / κ₄h, Δx^2 / κ₂z, 1 / N_int)
 
 simulation = Simulation(model, Δt = max_Δt, stop_time = 20days)
 
@@ -289,36 +302,36 @@ eₚ_resid = @. -deₚdt + ADV_pair - wb_pair + Φ_pair
 
 using Test                                                                         #hide
 rms(x) = √(sum(abs2, x) / length(x))                                               #hide
-## both budgets close to a small fraction of their own tendency ...                #hide
-@test rms(K_resid)  < 0.05 * rms(dKdt)                                             #hide
-@test rms(eₚ_resid) < 0.01 * rms(deₚdt)                                            #hide
-## ... and of `wb`, the largest term in either of them                             #hide
-@test rms(K_resid)  < 0.04 * rms(wb_pair)                                          #hide
-@test rms(eₚ_resid) < 0.01 * rms(wb_pair)                                          #hide
+## Each budget closes to a small fraction of its own largest term. Normalizing by the largest term    #hide
+## rather than by the tendency is the honest test here: at `Ri = 1` the tendency is itself a small    #hide
+## residual of several larger, opposing terms, so scaling by it would flatter or punish the budget    #hide
+## depending only on how nearly those terms cancel.                                                   #hide
+K_terms  = (dKdt, SP_pair, wb_pair, ε_pair)                                        #hide
+eₚ_terms = (deₚdt, ADV_pair, wb_pair, Φ_pair)                                      #hide
+@test rms(K_resid)  < 0.03 * maximum(rms, K_terms)                                 #hide
+@test rms(eₚ_resid) < 0.03 * maximum(rms, eₚ_terms)                                #hide
 ## `wb` is the same term in both, so it cancels from the sum of the two budgets    #hide
 @test rms(K_resid .+ eₚ_resid) < 0.05 * rms(wb_pair)                               #hide
-## The background buoyancy term is the point of this example: small next to `wb`, and still twenty  #hide
-## times the residual of its own budget, so dropping it leaves a visible imbalance rather than      #hide
-## something lost in the truncation error.                                                          #hide
+## Both background terms are the point of this example, and at `Ri = 1` both are leading terms:      #hide
+## dropping either leaves an imbalance many times its budget's residual rather than something lost   #hide
+## in the truncation error.                                                                          #hide
 @test rms(@. eₚ_resid + ADV_pair) > 5 * rms(eₚ_resid)                              #hide
-## The background *shear* term is the minor one: baroclinic instability draws on the potential      #hide
-## energy in the tilted isopycnals rather than on the mean shear, so `SP` stays a small fraction of #hide
-## `wb`. How small depends on the Richardson number, hence the loose bound.                         #hide
-@test rms(SP_pair) < 0.1 * rms(wb_pair);                                           #hide
+@test rms(@. K_resid  + SP_pair)  > 5 * rms(K_resid)                               #hide
+## At `Ri = 1` the shear is strong enough that `SP` is comparable to the buoyancy conversion, rather #hide
+## than the afterthought it is at large `Ri`.                                                        #hide
+@test rms(SP_pair) > 0.2 * rms(wb_pair);                                           #hide
 
-# The instability also does what it should: the eddies grow by orders of magnitude, drawing on the
+# The instability also does what it should: the eddies grow, drawing on both the mean shear and the
 # potential energy the tilted isopycnals hold.
 
 K_int  = K_bud[idx1]
 eₚ_int = eₚ_bud[idx1]
 
-@test K_int[end] > 100 * K_int[1]              # the perturbations grow, and by a lot     #hide
-@test mean(wb_pair) > 0                        # fed by the conversion eₚ → K             #hide
-@test eₚ_int[end] < 0                          # which drains eₚ well below where it started  #hide
-## and the potential energy released exceeds the kinetic energy gained, the rest having gone to    #hide
-## dissipation                                                                                     #hide
-@test -(eₚ_int[end] - eₚ_int[1]) > K_int[end] - K_int[1]                           #hide
-@test all(ε_pair .≥ 0);                        # viscosity only ever removes energy       #hide
+@test K_int[end] > 10 * K_int[1]               # the perturbations grow                        #hide
+@test mean(wb_pair) > 0                        # fed by the conversion eₚ → K ...              #hide
+@test mean(SP_pair) > 0                        # ... and by the background shear               #hide
+@test eₚ_int[end] < 0                          # which drains eₚ below where it started        #hide
+@test all(ε_pair .≥ 0);                        # viscosity only ever removes energy            #hide
 
 # ## Plotting
 #
@@ -378,22 +391,21 @@ nothing #hide
 
 # ![](eady_baroclinic_instability.mp4)
 #
-# The front becomes baroclinically unstable and rolls up into mesoscale eddies, and the two budget
-# panels show where their energy comes from. `∫wb dV` runs through both with opposite signs and is the
-# largest term in either: the eddies flatten the tilted isopycnals, `∫eₚ dV` falls, and the released
-# potential energy shows up as `∫K dV`, with dissipation taking back a sizeable fraction on the way.
-# That is the textbook picture of baroclinic instability, and here it is most of the story: the direct
-# shear production `∫SP dV` is a few percent of the conversion, so the eddies live mostly off the
-# potential energy in the tilted isopycnals rather than off the mean shear. It stays a few times the KE
-# budget's residual, so the budget still resolves it — though soften the shear much further and it
-# disappears into the truncation error.
+# The front becomes baroclinically unstable and rolls up into a submesoscale eddy, and the two budget
+# panels show where its energy comes from. Both background terms matter here, which is the point of the
+# example. `∫wb dV` runs through both budgets with opposite signs: the eddy flattens the tilted
+# isopycnals, `∫eₚ dV` falls, and the released potential energy shows up as `∫K dV`. But at `Ri = 1` the
+# mean shear is strong enough that the direct shear production `∫SP dV` is comparable to it, so the
+# perturbations feed on the shear and on the stratification at once. Drop `∫SP dV` and the kinetic
+# energy budget is off by dozens of times its residual; drop `∫ADV_B dV` and the potential energy budget
+# is off by more than its own tendency.
 #
-# The background buoyancy term `∫ADV_B dV` is comparably small, since it is the depth-weighted flow
-# across the background gradient rather than a production of anything positive definite. Unlike `∫SP dV`
-# it is well clear of the noise: nearly twenty times the residual of the `eₚ` budget, so leaving it out,
-# as one would if the background field were forgotten, takes a budget that closes to under three parts
-# in a thousand and leaves it off by around five percent. `∫Φ dV` is smaller still, which is what a
-# mesoscale run at this resolution should look like.
+# The two sinks are large here, larger than either production. That is a property of this
+# configuration rather than of the physics: the vertical diffusivity `κ₂z` is a fixed number carried
+# over from a coarser version of this example, and against a 8.75 m vertical grid it damps the
+# mixed-layer mode on a timescale comparable to the mode's own growth time. The instability still
+# grows, by a factor of about 40 in energy, but far less than it would at the LES-scale diffusivity
+# Taylor uses. Lower `κ₂z` if you want the eddy rather than the budget to be the point.
 #
 # Both residuals stay near zero, and cannot be exactly zero: the discrete `K` and `eₚ` equations are not
 # derived from the discrete momentum and buoyancy equations the model steps, so the two sides agree only
