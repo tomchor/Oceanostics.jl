@@ -200,14 +200,14 @@ K  = KineticEnergy(model)
 wb = PotentialToKineticEnergyConversion(model)
 ε  = KineticEnergyDissipationRate(model)
 
-∫eₚ   = Integral(eₚ)
-∫TEND = Integral(TEND)
-∫ADV  = Integral(ADV)
-∫DIFF = Integral(DIFF)
-∫Φ    = Integral(Φ)
-∫K    = Integral(K)
-∫wb   = Integral(wb)
-∫ε    = Integral(ε)
+∫eₚ   = ∫dV(eₚ)
+∫TEND = ∫dV(TEND)
+∫ADV  = ∫dV(ADV)
+∫DIFF = ∫dV(DIFF)
+∫Φ    = ∫dV(Φ)
+∫K    = ∫dV(K)
+∫wb   = ∫dV(wb)
+∫ε    = ∫dV(ε)
 
 # For the movie we keep the surface vorticity and buoyancy:
 
