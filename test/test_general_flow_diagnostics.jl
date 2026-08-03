@@ -32,7 +32,7 @@ arch = has_cuda_gpu() ? GPU() : CPU()
 
             cᵇ = BottomCellValue(c)
 
-            bottom_mass = Field(Integral(cᵇ))
+            bottom_mass = ∫dV(cᵇ)
             @allowscalar @test bottom_mass[] ≈ bottom_mass_truth
         end
 
@@ -61,7 +61,7 @@ arch = has_cuda_gpu() ? GPU() : CPU()
 
             cᵇ = BottomCellValue(c)
 
-            bottom_mass = Field(Integral(cᵇ))
+            bottom_mass = ∫dV(cᵇ)
             @allowscalar @test bottom_mass[] ≈ bottom_mass_truth
         end
     end
