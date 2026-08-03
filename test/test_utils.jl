@@ -32,7 +32,7 @@ grids = Dict("regular grid" => regular_grid,
 grid_noise(x, y, z) = randn()
 
 # Volume reductions as scalars, i.e. without scalar indexing on GPUs
-volume_integral(op) = sum(Field(Integral(op)))
+volume_integral(op) = sum(∫dV(op))
 volume_mean(op)     = sum(Field(Average(op)))  # volume-weighted over the whole domain
 #---
 
