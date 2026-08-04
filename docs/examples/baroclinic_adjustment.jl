@@ -162,6 +162,7 @@ add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval
 # for budgets that want them term by term rather than integrated.
 
 eₚ = PotentialEnergy(model)
+wb = PotentialToKineticEnergyConversion(model)
 Φ  = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)
 
 # ## The kinetic energy budget
@@ -174,7 +175,6 @@ eₚ = PotentialEnergy(model)
 # ```
 
 eₖ = KineticEnergy(model)
-wb = PotentialToKineticEnergyConversion(model)
 εₐ = KineticEnergyDissipationRate(model)
 
 ∫eₚ = ∫dV(eₚ)
