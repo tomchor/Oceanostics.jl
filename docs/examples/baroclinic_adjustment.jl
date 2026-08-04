@@ -145,32 +145,29 @@ add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval
 # ## The potential energy budget
 #
 # `eₚ = -bz` obeys `-z` times the equation the model steps for `b`, so its terms are that equation's
-# terms weighted by `-z`. Over this domain the transports integrate away and the budget reduces to the
-# two conversion terms:
+# terms weighted by `-z`. Over this domain the transports integrate away and the budget reads
 #
 # ```math
-# \frac{d}{dt}\int e_p\, dV = \int \mathrm{ADV}\, dV + \int \mathrm{DIFF}\, dV
-#                           = -\int wb\, dV + \int \Phi\, dV ,
+# \frac{d}{dt}\int e_p\, dV = \int \mathrm{ADV}\, dV + \int \Phi\, dV ,
 # ```
 #
-# where ``\mathrm{ADV} = z\,\partial_j(u_jb)`` ([`PotentialEnergyBuoyancyAdvection`](@ref)) and
-# ``\mathrm{DIFF} = z\,\partial_jq_j`` ([`PotentialEnergyBuoyancyDiffusion`](@ref)) are the terms as the model
-# actually computes them, while ``wb``
-# ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion))
-# and ``\Phi = \kappa\,\partial b/\partial z``
+# where ``\mathrm{ADV} = z\,\partial_j(u_jb)`` ([`PotentialEnergyBuoyancyAdvection`](@ref)) is the
+# advective term as the model actually computes it, and ``\Phi = \kappa\,\partial b/\partial z``
 # ([`PotentialEnergyDiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux))
-# are what they collapse to once `z` is pulled inside the derivative and the transports drop out. We
-# output both forms so the identity can be checked rather than assumed.
+# is the diffusive one.
 #
-# [`PotentialEnergyTendency`](@ref) is the whole right-hand side in one term, taken off Oceananigans'
-# own buoyancy tendency. Writing it alongside the finite-differenced `d(∫eₚ)/dt` is the sharpest check
-# available: the two are computed by completely different routes.
+# The two sides of the budget are treated differently on purpose. The diffusive term the model computes
+# is ``z\,\partial_jq_j = \partial_j(zq_j) + \Phi``, and the transport ``\partial_j(zq_j)``
+# ([`PotentialEnergyDiffusion`](@ref)) is a flux divergence that telescopes, so it drops out of the
+# volume integral *exactly* and ``\Phi`` alone is the whole diffusive contribution. The advective side
+# has no such luck: ``z\,\partial_j(u_jb) = -\partial_j(u_je_p) - wb`` and the transport there
+# integrates to zero only in the continuum, so ``\mathrm{ADV}`` and ``-\int wb\, dV`` differ by a
+# truncation error. We keep ``\mathrm{ADV}`` and output ``wb`` beside it so that difference can be
+# measured rather than assumed.
 
-eₚ   = PotentialEnergy(model)
-TEND = PotentialEnergyTendency(model)
-ADV  = PotentialEnergyBuoyancyAdvection(model)
-DIFF = PotentialEnergyBuoyancyDiffusion(model)
-Φ    = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)
+eₚ  = PotentialEnergy(model)
+ADV = PotentialEnergyBuoyancyAdvection(model)
+Φ   = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)
 
 # ## The kinetic energy budget
 #
@@ -178,21 +175,19 @@ DIFF = PotentialEnergyBuoyancyDiffusion(model)
 # their sum:
 #
 # ```math
-# \frac{d}{dt}\int K\, dV = \int wb\, dV - \int \varepsilon\, dV .
+# \frac{d}{dt}\int K\, dV = \int wb\, dV - \int \varepsilon_a\, dV .
 # ```
 
 K  = KineticEnergy(model)
 wb = PotentialToKineticEnergyConversion(model)
-ε  = KineticEnergyDissipationRate(model)
+εₐ = KineticEnergyDissipationRate(model)
 
-∫eₚ   = ∫dV(eₚ)
-∫TEND = ∫dV(TEND)
-∫ADV  = ∫dV(ADV)
-∫DIFF = ∫dV(DIFF)
-∫Φ    = ∫dV(Φ)
-∫K    = ∫dV(K)
-∫wb   = ∫dV(wb)
-∫ε    = ∫dV(ε)
+∫eₚ  = ∫dV(eₚ)
+∫ADV = ∫dV(ADV)
+∫Φ   = ∫dV(Φ)
+∫K   = ∫dV(K)
+∫wb  = ∫dV(wb)
+∫εₐ  = ∫dV(εₐ)
 
 # For the movie we keep the surface vorticity and buoyancy:
 
@@ -217,7 +212,7 @@ simulation.output_writers[:fields] =
                  overwrite_existing = true)
 
 simulation.output_writers[:budget] =
-    NetCDFWriter(model, (; ∫eₚ, ∫TEND, ∫ADV, ∫DIFF, ∫Φ, ∫K, ∫wb, ∫ε),
+    NetCDFWriter(model, (; ∫eₚ, ∫ADV, ∫Φ, ∫K, ∫wb, ∫εₐ),
                  filename = filename * "_budget",
                  schedule = ConsecutiveIterations(TimeInterval(3hours)),
                  overwrite_existing = true)
@@ -245,14 +240,12 @@ close(ds)
 
 ds_b = NCDataset(simulation.output_writers[:budget].filepath)
 t_bud    = ds_b["time"][:]
-eₚ_bud   = ds_b["∫eₚ"][:]
-TEND_bud = ds_b["∫TEND"][:]
-ADV_bud  = ds_b["∫ADV"][:]
-DIFF_bud = ds_b["∫DIFF"][:]
-Φ_bud    = ds_b["∫Φ"][:]
-K_bud    = ds_b["∫K"][:]
-wb_bud   = ds_b["∫wb"][:]
-ε_bud    = ds_b["∫ε"][:]
+eₚ_bud  = ds_b["∫eₚ"][:]
+ADV_bud = ds_b["∫ADV"][:]
+Φ_bud   = ds_b["∫Φ"][:]
+K_bud   = ds_b["∫K"][:]
+wb_bud  = ds_b["∫wb"][:]
+εₐ_bud  = ds_b["∫εₐ"][:]
 close(ds_b)
 
 idx1 = 1:2:length(t_bud) - 1
@@ -266,40 +259,32 @@ dKdt  = (K_bud[idx2]  .- K_bud[idx1])  ./ Δt_pair
 
 pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
 
-TEND_pair = pair_mean(TEND_bud)
-ADV_pair  = pair_mean(ADV_bud)
-DIFF_pair = pair_mean(DIFF_bud)
-Φ_pair    = pair_mean(Φ_bud)
-wb_pair   = pair_mean(wb_bud)
-ε_pair    = pair_mean(ε_bud)
+ADV_pair = pair_mean(ADV_bud)
+Φ_pair   = pair_mean(Φ_bud)
+wb_pair  = pair_mean(wb_bud)
+εₐ_pair  = pair_mean(εₐ_bud)
 
-# Both budgets in sum-to-zero form, plus the two collapses that let `∫wb dV` and `∫Φ dV` stand in for
-# the advective and diffusive terms:
+# Both budgets in sum-to-zero form, plus the collapse that lets `∫wb dV` stand in for the advective
+# term:
 
-eₚ_resid = @. -deₚdt + ADV_pair + DIFF_pair
-K_resid  = @. -dKdt  + wb_pair  - ε_pair
+eₚ_resid = @. -deₚdt + ADV_pair + Φ_pair
+K_resid  = @. -dKdt  + wb_pair  - εₐ_pair
 
-adv_collapse  = @. ADV_pair  + wb_pair    # should vanish: ∫z∂ⱼ(uⱼb) dV = -∫wb dV
-diff_collapse = @. DIFF_pair - Φ_pair     # should vanish: ∫z∂ⱼqⱼ dV    =  ∫Φ dV
-tend_check    = @. TEND_pair - deₚdt      # the model's own tendency against the finite difference
+adv_collapse = @. ADV_pair + wb_pair     # should vanish: ∫z∂ⱼ(uⱼb) dV = -∫wb dV
 
 using Test                                                                            #hide
 using Statistics: mean                                                                #hide
 rms(x) = √(sum(abs2, x) / length(x))                                                  #hide
-eₚ_terms = (deₚdt, ADV_pair, DIFF_pair)                                               #hide
-K_terms  = (dKdt, wb_pair, ε_pair)                                                    #hide
+eₚ_terms = (deₚdt, ADV_pair, Φ_pair)                                                  #hide
+K_terms  = (dKdt, wb_pair, εₐ_pair)                                                   #hide
 ## Each budget closes to a couple of percent of its own largest term.                                #hide
 @test rms(eₚ_resid) < 0.03 * maximum(rms, eₚ_terms)                                   #hide
 @test rms(K_resid)  < 0.05 * maximum(rms, K_terms)                                    #hide
 ## `wb` is the same term in both, so it cancels from their sum                        #hide
 @test rms(eₚ_resid .+ K_resid) < 0.05 * rms(wb_pair)                                  #hide
-## `PotentialEnergyTendency` comes off the model's own buoyancy tendency rather than off a finite    #hide
-## difference of `∫eₚ`, so agreeing with that difference is an end-to-end check of the whole set.    #hide
-@test rms(tend_check) < 0.03 * rms(deₚdt)                                             #hide
-## The two continuum collapses. `∫DIFF = ∫Φ` telescopes and holds to roundoff; `∫ADV = -∫wb` is      #hide
-## second order in the grid spacing.                                                                 #hide
-@test rms(diff_collapse) < 1e-6 * rms(Φ_pair)                                         #hide
-@test rms(adv_collapse)  < 0.05 * rms(wb_pair)                                        #hide
+## `∫ADV = -∫wb` is the one collapse still worth checking: unlike the diffusive one it is second      #hide
+## order in the grid spacing rather than exact, which is why `ADV` is what the budget uses.          #hide
+@test rms(adv_collapse) < 0.05 * rms(wb_pair)                                         #hide
 ## The adjustment does what it should: the fronts slump and release potential energy into kinetic    #hide
 ## energy. `∫ADV dV` is that conversion seen from the potential energy side, so it is negative.      #hide
 @test mean(wb_pair)  > 0                                                              #hide
@@ -309,11 +294,11 @@ K_terms  = (dKdt, wb_pair, ε_pair)                                             
 ## residual, which is the claim that matters.                                                        #hide
 @test rms(wb_pair)  > 0.5 * rms(dKdt)                                                 #hide
 @test rms(ADV_pair) > 10 * rms(eₚ_resid)                                              #hide
-@test rms(DIFF_pair) > rms(ADV_pair)                                                  #hide
+@test rms(Φ_pair)   > rms(ADV_pair)                                                   #hide
 ## The closure is active everywhere, which is what a constant-coefficient Smagorinsky does and what  #hide
 ## the Lilly-corrected one would not at this resolution.                                             #hide
-@test minimum(ε_pair) > 0                                                             #hide
-@test all(ε_pair .≥ 0);                                                               #hide
+@test minimum(εₐ_pair) > 0                                                            #hide
+@test all(εₐ_pair .≥ 0);                                                              #hide
 
 # ## Plotting
 
@@ -340,14 +325,14 @@ budget_kwargs = (xlabel = "time [days]", ylabel = "[m⁵ s⁻³]")
 ax_p = Axis(fig[3, 1:4]; title = "Volume-integrated potential energy budget", budget_kwargs...)
 lines!(ax_p, t_pair ./ day, -deₚdt,     label = "-d(∫eₚ)/dt")
 lines!(ax_p, t_pair ./ day,  ADV_pair,  label = "∫ADV dV  (= -∫wb dV)")
-lines!(ax_p, t_pair ./ day,  DIFF_pair, label = "∫DIFF dV  (= ∫Φ dV)")
+lines!(ax_p, t_pair ./ day,  Φ_pair,    label = "∫Φ dV  (diffusive buoyancy flux)")
 lines!(ax_p, t_pair ./ day,  eₚ_resid,  label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_p; position = :rt, labelsize = 10, nbanks = 2)
 
 ax_K = Axis(fig[4, 1:4]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
 lines!(ax_K, t_pair ./ day, -dKdt,    label = "-d(∫K)/dt")
 lines!(ax_K, t_pair ./ day,  wb_pair, label = "∫wb dV  (buoyancy conversion)")
-lines!(ax_K, t_pair ./ day, -ε_pair,  label = "-∫ε dV  (dissipation)")
+lines!(ax_K, t_pair ./ day, -εₐ_pair, label = "-∫εₐ dV  (dissipation)")
 lines!(ax_K, t_pair ./ day,  K_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_K; position = :rt, labelsize = 10, nbanks = 2)
 
@@ -372,14 +357,12 @@ nothing #hide
 # budgets with opposite signs it cancels from their sum, which is the sense in which this is one
 # exchange rather than two independent balances.
 #
-# The potential energy panel is the one this example exists for. `∫ADV dV` and `∫DIFF dV` are plotted
-# as the module computes them, `-z` times the advective and diffusive terms of the buoyancy equation,
-# and they land on `-∫wb dV` and `∫Φ dV`. The diffusive pair agree to roundoff, since that collapse
-# telescopes on the discrete grid. The advective pair differ by a transport term which integrates to
-# zero only in the continuum, so they agree to about a percent instead. Keeping the `-z ×` form is what
-# makes the terms sum to `PotentialEnergyTendency` exactly, cell by cell, and the tendency check above
-# confirms that end to end: the model's own buoyancy tendency, weighted by `-z` and integrated, matches
-# a finite difference of `∫eₚ dV` to parts in ten thousand.
+# The potential energy panel is the one this example exists for. `∫ADV dV` is plotted as the module
+# computes it, `-z` times the advective term of the buoyancy equation, and it lands on `-∫wb dV` to
+# about a percent. The two differ by the transport `∂ⱼ(uⱼeₚ)`, which integrates to zero only in the
+# continuum, so that percent is the discretization and not a mistake. The diffusive term needs no such
+# caveat: its transport `∂ⱼ(zqⱼ)` telescopes on the discrete grid, so `∫Φ dV` *is* the whole diffusive
+# contribution and the budget uses it directly.
 #
 # The diffusive term dominates that panel. A constant-coefficient `Smagorinsky` is active everywhere
 # rather than only where the strain beats the stratification, and at a coefficient chosen to keep this
@@ -390,11 +373,9 @@ nothing #hide
 # The kinetic energy residual sits at a fraction of a percent of its budget's largest term, and neither
 # residual vanishes: the discrete `K` and `eₚ` equations are not derived from the discrete momentum and
 # buoyancy equations the model steps, so the two sides agree only to truncation error. The same caveat
-# applies to [the two-dimensional turbulence example](@ref two_d_turbulence_example). The `eₚ` budget
-# gets closer than the `K` one because its terms are the model's own tendency taken apart rather than
-# rederived.
+# applies to [the two-dimensional turbulence example](@ref two_d_turbulence_example).
 #
 # `∫K dV` itself barely changes over the run, which is not a failure of the instability. The initial
 # condition already carries the thermal wind, so `K` starts at the balanced flow's value rather than at
-# zero; the eddies grow out of that flow rather than on top of nothing, and `∫ε dV` removes about as
+# zero; the eddies grow out of that flow rather than on top of nothing, and `∫εₐ dV` removes about as
 # much as `∫wb dV` supplies. What the budget shows is the throughput, not the accumulation.
