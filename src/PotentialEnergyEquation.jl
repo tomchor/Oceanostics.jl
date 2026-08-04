@@ -365,6 +365,13 @@ function DiffusiveVerticalBuoyancyFlux(model; location = (Center, Center, Center
     return KernelFunctionOperation{Center, Center, Center}(diffusive_buoyancy_flux_ccc, model.grid,
                                                            buoyancy_diffusive_flux_arguments(model)...)
 end
+
+# `Φ = -q₃` is the vertical component of the diffusive flux rather than the flux vector, and the name
+# says so as of the rename. The old short name stays behind a deprecation for a release, so a
+# downstream script gets a pointer to the new one instead of an `UndefVarError`. The prefixed alias is
+# deprecated in `Oceanostics` itself rather than here: a binding deprecation does not survive being
+# re-exported through another module, so attaching it there is what makes `Oceanostics.<old name>` warn.
+Base.@deprecate_binding DiffusiveBuoyancyFlux DiffusiveVerticalBuoyancyFlux
 #---
 
 #+++ The rest of the `eₚ` equation

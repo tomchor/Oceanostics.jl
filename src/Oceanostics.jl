@@ -222,6 +222,14 @@ using .FilteredKineticEnergyEquation
 using .SubFilterKineticEnergyEquation
 using .ProgressMessengers
 
+#+++ Deprecated bindings
+# `Φ` is the vertical component of the diffusive flux, not the flux vector, so the name gained
+# `Vertical`. The old spelling resolves for one more release and warns when reached by name. It is
+# declared here rather than in `PotentialEnergyEquation` because a binding deprecation is lost when the
+# name is re-exported through another module, so the warning has to be attached where callers see it.
+Base.@deprecate_binding PotentialEnergyDiffusiveBuoyancyFlux PotentialEnergyDiffusiveVerticalBuoyancyFlux
+#---
+
 #+++ Custom `show` for diagnostics
 # Every diagnostic is a `KernelFunctionOperation` (KFO) under the hood, so by default it prints as the
 # generic `KernelFunctionOperation at (…)`. Here we give each diagnostic alias its own header
