@@ -62,11 +62,11 @@ Every term above is implemented, two of them elsewhere in Oceanostics.
 |:---|:---|:---|
 | Potential energy | ``e_p = -bz`` | [`PotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergy) |
 | Tendency | ``\partial_t e_p = -z\,\partial_t b`` | [`PotentialEnergyTendency`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyTendency) |
-| Advection | ``\partial_j(u_j e_p)`` | [`PotentialEnergyAdvection`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyAdvection) |
 | Buoyancy advection | ``z\,\partial_j(u_j b) = -\partial_j(u_j e_p) - wb`` | [`PotentialEnergyBuoyancyAdvection`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyBuoyancyAdvection) |
+| Advection | ``\partial_j(u_j e_p)`` | [`PotentialEnergyAdvection`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyAdvection) |
 | PE to KE conversion | ``wb`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
-| Diffusive transport | ``\partial_j(z q_j)`` | [`PotentialEnergyDiffusion`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyDiffusion) |
 | Buoyancy diffusion | ``z\,\partial_j q_j = \partial_j(z q_j) - q_3`` | [`PotentialEnergyBuoyancyDiffusion`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyBuoyancyDiffusion) |
+| Diffusive transport | ``\partial_j(z q_j)`` | [`PotentialEnergyDiffusion`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyDiffusion) |
 | Diffusive vertical buoyancy flux | ``\Phi = -q_3`` | [`DiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux) |
 | Forcing | ``-z F_b`` | [`PotentialEnergyForcing`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyForcing) |
 
@@ -90,33 +90,8 @@ apart, so
 
 holds cell by cell rather than to within a truncation error.
 
-`Advection` and `Diffusion` are the transports on their own, and each is built as a genuine flux
-divergence rather than by rearranging its `Buoyancy*` partner. That makes them telescope, so both
-integrate to zero to roundoff over a periodic or closed domain, which is what leaves
-
-```math
-\int \texttt{BuoyancyAdvection}\, \mathrm{d}V = -\int wb\, \mathrm{d}V, \qquad
-\int \texttt{BuoyancyDiffusion}\, \mathrm{d}V = \int \Phi\, \mathrm{d}V .
-```
-
-That is why a *volume-integrated* budget is usually written with `PotentialToKineticEnergyConversion`
-and `DiffusiveVerticalBuoyancyFlux` in place of the two `Buoyancy*` terms. Those two identities come
-from the continuum product rule, so unlike the split above they hold only to the truncation error of
-the discretization.
-
-!!! warning "Background buoyancy fields"
-    When ``b`` carries a `BackgroundField` ``B``, the model prognoses the perturbation and its equation
-    picks up one more term, ``-\partial_j(u_jB)``, the advection of ``B`` by the perturbation flow.
-    Weighted by ``-z`` that is a source of ``e_p`` which does not integrate away, and it has no
-    diagnostic here yet. `PotentialEnergyTendency` includes it, since it comes off the model's own
-    kernel, but `BuoyancyAdvection + BuoyancyDiffusion + Forcing` does not, so the split closes only for
-    a buoyancy with no background field.
-
-One caveat on the borrowed term: it computes ``wb`` as the source of *kinetic* energy, so the
-potential energy budget takes it with a minus sign.
-
-It goes by three names, because it is the one term the two budgets share and each side reads it
-differently. It stays defined in [the kinetic energy equation](kinetic_energy_equation.md), where
+Note that the KE to PE conversion term can go by three names since it is shared by different budgets.
+It stays defined in [the kinetic energy equation](kinetic_energy_equation.md), where
 `PotentialEnergyConversion` names what it does to the kinetic energy. `using Oceanostics` brings in
 `PotentialToKineticEnergyConversion`, which names the exchange and says which way it runs. This module
 and [the available potential energy equation](available_potential_energy_equation.md) both re-export
@@ -127,26 +102,7 @@ does not bring it in, because unprefixed it says nothing about which budget it b
 ``e_p`` also splits into two parts that do have their own modules. The
 [background potential energy](background_potential_energy_equation.md) ``e_b`` is the portion the flow
 could never release, and the [available potential energy](available_potential_energy_equation.md)
-``e_a = e_p - e_b`` is the remainder. Their budgets are the ones actually closed in practice, and
-[the lock release example](@ref lock_release_example) closes ``e_a`` against kinetic energy.
-
-## Diffusive buoyancy flux
-
-The diffusive conversion term reads
-``\kappa\,\partial b/\partial z`` off the closure's own diffusive flux, which needs the buoyancy to be a
-tracer the closure diffuses, so unlike `PotentialEnergy` it is restricted to `BuoyancyTracer` models. It
-is also the second of the two parts
-[`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate)
-is written out of, which is why
-[the available potential energy equation](available_potential_energy_equation.md) re-exports it.
-
-Within the module it is `DiffusiveVerticalBuoyancyFlux`; `using Oceanostics` brings in the prefixed
-alias `PotentialEnergyDiffusiveVerticalBuoyancyFlux`, which is the same type and keeps the bare name
-from colliding with the tracer-equation fluxes.
-
-```@docs
-Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux
-```
+``e_a = e_p - e_b`` is the remainder.
 
 ## Buoyancy formulations
 
@@ -160,45 +116,18 @@ Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux
   keyword argument allows using a potential density referenced to a fixed depth
   instead of in-situ density.
 
-The diagnostic requires gravity to be aligned with the negative ``z``-direction
+For now the full budget requires gravity to be aligned with the negative ``z``-direction
 (`NegativeZDirection`).
 
-## Example
-
-```jldoctest pe_eq
-julia> using Oceananigans, Oceanostics
-
-julia> grid = RectilinearGrid(size=100, z=(-1000, 0), topology=(Flat, Flat, Bounded));
-
-julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
-
-julia> ep = PotentialEnergyEquation.PotentialEnergy(model)
-PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
-├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
-├── kernel_function: minus_bz_ccc (generic function with 3 methods)
-└── arguments: ("Field",)
-└── computes: potential energy per unit volume  eₚ = -bz
-```
-
-## Potential energy
+## Summary of ``e_p`` equation terms
 
 ```@docs
 Oceanostics.PotentialEnergyEquation.PotentialEnergy
-```
-
-## Terms of the ``e_p`` equation
-
-Inside the module these go by the short names `Tendency`, `Advection`, `BuoyancyAdvection`,
-`Diffusion`, `BuoyancyDiffusion` and `Forcing`; `using Oceanostics` brings in the prefixed aliases
-below, which are the same types. The
-[baroclinic adjustment example](@ref baroclinic_adjustment_example) closes an integrated ``e_p`` budget
-with them.
-
-```@docs
 Oceanostics.PotentialEnergyEquation.PotentialEnergyTendency
 Oceanostics.PotentialEnergyEquation.PotentialEnergyAdvection
 Oceanostics.PotentialEnergyEquation.PotentialEnergyBuoyancyAdvection
 Oceanostics.PotentialEnergyEquation.PotentialEnergyDiffusion
 Oceanostics.PotentialEnergyEquation.PotentialEnergyBuoyancyDiffusion
+Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux
 Oceanostics.PotentialEnergyEquation.PotentialEnergyForcing
 ```
