@@ -10,23 +10,20 @@ e_p = -bz = \frac{g\rho}{\rho_0} z
 where ``b = -g\rho/\rho_0`` is buoyancy, ``z`` is the vertical coordinate, ``g`` is gravitational
 acceleration, ``\rho`` is density, and ``\rho_0`` is a reference density. The quantity
 ``e_p`` has units of m² s⁻² (energy per unit mass).
-Potential energy is a key quantity in ocean energetics: its conversion to/from
-kinetic energy (via the term ``u_j b_j`` derived below) drives ocean circulation
-and mixing.
 
 !!! note "Lower case for densities, upper case for their integrals"
     Throughout Oceanostics a lower-case ``e`` is an energy density, the pointwise quantity a
     diagnostic returns, and the matching upper-case ``E`` is its volume integral,
     ```math
-    E_p = \int e_p \, \mathrm{d}V = \texttt{Integral(PotentialEnergy(model))} ,
+    E_p = \int e_p \, \mathrm{d}V ,
     ```
-    and likewise for the background and available potential energies built from ``e_p`` below.
+    and likewise for the kinetic, background, and available potential energies.
 
 ## The potential energy equation
 
 Since ``e_p`` is just ``-z`` times the buoyancy, and ``z`` does not change in time, the equation for
 ``e_p`` follows directly from [the tracer equation](tracer_equation.md) applied to ``b``. In the
-convention Oceananigans uses, that equation reads
+convention Oceananigans uses (and ignoring background fields), that equation reads
 
 ```math
 \partial_t b = -\partial_j (u_j b) - \partial_j q_j + F_b ,
@@ -41,18 +38,7 @@ through by ``-z``,
                = z\,\partial_j(u_j b) + z\,\partial_j q_j - z F_b .
 ```
 
-Pulling ``z`` inside the derivatives separates them. Buoyancy enters the momentum equation as an
-acceleration ``b_j = \hat{g}_j b``, the component along each direction of the unit vector ``\hat{g}``
-that buoyancy acts along, and this module requires that vector to be vertical
-(`NegativeZDirection`), so ``\partial_j z = \hat{g}_j`` and the product rule gives
-
-```math
-z\,\partial_j(u_j b) = -\partial_j(u_j e_p) - u_j b \hat{g}_j = -\partial_j(u_j e_p) - u_j b_j ,
-\qquad
-z\,\partial_j q_j    = \partial_j(z q_j) - q_j \hat{g}_j = \partial_j(z q_j) - q_3 ,
-```
-
-so that
+Pulling ``z`` inside the derivatives separates them, and the product rule gives
 
 ```math
 \partial_t e_p = \underbrace{-\partial_j(u_j e_p)}_{\text{advection}}
