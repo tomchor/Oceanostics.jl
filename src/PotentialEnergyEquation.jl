@@ -416,10 +416,12 @@ Return a `KernelFunctionOperation` computing the tendency of the potential energ
 where `∂ₜb` is Oceananigans' own tracer tendency for the buoyancy. Since that kernel is the one the
 model steps, this is the whole right-hand side of the `eₚ` equation in one term: advection by the total
 (perturbation plus background) flow, advection of a background buoyancy field, diffusion, and forcing.
-The individual terms are [`PotentialEnergyAdvection`](@ref), [`PotentialEnergyDiffusion`](@ref) and
-[`PotentialEnergyForcing`](@ref), and they sum to this one cell by cell, so long as the buoyancy has no
-`BackgroundField`: the term such a field contributes is included here but has no diagnostic of its own
-yet.
+The individual terms are [`PotentialEnergyBuoyancyAdvection`](@ref),
+[`PotentialEnergyBuoyancyDiffusion`](@ref) and [`PotentialEnergyForcing`](@ref), and they sum to this
+one cell by cell, so long as the buoyancy has no `BackgroundField`: the term such a field contributes
+is included here but has no diagnostic of its own yet. Note it is those two `Buoyancy*` terms that sum,
+not [`PotentialEnergyAdvection`](@ref) and [`PotentialEnergyDiffusion`](@ref) — the latter are the
+transports alone, and differ from them by the two conversions `wb` and `Φ`.
 
 Defined for `BuoyancyTracer` models, where `b` is one of the model's tracers.
 
@@ -543,8 +545,8 @@ the advection of the buoyancy weighted by `-z`. `uⱼ` defaults to the *total* v
 plus background, which is what the model advects with; pass `velocities` to override it.
 
 Pulling `z` inside the derivative writes this as a transport of `eₚ` plus the conversion term,
-`ADV = -∂ⱼ(uⱼeₚ) - uⱼbⱼ`, so over a periodic or closed domain its volume integral is
-`-∫uⱼbⱼ dV`, the (negated)
+`ADV = -∂ⱼ(uⱼeₚ) - wb`, so over a periodic or closed domain its volume integral is
+`-∫wb dV`, the (negated)
 [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion).
 
 A background buoyancy field is advected by a term of its own, which this one does not include and which

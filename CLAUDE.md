@@ -61,8 +61,11 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   and `∫BuoyancyDiffusion = ∫Φ` — those hold only to truncation error. The budget terms need
   `BuoyancyTracer`. A
   `BackgroundField` buoyancy adds a term z∂ⱼ(uⱼB) that has no diagnostic yet, so the split closes only
-  without one — `Tendency` still includes it, since it comes off the model's own kernel. Closed end-to-end by
-  `docs/examples/baroclinic_adjustment.jl`, a double-front run whose buoyancy is periodic and whose
+  without one — `Tendency` still includes it, since it comes off the model's own kernel. The exact split
+  and the two integral identities are covered only by `test_pe_diagnostics.jl`;
+  `docs/examples/baroclinic_adjustment.jl` closes the *integrated* budget, which needs only the two
+  conversions (`PotentialToKineticEnergyConversion` and `DiffusiveVerticalBuoyancyFlux`), so it does not
+  exercise the `-z ×` terms. That example is a double-front run whose buoyancy is periodic and whose
   `∫eₚ dV` is therefore finite — a single Eady front is not a valid test, since its uniform background
   gradient makes the domain's potential energy infinite. It owns the buoyancy-formulation type
   aliases (`BuoyancyTracerModel`, `BuoyancyLinearEOSModel`, `BuoyancyBoussinesqEOSModel`, …) and

@@ -75,7 +75,7 @@ as ``\kappa \nabla b \cdot \nabla z^\star`` and substituting ``z^\star = z + \Up
 ```
 
 the [APE dissipation rate](available_potential_energy_equation.md) and the
-[diffusive buoyancy flux](potential_energy_equation.md#Diffusive-buoyancy-flux). The two split the
+[diffusive vertical buoyancy flux](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux). The two split the
 mixing by what it costs the flow: ``\varepsilon_A`` is the part paid for out of available potential
 energy, and ``\Phi`` is the part diffusion does to the reference state on its own, which carries no
 available energy with it. So

@@ -85,7 +85,7 @@ its own; their sum is.
 
 ``\Phi`` needs no reference state of its own, and it is a term of the ``e_p`` equation before it is
 anything to do with ``e_a``, so it is defined in
-[the potential energy equation](potential_energy_equation.md#Diffusive-buoyancy-flux) and re-exported
+[the potential energy equation](potential_energy_equation.md) and re-exported
 here. See [`PotentialEnergyDiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux).
 
 The [Lock release](@ref lock_release_example) example closes
