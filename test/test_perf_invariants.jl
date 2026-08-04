@@ -173,7 +173,6 @@ end
         # into the argument tuple we assemble for them would show up here and nowhere else.
         test_kfo_invariants("PotentialEnergyTendency",  PotentialEnergyTendency(model))
         test_kfo_invariants("PotentialEnergyAdvection", PotentialEnergyAdvection(model))
-        test_kfo_invariants("PotentialEnergyBackgroundAdvection", PotentialEnergyBackgroundAdvection(model))
         test_kfo_invariants("PotentialEnergyDiffusion", PotentialEnergyDiffusion(model))
         test_kfo_invariants("PotentialEnergyForcing",   PotentialEnergyForcing(model))
     end

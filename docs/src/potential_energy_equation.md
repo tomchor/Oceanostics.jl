@@ -71,28 +71,9 @@ a kinetic energy budget with a tilted gravity vector, where this page's ``e_p = 
 The two terms written as divergences transport ``e_p`` and vanish when integrated over a periodic or closed domain
 (with impermeable, insulating walls).
 
-## Background fields
-
-When ``b`` is given a `BackgroundField` ``B``, the model prognoses the perturbation and its equation
-picks up one more term, the advection of ``B`` by the perturbation flow, so that
-
-```math
-\partial_t b = -\partial_j (u_j^{\rm tot} b) - \partial_j (u_j B) - \partial_j q_j + F_b ,
-```
-
-with ``u_j^{\rm tot}`` the perturbation plus background velocity. Weighted by ``-z`` that new term is
-
-```math
-\partial_t e_p \supset \underbrace{z\,\partial_j (u_j B)}_{\text{background advection}} ,
-```
-
-and ``e_p`` is then the potential energy of the perturbation alone. This one is a production rather
-than a transport: it does not integrate away, and a budget that leaves it out will not close. The
-[Eady example](@ref eady_example) is a run where it matters.
-
 ## Terms and what is implemented
 
-Every term is implemented, two of them elsewhere in Oceanostics.
+Every term above is implemented, two of them elsewhere in Oceanostics.
 
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
@@ -100,7 +81,6 @@ Every term is implemented, two of them elsewhere in Oceanostics.
 | Tendency | ``\partial_t e_p = -z\,\partial_t b`` | [`PotentialEnergyTendency`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyTendency) |
 | Advection | ``z\,\partial_j(u_j b) = -\partial_j(u_j e_p) - u_j b_j`` | [`PotentialEnergyAdvection`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyAdvection) |
 | PE to KE conversion | ``u_j b_j`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
-| Background advection | ``z\,\partial_j(u_j B)`` | [`PotentialEnergyBackgroundAdvection`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyBackgroundAdvection) |
 | Diffusion | ``z\,\partial_j q_j = \partial_j(z q_j) - q_3`` | [`PotentialEnergyDiffusion`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyDiffusion) |
 | Diffusive buoyancy flux | ``-q_3`` | [`DiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux) |
 | Forcing | ``-z F_b`` | [`PotentialEnergyForcing`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyForcing) |
@@ -120,6 +100,14 @@ since the transports drop out and leave
 so an integrated budget is usually written with `PotentialToKineticEnergyConversion` and
 `DiffusiveBuoyancyFlux` in their place. Those two identities come from the continuum product rule, so
 unlike the split above they hold to the truncation error of the discretization.
+
+!!! warning "Background buoyancy fields"
+    When ``b`` carries a `BackgroundField` ``B``, the model prognoses the perturbation and its equation
+    picks up one more term, ``-\partial_j(u_jB)``, the advection of ``B`` by the perturbation flow.
+    Weighted by ``-z`` that is a source of ``e_p`` which does not integrate away, and it has no
+    diagnostic here yet. `PotentialEnergyTendency` includes it, since it comes off the model's own
+    kernel, but `Advection + Diffusion + Forcing` does not, so the split closes only for a buoyancy with
+    no background field.
 
 One caveat on the borrowed term: it computes ``u_j b_j`` as the source of *kinetic* energy, so the
 potential energy budget takes it with a minus sign.
@@ -197,14 +185,14 @@ Oceanostics.PotentialEnergyEquation.PotentialEnergy
 
 ## Terms of the ``e_p`` equation
 
-Inside the module these go by the short names `Tendency`, `Advection`, `BackgroundAdvection`,
-`Diffusion` and `Forcing`; `using Oceanostics` brings in the prefixed aliases below, which are the same
-types. The [Eady example](@ref eady_example) closes an integrated ``e_p`` budget with them.
+Inside the module these go by the short names `Tendency`, `Advection`, `Diffusion` and `Forcing`;
+`using Oceanostics` brings in the prefixed aliases below, which are the same types. The
+[baroclinic adjustment example](@ref baroclinic_adjustment_example) closes an integrated ``e_p`` budget
+with them.
 
 ```@docs
 Oceanostics.PotentialEnergyEquation.PotentialEnergyTendency
 Oceanostics.PotentialEnergyEquation.PotentialEnergyAdvection
-Oceanostics.PotentialEnergyEquation.PotentialEnergyBackgroundAdvection
 Oceanostics.PotentialEnergyEquation.PotentialEnergyDiffusion
 Oceanostics.PotentialEnergyEquation.PotentialEnergyForcing
 ```

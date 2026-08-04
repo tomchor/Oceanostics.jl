@@ -132,9 +132,14 @@ end
 The terms of the `eₚ = -bz` equation are `-z` times the terms of the equation the model steps for `b`,
 each built on Oceananigans' own kernel for that term. Their sum is therefore the model's own buoyancy
 tendency taken apart and put back together, so it has to match `PotentialEnergyTendency` to machine
-precision — on any grid, with background fields and forcing in play, whatever the flow is doing. That
-exactness is the whole point of keeping the `-z ×` form, and it is what the rearranged
+precision — on any grid, with a background velocity and forcing in play, whatever the flow is doing.
+That exactness is the whole point of keeping the `-z ×` form, and it is what the rearranged
 `-∂ⱼ(uⱼeₚ)` form would give up, so it is checked to `atol` rather than `rtol`.
+
+The buoyancy deliberately has no `BackgroundField` here. Such a field puts `-∂ⱼ(uⱼB)` into the equation
+the model steps, which `Tendency` picks up (it comes off the model's own kernel) but which no other
+diagnostic in this module accounts for yet, so the split would not close. The background *velocity*
+stays, since that one enters through `Advection`'s total velocity and is covered.
 
 The two integral identities are the other half of the arrangement: pulling `z` inside the derivative
 turns `Advection` into a transport plus `-uⱼbⱼ` and `Diffusion` into a transport plus `Φ`, so over a
@@ -144,14 +149,13 @@ velocity field divergence-free, and a random one straight out of `set!` is not.
 """
 function test_potential_energy_budget_terms(grid)
 
-    B(x, y, z, t) = -1e-6 * y + 1e-5 * z            # background buoyancy, sheared and stratified
-    U(x, y, z, t) = 1e-2 * z                        # background velocity in thermal-wind balance with it
+    U(x, y, z, t) = 1e-2 * z                        # background velocity
     Fᵇ(x, y, z, t) = 1e-9 * sin(2π * z)
 
     model = NonhydrostaticModel(grid; buoyancy = BuoyancyTracer(), tracers = :b,
                                 advection = Centered(order=4),
                                 closure = ScalarDiffusivity(ν=1e-4, κ=1e-4),
-                                background_fields = (b = BackgroundField(B), u = BackgroundField(U)),
+                                background_fields = (; u = BackgroundField(U)),
                                 forcing = (; b = Forcing(Fᵇ)))
 
     smooth(x, y, z) = 1e-2 * sin(2π * x) * cos(2π * y) * sin(π * z)
@@ -162,43 +166,36 @@ function test_potential_energy_budget_terms(grid)
 
     TEND = PotentialEnergyTendency(model)
     ADV  = PotentialEnergyAdvection(model)
-    BADV = PotentialEnergyBackgroundAdvection(model)
     DIFF = PotentialEnergyDiffusion(model)
     FORC = PotentialEnergyForcing(model)
 
     @test TEND isa PotentialEnergyTendency
     @test ADV  isa PotentialEnergyAdvection
-    @test BADV isa PotentialEnergyBackgroundAdvection
     @test DIFF isa PotentialEnergyDiffusion
     @test FORC isa PotentialEnergyForcing
 
     tendency = Array(interior(Field(TEND)))
-    terms = sum(Array(interior(Field(term))) for term in (ADV, BADV, DIFF, FORC))
+    terms = sum(Array(interior(Field(term))) for term in (ADV, DIFF, FORC))
     @test maximum(abs, tendency .- terms) < 1e-12 * maximum(abs, tendency)
 
     # Every term has to be doing something, or the sum above would be checking nothing
-    for term in (ADV, BADV, DIFF, FORC)
+    for term in (ADV, DIFF, FORC)
         @test maximum(abs, Array(interior(Field(term)))) > 1e-6 * maximum(abs, tendency)
     end
 
     # `∫Diffusion = ∫Φ` telescopes and comes out to a dozen digits, but `∫Advection = -∫wb` is second
     # order in the grid spacing and the shared test grids are six cells wide, so it is only good to a
-    # few percent here. The Eady example, on a grid that resolves something, is where it is checked in
-    # earnest.
+    # few percent here. The baroclinic adjustment example, on a grid that resolves something, is where
+    # it is checked in earnest.
     @test volume_integral(ADV)  ≈ -volume_integral(PotentialToKineticEnergyConversion(model)) rtol=0.1
     @test volume_integral(DIFF) ≈  volume_integral(PotentialEnergyDiffusiveBuoyancyFlux(model)) rtol=1e-6
 
-    # `BackgroundAdvection` is the term a run without a background buoyancy does not have, and it has to
-    # come out identically zero there rather than merely small.
-    plain = NonhydrostaticModel(grid; buoyancy = BuoyancyTracer(), tracers = :b)
-    set!(plain, u = smooth, v = smooth, b = smooth)
-    @test all(Array(interior(Field(PotentialEnergyBackgroundAdvection(plain)))) .== 0)
-
     # These are terms of the `b` equation weighted by `-z`, so they need `b` to be a tracer
+    plain = NonhydrostaticModel(grid; buoyancy = BuoyancyTracer(), tracers = :b)
     seawater = NonhydrostaticModel(grid; buoyancy = SeawaterBuoyancy(), tracers = (:T, :S),
                                    closure = ScalarDiffusivity(κ=1e-4))
     for diagnostic in (PotentialEnergyTendency, PotentialEnergyAdvection,
-                       PotentialEnergyBackgroundAdvection, PotentialEnergyDiffusion, PotentialEnergyForcing)
+                       PotentialEnergyDiffusion, PotentialEnergyForcing)
         @test_throws ArgumentError diagnostic(seawater)
     end
     @test_throws "no closure" PotentialEnergyDiffusion(plain)   # ... and `Diffusion` needs a closure too

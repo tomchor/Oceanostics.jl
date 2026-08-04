@@ -4,15 +4,14 @@
 # baroclinically unstable, and close the volume-integrated *potential* energy budget against the
 # kinetic energy one. The double-front geometry follows
 # [Wenegrat's CoarseGrainedBCI](https://github.com/wenegrat/CoarseGrainedBCI); the mixed layer it sits
-# in follows [Taylor (2018)](https://doi.org/10.1175/JPO-D-17-0269.1), which is also what
-# [the Eady example](@ref eady_example) is built on.
+# in follows [Taylor (2018)](https://doi.org/10.1175/JPO-D-17-0269.1).
 #
 # Two fronts rather than one is what makes the potential energy budget well posed. A single front with
-# a uniform background gradient, as in the Eady example, has a buoyancy field that grows without bound
-# in the cross-front direction, so `∫eₚ dV` over the domain is infinite and only the perturbation part
-# of it is finite. Here the buoyancy rises across one front and falls back across the other, so `b` is
-# genuinely periodic, the whole field is prognostic with no `BackgroundField` anywhere, and
-# `∫eₚ dV = -∫bz dV` is a finite number the budget can track.
+# a uniform background buoyancy gradient, the Eady configuration, has a buoyancy field that grows
+# without bound in the cross-front direction, so `∫eₚ dV` over the domain is infinite and only the
+# perturbation part of it is finite. Here the buoyancy rises across one front and falls back across the
+# other, so `b` is genuinely periodic, the whole field is prognostic with no `BackgroundField` anywhere,
+# and `∫eₚ dV = -∫bz dV` is a finite number the budget can track.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -177,9 +176,6 @@ add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval
 # [`PotentialEnergyTendency`](@ref) is the whole right-hand side in one term, taken off Oceananigans'
 # own buoyancy tendency. Writing it alongside the finite-differenced `d(∫eₚ)/dt` is the sharpest check
 # available: the two are computed by completely different routes.
-#
-# There is no `BackgroundField` here, so [`PotentialEnergyBackgroundAdvection`](@ref) is identically
-# zero and does not appear.
 
 eₚ   = PotentialEnergy(model)
 TEND = PotentialEnergyTendency(model)

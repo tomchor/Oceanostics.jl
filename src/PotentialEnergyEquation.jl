@@ -7,7 +7,6 @@ export PotentialEnergy
 export DiffusiveBuoyancyFlux, PotentialEnergyDiffusiveBuoyancyFlux
 export Tendency, PotentialEnergyTendency
 export Advection, PotentialEnergyAdvection
-export BackgroundAdvection, PotentialEnergyBackgroundAdvection
 export Diffusion, PotentialEnergyDiffusion
 export Forcing, PotentialEnergyForcing
 # `wb` is the one term the kinetic and potential energy budgets share, so it is defined in
@@ -372,6 +371,12 @@ end
 # (`uᵢ∂ⱼ(uⱼuᵢ)` rather than `∂ⱼ(uⱼK)`): the split is then the model's own tendency taken apart term by
 # term, rather than a continuum rearrangement of it, so it holds at the discrete level.
 #
+# One term of that equation has no diagnostic here yet: when the buoyancy carries a `BackgroundField`
+# `B`, the model prognoses the perturbation and its equation picks up `-∂ⱼ(uⱼB)`, which weighted by `-z`
+# is a source of `eₚ` that does not drop out of a volume integral. `Tendency` includes it, since it
+# comes off the model's own kernel, but `Advection + Diffusion + Forcing` does not, so the split below
+# closes only for a buoyancy with no background field.
+#
 # What the rearrangement buys is the pair of terms that survive a volume integral. Pulling `z` inside
 # the derivative turns `Advection` into a transport plus `-uⱼbⱼ`, and `Diffusion` into a transport plus
 # `Φ`, so over a periodic or closed domain
@@ -400,9 +405,10 @@ Return a `KernelFunctionOperation` computing the tendency of the potential energ
 where `∂ₜb` is Oceananigans' own tracer tendency for the buoyancy. Since that kernel is the one the
 model steps, this is the whole right-hand side of the `eₚ` equation in one term: advection by the total
 (perturbation plus background) flow, advection of a background buoyancy field, diffusion, and forcing.
-The individual terms are [`PotentialEnergyAdvection`](@ref),
-[`PotentialEnergyBackgroundAdvection`](@ref), [`PotentialEnergyDiffusion`](@ref) and
-[`PotentialEnergyForcing`](@ref), and they sum to this one cell by cell.
+The individual terms are [`PotentialEnergyAdvection`](@ref), [`PotentialEnergyDiffusion`](@ref) and
+[`PotentialEnergyForcing`](@ref), and they sum to this one cell by cell, so long as the buoyancy has no
+`BackgroundField`: the term such a field contributes is included here but has no diagnostic of its own
+yet.
 
 Defined for `BuoyancyTracer` models, where `b` is one of the model's tracers.
 
@@ -469,8 +475,8 @@ Pulling `z` inside the derivative writes this as a transport of `eₚ` plus the 
 `-∫uⱼbⱼ dV`, the (negated)
 [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion).
 
-A background buoyancy field is advected by a term of its own, which this one does not include: see
-[`PotentialEnergyBackgroundAdvection`](@ref).
+A background buoyancy field is advected by a term of its own, which this one does not include and which
+has no diagnostic here yet.
 
 ```jldoctest
 using Oceananigans, Oceanostics
@@ -497,61 +503,6 @@ function PotentialEnergyAdvection(model::NonhydrostaticModel;
 
     return KernelFunctionOperation{Center, Center, Center}(z_div_Uc_ccc, model.grid,
                                                            model.advection, velocities, model.tracers.b)
-end
-#---
-
-#+++ Background advection
-# Same expression as `z_div_Uc_ccc`, but a `CustomKFO` alias is keyed on the kernel's type, so the two
-# terms need one kernel each to `show` as themselves.
-@inline z_div_UB_ccc(i, j, k, grid, advection, U, B) = z_div_Uc_ccc(i, j, k, grid, advection, U, B)
-
-const PotentialEnergyBackgroundAdvection = CustomKFO{<:typeof(z_div_UB_ccc)}
-const BackgroundAdvection = PotentialEnergyBackgroundAdvection
-
-"""
-    $(SIGNATURES)
-
-Return a `KernelFunctionOperation` computing the term a background buoyancy field `B` contributes to
-the `eₚ = -bz` equation,
-
-```
-    ADVᴮ = z ∂ⱼ(uⱼB) ,
-```
-
-the advection of `B` by the perturbation velocity, weighted by `-z`. When `b` is set up with a
-`BackgroundField`, the model prognoses the perturbation and picks up `-∂ⱼ(uⱼB)` as a source in its
-equation; this is that source carried into the budget of `eₚ`, which is then the potential energy of
-the perturbation alone. It is a production term rather than a transport, so it does not drop out of a
-volume integral, and a budget that leaves it out will not close.
-
-For a model with no background buoyancy this returns zero everywhere, since `B` is then a `ZeroField`.
-
-```jldoctest
-using Oceananigans, Oceanostics
-
-grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1))
-B(x, y, z, t) = 1e-5 * z
-model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b,
-                            background_fields = (; b = BackgroundField(B)))
-
-PotentialEnergyBackgroundAdvection(model)   # or `BackgroundAdvection` inside the module
-
-# output
-
-PotentialEnergyBackgroundAdvection KernelFunctionOperation at (Center, Center, Center)
-├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: z_div_UB_ccc (generic function with 1 method)
-└── arguments: ("Centered", "NamedTuple", "Oceananigans.Fields.FunctionField")
-└── computes: potential energy background advection  z ∂ⱼ(uⱼB)
-```
-"""
-function PotentialEnergyBackgroundAdvection(model::NonhydrostaticModel; location = (Center, Center, Center))
-    validate_location(location, "PotentialEnergyBackgroundAdvection")
-    validate_buoyancy_is_a_tracer("PotentialEnergyBackgroundAdvection", model)
-
-    return KernelFunctionOperation{Center, Center, Center}(z_div_UB_ccc, model.grid,
-                                                           model.advection, model.velocities,
-                                                           model.background_fields.tracers.b)
 end
 #---
 
