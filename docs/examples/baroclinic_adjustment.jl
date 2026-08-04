@@ -39,8 +39,8 @@ w_front = 250.0      # [m]   width of each front
 # mixed layer the instability lives in, and stretches below it.
 #
 # The cells come out roughly 16 m by 16 m by 2 to 8 m, within an order of magnitude of isotropic. That
-# matters for the closure below: `SmagorinskyLilly` builds its filter width from the cell volume, so it
-# is only meaningful on a grid that is not wildly stretched in one direction.
+# matters for the closure below: `Smagorinsky` builds its filter width from the cell volume, so it is
+# only meaningful on a grid that is not wildly stretched in one direction.
 
 z = ReferenceToStretchedDiscretization(extent = H_target,
                                        bias = :right, bias_edge = 0,   # fine spacing at the surface
@@ -301,15 +301,18 @@ K_terms  = (dKdt, wb_pair, ε_pair)                                             
 @test rms(diff_collapse) < 1e-6 * rms(Φ_pair)                                         #hide
 @test rms(adv_collapse)  < 0.05 * rms(wb_pair)                                        #hide
 ## The adjustment does what it should: the fronts slump and release potential energy into kinetic    #hide
-## energy. `∫ADV dV` is that conversion seen from the potential energy side, so it is negative, and  #hide
-## it is a leading term in both budgets rather than a correction to them.                            #hide
+## energy. `∫ADV dV` is that conversion seen from the potential energy side, so it is negative.      #hide
 @test mean(wb_pair)  > 0                                                              #hide
 @test mean(ADV_pair) < 0                                                              #hide
+## It leads the kinetic energy budget. It does not lead the potential energy one — with this closure #hide
+## the diffusive term is an order of magnitude larger — but the budget resolves it far above its own #hide
+## residual, which is the claim that matters.                                                        #hide
 @test rms(wb_pair)  > 0.5 * rms(dKdt)                                                 #hide
-@test rms(ADV_pair) > 0.5 * rms(deₚdt)                                                #hide
-## Smagorinsky is actually doing something here, unlike at mesoscale-permitting resolution where its #hide
-## stability correction switches it off everywhere.                                                  #hide
-@test maximum(ε_pair) > 0                                                             #hide
+@test rms(ADV_pair) > 10 * rms(eₚ_resid)                                              #hide
+@test rms(DIFF_pair) > rms(ADV_pair)                                                  #hide
+## The closure is active everywhere, which is what a constant-coefficient Smagorinsky does and what  #hide
+## the Lilly-corrected one would not at this resolution.                                             #hide
+@test minimum(ε_pair) > 0                                                             #hide
 @test all(ε_pair .≥ 0);                                                               #hide
 
 # ## Plotting
@@ -373,15 +376,23 @@ nothing #hide
 # as the module computes them, `-z` times the advective and diffusive terms of the buoyancy equation,
 # and they land on `-∫wb dV` and `∫Φ dV`. The diffusive pair agree to roundoff, since that collapse
 # telescopes on the discrete grid. The advective pair differ by a transport term which integrates to
-# zero only in the continuum, so they agree to truncation error instead. Keeping the `-z ×` form is
-# what makes the terms sum to `PotentialEnergyTendency` exactly, cell by cell, and the tendency check
-# above confirms that end to end: the model's own buoyancy tendency, weighted by `-z` and integrated,
-# matches a finite difference of `∫eₚ dV`.
+# zero only in the continuum, so they agree to about a percent instead. Keeping the `-z ×` form is what
+# makes the terms sum to `PotentialEnergyTendency` exactly, cell by cell, and the tendency check above
+# confirms that end to end: the model's own buoyancy tendency, weighted by `-z` and integrated, matches
+# a finite difference of `∫eₚ dV` to parts in ten thousand.
 #
-# Both residuals sit at a couple of percent of their budget's largest term, and neither vanishes: the
-# discrete `K` and `eₚ` equations are not derived from the discrete momentum and buoyancy equations the
-# model steps, so the two sides agree only to truncation error. The same caveat applies to
-# [the two-dimensional turbulence example](@ref two_d_turbulence_example).
+# The diffusive term dominates that panel. A constant-coefficient `Smagorinsky` is active everywhere
+# rather than only where the strain beats the stratification, and at a coefficient chosen to keep this
+# coarse grid well behaved it moves an order of magnitude more potential energy than the conversion
+# does. The conversion is still resolved far above the budget's residual, which is what lets the panel
+# separate the two at all.
+#
+# The kinetic energy residual sits at a fraction of a percent of its budget's largest term, and neither
+# residual vanishes: the discrete `K` and `eₚ` equations are not derived from the discrete momentum and
+# buoyancy equations the model steps, so the two sides agree only to truncation error. The same caveat
+# applies to [the two-dimensional turbulence example](@ref two_d_turbulence_example). The `eₚ` budget
+# gets closer than the `K` one because its terms are the model's own tendency taken apart rather than
+# rederived.
 #
 # `∫K dV` itself barely changes over the run, which is not a failure of the instability. The initial
 # condition already carries the thermal wind, so `K` starts at the balanced flow's value rather than at
