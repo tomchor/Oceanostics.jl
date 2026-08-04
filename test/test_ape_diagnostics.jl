@@ -655,7 +655,7 @@ function test_ape_dissipation_plus_diffusive_flux_is_the_mixing_rate(grid)
     z✶  = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
     Υ   = Field(BuoyancyDisplacementPotential(model, z✶))
     ε_A = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = Υ)
-    Φ   = PotentialEnergyDiffusiveBuoyancyFlux(model)
+    Φ   = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)
 
     mixing_rate = interior(Field(ε_A)) .+ interior(Field(Φ))
     scale = maximum(abs, interior(Field(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)))) / 2
@@ -678,7 +678,7 @@ function test_upsilon_and_ape_dissipation_errors(grid)
     seawater = NonhydrostaticModel(grid; buoyancy=SeawaterBuoyancy(), tracers=(:S, :T), closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
     set!(seawater, S = grid_noise, T = grid_noise)
     @test_throws "BuoyancyTracer" AvailablePotentialEnergyDissipationRate(seawater)
-    @test_throws "BuoyancyTracer" PotentialEnergyDiffusiveBuoyancyFlux(seawater)
+    @test_throws "BuoyancyTracer" PotentialEnergyDiffusiveVerticalBuoyancyFlux(seawater)
 
     # `κ∇b` comes off the closure, so a model without one has to be refused at construction
     closureless = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)

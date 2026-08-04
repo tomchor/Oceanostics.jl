@@ -50,12 +50,16 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 - **`TurbulentKineticEnergyEquation`**: TKE, isotropic dissipation, shear production rates (X/Y/Z and total)
 - **`TracerVarianceEquation`**: Tendency, dissipation rate, diffusion of tracer variance
 - **`PotentialEnergyEquation`**: Potential energy for BuoyancyTracer, linear/nonlinear SeawaterBuoyancy
-  (`PotentialEnergy`, Eₚ = -bz) plus the terms of its budget: `DiffusiveBuoyancyFlux` (Φ = κ∂b/∂z) and
-  the `-z ×` forms of the buoyancy equation's own terms — `Tendency` (-z∂ₜb, off Oceananigans'
-  `tracer_tendency`), `Advection` (z∂ⱼ(uⱼb), total velocities), `Diffusion` (z∂ⱼqⱼ) and `Forcing`
-  (-zFᵇ). Keeping the `-z ×` form rather than the rearranged `-∂ⱼ(uⱼeₚ)` makes the three sum to
-  `Tendency` *exactly* (it is the model's own tendency taken apart), while `∫Advection = -∫wb` and
-  `∫Diffusion = ∫Φ` hold only to truncation error; the budget terms need `BuoyancyTracer`. A
+  (`PotentialEnergy`, Eₚ = -bz) plus the terms of its budget. The `-z ×` forms of the buoyancy
+  equation's own terms are `Tendency` (-z∂ₜb, off Oceananigans' `tracer_tendency`),
+  `BuoyancyAdvection` (z∂ⱼ(uⱼb), total velocities), `BuoyancyDiffusion` (z∂ⱼqⱼ) and `Forcing` (-zFᵇ);
+  those three sum to `Tendency` *exactly*, since it is the model's own tendency taken apart. Pulling z
+  inside each derivative splits them into a transport and a conversion: `Advection` (∂ⱼ(uⱼeₚ)) with
+  `PotentialToKineticEnergyConversion` (wb), and `Diffusion` (∂ⱼ(zqⱼ)) with
+  `DiffusiveVerticalBuoyancyFlux` (Φ = κ∂b/∂z = -q₃). The two transports are built as genuine flux
+  divergences, so each integrates to zero to roundoff, which is what leaves `∫BuoyancyAdvection = -∫wb`
+  and `∫BuoyancyDiffusion = ∫Φ` — those hold only to truncation error. The budget terms need
+  `BuoyancyTracer`. A
   `BackgroundField` buoyancy adds a term z∂ⱼ(uⱼB) that has no diagnostic yet, so the split closes only
   without one — `Tendency` still includes it, since it comes off the model's own kernel. Closed end-to-end by
   `docs/examples/baroclinic_adjustment.jl`, a double-front run whose buoyancy is periodic and whose

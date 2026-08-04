@@ -83,8 +83,8 @@ function test_diffusive_buoyancy_flux(grid)
     κ = 1e-3
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(; ν=1e-6, κ))
 
-    Φ = PotentialEnergyDiffusiveBuoyancyFlux(model)
-    @test Φ isa PotentialEnergyDiffusiveBuoyancyFlux
+    Φ = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)
+    @test Φ isa PotentialEnergyDiffusiveVerticalBuoyancyFlux
 
     set!(model, b = (x, y, z) -> 3z)
     Φ_column = Array(interior(Field(Φ)))[1, 1, :]
@@ -105,24 +105,24 @@ function test_diffusive_buoyancy_flux(grid)
 
     κ_face = [κ_of_z(0, 0, z, 0) for z in znodes(grid, Face())]
     κ_face[1] = κ_face[end] = 0                                # no buoyancy crosses the walls
-    @test Array(interior(Field(PotentialEnergyDiffusiveBuoyancyFlux(varying))))[1, 1, :] ≈
+    @test Array(interior(Field(PotentialEnergyDiffusiveVerticalBuoyancyFlux(varying))))[1, 1, :] ≈
           3 .* (κ_face[1:end-1] .+ κ_face[2:end]) ./ 2
 
     # ... and the constant-κ collapse is not merely inexact here, it is the wrong answer
-    @test !isapprox(volume_integral(PotentialEnergyDiffusiveBuoyancyFlux(varying)),
+    @test !isapprox(volume_integral(PotentialEnergyDiffusiveVerticalBuoyancyFlux(varying)),
                     1e-3 * grid.Lx * grid.Ly * 3 * grid.Lz; rtol = 0.1)
 
     # A model without a closure is legal and has no flux to read, so it has to be refused at
     # construction rather than at `compute!`, where the failure is a `MethodError` from inside the
     # kernel that names none of the caller's code.
-    @test_throws "no closure" PotentialEnergyDiffusiveBuoyancyFlux(
+    @test_throws "no closure" PotentialEnergyDiffusiveVerticalBuoyancyFlux(
         NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b))
 
     # Closures that compute their own κ do define a flux and must keep working.
     for closure in (SmagorinskyLilly(), AnisotropicMinimumDissipation())
         eddy = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure)
         set!(eddy, b = grid_noise)
-        @test volume_integral(PotentialEnergyDiffusiveBuoyancyFlux(eddy)) isa Number
+        @test volume_integral(PotentialEnergyDiffusiveVerticalBuoyancyFlux(eddy)) isa Number
     end
 
     return nothing
@@ -134,18 +134,23 @@ each built on Oceananigans' own kernel for that term. Their sum is therefore the
 tendency taken apart and put back together, so it has to match `PotentialEnergyTendency` to machine
 precision — on any grid, with a background velocity and forcing in play, whatever the flow is doing.
 That exactness is the whole point of keeping the `-z ×` form, and it is what the rearranged
-`-∂ⱼ(uⱼeₚ)` form would give up, so it is checked to `atol` rather than `rtol`.
+`∂ⱼ(uⱼeₚ)` form would give up, so it is checked to `atol` rather than `rtol`.
 
 The buoyancy deliberately has no `BackgroundField` here. Such a field puts `-∂ⱼ(uⱼB)` into the equation
 the model steps, which `Tendency` picks up (it comes off the model's own kernel) but which no other
 diagnostic in this module accounts for yet, so the split would not close. The background *velocity*
-stays, since that one enters through `Advection`'s total velocity and is covered.
+stays, since that one enters through `BuoyancyAdvection`'s total velocity and is covered.
 
 The two integral identities are the other half of the arrangement: pulling `z` inside the derivative
-turns `Advection` into a transport plus `-uⱼbⱼ` and `Diffusion` into a transport plus `Φ`, so over a
-periodic domain `∫Advection = -∫wb` and `∫Diffusion = ∫Φ`. Those come from the continuum product rule
-and need `∂ⱼuⱼ = 0`, which is why the model is stepped first: the pressure projection is what makes the
-velocity field divergence-free, and a random one straight out of `set!` is not.
+splits `BuoyancyAdvection` into `-Advection - wb` and `BuoyancyDiffusion` into `Diffusion + Φ`, so over
+a periodic domain `∫BuoyancyAdvection = -∫wb` and `∫BuoyancyDiffusion = ∫Φ`. Those come from the
+continuum product rule and need `∂ⱼuⱼ = 0`, which is why the model is stepped first: the pressure
+projection is what makes the velocity field divergence-free, and a random one straight out of `set!` is
+not.
+
+`Advection` and `Diffusion` are the transports themselves, built as genuine flux divergences rather
+than by rearranging their `Buoyancy*` partners, so each telescopes and its volume integral vanishes to
+roundoff rather than to truncation error. That is checked separately below.
 """
 function test_potential_energy_budget_terms(grid)
 
@@ -164,41 +169,55 @@ function test_potential_energy_budget_terms(grid)
         time_step!(model, 1e-2)   # the pressure projection makes u⃗ divergence-free
     end
 
-    TEND = PotentialEnergyTendency(model)
-    ADV  = PotentialEnergyAdvection(model)
-    DIFF = PotentialEnergyDiffusion(model)
-    FORC = PotentialEnergyForcing(model)
+    TEND  = PotentialEnergyTendency(model)
+    BADV  = PotentialEnergyBuoyancyAdvection(model)
+    BDIFF = PotentialEnergyBuoyancyDiffusion(model)
+    FORC  = PotentialEnergyForcing(model)
+    ADV   = PotentialEnergyAdvection(model)
+    DIFF  = PotentialEnergyDiffusion(model)
 
-    @test TEND isa PotentialEnergyTendency
-    @test ADV  isa PotentialEnergyAdvection
-    @test DIFF isa PotentialEnergyDiffusion
-    @test FORC isa PotentialEnergyForcing
+    @test TEND  isa PotentialEnergyTendency
+    @test BADV  isa PotentialEnergyBuoyancyAdvection
+    @test BDIFF isa PotentialEnergyBuoyancyDiffusion
+    @test FORC  isa PotentialEnergyForcing
+    @test ADV   isa PotentialEnergyAdvection
+    @test DIFF  isa PotentialEnergyDiffusion
 
     tendency = Array(interior(Field(TEND)))
-    terms = sum(Array(interior(Field(term))) for term in (ADV, DIFF, FORC))
+    terms = sum(Array(interior(Field(term))) for term in (BADV, BDIFF, FORC))
     @test maximum(abs, tendency .- terms) < 1e-12 * maximum(abs, tendency)
 
     # Every term has to be doing something, or the sum above would be checking nothing
-    for term in (ADV, DIFF, FORC)
+    for term in (BADV, BDIFF, FORC)
         @test maximum(abs, Array(interior(Field(term)))) > 1e-6 * maximum(abs, tendency)
+    end
+
+    # `Advection` and `Diffusion` are flux divergences, so each telescopes to the boundary and vanishes
+    # over this periodic-in-x-and-y, no-flux-in-z domain. Roundoff, not truncation error: the bound is
+    # relative to the term's own magnitude, not to the tendency's.
+    for transport in (ADV, DIFF)
+        scale = maximum(abs, Array(interior(Field(transport))))
+        @test abs(volume_integral(transport)) < 1e-10 * scale * prod(size(grid))
     end
 
     # `∫Diffusion = ∫Φ` telescopes and comes out to a dozen digits, but `∫Advection = -∫wb` is second
     # order in the grid spacing and the shared test grids are six cells wide, so it is only good to a
     # few percent here. The baroclinic adjustment example, on a grid that resolves something, is where
     # it is checked in earnest.
-    @test volume_integral(ADV)  ≈ -volume_integral(PotentialToKineticEnergyConversion(model)) rtol=0.1
-    @test volume_integral(DIFF) ≈  volume_integral(PotentialEnergyDiffusiveBuoyancyFlux(model)) rtol=1e-6
+    @test volume_integral(BADV)  ≈ -volume_integral(PotentialToKineticEnergyConversion(model)) rtol=0.1
+    @test volume_integral(BDIFF) ≈  volume_integral(PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)) rtol=1e-6
 
     # These are terms of the `b` equation weighted by `-z`, so they need `b` to be a tracer
     plain = NonhydrostaticModel(grid; buoyancy = BuoyancyTracer(), tracers = :b)
     seawater = NonhydrostaticModel(grid; buoyancy = SeawaterBuoyancy(), tracers = (:T, :S),
                                    closure = ScalarDiffusivity(κ=1e-4))
-    for diagnostic in (PotentialEnergyTendency, PotentialEnergyAdvection,
-                       PotentialEnergyDiffusion, PotentialEnergyForcing)
+    for diagnostic in (PotentialEnergyTendency, PotentialEnergyAdvection, PotentialEnergyBuoyancyAdvection,
+                       PotentialEnergyDiffusion, PotentialEnergyBuoyancyDiffusion, PotentialEnergyForcing)
         @test_throws ArgumentError diagnostic(seawater)
     end
-    @test_throws "no closure" PotentialEnergyDiffusion(plain)   # ... and `Diffusion` needs a closure too
+    # ... and the two diffusive terms need a closure too
+    @test_throws "no closure" PotentialEnergyDiffusion(plain)
+    @test_throws "no closure" PotentialEnergyBuoyancyDiffusion(plain)
 
     return nothing
 end

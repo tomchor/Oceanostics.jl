@@ -153,12 +153,12 @@ add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval
 #                           = -\int wb\, dV + \int \Phi\, dV ,
 # ```
 #
-# where ``\mathrm{ADV} = z\,\partial_j(u_jb)`` ([`PotentialEnergyAdvection`](@ref)) and
-# ``\mathrm{DIFF} = z\,\partial_jq_j`` ([`PotentialEnergyDiffusion`](@ref)) are the terms as the model
+# where ``\mathrm{ADV} = z\,\partial_j(u_jb)`` ([`PotentialEnergyBuoyancyAdvection`](@ref)) and
+# ``\mathrm{DIFF} = z\,\partial_jq_j`` ([`PotentialEnergyBuoyancyDiffusion`](@ref)) are the terms as the model
 # actually computes them, while ``wb``
 # ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion))
 # and ``\Phi = \kappa\,\partial b/\partial z``
-# ([`PotentialEnergyDiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux))
+# ([`PotentialEnergyDiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux))
 # are what they collapse to once `z` is pulled inside the derivative and the transports drop out. We
 # output both forms so the identity can be checked rather than assumed.
 #
@@ -168,9 +168,9 @@ add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval
 
 eₚ   = PotentialEnergy(model)
 TEND = PotentialEnergyTendency(model)
-ADV  = PotentialEnergyAdvection(model)
-DIFF = PotentialEnergyDiffusion(model)
-Φ    = PotentialEnergyDiffusiveBuoyancyFlux(model)
+ADV  = PotentialEnergyBuoyancyAdvection(model)
+DIFF = PotentialEnergyBuoyancyDiffusion(model)
+Φ    = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)
 
 # ## The kinetic energy budget
 #

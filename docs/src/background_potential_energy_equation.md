@@ -97,7 +97,7 @@ of them.
 | Diffusive transport | ``\partial_j(z^\star q_j)`` | not implemented |
 | Diapycnal mixing rate | ``\phi_d = \kappa \nabla b \cdot \nabla z^\star = \varepsilon_A + \Phi`` | the sum of the two below |
 | APE dissipation rate | ``\varepsilon_A = \kappa \nabla b \cdot \nabla \Upsilon`` | [`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate) |
-| Diffusive buoyancy flux | ``\Phi = \kappa \, \partial b / \partial z`` | [`DiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux) |
+| Diffusive buoyancy flux | ``\Phi = \kappa \, \partial b / \partial z`` | [`DiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux) |
 
 !!! note "``\partial z^\star / \partial b`` needs ``z^\star`` to be a function of ``b``"
     The chain rule step above assumes the reference height depends on position only through the
