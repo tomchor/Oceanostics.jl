@@ -82,7 +82,7 @@ Ri_ml = N²_ml / α^2         # []      balanced Richardson number in the mixed 
 # a high coefficient to make sure the instability is well-resolved in this very coarse example:
 
 using Oceananigans.TurbulenceClosures.Smagorinskys: Smagorinsky
-closure = Smagorinsky(C=0.3)
+closure = Smagorinsky(coefficient=0.3)
 
 # ## Model
 #
