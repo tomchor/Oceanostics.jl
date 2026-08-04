@@ -413,14 +413,14 @@ end
 #---
 
 #+++ PotentialEnergyEquation
-@diagnostic_show PotentialEnergyEquation.PotentialEnergy             "PotentialEnergy"             "potential energy per unit volume  eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.PotentialEnergy               "PotentialEnergy"                     "potential energy per unit volume  eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.Tendency                      "PotentialEnergyTendency"             "potential energy tendency  ∂ₜeₚ = -z ∂ₜb"
+@diagnostic_show PotentialEnergyEquation.Advection                     "PotentialEnergyAdvection"            "potential energy advection  ∂ⱼ(uⱼeₚ)"
+@diagnostic_show PotentialEnergyEquation.BuoyancyAdvection             "PotentialEnergyBuoyancyAdvection"    "potential energy buoyancy advection  z ∂ⱼ(uⱼb)"
+@diagnostic_show PotentialEnergyEquation.Diffusion                     "PotentialEnergyDiffusion"            "potential energy diffusive transport  ∂ⱼ(z qⱼ)"
+@diagnostic_show PotentialEnergyEquation.BuoyancyDiffusion             "PotentialEnergyBuoyancyDiffusion"    "potential energy buoyancy diffusion  z ∂ⱼqⱼ"
+@diagnostic_show PotentialEnergyEquation.Forcing                       "PotentialEnergyForcing"              "potential energy forcing  -z Fᵇ"
 @diagnostic_show PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux "PotentialEnergyDiffusiveVerticalBuoyancyFlux" "diffusive vertical buoyancy flux  Φ = κ ∂b/∂z = -q₃"
-@diagnostic_show PotentialEnergyEquation.Tendency             "PotentialEnergyTendency"             "potential energy tendency  ∂ₜeₚ = -z ∂ₜb"
-@diagnostic_show PotentialEnergyEquation.Advection            "PotentialEnergyAdvection"            "potential energy advection  ∂ⱼ(uⱼeₚ)"
-@diagnostic_show PotentialEnergyEquation.BuoyancyAdvection    "PotentialEnergyBuoyancyAdvection"    "potential energy buoyancy advection  z ∂ⱼ(uⱼb)"
-@diagnostic_show PotentialEnergyEquation.Diffusion            "PotentialEnergyDiffusion"            "potential energy diffusive transport  ∂ⱼ(z qⱼ)"
-@diagnostic_show PotentialEnergyEquation.BuoyancyDiffusion    "PotentialEnergyBuoyancyDiffusion"    "potential energy buoyancy diffusion  z ∂ⱼqⱼ"
-@diagnostic_show PotentialEnergyEquation.Forcing              "PotentialEnergyForcing"              "potential energy forcing  -z Fᵇ"
 #---
 
 #+++ BackgroundPotentialEnergyEquation
