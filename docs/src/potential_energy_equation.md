@@ -22,12 +22,7 @@ acceleration, ``\rho`` is density, and ``\rho_0`` is a reference density. The qu
 ## The potential energy equation
 
 Throughout what follows we assume that `gravity_unit_vector` points towards the `NegativeZDirection`,
-as is the default in Oceananigans. That is what makes ``e_p = -bz`` the potential energy in the first
-place: buoyancy then acts along the vertical, so the work it does against gravity is set by ``z`` alone.
-It is also what reduces the conversion term below to ``wb``, since only the vertical velocity does that
-work. The diagnostics in this module enforce the assumption rather than leave it implicit, and refuse
-to build for any other gravity direction.
-
+as is the default in Oceananigans, but tilted domains where this is not true are possible.
 Since ``e_p`` is just ``-z`` times the buoyancy, and ``z`` does not change in time, the equation for
 ``e_p`` follows directly from [the tracer equation](tracer_equation.md) applied to ``b``. In the
 convention Oceananigans uses (and ignoring background fields), that equation reads
@@ -58,12 +53,6 @@ vertical, the product rule gives
 
 The two terms written as divergences transport ``e_p`` and vanish when integrated over a periodic or closed domain
 (with impermeable, insulating walls).
-
-The conversion is written ``wb`` here because that is what it reduces to under the assumption above.
-The diagnostic that computes it is shared with [the kinetic energy equation](kinetic_energy_equation.md),
-and there it keeps all three components, ``u_j b_j``, so that it stays correct in a kinetic energy
-budget with a tilted gravity vector. That is a case where this page's ``e_p = -bz`` would not hold in
-the first place, so for every model this module accepts the two are the same number.
 
 ## Terms and what is implemented
 
