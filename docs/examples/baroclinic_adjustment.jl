@@ -78,11 +78,8 @@ Ri_ml = N²_ml / α^2         # []      balanced Richardson number in the mixed 
 
 # ## Closure
 #
-# `SmagorinskyLilly` sets its eddy viscosity from the resolved strain rate and the local cell size. Its
-# stability correction switches it off wherever the strain is small compared to the stratification,
-# which at mesoscale-permitting resolution means everywhere. Here the mixed layer sits at `Ri = 1` and
-# the cells are near-isotropic, so it turns on where the fronts sharpen and stays off in the quiescent
-# interior, which is what it is designed to do.
+# We use a `Smagorinsky` closure with a constant coefficient to model turbulence stresses. We use
+# a high coefficient to make sure the instability is well-resolved in this very coarse example:
 
 using Oceananigans.TurbulenceClosures.Smagorinskys: Smagorinsky
 closure = Smagorinsky(C=0.3)
