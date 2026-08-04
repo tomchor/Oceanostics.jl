@@ -21,6 +21,13 @@ acceleration, ``\rho`` is density, and ``\rho_0`` is a reference density. The qu
 
 ## The potential energy equation
 
+Throughout what follows we assume that `gravity_unit_vector` points towards the `NegativeZDirection`,
+as is the default in Oceananigans. That is what makes ``e_p = -bz`` the potential energy in the first
+place: buoyancy then acts along the vertical, so the work it does against gravity is set by ``z`` alone.
+It is also what reduces the conversion term below to ``wb``, since only the vertical velocity does that
+work. The diagnostics in this module enforce the assumption rather than leave it implicit, and refuse
+to build for any other gravity direction.
+
 Since ``e_p`` is just ``-z`` times the buoyancy, and ``z`` does not change in time, the equation for
 ``e_p`` follows directly from [the tracer equation](tracer_equation.md) applied to ``b``. In the
 convention Oceananigans uses (and ignoring background fields), that equation reads
@@ -38,24 +45,25 @@ through by ``-z``,
                = z\,\partial_j(u_j b) + z\,\partial_j q_j - z F_b .
 ```
 
-Pulling ``z`` inside the derivatives separates them, and the product rule gives
+Pulling ``z`` inside the derivatives separates them, and since ``\partial_j z`` is non-zero only in the
+vertical, the product rule gives
 
 ```math
 \partial_t e_p = \underbrace{-\partial_j(u_j e_p)}_{\text{advection}}
-                 \underbrace{- u_j b_j}_{\text{PE to KE conversion}}
+                 \underbrace{- wb}_{\text{PE to KE conversion}}
                  + \underbrace{\partial_j(z q_j)}_{\text{diffusive transport}}
                  \underbrace{- q_3}_{\text{diffusive buoyancy flux}}
                  \underbrace{- z F_b}_{\text{forcing}}.
 ```
 
-``u_j b_j`` is the general form of the conversion, and it is what the diagnostic computes. It is often
-written ``wb``, which is what it reduces to here: with ``\hat{g} = \hat{z}`` the horizontal components
-``b_1`` and ``b_2`` vanish and ``b_3 = b``, leaving ``u_j b_j = wb``. The two are the same number for
-every model this module accepts, but the diagnostic keeps all three components, so it stays correct in
-a kinetic energy budget with a tilted gravity vector, where this page's ``e_p = -bz`` would not.
-
 The two terms written as divergences transport ``e_p`` and vanish when integrated over a periodic or closed domain
 (with impermeable, insulating walls).
+
+The conversion is written ``wb`` here because that is what it reduces to under the assumption above.
+The diagnostic that computes it is shared with [the kinetic energy equation](kinetic_energy_equation.md),
+and there it keeps all three components, ``u_j b_j``, so that it stays correct in a kinetic energy
+budget with a tilted gravity vector. That is a case where this page's ``e_p = -bz`` would not hold in
+the first place, so for every model this module accepts the two are the same number.
 
 ## Terms and what is implemented
 
@@ -65,8 +73,8 @@ Every term above is implemented, two of them elsewhere in Oceanostics.
 |:---|:---|:---|
 | Potential energy | ``e_p = -bz`` | [`PotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergy) |
 | Tendency | ``\partial_t e_p = -z\,\partial_t b`` | [`PotentialEnergyTendency`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyTendency) |
-| Advection | ``z\,\partial_j(u_j b) = -\partial_j(u_j e_p) - u_j b_j`` | [`PotentialEnergyAdvection`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyAdvection) |
-| PE to KE conversion | ``u_j b_j`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
+| Advection | ``z\,\partial_j(u_j b) = -\partial_j(u_j e_p) - wb`` | [`PotentialEnergyAdvection`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyAdvection) |
+| PE to KE conversion | ``wb`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
 | Diffusion | ``z\,\partial_j q_j = \partial_j(z q_j) - q_3`` | [`PotentialEnergyDiffusion`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyDiffusion) |
 | Diffusive buoyancy flux | ``-q_3`` | [`DiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux) |
 | Forcing | ``-z F_b`` | [`PotentialEnergyForcing`](@ref Oceanostics.PotentialEnergyEquation.PotentialEnergyForcing) |
@@ -79,7 +87,7 @@ than to within a truncation error. The rearranged forms are what a *volume-integ
 since the transports drop out and leave
 
 ```math
-\int \texttt{Advection}\, \mathrm{d}V = -\int u_j b_j\, \mathrm{d}V, \qquad
+\int \texttt{Advection}\, \mathrm{d}V = -\int wb\, \mathrm{d}V, \qquad
 \int \texttt{Diffusion}\, \mathrm{d}V = \int \Phi\, \mathrm{d}V ,
 ```
 
@@ -95,7 +103,7 @@ unlike the split above they hold to the truncation error of the discretization.
     kernel, but `Advection + Diffusion + Forcing` does not, so the split closes only for a buoyancy with
     no background field.
 
-One caveat on the borrowed term: it computes ``u_j b_j`` as the source of *kinetic* energy, so the
+One caveat on the borrowed term: it computes ``wb`` as the source of *kinetic* energy, so the
 potential energy budget takes it with a minus sign.
 
 It goes by three names, because it is the one term the two budgets share and each side reads it
