@@ -117,7 +117,18 @@ could never release, and the [available potential energy](available_potential_en
   instead of in-situ density.
 
 For now the full budget requires gravity to be aligned with the negative ``z``-direction
-(`NegativeZDirection`).
+(`NegativeZDirection`), and every term checks it at construction. Tilting gravity does not make these
+terms approximate, it makes them a different quantity: the height that works against gravity becomes
+``z\cos\theta - y\sin\theta``, so ``-bz`` is wrong both by a factor and by a cross-slope term, and
+nothing in the output would reveal it.
+
+Two diagnostics are exempt because they do not depend on that alignment.
+[`DiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux)
+never touches ``z``; it returns the vertical component of the closure's diffusive flux, which is what it
+promises whatever gravity does. `PotentialToKineticEnergyConversion` is the full ``u_i b_i`` contraction
+over the gravity-projected buoyancy components, so it is correct under any tilt and only reads as ``wb``
+when ``\hat{g} = -\hat{z}``. Neither is the term the budget above needs once gravity tilts, so the split
+still does not close there — only the individual quantities remain meaningful.
 
 ## Summary of ``e_p`` equation terms
 

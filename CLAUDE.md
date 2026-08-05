@@ -59,7 +59,13 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `DiffusiveVerticalBuoyancyFlux` (Φ = κ∂b/∂z = -q₃). The two transports are built as genuine flux
   divergences, so each integrates to zero to roundoff, which is what leaves `∫BuoyancyAdvection = -∫wb`
   and `∫BuoyancyDiffusion = ∫Φ` — those hold only to truncation error. The budget terms need
-  `BuoyancyTracer`. A
+  `BuoyancyTracer` and a `NegativeZDirection` gravity, both checked at construction via
+  `validate_buoyancy_is_a_tracer` and `validate_gravity_is_z_aligned`; the latter is shared with
+  `BackgroundPotentialEnergyEquation` and `AvailablePotentialEnergyEquation`, whose model constructors
+  inherit it through `reference_height` and whose `(model, z✶)` forms call it directly, since a `z✶`
+  built from a bare `Field` carries no model to check. `DiffusiveVerticalBuoyancyFlux` and
+  `PotentialToKineticEnergyConversion` are deliberately exempt: neither depends on the gravity
+  direction, the first being a genuine vertical flux and the second the full uᵢbᵢ contraction. A
   `BackgroundField` buoyancy adds a term z∂ⱼ(uⱼB) that has no diagnostic yet, so the split closes only
   without one — `Tendency` still includes it, since it comes off the model's own kernel. The exact split
   and the two integral identities are covered only by `test_pe_diagnostics.jl`;

@@ -231,6 +231,51 @@ function test_potential_energy_budget_terms(grid)
 end
 
 """
+Every term of the `eₚ = -bz` equation weights buoyancy by `z`, which is the height that works against
+gravity only when gravity points along `-z`. Tilt it and the height becomes `z cosθ - y sinθ`, so `-bz`
+is wrong by a factor and by a cross-slope term: not a term computed approximately, a different quantity.
+Nothing about the tilt is visible in the output, so it has to be refused at construction.
+
+Two diagnostics are exempt on purpose. `DiffusiveVerticalBuoyancyFlux` never touches `z`; it returns the
+vertical component of the closure's diffusive flux, which is what its name promises whatever gravity is
+doing. `PotentialToKineticEnergyConversion` is the full `u⃗·(bĝ)` contraction over Oceananigans' own
+gravity-projected components, so it is correct under any tilt and only reads as `wb` when `ĝ = -ẑ`.
+"""
+function test_gravity_direction_validation(grid)
+
+    tilted = BuoyancyForce(BuoyancyTracer(); gravity_unit_vector = (0, sind(10), -cosd(10)))
+    model = NonhydrostaticModel(grid; buoyancy = tilted, tracers = :b,
+                                closure = ScalarDiffusivity(ν=1e-6, κ=1e-3))
+    set!(model, b = grid_noise)
+
+    for diagnostic in (PotentialEnergy, PotentialEnergyTendency, PotentialEnergyAdvection,
+                       PotentialEnergyBuoyancyAdvection, PotentialEnergyDiffusion,
+                       PotentialEnergyBuoyancyDiffusion, PotentialEnergyForcing)
+        @test_throws "NegativeZDirection" diagnostic(model)
+    end
+
+    # The message has to name the diagnostic the caller asked for, not whichever one happens to hold the
+    # validator, or it sends them looking in the wrong place
+    @test_throws "`PotentialEnergyBuoyancyDiffusion`" PotentialEnergyBuoyancyDiffusion(model)
+
+    # Exempt, per the docstring above; asserted so that neither becomes collateral damage of a later
+    # sweep that adds the check everywhere
+    @test PotentialEnergyDiffusiveVerticalBuoyancyFlux(model) isa PotentialEnergyDiffusiveVerticalBuoyancyFlux
+    @test PotentialToKineticEnergyConversion(model) isa PotentialToKineticEnergyConversion
+
+    # An upright model of course still builds every one of them
+    upright = NonhydrostaticModel(grid; buoyancy = BuoyancyTracer(), tracers = :b,
+                                  closure = ScalarDiffusivity(ν=1e-6, κ=1e-3))
+    for diagnostic in (PotentialEnergy, PotentialEnergyTendency, PotentialEnergyAdvection,
+                       PotentialEnergyBuoyancyAdvection, PotentialEnergyDiffusion,
+                       PotentialEnergyBuoyancyDiffusion, PotentialEnergyForcing)
+        @test diagnostic(upright) isa KernelFunctionOperation
+    end
+
+    return nothing
+end
+
+"""
 `wb` is the one term the kinetic and potential energy budgets share, so it is defined once in
 `KineticEnergyEquation` and re-exported by the two potential energy modules, where `KineticEnergyConversion`
 names the exchange rather than the side it feeds. The alias is deliberately *not* exported from
@@ -283,6 +328,9 @@ end
 
         @info "      Testing the terms of the potential energy equation"
         test_potential_energy_budget_terms(grid)
+
+        @info "      Testing that a tilted gravity is rejected"
+        test_gravity_direction_validation(grid)
     end
 
     @info "  Testing the `KineticEnergyConversion` alias and its export scope"

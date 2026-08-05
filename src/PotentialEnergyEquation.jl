@@ -64,6 +64,15 @@ validate_gravity_unit_vector(diagnostic, gravity_unit_vector) =
                          `NegativeZDirection`, but this model's gravity unit vector is $(gravity_unit_vector). \
                          Only `NegativeZDirection` is supported for now."))
 
+# Model-level wrapper, so every diagnostic that weights buoyancy by `z`, or sorts along it, can name
+# itself in one line. Tilting gravity does not make these terms approximate, it makes them a different
+# quantity: the height that works against gravity becomes `z cosθ - y sinθ`, so `-bz` is wrong by a
+# factor and by a cross-slope term, and a reference state sorted along `z` is no longer the state of
+# minimum potential energy. A model with no buoyancy has no gravity to check, and is rejected by the
+# term's own buoyancy validator instead.
+validate_gravity_is_z_aligned(diagnostic, model) =
+    isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(diagnostic, model.buoyancy.gravity_unit_vector)
+
 #+++ Potential energy
 """
     $(SIGNATURES)
@@ -482,6 +491,7 @@ PotentialEnergyTendency KernelFunctionOperation at (Center, Center, Center)
 function PotentialEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyTendency")
     validate_buoyancy_is_a_tracer("PotentialEnergyTendency", model)
+    validate_gravity_is_z_aligned("PotentialEnergyTendency", model)
 
     dependencies = (buoyancy_tracer_index(model),
                     Val(:b),
@@ -557,6 +567,7 @@ function PotentialEnergyAdvection(model::NonhydrostaticModel;
                                   location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyAdvection")
     validate_buoyancy_is_a_tracer("PotentialEnergyAdvection", model)
+    validate_gravity_is_z_aligned("PotentialEnergyAdvection", model)
 
     return KernelFunctionOperation{Center, Center, Center}(div_U_eₚ_ccc, model.grid,
                                                            model.advection, velocities, PotentialEnergy(model))
@@ -616,6 +627,7 @@ function PotentialEnergyBuoyancyAdvection(model::NonhydrostaticModel;
                                           location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyBuoyancyAdvection")
     validate_buoyancy_is_a_tracer("PotentialEnergyBuoyancyAdvection", model)
+    validate_gravity_is_z_aligned("PotentialEnergyBuoyancyAdvection", model)
 
     return KernelFunctionOperation{Center, Center, Center}(z_div_Uc_ccc, model.grid,
                                                            model.advection, velocities, model.tracers.b)
@@ -696,6 +708,7 @@ function PotentialEnergyDiffusion(model; location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyDiffusion")
     validate_buoyancy_is_a_diffused_tracer("PotentialEnergyDiffusion", model)
     validate_closure_supplies_a_flux("PotentialEnergyDiffusion", model)
+    validate_gravity_is_z_aligned("PotentialEnergyDiffusion", model)
 
     return KernelFunctionOperation{Center, Center, Center}(div_z_q_ccc, model.grid,
                                                            model.closure, model.closure_fields,
@@ -750,6 +763,7 @@ function PotentialEnergyBuoyancyDiffusion(model; location = (Center, Center, Cen
     validate_location(location, "PotentialEnergyBuoyancyDiffusion")
     validate_buoyancy_is_a_diffused_tracer("PotentialEnergyBuoyancyDiffusion", model)
     validate_closure_supplies_a_flux("PotentialEnergyBuoyancyDiffusion", model)
+    validate_gravity_is_z_aligned("PotentialEnergyBuoyancyDiffusion", model)
 
     return KernelFunctionOperation{Center, Center, Center}(z_∇_dot_qᶜ_ccc, model.grid,
                                                            model.closure, model.closure_fields,
@@ -803,6 +817,7 @@ PotentialEnergyForcing KernelFunctionOperation at (Center, Center, Center)
 function PotentialEnergyForcing(model::NonhydrostaticModel; location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyForcing")
     validate_buoyancy_is_a_tracer("PotentialEnergyForcing", model)
+    validate_gravity_is_z_aligned("PotentialEnergyForcing", model)
 
     return KernelFunctionOperation{Center, Center, Center}(minus_z_Fᵇ_ccc, model.grid,
                                                            model.forcing.b, model.clock, fields(model))

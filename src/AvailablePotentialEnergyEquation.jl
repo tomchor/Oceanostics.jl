@@ -27,6 +27,7 @@ using Oceanostics: validate_location, CustomKFO
 using ..PotentialEnergyEquation: PotentialEnergy, PotentialEnergyDiffusiveVerticalBuoyancyFlux,
                                  PotentialToKineticEnergyConversion, KineticEnergyConversion,
                                  validate_buoyancy_is_a_diffused_tracer, validate_closure_supplies_a_flux,
+                                 validate_gravity_is_z_aligned,
                                  buoyancy_diffusive_flux_arguments
 using ..BackgroundPotentialEnergyEquation: BackgroundPotentialEnergy, SortedReferenceHeightField,
                                            AbstractReferenceHeightMethod, reference_height,
@@ -103,7 +104,10 @@ function AvailablePotentialEnergy(model; method = ThreeDimensionalSort(), geopot
     return AvailablePotentialEnergy(model, reference_height(model; method, geopotential_height))
 end
 
-AvailablePotentialEnergy(model, z✶::SortedReferenceHeightField) = available_potential_energy(z✶, reference_buoyancy(z✶.operand), sorted_height(z✶.operand))
+function AvailablePotentialEnergy(model, z✶::SortedReferenceHeightField)
+    validate_gravity_is_z_aligned("AvailablePotentialEnergy", model)
+    return available_potential_energy(z✶, reference_buoyancy(z✶.operand), sorted_height(z✶.operand))
+end
 
 # On the model grid the parcel's own height is the grid's; on a sorted column it has to be carried.
 available_potential_energy(z✶, b, ::Nothing) = KernelFunctionOperation{Center, Center, Center}(local_ape_ccc, z✶.grid, z✶.operand.reference_potential, b, z✶)
@@ -184,6 +188,7 @@ function BuoyancyDisplacementPotential(model; method = HeavisideIntegral(),
 end
 
 function BuoyancyDisplacementPotential(model, z✶::SortedReferenceHeightField)
+    validate_gravity_is_z_aligned("BuoyancyDisplacementPotential", model)
     validate_reference_height_grid("BuoyancyDisplacementPotential", model, z✶)
     return KernelFunctionOperation{Center, Center, Center}(upsilon_ccc, z✶.grid, z✶)
 end
@@ -288,6 +293,7 @@ function AvailablePotentialEnergyDissipationRate(model, z✶::SortedReferenceHei
 
     validate_buoyancy_is_a_diffused_tracer("AvailablePotentialEnergyDissipationRate", model)
     validate_closure_supplies_a_flux("AvailablePotentialEnergyDissipationRate", model)
+    validate_gravity_is_z_aligned("AvailablePotentialEnergyDissipationRate", model)
     validate_reference_height_grid("AvailablePotentialEnergyDissipationRate", model, z✶)
 
     Υ = isnothing(upsilon) ? Field(BuoyancyDisplacementPotential(model, z✶)) : upsilon
