@@ -87,8 +87,7 @@ closure = Smagorinsky(coefficient=0.3)
 # ## Model
 #
 # The advection scheme is `Centered`, which adds no dissipation of its own, so every sink in the
-# budgets below is one we write down and compute. At 2 km across, `β` does nothing, so the Coriolis
-# parameter is a plain `f`-plane rather than the β-plane the mesoscale reference uses:
+# budgets below is one we write down and compute. We set up an `f`-plane Coriolis:
 
 model = NonhydrostaticModel(grid;
                             coriolis = FPlane(; f),
@@ -144,8 +143,7 @@ add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval
 
 # ## The potential energy budget
 #
-# `eₚ = -bz` obeys `-z` times the equation the model steps for `b`, so its terms are that equation's
-# terms weighted by `-z`. Pulling `z` inside each derivative splits those terms into a transport and a
+# Given `eₚ = -bz`, we multiply the budget equation for `b` by `-z`. Pulling `z` inside each derivative splits terms into a transport and a
 # conversion, and over this domain every transport integrates away, leaving just the two conversions:
 #
 # ```math
@@ -156,10 +154,7 @@ add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval
 # ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion))
 # the exchange with the kinetic energy and ``\Phi = \kappa\,\partial b/\partial z``
 # ([`PotentialEnergyDiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux))
-# the work diffusion does against gravity. The transports that drop out are
-# [`PotentialEnergyAdvection`](@ref) and [`PotentialEnergyDiffusion`](@ref); the module also carries the
-# unsplit forms, [`PotentialEnergyBuoyancyAdvection`](@ref) and [`PotentialEnergyBuoyancyDiffusion`](@ref),
-# for budgets that want them term by term rather than integrated.
+# the work diffusion does against gravity.
 
 eₚ = PotentialEnergy(model)
 wb = PotentialToKineticEnergyConversion(model)
@@ -258,7 +253,7 @@ pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
 
 Φ_pair  = pair_mean(Φ_bud)
 wb_pair = pair_mean(wb_bud)
-εₖ_pair = pair_mean(εₖ_bud)
+εₖ_pair = pair_mean(εₖ_bud);
 
 # Both budgets in sum-to-zero form: every curve is plotted with the sign it carries here, so each panel
 # below adds up to its residual.
@@ -319,15 +314,15 @@ budget_kwargs = (xlabel = "time [days]", ylabel = "[m⁵ s⁻³]")
 
 ax_p = Axis(fig[3, 1:6]; title = "Volume-integrated potential energy budget", budget_kwargs...)
 lines!(ax_p, t_pair ./ day, -deₚdt,    label = "-d(∫eₚ)/dt")
-lines!(ax_p, t_pair ./ day, -wb_pair,  label = "-∫wb dV  (buoyancy conversion)")
-lines!(ax_p, t_pair ./ day,  Φ_pair,   label = "∫Φ dV  (diffusive buoyancy flux)")
+lines!(ax_p, t_pair ./ day, -wb_pair,  label = "-∫wb dV")
+lines!(ax_p, t_pair ./ day,  Φ_pair,   label = "∫Φ dV")
 lines!(ax_p, t_pair ./ day,  eₚ_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_p; position = :rt, labelsize = 10, nbanks = 2)
 
 ax_k = Axis(fig[4, 1:6]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
 lines!(ax_k, t_pair ./ day, -deₖdt,    label = "-d(∫eₖ)/dt")
-lines!(ax_k, t_pair ./ day,  wb_pair,  label = "∫wb dV  (buoyancy conversion)")
-lines!(ax_k, t_pair ./ day, -εₖ_pair,  label = "-∫εₖ dV  (dissipation)")
+lines!(ax_k, t_pair ./ day,  wb_pair,  label = "∫wb dV")
+lines!(ax_k, t_pair ./ day, -εₖ_pair,  label = "-∫εₖ dV")
 lines!(ax_k, t_pair ./ day,  eₖ_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_k; position = :rt, labelsize = 10, nbanks = 2)
 
@@ -345,32 +340,3 @@ set_theme!() #hide
 nothing #hide
 
 # ![](baroclinic_adjustment.mp4)
-#
-# Both fronts go unstable and roll up into submesoscale eddies, and the two budget panels show the
-# energy moving between the reservoirs. `∫wb dV` is the through line: the eddies slump the fronts and
-# what the potential energy loses to that conversion appears as `∫eₖ dV`. Since it enters the two
-# budgets with opposite signs it cancels from their sum, which is the sense in which this is one
-# exchange rather than two independent balances.
-#
-# The potential energy panel is the one this example exists for. Both budgets are written with the two
-# conversions and nothing else, which is what the volume integral leaves: pulling `z` inside each
-# derivative splits the advective and diffusive terms of the `eₚ` equation into a transport plus a
-# conversion, and every transport is a flux divergence that integrates away. `∫wb dV` is the exchange
-# with the kinetic energy, appearing with opposite signs in the two panels, and `∫Φ dV` is the work
-# diffusion does against gravity.
-#
-# The diffusive term dominates the potential energy panel. A constant-coefficient `Smagorinsky` is
-# active everywhere rather than only where the strain beats the stratification — the `νₑ` panel above
-# shows it filling the domain rather than tracking the fronts — and at a coefficient chosen to keep this
-# coarse grid well behaved it moves an order of magnitude more potential energy than the conversion
-# does. The conversion is still resolved far above the budget's residual, which is what lets the panel
-# separate the two at all.
-#
-# Neither residual vanishes: the discrete `eₖ` and `eₚ` equations are not derived from the discrete
-# momentum and buoyancy equations the model steps, so the two sides agree only to truncation error. The
-# same caveat applies to [the two-dimensional turbulence example](@ref two_d_turbulence_example).
-#
-# `∫eₖ dV` itself barely changes over the run, which is not a failure of the instability. The initial
-# condition already carries the thermal wind, so `eₖ` starts at the balanced flow's value rather than at
-# zero; the eddies grow out of that flow rather than on top of nothing, and `∫εₖ dV` removes about as
-# much as `∫wb dV` supplies. What the budget shows is the throughput, not the accumulation.
