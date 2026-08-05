@@ -56,8 +56,13 @@ const BuoyancyBoussinesqEOSModel = BuoyancyForce{<:BoussinesqSeawaterBuoyancy, g
 # Type aliases for major functions
 const PotentialEnergy = CustomKFO{<:typeof(minus_bz_ccc)}
 
-validate_gravity_unit_vector(gravity_unit_vector::NegativeZDirection) = nothing
-validate_gravity_unit_vector(gravity_unit_vector) = throw(ArgumentError("`PotentialEnergy` is curently only defined for models that have a `NegativeZDirection` gravity unit vector."))
+# Measuring buoyancy against depth is what `eₚ = -bz` does, so it holds only when gravity points along
+# `-z`. Callers name themselves, since diagnostics in more than one module land here.
+validate_gravity_unit_vector(diagnostic, gravity_unit_vector::NegativeZDirection) = nothing
+validate_gravity_unit_vector(diagnostic, gravity_unit_vector) =
+    throw(ArgumentError("`$diagnostic` measures buoyancy against depth, which assumes gravity points along \
+                         `NegativeZDirection`, but this model's gravity unit vector is $(gravity_unit_vector). \
+                         Only `NegativeZDirection` is supported for now."))
 
 #+++ Potential energy
 """
@@ -178,7 +183,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
                                  geopotential_height = model_geopotential_height(model))
 
     validate_location(location, "PotentialEnergy")
-    isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
+    isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector("PotentialEnergy", model.buoyancy.gravity_unit_vector)
 
     return PotentialEnergy(model, model.buoyancy, geopotential_height)
 end

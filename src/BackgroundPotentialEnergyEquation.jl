@@ -714,7 +714,7 @@ true
 function reference_height(model; method = ThreeDimensionalSort(),
                                  geopotential_height = model_geopotential_height(model))
 
-    isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
+    isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector("reference_height", model.buoyancy.gravity_unit_vector)
 
     return reference_height(buoyancy_field(model, model.buoyancy, geopotential_height); method)
 end
