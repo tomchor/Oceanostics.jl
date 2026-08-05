@@ -253,7 +253,7 @@ buoyancy_tracer_index(model) = Val(findfirst(n -> n === :b, propertynames(model.
 buoyancy_diffusive_flux_arguments(model) =
     (model.closure,
      model.closure_fields,
-     Val(findfirst(n -> n === :b, propertynames(model.tracers))),
+     buoyancy_tracer_index(model),
      model.tracers.b,
      model.clock,
      fields(model),
