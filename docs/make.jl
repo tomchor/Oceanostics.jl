@@ -15,6 +15,7 @@ OUTPUT_DIR   = joinpath(@__DIR__, "src/generated")
 
 examples = [
     "Two-dimensional turbulence"   => "two_dimensional_turbulence", # KE and tracer variance budgets (~8 min)
+    "Baroclinic adjustment"        => "baroclinic_adjustment", # PE and KE budgets, double front (~20 min)
     "Spatial filtering"            => "spatial_filtering", # Spatial filtering examples (~5 min)
     "Kelvin-Helmholtz instability" => "kelvin_helmholtz", # Filtered KE budget (~8 min)
     "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability", # SFS budget (~6 min)

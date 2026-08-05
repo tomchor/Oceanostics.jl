@@ -168,6 +168,15 @@ end
 
     @testset "PotentialEnergyEquation" begin
         test_kfo_invariants("PotentialEnergy",         PotentialEnergyEquation.PotentialEnergy(model))
+
+        # The terms of the `eₚ` equation wrap Oceananigans' own tendency kernels, so an `Any` creeping
+        # into the argument tuple we assemble for them would show up here and nowhere else.
+        test_kfo_invariants("PotentialEnergyTendency",  PotentialEnergyTendency(model))
+        test_kfo_invariants("PotentialEnergyAdvection", PotentialEnergyAdvection(model))
+        test_kfo_invariants("PotentialEnergyBuoyancyAdvection", PotentialEnergyBuoyancyAdvection(model))
+        test_kfo_invariants("PotentialEnergyDiffusion", PotentialEnergyDiffusion(model))
+        test_kfo_invariants("PotentialEnergyBuoyancyDiffusion", PotentialEnergyBuoyancyDiffusion(model))
+        test_kfo_invariants("PotentialEnergyForcing",   PotentialEnergyForcing(model))
     end
 
     @testset "AvailablePotentialEnergyEquation" begin
@@ -183,7 +192,7 @@ end
         test_kfo_invariants("BuoyancyDisplacementPotential", BuoyancyDisplacementPotential(model, z✶ₕ))
         test_kfo_invariants("AvailablePotentialEnergyDissipationRate",
                             AvailablePotentialEnergyDissipationRate(model, z✶ₕ; upsilon = Υ))
-        test_kfo_invariants("DiffusiveBuoyancyFlux", DiffusiveBuoyancyFlux(model))  # short name, via `using ...PotentialEnergyEquation`
+        test_kfo_invariants("DiffusiveVerticalBuoyancyFlux", DiffusiveVerticalBuoyancyFlux(model))  # short name, via `using ...PotentialEnergyEquation`
     end
 
     @testset "FlowDiagnostics" begin
