@@ -155,7 +155,7 @@ roundoff rather than to truncation error. That is checked separately below.
 function test_potential_energy_budget_terms(grid)
 
     U(x, y, z, t) = 1e-2 * z                        # background velocity
-    Fᵇ(x, y, z, t) = 1e-9 * sin(2π * z)
+    Fᵇ(x, y, z, t) = 1e-4 * sin(2π * z)             # sized to be a real term in the budget, see below
 
     model = NonhydrostaticModel(grid; buoyancy = BuoyancyTracer(), tracers = :b,
                                 advection = Centered(order=4),
@@ -187,17 +187,25 @@ function test_potential_energy_budget_terms(grid)
     terms = sum(Array(interior(Field(term))) for term in (BADV, BDIFF, FORC))
     @test maximum(abs, tendency .- terms) < 1e-12 * maximum(abs, tendency)
 
-    # Every term has to be doing something, or the sum above would be checking nothing
+    # Every term has to be doing something, or the sum above would be checking nothing. A term worth 1%
+    # of the tendency is still pinned to about `1e-10` of its own size by that bound, which is what makes
+    # 1% a meaningful floor. `Fᵇ`'s amplitude is set so the forcing clears it by more than a factor of
+    # ten on both grids, as the other two terms do; a forcing weak enough to be a rounding correction
+    # would satisfy the sum above no matter what `PotentialEnergyForcing` returned.
     for term in (BADV, BDIFF, FORC)
-        @test maximum(abs, Array(interior(Field(term)))) > 1e-6 * maximum(abs, tendency)
+        @test maximum(abs, Array(interior(Field(term)))) > 1e-2 * maximum(abs, tendency)
     end
 
     # `Advection` and `Diffusion` are flux divergences, so each telescopes to the boundary and vanishes
-    # over this periodic-in-x-and-y, no-flux-in-z domain. Roundoff, not truncation error: the bound is
-    # relative to the term's own magnitude, not to the tendency's.
+    # over this periodic-in-x-and-y, no-flux-in-z domain. What survives is roundoff, not truncation
+    # error, so the bound goes with the term's own magnitude rather than the tendency's. A volume
+    # integral carries that magnitude times a volume, so the domain volume is what belongs here and a
+    # cell count would leave the bound with the wrong units. Both terms land below a single ulp of that
+    # product, so the factor of `1e3` is slack.
+    V = grid.Lx * grid.Ly * grid.Lz
     for transport in (ADV, DIFF)
         scale = maximum(abs, Array(interior(Field(transport))))
-        @test abs(volume_integral(transport)) < 1e-10 * scale * prod(size(grid))
+        @test abs(volume_integral(transport)) < 1e3 * eps(eltype(grid)) * scale * V
     end
 
     # `∫Diffusion = ∫Φ` telescopes and comes out to a dozen digits, but `∫Advection = -∫wb` is second
