@@ -171,17 +171,17 @@ wb = PotentialToKineticEnergyConversion(model)
 # both and carries opposite signs, so it cancels from their sum:
 #
 # ```math
-# \frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon_a\, dV .
+# \frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon_k\, dV .
 # ```
 
 eₖ = KineticEnergy(model)
-εₐ = KineticEnergyDissipationRate(model)
+εₖ = KineticEnergyDissipationRate(model)
 
 ∫eₚ = ∫dV(eₚ)
 ∫Φ  = ∫dV(Φ)
 ∫eₖ = ∫dV(eₖ)
 ∫wb = ∫dV(wb)
-∫εₐ = ∫dV(εₐ)
+∫εₖ = ∫dV(εₖ)
 
 # For the movie we keep the surface vorticity, buoyancy, and the closure's own eddy viscosity, which
 # shows where `Smagorinsky` is actually acting:
@@ -208,7 +208,7 @@ simulation.output_writers[:fields] =
                  overwrite_existing = true)
 
 simulation.output_writers[:budget] =
-    NetCDFWriter(model, (; ∫eₚ, ∫Φ, ∫eₖ, ∫wb, ∫εₐ),
+    NetCDFWriter(model, (; ∫eₚ, ∫Φ, ∫eₖ, ∫wb, ∫εₖ),
                  filename = filename * "_budget",
                  schedule = ConsecutiveIterations(TimeInterval(3hours)),
                  overwrite_existing = true)
@@ -242,7 +242,7 @@ eₚ_bud = ds_b["∫eₚ"][:]
 Φ_bud  = ds_b["∫Φ"][:]
 eₖ_bud = ds_b["∫eₖ"][:]
 wb_bud = ds_b["∫wb"][:]
-εₐ_bud = ds_b["∫εₐ"][:]
+εₖ_bud = ds_b["∫εₖ"][:]
 close(ds_b)
 
 idx1 = 1:2:length(t_bud) - 1
@@ -258,19 +258,19 @@ pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
 
 Φ_pair  = pair_mean(Φ_bud)
 wb_pair = pair_mean(wb_bud)
-εₐ_pair = pair_mean(εₐ_bud)
+εₖ_pair = pair_mean(εₖ_bud)
 
 # Both budgets in sum-to-zero form: every curve is plotted with the sign it carries here, so each panel
 # below adds up to its residual.
 
 eₚ_resid = @. -deₚdt - wb_pair + Φ_pair
-eₖ_resid = @. -deₖdt + wb_pair - εₐ_pair
+eₖ_resid = @. -deₖdt + wb_pair - εₖ_pair
 
 using Test                                                                            #hide
 using Statistics: mean                                                                #hide
 rms(x) = √(sum(abs2, x) / length(x))                                                  #hide
 eₚ_terms = (deₚdt, wb_pair, Φ_pair)                                                   #hide
-eₖ_terms = (deₖdt, wb_pair, εₐ_pair)                                                  #hide
+eₖ_terms = (deₖdt, wb_pair, εₖ_pair)                                                  #hide
 ## Each budget closes to a small fraction of its own largest term.                                   #hide
 @test rms(eₚ_resid) < 0.03 * maximum(rms, eₚ_terms)                                   #hide
 @test rms(eₖ_resid) < 0.05 * maximum(rms, eₖ_terms)                                   #hide
@@ -287,8 +287,8 @@ eₖ_terms = (deₖdt, wb_pair, εₐ_pair)                                     
 @test rms(Φ_pair)  > rms(wb_pair)                                                     #hide
 ## The closure is active everywhere, which is what a constant-coefficient Smagorinsky does and what  #hide
 ## the Lilly-corrected one would not at this resolution.                                             #hide
-@test minimum(εₐ_pair) > 0                                                            #hide
-@test all(εₐ_pair .≥ 0);                                                              #hide
+@test minimum(εₖ_pair) > 0                                                            #hide
+@test all(εₖ_pair .≥ 0);                                                              #hide
 
 # ## Plotting
 
@@ -327,7 +327,7 @@ axislegend(ax_p; position = :rt, labelsize = 10, nbanks = 2)
 ax_k = Axis(fig[4, 1:6]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
 lines!(ax_k, t_pair ./ day, -deₖdt,    label = "-d(∫eₖ)/dt")
 lines!(ax_k, t_pair ./ day,  wb_pair,  label = "∫wb dV  (buoyancy conversion)")
-lines!(ax_k, t_pair ./ day, -εₐ_pair,  label = "-∫εₐ dV  (dissipation)")
+lines!(ax_k, t_pair ./ day, -εₖ_pair,  label = "-∫εₖ dV  (dissipation)")
 lines!(ax_k, t_pair ./ day,  eₖ_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_k; position = :rt, labelsize = 10, nbanks = 2)
 
@@ -372,5 +372,5 @@ nothing #hide
 #
 # `∫eₖ dV` itself barely changes over the run, which is not a failure of the instability. The initial
 # condition already carries the thermal wind, so `eₖ` starts at the balanced flow's value rather than at
-# zero; the eddies grow out of that flow rather than on top of nothing, and `∫εₐ dV` removes about as
+# zero; the eddies grow out of that flow rather than on top of nothing, and `∫εₖ dV` removes about as
 # much as `∫wb dV` supplies. What the budget shows is the throughput, not the accumulation.
