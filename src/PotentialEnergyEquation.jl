@@ -25,8 +25,7 @@ using Oceananigans.Grids: NegativeZDirection
 using Oceananigans.BuoyancyFormulations: BuoyancyForce, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
 using Oceananigans.BuoyancyFormulations: buoyancy_perturbationᶜᶜᶜ, Zᶜᶜᶜ, Zᶜᶜᶠ
 using Oceananigans.Models: ShallowWaterModel
-using Oceananigans.Operators: ℑzᵃᵃᶜ, δxᶜᵃᵃ, δyᵃᶜᵃ, δzᵃᵃᶜ, V⁻¹ᶜᶜᶜ,
-                              Axᶠᶜᶜ, Ayᶜᶠᶜ, Azᶜᶜᶠ
+using Oceananigans.Operators: ℑzᵃᵃᶜ, δxᶜᵃᵃ, δyᵃᶜᵃ, δzᵃᵃᶜ, V⁻¹ᶜᶜᶜ, Axᶠᶜᶜ, Ayᶜᶠᶜ, Azᶜᶜᶠ
 using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z, ∇_dot_qᶜ
 using Oceananigans.Utils: sum_of_velocities
 using Oceanostics: validate_location, CustomKFO
@@ -49,17 +48,17 @@ const BuoyancyLinearEOSModel = BuoyancyForce{<:LinearSeawaterBuoyancy, g} where 
 const BoussinesqSeawaterBuoyancy = SeawaterBuoyancy{FT, <:BoussinesqEquationOfState, T, S} where {FT, T, S}
 const BuoyancyBoussinesqEOSModel = BuoyancyForce{<:BoussinesqSeawaterBuoyancy, g} where {g}
 
-# Inline functions for potential energy calculation
-@inline minus_bz_ccc(i, j, k, grid, b) = -b[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
-@inline minus_bz_ccc(i, j, k, grid, b::LinearSeawaterBuoyancy, C) = -buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, b, C) * Zᶜᶜᶜ(i, j, k, grid)
-@inline minus_bz_ccc(i, j, k, grid, ρ, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
-
 # Type aliases for major functions
 const PotentialEnergy = CustomKFO{<:typeof(minus_bz_ccc)}
 
 validate_gravity_unit_vector(gravity_unit_vector::NegativeZDirection) = nothing
-validate_gravity_unit_vector(gravity_unit_vector) =
-    throw(ArgumentError("`PotentialEnergy` is curently only defined for models that have a `NegativeZDirection` gravity unit vector."))
+validate_gravity_unit_vector(gravity_unit_vector) = throw(ArgumentError("`PotentialEnergy` is curently only defined for models that have a `NegativeZDirection` gravity unit vector."))
+
+#+++ Potential energy
+# Inline functions for potential energy calculation
+@inline minus_bz_ccc(i, j, k, grid, b) = -b[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
+@inline minus_bz_ccc(i, j, k, grid, b::LinearSeawaterBuoyancy, C) = -buoyancy_perturbationᶜᶜᶜ(i, j, k, grid, b, C) * Zᶜᶜᶜ(i, j, k, grid)
+@inline minus_bz_ccc(i, j, k, grid, ρ, p) = (p.g / p.ρ₀) * ρ[i, j, k] * Zᶜᶜᶜ(i, j, k, grid)
 
 """
     $(SIGNATURES)
@@ -213,6 +212,7 @@ end
 
     return KernelFunctionOperation{Center, Center, Center}(minus_bz_ccc, grid, ρ, parameters)
 end
+#---
 
 #+++ Buoyancy as a diffused tracer
 # `Φ` here, and `ε_A` over in `AvailablePotentialEnergyEquation`, both read `κ∇b` off the closure's own
