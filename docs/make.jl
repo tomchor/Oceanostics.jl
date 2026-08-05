@@ -49,6 +49,37 @@ function externalize_images(name)
 end
 
 """
+    colorize_ansi_output(content)
+
+Retag Literate's executed-output blocks so Documenter renders their ANSI escape sequences as
+colors. `Literate.markdown(..., execute = true)` writes each block's captured stdout/stderr into
+an info-less ```` ```` ```` fence, and Documenter's HTML writer only runs a code block through
+its ANSI-to-HTML printer when the block is tagged `documenter-ansi`; otherwise the escapes are
+emitted verbatim and the `ProgressMessengers` output reads as literal `^[[93m` (issue #284).
+Under the previous Documenter-executed `@example` path this came for free, because Documenter
+colorized the output it had captured itself.
+
+Prose fences carry three backticks and Literate's own code chunks carry a `julia` info string,
+so an info-less fence of four or more backticks is unambiguously executed output.
+"""
+function colorize_ansi_output(content::AbstractString)
+    lines = String.(split(content, '\n'))
+    fence = 0 # backtick count that opened the block we are inside; 0 when outside a block
+    for (i, line) in enumerate(lines)
+        m = match(r"^(`{3,})(.*)$", line)
+        m === nothing && continue
+        ticks, info = length(m[1]), strip(m[2])
+        if fence == 0
+            fence = ticks
+            isempty(info) && ticks >= 4 && (lines[i] = m[1] * "documenter-ansi")
+        elseif ticks >= fence && isempty(info)
+            fence = 0
+        end
+    end
+    return join(lines, '\n')
+end
+
+"""
     generate_example(slug)
 
 Run `examples/\$slug.jl` through Literate with `execute = true`. This runs the example
@@ -61,7 +92,7 @@ from the rendered code, exactly as under the previous Documenter-executed `@exam
 generate_example(slug) =
     Literate.markdown(joinpath(EXAMPLES_DIR, slug * ".jl"), OUTPUT_DIR;
                       execute = true, flavor = Literate.DocumenterFlavor(),
-                      postprocess = externalize_images(slug))
+                      postprocess = colorize_ansi_output ∘ externalize_images(slug))
 
 # Single-example mode: when OCEANOSTICS_DOCS_EXAMPLE names one example, build only that
 # page and stop. This is what each parallel CI job runs; the resulting page and media are
