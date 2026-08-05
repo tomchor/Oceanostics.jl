@@ -59,11 +59,8 @@ along the path; only the reference profile `b✶` varies with `z̃`.
 This is the spatially local APE density of
 [Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742) and it is also used in
 [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) as a basis for a filtered APE
-framework. When the reference state is sorted from the buoyancy itself (either from a single
-buoyancy snapshot or the up-to-date buoyancy `Field`), it is **non-negative everywhere**, which
-follows from the convexity of that integral. It is also possible to hand [`ProfileLookup`](@ref) a
-different profile not produced by model's buoyancy, which breaks the `b = b✶(z✶)` step and, with
-it, the non-negativity guarantee.
+framework. It is **non-negative everywhere** whenever the reference profile is one-dimensional and
+gravitationally stable.
 
 `z✶` is the reference height computed by [`reference_height`](@ref); pass one explicitly to share a
 single sort with [`BackgroundPotentialEnergy`](@ref), or pass `method` through to choose how it is
