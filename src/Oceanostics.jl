@@ -76,7 +76,9 @@ export BoxFilter, GaussianFilter, check_filter_staging
 #---
 
 #+++ PotentialEnergyEquation exports
-export PotentialEnergy, PotentialEnergyDiffusiveBuoyancyFlux
+export PotentialEnergy, PotentialEnergyDiffusiveVerticalBuoyancyFlux
+export PotentialEnergyTendency, PotentialEnergyAdvection, PotentialEnergyBuoyancyAdvection,
+       PotentialEnergyDiffusion, PotentialEnergyBuoyancyDiffusion, PotentialEnergyForcing
 #---
 
 #+++ BackgroundPotentialEnergyEquation exports
@@ -219,6 +221,14 @@ using .SpatialFilters
 using .FilteredKineticEnergyEquation
 using .SubFilterKineticEnergyEquation
 using .ProgressMessengers
+
+#+++ Deprecated bindings
+# `Φ` is the vertical component of the diffusive flux, not the flux vector, so the name gained
+# `Vertical`. The old spelling resolves for one more release and warns when reached by name. It is
+# declared here rather than in `PotentialEnergyEquation` because a binding deprecation is lost when the
+# name is re-exported through another module, so the warning has to be attached where callers see it.
+Base.@deprecate_binding PotentialEnergyDiffusiveBuoyancyFlux PotentialEnergyDiffusiveVerticalBuoyancyFlux
+#---
 
 #+++ Custom `show` for diagnostics
 # Every diagnostic is a `KernelFunctionOperation` (KFO) under the hood, so by default it prints as the
@@ -411,8 +421,14 @@ end
 #---
 
 #+++ PotentialEnergyEquation
-@diagnostic_show PotentialEnergyEquation.PotentialEnergy             "PotentialEnergy"             "potential energy per unit volume  eₚ = -bz"
-@diagnostic_show PotentialEnergyEquation.DiffusiveBuoyancyFlux "PotentialEnergyDiffusiveBuoyancyFlux" "diffusive buoyancy flux  Φ = κ ∂b/∂z = -q₃"
+@diagnostic_show PotentialEnergyEquation.PotentialEnergy               "PotentialEnergy"                     "potential energy per unit volume  eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.Tendency                      "PotentialEnergyTendency"             "potential energy tendency  ∂ₜeₚ = -z ∂ₜb"
+@diagnostic_show PotentialEnergyEquation.Advection                     "PotentialEnergyAdvection"            "potential energy advection  ∂ⱼ(uⱼeₚ)"
+@diagnostic_show PotentialEnergyEquation.BuoyancyAdvection             "PotentialEnergyBuoyancyAdvection"    "potential energy buoyancy advection  z ∂ⱼ(uⱼb)"
+@diagnostic_show PotentialEnergyEquation.Diffusion                     "PotentialEnergyDiffusion"            "potential energy diffusive transport  ∂ⱼ(z qⱼ)"
+@diagnostic_show PotentialEnergyEquation.BuoyancyDiffusion             "PotentialEnergyBuoyancyDiffusion"    "potential energy buoyancy diffusion  z ∂ⱼqⱼ"
+@diagnostic_show PotentialEnergyEquation.Forcing                       "PotentialEnergyForcing"              "potential energy forcing  -z Fᵇ"
+@diagnostic_show PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux "PotentialEnergyDiffusiveVerticalBuoyancyFlux" "diffusive vertical buoyancy flux  Φ = κ ∂b/∂z = -q₃"
 #---
 
 #+++ BackgroundPotentialEnergyEquation

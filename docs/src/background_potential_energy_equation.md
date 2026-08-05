@@ -75,7 +75,7 @@ as ``\kappa \nabla b \cdot \nabla z^\star`` and substituting ``z^\star = z + \Up
 ```
 
 the [APE dissipation rate](available_potential_energy_equation.md) and the
-[diffusive buoyancy flux](potential_energy_equation.md#Diffusive-buoyancy-flux). The two split the
+[diffusive vertical buoyancy flux](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux). The two split the
 mixing by what it costs the flow: ``\varepsilon_A`` is the part paid for out of available potential
 energy, and ``\Phi`` is the part diffusion does to the reference state on its own, which carries no
 available energy with it. So
@@ -97,7 +97,7 @@ of them.
 | Diffusive transport | ``\partial_j(z^\star q_j)`` | not implemented |
 | Diapycnal mixing rate | ``\phi_d = \kappa \nabla b \cdot \nabla z^\star = \varepsilon_A + \Phi`` | the sum of the two below |
 | APE dissipation rate | ``\varepsilon_A = \kappa \nabla b \cdot \nabla \Upsilon`` | [`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate) |
-| Diffusive buoyancy flux | ``\Phi = \kappa \, \partial b / \partial z`` | [`DiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux) |
+| Diffusive buoyancy flux | ``\Phi = \kappa \, \partial b / \partial z`` | [`DiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux) |
 
 !!! note "``\partial z^\star / \partial b`` needs ``z^\star`` to be a function of ``b``"
     The chain rule step above assumes the reference height depends on position only through the

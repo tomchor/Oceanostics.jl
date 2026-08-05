@@ -22,9 +22,10 @@ jobs:
       matrix:
         example:
           - two_dimensional_turbulence
+          - baroclinic_adjustment
+          - spatial_filtering
           - kelvin_helmholtz
           - rayleigh_taylor_instability
-          - spatial_filtering
           - lock_release
     steps:
       - uses: actions/checkout@v4

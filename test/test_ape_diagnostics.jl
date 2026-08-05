@@ -655,7 +655,7 @@ function test_ape_dissipation_plus_diffusive_flux_is_the_mixing_rate(grid)
     z✶  = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
     Υ   = Field(BuoyancyDisplacementPotential(model, z✶))
     ε_A = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = Υ)
-    Φ   = PotentialEnergyDiffusiveBuoyancyFlux(model)
+    Φ   = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)
 
     mixing_rate = interior(Field(ε_A)) .+ interior(Field(Φ))
     scale = maximum(abs, interior(Field(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)))) / 2
@@ -678,7 +678,7 @@ function test_upsilon_and_ape_dissipation_errors(grid)
     seawater = NonhydrostaticModel(grid; buoyancy=SeawaterBuoyancy(), tracers=(:S, :T), closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
     set!(seawater, S = grid_noise, T = grid_noise)
     @test_throws "BuoyancyTracer" AvailablePotentialEnergyDissipationRate(seawater)
-    @test_throws "BuoyancyTracer" PotentialEnergyDiffusiveBuoyancyFlux(seawater)
+    @test_throws "BuoyancyTracer" PotentialEnergyDiffusiveVerticalBuoyancyFlux(seawater)
 
     # `κ∇b` comes off the closure, so a model without one has to be refused at construction
     closureless = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
@@ -694,6 +694,36 @@ function test_upsilon_and_ape_dissipation_errors(grid)
 
     @test_throws "model grid" BuoyancyDisplacementPotential(model, column)
     @test_throws "model grid" AvailablePotentialEnergyDissipationRate(model, column)
+
+    return nothing
+end
+#---
+
+"""
+The reference state is the arrangement of the fluid with the least potential energy, which means sorting
+along gravity. These diagnostics sort along `z`, so under a tilted gravity the state they build is not
+the minimum-energy one and everything derived from it inherits the error.
+
+The `model` constructors already refuse it, since they route through `reference_height`. The
+`(model, z✶)` methods are the ones worth pinning down: a `z✶` built from a bare `Field` carries no model
+and so no gravity to validate, which is not a contrived path — it is how `lock_release.jl` builds one,
+to hand the same reference height to several diagnostics.
+"""
+function test_tilted_gravity_is_rejected(grid)
+
+    tilted = BuoyancyForce(BuoyancyTracer(); gravity_unit_vector = (0, sind(10), -cosd(10)))
+    model = NonhydrostaticModel(grid; buoyancy = tilted, tracers = :b,
+                                closure = ScalarDiffusivity(ν=1e-6, κ=1e-3))
+    set!(model, b = grid_noise)
+
+    @test_throws "NegativeZDirection" AvailablePotentialEnergyEquation.reference_height(model)
+
+    # `HeavisideIntegral` so this runs on the stretched grid too, where it is the only method available
+    z✶ = AvailablePotentialEnergyEquation.reference_height(model.tracers.b; method = HeavisideIntegral())
+    @test_throws "`BackgroundPotentialEnergy`" BackgroundPotentialEnergy(model, z✶)
+    @test_throws "`AvailablePotentialEnergy`" AvailablePotentialEnergy(model, z✶)
+    @test_throws "`BuoyancyDisplacementPotential`" BuoyancyDisplacementPotential(model, z✶)
+    @test_throws "`AvailablePotentialEnergyDissipationRate`" AvailablePotentialEnergyDissipationRate(model, z✶)
 
     return nothing
 end
@@ -741,6 +771,7 @@ end
         test_ape_dissipation_vanishes_when_sorted(grid)
         test_ape_dissipation_is_recomputed(grid)
         test_upsilon_and_ape_dissipation_errors(grid)
+        test_tilted_gravity_is_rejected(grid)
 
         # `Φ` itself is tested with the rest of the `e_p` equation, in `test_pe_diagnostics.jl`; what
         # belongs here is the identity that defines `ε_A` in terms of it.

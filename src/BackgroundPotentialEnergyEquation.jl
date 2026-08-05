@@ -20,7 +20,7 @@ using Oceanostics: validate_location, CustomKFO
 # `PotentialEnergy` itself is imported so its docstring `@ref`s resolve in-module.
 using ..PotentialEnergyEquation: PotentialEnergy, NoBuoyancyModel, BuoyancyTracerModel,
                                  BuoyancyLinearEOSModel, BuoyancyBoussinesqEOSModel,
-                                 validate_gravity_unit_vector
+                                 validate_gravity_unit_vector, validate_gravity_is_z_aligned
 
 import Oceananigans.Fields: compute!
 
@@ -714,7 +714,7 @@ true
 function reference_height(model; method = ThreeDimensionalSort(),
                                  geopotential_height = model_geopotential_height(model))
 
-    isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(model.buoyancy.gravity_unit_vector)
+    isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector("reference_height", model.buoyancy.gravity_unit_vector)
 
     return reference_height(buoyancy_field(model, model.buoyancy, geopotential_height); method)
 end
@@ -889,7 +889,10 @@ function BackgroundPotentialEnergy(model; method = ThreeDimensionalSort(), geopo
     return BackgroundPotentialEnergy(model, reference_height(model; method, geopotential_height))
 end
 
-BackgroundPotentialEnergy(model, z✶::SortedReferenceHeightField) = KernelFunctionOperation{Center, Center, Center}(minus_bz✶_ccc, z✶.grid, reference_buoyancy(z✶.operand), z✶)
+function BackgroundPotentialEnergy(model, z✶::SortedReferenceHeightField)
+    validate_gravity_is_z_aligned("BackgroundPotentialEnergy", model)
+    return KernelFunctionOperation{Center, Center, Center}(minus_bz✶_ccc, z✶.grid, reference_buoyancy(z✶.operand), z✶)
+end
 #---
 
 end # module
