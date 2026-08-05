@@ -382,11 +382,23 @@ Base.@deprecate_binding DiffusiveBuoyancyFlux DiffusiveVerticalBuoyancyFlux
 # is then the model's own tendency taken apart term by term, rather than a continuum rearrangement of
 # it, so it holds at the discrete level.
 #
-# One term of that equation has no diagnostic here yet: when the buoyancy carries a `BackgroundField`
-# `B`, the model prognoses the perturbation and its equation picks up `-∂ⱼ(uⱼB)`, which weighted by `-z`
-# is a source of `eₚ` that does not drop out of a volume integral. `Tendency` includes it, since it
-# comes off the model's own kernel, but `BuoyancyAdvection + BuoyancyDiffusion + Forcing` does not, so
-# the split below closes only for a buoyancy with no background field.
+# `Tendency` comes off `tracer_tendency`, so it always carries every term the model steps. The other
+# three cover most but not all of them, and the split closes exactly only when none of the following is
+# in play. In each case `Tendency` still includes the term and the other three do not, so the shortfall
+# shows up as a residual with no error raised:
+#
+#   * a `BackgroundField` buoyancy `B`. The model prognoses the perturbation and its equation picks up
+#     `-∂ⱼ(uⱼB)`, which weighted by `-z` is a source of `eₚ` that does not drop out of a volume integral.
+#     It has no diagnostic here yet.
+#   * an `AdvectiveForcing`, or a biogeochemistry with a drift velocity. `tracer_tendency` folds both
+#     into the advecting flow through `with_advective_forcing` and `biogeochemical_drift_velocity`,
+#     while `BuoyancyAdvection`'s `velocities` default is only `sum_of_velocities(velocities,
+#     background)`. An `AdvectiveForcing` is doubly invisible: it also evaluates to zero when called
+#     pointwise, which is how `Forcing` calls it. Pass `velocities` explicitly to cover the drift.
+#   * an `ImmersedBoundaryGrid`. `tracer_tendency` adds `-immersed_∇_dot_qᶜ`, the flux through immersed
+#     faces, and no diagnostic here accounts for it.
+#   * a biogeochemistry with a transition term for `b`, which `tracer_tendency` adds and nothing here
+#     mirrors.
 #
 # Pulling `z` inside the derivative splits each of the two flux terms into a transport of `eₚ` and a
 # conversion:
@@ -396,7 +408,11 @@ Base.@deprecate_binding DiffusiveBuoyancyFlux DiffusiveVerticalBuoyancyFlux
 #
 # `Advection` and `Diffusion` are the transports, and both are built here as genuine flux divergences
 # rather than by rearranging their `Buoyancy*` partners, so each telescopes and integrates to zero to
-# roundoff over a periodic or closed domain. That is what leaves
+# roundoff over a periodic or closed domain. `Diffusion` builds its divergence from the unconditional
+# `diffusive_flux_*`, whereas `BuoyancyDiffusion` reaches the closure through `∇_dot_qᶜ`, which uses the
+# conditional `_diffusive_flux_*` that `ImmersedBoundaries` overrides to zero across immersed faces. Off
+# an immersed grid the two are the same flux; on one they are not, and both the telescoping and the
+# `BuoyancyDiffusion = Diffusion + Φ` identity below stop holding. That leaves
 #
 #     ∫BuoyancyAdvection dV = -∫wb dV        and        ∫BuoyancyDiffusion dV = ∫Φ dV ,
 #
@@ -425,10 +441,19 @@ model steps, this is the whole right-hand side of the `eₚ` equation in one ter
 (perturbation plus background) flow, advection of a background buoyancy field, diffusion, and forcing.
 The individual terms are [`PotentialEnergyBuoyancyAdvection`](@ref),
 [`PotentialEnergyBuoyancyDiffusion`](@ref) and [`PotentialEnergyForcing`](@ref), and they sum to this
-one cell by cell, so long as the buoyancy has no `BackgroundField`: the term such a field contributes
-is included here but has no diagnostic of its own yet. Note it is those two `Buoyancy*` terms that sum,
-not [`PotentialEnergyAdvection`](@ref) and [`PotentialEnergyDiffusion`](@ref) — the latter are the
-transports alone, and differ from them by the two conversions `wb` and `Φ`.
+one cell by cell — but only when the model has none of the features listed below. Note it is those two
+`Buoyancy*` terms that sum, not [`PotentialEnergyAdvection`](@ref) and [`PotentialEnergyDiffusion`](@ref)
+— the latter are the transports alone, and differ from them by the two conversions `wb` and `Φ`.
+
+Because this term is `tracer_tendency` itself, it carries everything the model steps, including four
+things the other three diagnostics do not. With any of them present the split falls short by exactly
+that term, silently:
+
+  * a `BackgroundField` buoyancy `B`, contributing `-z ∂ⱼ(uⱼB)`, which has no diagnostic yet;
+  * an `AdvectiveForcing` or a biogeochemical drift velocity, which `tracer_tendency` folds into the
+    advecting flow but [`PotentialEnergyBuoyancyAdvection`](@ref) does not pick up by default;
+  * an `ImmersedBoundaryGrid`, whose `immersed_∇_dot_qᶜ` no diagnostic here mirrors;
+  * a biogeochemical transition term for `b`.
 
 Defined for `BuoyancyTracer` models, where `b` is one of the model's tracers.
 
@@ -559,6 +584,11 @@ Pulling `z` inside the derivative writes this as a transport of `eₚ` plus the 
 A background buoyancy field is advected by a term of its own, which this one does not include and which
 has no diagnostic here yet.
 
+The default `velocities` is the perturbation plus background flow. That is what the model advects with
+in the ordinary case, but not when an `AdvectiveForcing` or a biogeochemical drift velocity is in play:
+`tracer_tendency` folds those in too, through `with_advective_forcing` and
+`biogeochemical_drift_velocity`. Pass `velocities` explicitly to match the model in that case.
+
 ```jldoctest
 using Oceananigans, Oceanostics
 
@@ -629,6 +659,16 @@ with `Φ` the [`DiffusiveVerticalBuoyancyFlux`](@ref).
 
 Like the other diffusive terms this reads `κ∇b` off the closure, so it needs the buoyancy to be a
 tracer the closure diffuses.
+
+Two limits are worth knowing. The divergence is assembled from the unconditional `diffusive_flux_*`,
+while [`PotentialEnergyBuoyancyDiffusion`](@ref) reaches the closure through Oceananigans' `∇_dot_qᶜ`,
+which uses the conditional `_diffusive_flux_*` that `ImmersedBoundaries` overrides to zero across
+immersed faces. Off an immersed grid the two are the same flux; on one this term includes fluxes its
+partner zeroes, and neither the telescoping nor the identity above survives. And the horizontal fluxes
+are weighted by `z` at the cell centre rather than at the `x`- and `y`-faces they live on, which is
+exact wherever `znode` does not vary with `i` and `j` — every `RectilinearGrid` and
+`LatitudeLongitudeGrid` with an immutable vertical coordinate — but not under a
+`MutableVerticalDiscretization`.
 
 ```jldoctest
 using Oceananigans, Oceanostics
@@ -731,6 +771,11 @@ Return a `KernelFunctionOperation` computing the forcing term of the `eₚ = -bz
 
 where `Fᵇ` is whatever forcing is applied to the buoyancy. Unlike the transport terms this does not
 drop out of a volume integral, so a forced run needs it in the budget.
+
+This calls the forcing pointwise, as `Fᵇ(i, j, k, grid, clock, fields)`. An `AdvectiveForcing` returns
+zero there by construction — it acts through the advecting velocity instead — so this term reports
+nothing for one, and [`PotentialEnergyBuoyancyAdvection`](@ref) will not see it either unless it is
+handed matching `velocities`.
 
 ```jldoctest
 using Oceananigans, Oceanostics
