@@ -179,12 +179,12 @@ idx2     = 2:2:length(times_bud)       # consecutive-iteration snapshots
 Δt_pair  = times_bud[idx2] .- times_bud[idx1]
 t_pair   = @. 0.5 * (times_bud[idx1] + times_bud[idx2])
 
-dKEdt    = (∫KE_t[idx2] .- ∫KE_t[idx1]) ./ Δt_pair
-dc²dt    = (∫c²_t[idx2] .- ∫c²_t[idx1]) ./ Δt_pair
+dKEdt    = (∫KE_t[idx2] .- ∫KE_t[idx1]) ./ Δt_pair;
+dc²dt    = (∫c²_t[idx2] .- ∫c²_t[idx1]) ./ Δt_pair;
 
 # Source terms at the pair midpoint
-ε_pair   = @. 0.5 * (∫ε_t[idx1] + ∫ε_t[idx2])
-χ_pair   = @. 0.5 * (∫χ_t[idx1] + ∫χ_t[idx2])
+ε_pair   = @. 0.5 * (∫ε_t[idx1] + ∫ε_t[idx2]);
+χ_pair   = @. 0.5 * (∫χ_t[idx1] + ∫χ_t[idx2]);
 
 # Budget residuals in sum-to-zero form: the negative tendency plus the source term. Plotting every
 # curve with these signs makes them add up to the residual, which stays near zero.

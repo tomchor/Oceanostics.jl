@@ -230,9 +230,9 @@ i2 = 2:2:length(times_bud)     # consecutive-iteration snapshots
 t_pair = @. 0.5 * (times_bud[i1] + times_bud[i2])
 
 dKˢdt    = (∫Kˢ_t[i2] .- ∫Kˢ_t[i1]) ./ Δt_pair
-Πₖ_pair  = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2])
-wbˢ_pair = @. 0.5 * (∫wbˢ_t[i1] + ∫wbˢ_t[i2])
-εˢ_pair  = @. 0.5 * (∫εˢ_t[i1] + ∫εˢ_t[i2])
+Πₖ_pair  = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2]);
+wbˢ_pair = @. 0.5 * (∫wbˢ_t[i1] + ∫wbˢ_t[i2]);
+εˢ_pair  = @. 0.5 * (∫εˢ_t[i1] + ∫εˢ_t[i2]);
 
 # Residual in sum-to-zero form: the negative tendency plus the sources, so the plotted curves add to it
 resid = @. -dKˢdt + Πₖ_pair + wbˢ_pair - εˢ_pair
