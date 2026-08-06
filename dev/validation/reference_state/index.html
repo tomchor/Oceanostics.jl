@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Sorted reference state · Oceanostics.jl</title><meta name="title" content="Sorted reference state · Oceanostics.jl"/><meta property="og:title" content="Sorted reference state · Oceanostics.jl"/><meta property="twitter:title" content="Sorted reference state · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox"/><label class="tocitem" for="menuitem-2"><span class="docs-label">Budget equations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tracer_equation/">Tracer equation</a></li><li><a class="tocitem" href="../../momentum_equation/">Momentum equation</a></li><li><a class="tocitem" href="../../kinetic_energy_equation/">Kinetic energy equation</a></li><li><a class="tocitem" href="../../filtered_kinetic_energy_equation/">Filtered kinetic energy equation</a></li><li><a class="tocitem" href="../../subfilter_kinetic_energy_equation/">Sub-filter kinetic energy equation</a></li><li><a class="tocitem" href="../../turbulent_kinetic_energy_equation/">Turbulent kinetic energy equation</a></li><li><a class="tocitem" href="../../tracer_variance_equation/">Tracer variance equation</a></li><li><a class="tocitem" href="../../potential_energy_equation/">Potential energy equation</a></li><li><a class="tocitem" href="../../background_potential_energy_equation/">Background potential energy equation</a></li><li><a class="tocitem" href="../../available_potential_energy_equation/">Available potential energy equation</a></li></ul></li><li><a class="tocitem" href="../../flow_diagnostics/">Flow diagnostics</a></li><li><a class="tocitem" href="../../progress_messengers/">Progress messengers</a></li><li><a class="tocitem" href="../../filters/">Spatial filters</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox"/><label class="tocitem" for="menuitem-6"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../generated/two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li><a class="tocitem" href="../../generated/baroclinic_adjustment/">Baroclinic adjustment</a></li><li><a class="tocitem" href="../../generated/spatial_filtering/">Spatial filtering</a></li><li><a class="tocitem" href="../../generated/kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li><a class="tocitem" href="../../generated/rayleigh_taylor_instability/">Rayleigh-Taylor instability</a></li><li><a class="tocitem" href="../../generated/lock_release/">Lock release</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-7" type="checkbox" checked/><label class="tocitem" for="menuitem-7"><span class="docs-label">Validation</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>Sorted reference state</a><ul class="internal"><li><a class="tocitem" href="#A-field-that-is-already-its-own-reference-state"><span>A field that is already its own reference state</span></a></li><li><a class="tocitem" href="#A-field-with-no-ties"><span>A field with no ties</span></a></li><li><a class="tocitem" href="#The-local-available-potential-energy-is-non-negative"><span>The local available potential energy is non-negative</span></a></li><li><a class="tocitem" href="#Result"><span>Result</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Validation</a></li><li class="is-active"><a href>Sorted reference state</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Sorted reference state</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/src/validation/reference_state.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="The-sorted-reference-state"><a class="docs-heading-anchor" href="#The-sorted-reference-state">The sorted reference state</a><a id="The-sorted-reference-state-1"></a><a class="docs-heading-anchor-permalink" href="#The-sorted-reference-state" title="Permalink"></a></h1><p>This page checks the reference state that <a href="../../background_potential_energy_equation/#Oceanostics.BackgroundPotentialEnergyEquation.reference_height"><code>reference_height</code></a> builds, and the two energies that rest on it, against answers that are known independently of the code. Everything here runs when the documentation is built, so a regression breaks the build rather than quietly changing a number.</p><p>The checks lean on three facts that hold no matter which <a href="../../background_potential_energy_equation/#Oceanostics.BackgroundPotentialEnergyEquation.AbstractReferenceHeightMethod"><code>AbstractReferenceHeightMethod</code></a> is used:</p><ul><li>a field that is already sorted <strong>is</strong> its own reference state, which fixes <span>$\int e_b \, \mathrm{d}V$</span> and <span>$\int e_a \, \mathrm{d}V$</span> in closed form;</li><li>the methods describe one reference state, so they must agree on the volume integrals;</li><li>the local <span>$e_a$</span> is non-negative everywhere in space.</li></ul><pre><code class="language-julia hljs">using Oceananigans, Oceanostics, CairoMakie, Printf
+using Oceananigans.Fields: interior
+
+set_theme!(Theme(fontsize = 13))
+
+methods = (&quot;ThreeDimensionalSort&quot; =&gt; ThreeDimensionalSort(),
+           &quot;HeavisideIntegral&quot;    =&gt; HeavisideIntegral(),
+           &quot;VerticalSort&quot;         =&gt; VerticalSort(),
+           &quot;ProfileLookup&quot;        =&gt; ProfileLookup())
+
+volume_integral(op) = sum(∫dV(op))
+
+# Pair the buoyancy with the reference height it was assigned and order by z✶. On the model grid that
+# reordering is what recovers the profile; on the sorted column it is already in order.
+function reference_profile(z✶)
+    heights    = vec(Array(interior(z✶)))
+    buoyancies = vec(Array(interior(reference_buoyancy(z✶))))
+    p = sortperm(heights)
+    return buoyancies[p], heights[p]
+end
+
+# Every check on the page lands here, and the last block fails the build if any of them did not pass.
+checks = Tuple{String, Bool}[]
+
+function check(name, got, want; atol = 0, rtol = 0)
+    ok = isapprox(got, want; atol, rtol)
+    push!(checks, (name, ok))
+    return ok
+end</code></pre><h2 id="A-field-that-is-already-its-own-reference-state"><a class="docs-heading-anchor" href="#A-field-that-is-already-its-own-reference-state">A field that is already its own reference state</a><a id="A-field-that-is-already-its-own-reference-state-1"></a><a class="docs-heading-anchor-permalink" href="#A-field-that-is-already-its-own-reference-state" title="Permalink"></a></h2><p>Take a column whose buoyancy only increases with height. No adiabatic rearrangement can lower its potential energy, so the state of minimum potential energy is the state it is already in. That pins both energies without reference to any particular method:</p><p class="math-container">\[\int e_b \, \mathrm{d}V = \int e_p \, \mathrm{d}V , \qquad \int e_a \, \mathrm{d}V = 0 .\]</p><p>The column below is built in three layers of four cells, so every cell is tied in buoyancy with three others. Ties are where the methods are free to differ: each one has to put a whole run of equal-buoyancy cells <em>somewhere</em>, and only the placement&#39;s volume-weighted mean is pinned. The buoyancy levels are <span>$0, 1, 2$</span> rather than <span>$-1, 0, 1$</span> on purpose, since levels symmetric about zero make the per-layer errors cancel in the sum and would hide a bias.</p><pre><code class="language-julia hljs">N, n_layers = 12, 3
+column = RectilinearGrid(size = N, z = (-1, 0), topology = (Flat, Flat, Bounded))
+sorted_model = NonhydrostaticModel(column; buoyancy = BuoyancyTracer(), tracers = :b)
+set!(sorted_model, b = reshape(repeat(collect(0:(n_layers - 1)), inner = N ÷ n_layers), 1, 1, N))
+
+∫eₚ = volume_integral(PotentialEnergy(sorted_model))
+sorted_E_b, sorted_E_a, sorted_z✶ = Dict(), Dict(), Dict()
+
+for (name, method) in methods
+    z✶ = reference_height(sorted_model; method)
+    sorted_E_b[name] = volume_integral(BackgroundPotentialEnergy(sorted_model, z✶))
+    sorted_E_a[name] = volume_integral(AvailablePotentialEnergy(sorted_model, z✶))
+    sorted_z✶[name]  = vec(Array(interior(z✶)))
+
+    check(&quot;$name: ∫e_b = ∫eₚ on a sorted field&quot;, sorted_E_b[name], ∫eₚ; rtol = 1e-10)
+    check(&quot;$name: ∫eₐ = 0 on a sorted field&quot;,    sorted_E_a[name], 0;  atol = 1e-12)
+end
+
+@printf(&quot;exact:  ∫e_b dV = ∫eₚ dV = %+.8f,   ∫eₐ dV = 0\n\n&quot;, ∫eₚ)
+@printf(&quot;  %-22s %14s %12s %14s\n&quot;, &quot;method&quot;, &quot;∫e_b dV&quot;, &quot;error&quot;, &quot;∫eₐ dV&quot;)
+for (name, _) in methods
+    @printf(&quot;  %-22s %+14.8f %11.2e %14.2e\n&quot;, name, sorted_E_b[name],
+            (sorted_E_b[name] - ∫eₚ) / abs(∫eₚ), sorted_E_a[name])
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">exact:  ∫e_b dV = ∫eₚ dV = +0.27777778,   ∫eₐ dV = 0
+
+  method                        ∫e_b dV        error         ∫eₐ dV
+  ThreeDimensionalSort      +0.27777778    0.00e+00       1.16e-18
+  HeavisideIntegral         +0.27777778    2.00e-16       0.00e+00
+  VerticalSort              +0.27777778    0.00e+00       1.16e-18
+  ProfileLookup             +0.27777778    2.00e-16       0.00e+00</code></pre><p>The left panel shows where each method sends a tied cell. <code>ThreeDimensionalSort</code> gives every cell its own slot, so it climbs the diagonal and spreads a layer across the band that layer fills. <code>HeavisideIntegral</code> and <code>ProfileLookup</code> instead collapse each layer onto the mid-height of its band, which is the volume-weighted mean of that spread. All three therefore carry the same volume integral, which is the right panel.</p><pre><code class="language-julia hljs">zc = vec(Array(znodes(column, Center())))
+fig1 = Figure(size = (940, 400))
+
+ax = Axis(fig1[1, 1]; xlabel = &quot;z✶ assigned to the cell&quot;, ylabel = &quot;cell height z&quot;,
+          title = &quot;where each method puts a tied cell&quot;)
+lines!(ax, zc, zc; color = (:black, 0.35), linestyle = :dash, label = &quot;z✶ = z  (the true state)&quot;)
+for (name, colour, mark) in ((&quot;ThreeDimensionalSort&quot;, :steelblue, :circle),
+                             (&quot;HeavisideIntegral&quot;, :seagreen, :diamond),
+                             (&quot;ProfileLookup&quot;, :crimson, :xcross))
+    scatterlines!(ax, sorted_z✶[name], zc; color = colour, marker = mark, markersize = 12, label = name)
+end
+hlines!(ax, [-1 + 1/3, -1 + 2/3]; color = (:gray, 0.5), linewidth = 0.8)  # the layer boundaries
+axislegend(ax; position = :rb, labelsize = 9)
+
+names = first.(methods)
+ax2 = Axis(fig1[1, 2]; ylabel = &quot;∫e_b dV&quot;, title = &quot;against the analytic value&quot;,
+           xticks = (1:4, [&quot;3D\nSort&quot;, &quot;Heaviside\nIntegral&quot;, &quot;Vertical\nSort&quot;, &quot;Profile\nLookup&quot;]),
+           xticklabelsize = 9)
+barplot!(ax2, 1:4, [sorted_E_b[n] for n in names]; color = :steelblue)
+hlines!(ax2, [∫eₚ]; color = :black, linestyle = :dash, linewidth = 2)
+text!(ax2, 0.55, ∫eₚ; text = &quot; exact: ∫e_b = ∫eₚ = $(round(∫eₚ, digits = 4))&quot;,
+      align = (:left, :bottom), fontsize = 10)
+ylims!(ax2, 0, 1.35∫eₚ)
+
+fig1</code></pre><img src="98749d74.png" alt="Example block output"/><h2 id="A-field-with-no-ties"><a class="docs-heading-anchor" href="#A-field-with-no-ties">A field with no ties</a><a id="A-field-with-no-ties-1"></a><a class="docs-heading-anchor-permalink" href="#A-field-with-no-ties" title="Permalink"></a></h2><p>When no two cells share a buoyancy there is no placement freedom left: every cell has a slot of its own, so the methods have to agree on <code>z✶</code> <strong>cell by cell</strong>, not merely in the integral. The field below scatters <code>Nx*Ny*Nz</code> distinct buoyancies over the domain with a stride permutation, so the spatial arrangement bears no relation to the sorted one and the sort has to do real work to undo it.</p><pre><code class="language-julia hljs">Nx, Ny, Nz = 4, 3, 4
+n = Nx * Ny * Nz
+box = RectilinearGrid(size = (Nx, Ny, Nz), x = (0, 1), y = (0, 1), z = (-1, 0))
+tiefree_model = NonhydrostaticModel(box; buoyancy = BuoyancyTracer(), tracers = :b)
+
+scrambled = zeros(n)
+for m in 1:n                                   # a bijection, since gcd(7, n) = 1
+    scrambled[1 + mod(7 * (m - 1), n)] = -0.5 + (m - 1) / (n - 1)
+end
+set!(tiefree_model, b = reshape(scrambled, Nx, Ny, Nz))
+
+tiefree_profile, tiefree_gap = Dict(), Dict()
+baseline = vec(Array(interior(reference_height(tiefree_model, method = ThreeDimensionalSort()))))
+
+for (name, method) in methods
+    z✶ = reference_height(tiefree_model; method)
+    tiefree_profile[name] = reference_profile(z✶)
+    # `VerticalSort` answers on its own column, so compare the sorted set of heights it assigns
+    heights = vec(Array(interior(z✶)))
+    tiefree_gap[name] = maximum(abs, sort(heights) .- sort(baseline))
+
+    check(&quot;$name: z✶ matches the ranked sort on a tie-free field&quot;, tiefree_gap[name], 0; atol = 1e-12)
+end
+
+@printf(&quot;  %-22s %24s\n&quot;, &quot;method&quot;, &quot;max |z✶ - z✶(ranked sort)|&quot;)
+for (name, _) in methods
+    @printf(&quot;  %-22s %24.2e\n&quot;, name, tiefree_gap[name])
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  method                 max |z✶ - z✶(ranked sort)|
+  ThreeDimensionalSort                   0.00e+00
+  HeavisideIntegral                      1.11e-16
+  VerticalSort                           0.00e+00
+  ProfileLookup                          3.89e-16</code></pre><p>Plotting the buoyancy against the reference height it was assigned gives the reference profile <span>$b^\star(z^\star)$</span>. All four land on the same curve, and the deviation from the default sits at the level of floating-point round-off rather than at the grid scale.</p><pre><code class="language-julia hljs">fig2 = Figure(size = (940, 400))
+
+ax = Axis(fig2[1, 1]; xlabel = &quot;b✶&quot;, ylabel = &quot;z✶&quot;, title = &quot;the reference profile, four ways&quot;)
+for ((name, _), colour, mark) in zip(methods, (:steelblue, :seagreen, :darkorange, :crimson),
+                                     (:circle, :diamond, :rect, :xcross))
+    b✶, z✶ = tiefree_profile[name]
+    scatterlines!(ax, b✶, z✶; color = colour, marker = mark, markersize = 10, label = name)
+end
+axislegend(ax; position = :rb, labelsize = 9)
+
+ax2 = Axis(fig2[1, 2]; ylabel = &quot;max |z✶ - z✶(ranked sort)|&quot;, yscale = log10,
+           title = &quot;agreement is at round-off, not at the grid scale&quot;,
+           xticks = (1:4, [&quot;3D\nSort&quot;, &quot;Heaviside\nIntegral&quot;, &quot;Vertical\nSort&quot;, &quot;Profile\nLookup&quot;]),
+           xticklabelsize = 9)
+floor_ = 1e-18
+barplot!(ax2, 1:4, [max(tiefree_gap[n], floor_) for n in names]; color = :steelblue)
+hlines!(ax2, [eps(Float64)]; color = :black, linestyle = :dash)
+text!(ax2, 0.55, eps(Float64); text = &quot; eps(Float64)&quot;, align = (:left, :bottom), fontsize = 10)
+hlines!(ax2, [1 / Nz]; color = :crimson, linestyle = :dot)
+text!(ax2, 0.55, 1 / Nz; text = &quot; one grid cell&quot;, align = (:left, :bottom), fontsize = 10, color = :crimson)
+ylims!(ax2, floor_ / 5, 1)
+
+fig2</code></pre><img src="f53d96b5.png" alt="Example block output"/><h2 id="The-local-available-potential-energy-is-non-negative"><a class="docs-heading-anchor" href="#The-local-available-potential-energy-is-non-negative">The local available potential energy is non-negative</a><a id="The-local-available-potential-energy-is-non-negative-1"></a><a class="docs-heading-anchor-permalink" href="#The-local-available-potential-energy-is-non-negative" title="Permalink"></a></h2><p><code>Oceanostics</code> computes <span>$e_a$</span> in its local form, the density of <a href="https://doi.org/10.1017/S0022112081001742">Holliday &amp; McIntyre (1981)</a>. A parcel carries <span>$b = b^\star(z^\star)$</span> and <span>$b^\star$</span> is non-decreasing, so the integrand <span>$b^\star(\tilde z) - b$</span> takes the sign of <span>$\tilde z - z^\star$</span> along the whole path and the integral comes out positive whichever side of its reference height the parcel sits. Unlike the global difference <span>$e_p - e_b$</span> this holds cell by cell, which is what makes <span>$e_a$</span> worth mapping as a field.</p><p>The check below sweeps three fields that stress the sort differently: a lock-release step where almost every cell is tied, a smooth stratification with a horizontal disturbance, and unstructured noise.</p><pre><code class="language-julia hljs">fields = (&quot;lock-release step&quot; =&gt; (x, y, z) -&gt; x &lt; 0.5 ? -0.5 : 0.5,
+          &quot;tanh + shear&quot;      =&gt; (x, y, z) -&gt; 0.5 * tanh(4(z + 0.5)) + 0.2 * sinpi(2x),
+          &quot;noise&quot;             =&gt; (x, y, z) -&gt; sinpi(3x) * cospi(5y) * sinpi(7z))
+
+worst = Dict{String, Float64}()
+
+for (field_name, setter) in fields, (name, method) in methods
+    model = NonhydrostaticModel(box; buoyancy = BuoyancyTracer(), tracers = :b)
+    set!(model, b = setter)
+    z✶  = reference_height(model; method)
+    e_a = interior(Field(AvailablePotentialEnergy(model, z✶)))
+    scale = max(maximum(abs, e_a), eps(Float64))
+
+    worst[&quot;$field_name / $name&quot;] = minimum(e_a) / scale
+    check(&quot;$field_name / $name: eₐ ≥ 0&quot;, min(minimum(e_a) / scale, 0), 0; atol = 1e-10)
+end
+
+@printf(&quot;  %-22s %22s\n&quot;, &quot;field&quot;, &quot;worst min(eₐ)/max|eₐ|&quot;)
+for (field_name, _) in fields
+    w = minimum(worst[&quot;$field_name / $(n)&quot;] for (n, _) in methods)
+    @printf(&quot;  %-22s %22.2e\n&quot;, field_name, w)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  field                   worst min(eₐ)/max|eₐ|
+  lock-release step                    0.00e+00
+  tanh + shear                        -8.34e-16
+  noise                               -4.14e-18</code></pre><pre><code class="language-julia hljs">fig3 = Figure(size = (760, 380))
+ax = Axis(fig3[1, 1]; ylabel = &quot;min(eₐ) / max|eₐ|&quot;,
+          title = &quot;the smallest eₐ in the field, against the field&#39;s own scale&quot;,
+          xticks = (1:length(fields), [f for (f, _) in fields]), xticklabelsize = 10)
+
+for (i, (name, _)) in enumerate(methods)
+    offset = 0.22 * (i - 2.5)
+    vals = [worst[&quot;$(f) / $(name)&quot;] for (f, _) in fields]
+    barplot!(ax, (1:length(fields)) .+ offset, vals; width = 0.2, label = name)
+end
+hlines!(ax, [0]; color = :black, linewidth = 1.5)
+axislegend(ax; position = :rb, labelsize = 9)
+
+# let the axis follow the data, so a strictly positive field is not clipped at the frame
+lim = 1.4 * max(maximum(abs, collect(values(worst))), eps(Float64))
+ylims!(ax, -lim, lim)
+
+fig3</code></pre><img src="02e39b25.png" alt="Example block output"/><p>Read against the zero line: a bar above it means every cell in that field carries a strictly positive <span>$e_a$</span>, and a bar below it means the smallest value dipped negative by a few floating-point epsilons. Either way the excursion scales with the field rather than with the grid, which is what marks it as round-off in the <span>$\Psi$</span> integral rather than a breach of the bound.</p><h2 id="Result"><a class="docs-heading-anchor" href="#Result">Result</a><a id="Result-1"></a><a class="docs-heading-anchor-permalink" href="#Result" title="Permalink"></a></h2><pre><code class="language-julia hljs">failed = [name for (name, ok) in checks if !ok]
+
+@printf(&quot;%d checks, %d passed, %d failed\n&quot;, length(checks), length(checks) - length(failed), length(failed))
+isempty(failed) || error(&quot;validation failed:\n  &quot; * join(failed, &quot;\n  &quot;))
+
+&quot;all $(length(checks)) checks passed&quot;</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">&quot;all 24 checks passed&quot;</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../generated/lock_release/">« Lock release</a><a class="docs-footer-nextpage" href="../../library/">Function library »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Thursday 6 August 2026 13:45">Thursday 6 August 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
