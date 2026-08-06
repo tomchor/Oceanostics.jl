@@ -6,7 +6,7 @@ export AvailablePotentialEnergy, BuoyancyDisplacementPotential
 export AvailablePotentialEnergyDissipationRate, DissipationRate
 # `Φ` is a term of the `e_p` equation and lives in `PotentialEnergyEquation`; re-exported here because
 # `ε_A` is defined as the diapycnal mixing rate less `Φ`, so the two are almost always wanted together.
-export PotentialEnergyDiffusiveBuoyancyFlux
+export PotentialEnergyDiffusiveVerticalBuoyancyFlux
 # `wb` is the term this budget exchanges with the kinetic energy one; see `PotentialEnergyEquation`.
 export PotentialToKineticEnergyConversion, KineticEnergyConversion
 # The reference state lives in `BackgroundPotentialEnergyEquation`; re-exported here so either module
@@ -24,9 +24,10 @@ using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffu
 using Oceanostics: validate_location, CustomKFO
 
 # Imported so the docstring `@ref`s below resolve in-module, as well as for dispatch.
-using ..PotentialEnergyEquation: PotentialEnergy, PotentialEnergyDiffusiveBuoyancyFlux,
+using ..PotentialEnergyEquation: PotentialEnergy, PotentialEnergyDiffusiveVerticalBuoyancyFlux,
                                  PotentialToKineticEnergyConversion, KineticEnergyConversion,
                                  validate_buoyancy_is_a_diffused_tracer, validate_closure_supplies_a_flux,
+                                 validate_gravity_is_z_aligned,
                                  buoyancy_diffusive_flux_arguments
 using ..BackgroundPotentialEnergyEquation: BackgroundPotentialEnergy, SortedReferenceHeightField,
                                            AbstractReferenceHeightMethod, reference_height,
@@ -59,11 +60,8 @@ along the path; only the reference profile `b✶` varies with `z̃`.
 This is the spatially local APE density of
 [Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742) and it is also used in
 [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) as a basis for a filtered APE
-framework. When the reference state is sorted from the buoyancy itself (either from a single
-buoyancy snapshot or the up-to-date buoyancy `Field`), it is **non-negative everywhere**, which
-follows from the convexity of that integral. It is also possible to hand [`ProfileLookup`](@ref) a
-different profile not produced by model's buoyancy, which breaks the `b = b✶(z✶)` step and, with
-it, the non-negativity guarantee.
+framework. It is **non-negative everywhere** whenever the reference profile is one-dimensional and
+gravitationally stable.
 
 `z✶` is the reference height computed by [`reference_height`](@ref); pass one explicitly to share a
 single sort with [`BackgroundPotentialEnergy`](@ref), or pass `method` through to choose how it is
@@ -103,7 +101,10 @@ function AvailablePotentialEnergy(model; method = ThreeDimensionalSort(), geopot
     return AvailablePotentialEnergy(model, reference_height(model; method, geopotential_height))
 end
 
-AvailablePotentialEnergy(model, z✶::SortedReferenceHeightField) = available_potential_energy(z✶, reference_buoyancy(z✶.operand), sorted_height(z✶.operand))
+function AvailablePotentialEnergy(model, z✶::SortedReferenceHeightField)
+    validate_gravity_is_z_aligned("AvailablePotentialEnergy", model)
+    return available_potential_energy(z✶, reference_buoyancy(z✶.operand), sorted_height(z✶.operand))
+end
 
 # On the model grid the parcel's own height is the grid's; on a sorted column it has to be carried.
 available_potential_energy(z✶, b, ::Nothing) = KernelFunctionOperation{Center, Center, Center}(local_ape_ccc, z✶.grid, z✶.operand.reference_potential, b, z✶)
@@ -184,6 +185,7 @@ function BuoyancyDisplacementPotential(model; method = HeavisideIntegral(),
 end
 
 function BuoyancyDisplacementPotential(model, z✶::SortedReferenceHeightField)
+    validate_gravity_is_z_aligned("BuoyancyDisplacementPotential", model)
     validate_reference_height_grid("BuoyancyDisplacementPotential", model, z✶)
     return KernelFunctionOperation{Center, Center, Center}(upsilon_ccc, z✶.grid, z✶)
 end
@@ -234,7 +236,7 @@ the flux divergence is set aside, `ε_A = κ∇Υ·∇b` is what remains.
 Written out, the first part is the diapycnal mixing rate of
 [Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X), the work done rearranging the
 reference state, and the second is
-[`PotentialEnergyDiffusiveBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveBuoyancyFlux), the diffusion that state
+[`PotentialEnergyDiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux), the diffusion that state
 undergoes on its own, which carries no APE with it. The two cancel exactly for a statically stable,
 horizontally uniform stratification, where `z✶ = z` and there is no available energy to destroy, so
 `ε_A` measures only the APE actually lost — it is not the sign-definite `κ|∇b|²`-like quantity the name
@@ -288,6 +290,7 @@ function AvailablePotentialEnergyDissipationRate(model, z✶::SortedReferenceHei
 
     validate_buoyancy_is_a_diffused_tracer("AvailablePotentialEnergyDissipationRate", model)
     validate_closure_supplies_a_flux("AvailablePotentialEnergyDissipationRate", model)
+    validate_gravity_is_z_aligned("AvailablePotentialEnergyDissipationRate", model)
     validate_reference_height_grid("AvailablePotentialEnergyDissipationRate", model, z✶)
 
     Υ = isnothing(upsilon) ? Field(BuoyancyDisplacementPotential(model, z✶)) : upsilon
