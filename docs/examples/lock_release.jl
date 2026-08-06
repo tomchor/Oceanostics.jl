@@ -95,13 +95,13 @@ APE_lookup    = AvailablePotentialEnergy(model, z✶_lookup)
 APE_column    = AvailablePotentialEnergy(model, z✶_column)
 KE            = KineticEnergy(model)
 
-∫BPE = Integral(BackgroundPotentialEnergy(model, z✶_ranked))
-∫KE  = Integral(KE)
+∫BPE = ∫dV(BackgroundPotentialEnergy(model, z✶_ranked))
+∫KE  = ∫dV(KE)
 
-∫APE           = Integral(APE_ranked)
-∫APE_heaviside = Integral(APE_heaviside)
-∫APE_lookup    = Integral(APE_lookup)
-∫APE_column    = Integral(APE_column)
+∫APE           = ∫dV(APE_ranked)
+∫APE_heaviside = ∫dV(APE_heaviside)
+∫APE_lookup    = ∫dV(APE_lookup)
+∫APE_column    = ∫dV(APE_column)
 
 # ## Budget terms
 #
@@ -140,9 +140,9 @@ KE            = KineticEnergy(model)
 εₖ = KineticEnergyDissipationRate(model)
 wb = PotentialToKineticEnergyConversion(model)
 
-∫wb = Integral(wb)
-∫εₖ = Integral(εₖ)
-∫εₐ = Integral(εₐ)
+∫wb = ∫dV(wb)
+∫εₖ = ∫dV(εₖ)
+∫εₐ = ∫dV(εₐ)
 
 using NCDatasets
 filename = "lock_release"
@@ -558,5 +558,5 @@ nothing #hide
 # not derived from the discrete momentum and buoyancy equations the model steps, so the two sides agree
 # only to the truncation error of a well-resolved flow. The same caveat applies to the KE budget of
 # [the two-dimensional turbulence example](@ref two_d_turbulence_example), with one more source of
-# discrepancy here: `Integral(eₐ)` of the local Holliday & McIntyre density samples the reference
+# discrepancy here: `∫dV(eₐ)` of the local Holliday & McIntyre density samples the reference
 # profile at the model's cell centers, and that midpoint quadrature is itself second order in `Δz`.
