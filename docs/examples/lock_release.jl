@@ -485,9 +485,9 @@ dAPEdt = (APE_bud[idx2] .- APE_bud[idx1]) ./ Δt_pair
 
 pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
 
-wb_pair  = pair_mean(wb_bud)
-ε_pair   = pair_mean(ε_bud)
-ε_A_pair = pair_mean(ε_A_bud)
+wb_pair  = pair_mean(wb_bud);
+ε_pair   = pair_mean(ε_bud);
+ε_A_pair = pair_mean(ε_A_bud);
 
 # Both budgets are written in sum-to-zero form: each curve is plotted with the sign it carries here, so
 # the panels below add up to the residual.
