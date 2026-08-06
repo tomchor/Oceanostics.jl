@@ -42,7 +42,7 @@ end
 function subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, collocate_diagonals=false)
     flux_full = StressTensor(grid, u, v, w; dims, collocate_diagonals)   # uⁱuʲ
     flux_filt = StressTensor(grid, ū, v̄, w̄; dims, collocate_diagonals)   # ūⁱūʲ
-    subfilter(full, coarse) = Field(filter(Field(full))) - coarse        # filter(uⁱuʲ) - ūⁱūʲ
+    subfilter(full, filt) = Field(filter(Field(full))) - filt            # filter(uⁱuʲ) - ūⁱūʲ
     ks = keys(flux_full)
     return NamedTuple{ks}(map(subfilter, values(flux_full), values(flux_filt)))
 end
@@ -115,7 +115,7 @@ a low-pass `filter` removes from the filtered scales:
     τⁱʲ = filter(uⁱuʲ) - ūⁱ ūʲ ,   ūⁱ = filter(uⁱ)
 ```
 
-(also called the sub-grid stress in LES, or the generalized central moment in the coarse-graining
+(also called the sub-grid stress in LES, or the generalized central moment in the filtering
 framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). It is the
 quantity contracted with the filtered strain rate to form the cross-scale kinetic-energy flux — see
 [`KineticEnergyCrossScaleFlux`](@ref).
@@ -288,7 +288,7 @@ KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N =
 # fv = (u=ū, v=v̄, w=w̄) filtered velocities; ff = (τ̄₁₁, …, τ̄₃₃) pre-filtered full-flow viscous fluxes. Each
 # off-diagonal term is interpolated from its flux location to ccc exactly as in
 # `viscous_dissipation_rate_ccc`; the /V paired with the A·δ makes the gradient a proper derivative.
-@inline coarse_grained_dissipation_rate_ccc(i, j, k, grid, fv, ff) =
+@inline filtered_dissipation_rate_ccc(i, j, k, grid, fv, ff) =
     (δū_τ̄₁₁(i, j, k, grid, fv.u, ff.τ̄₁₁) +
      ℑxyᶜᶜᵃ(i, j, k, grid, δū_τ̄₁₂, fv.u, ff.τ̄₁₂) +
      ℑxzᶜᵃᶜ(i, j, k, grid, δū_τ̄₁₃, fv.u, ff.τ̄₁₃) +
@@ -301,7 +301,7 @@ KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N =
      ℑyzᵃᶜᶜ(i, j, k, grid, δw̄_τ̄₃₂, fv.w, ff.τ̄₃₂) +
      δw̄_τ̄₃₃(i, j, k, grid, fv.w, ff.τ̄₃₃)) / Vᶜᶜᶜ(i, j, k, grid)
 
-const FilteredKineticEnergyDissipationRate = CustomKFO{<:typeof(coarse_grained_dissipation_rate_ccc)}
+const FilteredKineticEnergyDissipationRate = CustomKFO{<:typeof(filtered_dissipation_rate_ccc)}
 const DissipationRate = FilteredKineticEnergyDissipationRate
 
 """
@@ -318,7 +318,7 @@ Here `τᵢⱼ(u)` is the model's viscous momentum-flux tensor built from the **
 (the same fluxes [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)
 contracts), and `τ̄ᵢⱼ = filter(τᵢⱼ(u))` is that flux low-pass filtered. Contracting the filtered flux with
 the filtered velocity gradient gives the viscous sink in the budget of the filtered kinetic energy
-`Kˡ = ½ūᵢūᵢ` (coarse-graining framework of Aluie et al., 2018, *J. Phys. Oceanogr.*,
+`Kˡ = ½ūᵢūᵢ` (filtering framework of Aluie et al., 2018, *J. Phys. Oceanogr.*,
 doi:10.1175/JPO-D-17-0100.1).
 
 Note the flux is filtered, `filter(τᵢⱼ(u))`, not recomputed from the filtered velocity, `τᵢⱼ(ū)`. The two
@@ -346,7 +346,7 @@ FilteredKineticEnergyDissipationRate(model, filter)
 
 FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: coarse_grained_dissipation_rate_ccc (generic function with 1 method)
+├── kernel_function: filtered_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
 └── computes: filtered kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·τ̄ᵢⱼ
 ```
@@ -388,7 +388,7 @@ function FilteredKineticEnergyDissipationRate(model, filter)
           τ̄₃₁ = filtered_flux(viscous_flux_wx, Face,   Center, Face),
           τ̄₃₂ = filtered_flux(viscous_flux_wy, Center, Face,   Face),
           τ̄₃₃ = filtered_flux(viscous_flux_wz, Center, Center, Center))
-    return KernelFunctionOperation{Center, Center, Center}(coarse_grained_dissipation_rate_ccc, grid, fv, ff)
+    return KernelFunctionOperation{Center, Center, Center}(filtered_dissipation_rate_ccc, grid, fv, ff)
 end
 
 FilteredKineticEnergyDissipationRate(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =

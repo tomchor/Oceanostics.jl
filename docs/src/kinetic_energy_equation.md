@@ -54,12 +54,12 @@ KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
 └── computes: isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ
 
-julia> wb = KineticEnergyEquation.BuoyancyProduction(model)
-KineticEnergyBuoyancyProduction KernelFunctionOperation at (Center, Center, Center)
+julia> wb = KineticEnergyEquation.PotentialEnergyConversion(model)
+PotentialToKineticEnergyConversion KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "BuoyancyForce", "NamedTuple")
-└── computes: kinetic energy buoyancy production  uᵢbᵢ
+└── computes: potential to kinetic energy conversion  uᵢbᵢ
 ```
 
 ## Kinetic energy
@@ -98,10 +98,10 @@ Oceanostics.KineticEnergyEquation.KineticEnergyForcing
 Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution
 ```
 
-## Buoyancy production
+## Potential energy conversion
 
 ```@docs
-Oceanostics.KineticEnergyEquation.BuoyancyProduction
+Oceanostics.KineticEnergyEquation.PotentialEnergyConversion
 ```
 
 ## Dissipation rate

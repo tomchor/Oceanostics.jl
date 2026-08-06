@@ -92,7 +92,7 @@ add_callback!(simulation, progress, IterationInterval(100))
 # ### Sub-filter-scale kinetic-energy budget
 #
 # Rayleigh-Taylor turbulence converts potential energy into kinetic energy (KE) across a wide range of
-# scales, so we follow it with a coarse-graining analysis in the spirit of [Aluie et
+# scales, so we follow it with a filtering analysis in the spirit of [Aluie et
 # al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1). A low-pass filter (overbar) splits each field
 # into a filtered part and a sub-filter remainder. Here we budget the kinetic energy carried by the
 # scales the filter removes,
@@ -156,14 +156,14 @@ wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux �
 ∫wbˢ = Integral(wbˢ)
 ∫εˢ  = Integral(εˢ)
 
-# For the movie we also keep the coarse-grained kinetic energy
+# For the movie we also keep the filtered kinetic energy
 # ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i`` ([`FilteredKineticEnergy`](@ref)), the
 # filtered counterpart of ``K^s``. Together the two show how the filter splits the flow's kinetic energy
 # between the scales it keeps and the scales it removes:
 
 ## `FilteredKineticEnergy` materializes the filtered velocities internally, so the multi-direction filter
 ## runs on its fast staged path (see the filter performance notes and `check_filter_staging`).
-Kˡ = FilteredKineticEnergy(model, gfilter)  # kinetic energy of the coarse-grained (filtered) flow
+Kˡ = FilteredKineticEnergy(model, gfilter)  # kinetic energy of the filtered flow
 
 # ## Output
 #
@@ -230,9 +230,9 @@ i2 = 2:2:length(times_bud)     # consecutive-iteration snapshots
 t_pair = @. 0.5 * (times_bud[i1] + times_bud[i2])
 
 dKˢdt    = (∫Kˢ_t[i2] .- ∫Kˢ_t[i1]) ./ Δt_pair
-Πₖ_pair  = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2])
-wbˢ_pair = @. 0.5 * (∫wbˢ_t[i1] + ∫wbˢ_t[i2])
-εˢ_pair  = @. 0.5 * (∫εˢ_t[i1] + ∫εˢ_t[i2])
+Πₖ_pair  = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2]);
+wbˢ_pair = @. 0.5 * (∫wbˢ_t[i1] + ∫wbˢ_t[i2]);
+εˢ_pair  = @. 0.5 * (∫εˢ_t[i1] + ∫εˢ_t[i2]);
 
 # Residual in sum-to-zero form: the negative tendency plus the sources, so the plotted curves add to it
 resid = @. -dKˢdt + Πₖ_pair + wbˢ_pair - εˢ_pair
@@ -268,12 +268,12 @@ Colorbar(fig[2, 2], hmb)
 hmΠ = heatmap!(axΠ, x_caa, z_aac, Πₙ; colormap=:balance, colorrange=(-Πlim, Πlim))
 Colorbar(fig[2, 4], hmΠ)
 
-# The middle row splits the kinetic energy across the filter scale: on the left the coarse-grained
-# (filtered) energy `Kˡ`, on the right the sub-filter energy `Kˢ` whose budget the bottom panel closes.
+# The middle row splits the kinetic energy across the filter scale: on the left the filtered
+# energy `Kˡ`, on the right the sub-filter energy `Kˢ` whose budget the bottom panel closes.
 # Both are non-negative, so they get a sequential colormap, and each gets its own colour scale because
 # the two differ by orders of magnitude.
 
-axKˡ = Axis(fig[3, 1]; title="coarse-grained KE, Kˡ", xlabel="x", ylabel="z", aspect=1)
+axKˡ = Axis(fig[3, 1]; title="filtered KE, Kˡ", xlabel="x", ylabel="z", aspect=1)
 axKˢ = Axis(fig[3, 3]; title="sub-filter-scale KE, Kˢ", xlabel="x", ylabel="z", aspect=1)
 
 Kˡlim = maximum(Kˡ_arr)
@@ -318,4 +318,4 @@ end
 # breaks into a turbulent mixing layer. The bottom panel shows the volume-integrated SFS KE budget.
 # The sub-filter buoyancy flux `∫τ(w,b) dV` and dissipation `∫εˢ dV` are the dominant terms, with the
 # tendency `−d(∫Kˢ)/dt` in third place. The residual is small, which shows that the budget closes well
-# and that the coarse-graining analysis is consistent with the simulation.
+# and that the filtering analysis is consistent with the simulation.

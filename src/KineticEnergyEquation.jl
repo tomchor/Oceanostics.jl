@@ -7,7 +7,7 @@ export Advection, KineticEnergyAdvection
 export Stress, KineticEnergyStress
 export Forcing, KineticEnergyForcing
 export PressureRedistribution, KineticEnergyPressureRedistribution
-export BuoyancyProduction, KineticEnergyBuoyancyProduction
+export PotentialEnergyConversion, PotentialToKineticEnergyConversion
 export DissipationRate, KineticEnergyDissipationRate
 export KineticEnergyIsotropicDissipationRate
 
@@ -40,26 +40,6 @@ using Oceanostics: validate_location, validate_dissipative_closure, perturbation
 
 const KineticEnergy = CustomKFO{<:typeof(kinetic_energy_ccc)}
 
-"""
-    $(SIGNATURES)
-
-Calculate the kinetic energy of `model` manually specifying `u`, `v` and `w`.
-
-```jldoctest
-julia> using Oceananigans, Oceanostics
-
-julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
-
-julia> model = NonhydrostaticModel(grid);
-
-julia> KE = KineticEnergyEquation.KineticEnergy(model, model.velocities...)
-KineticEnergy KernelFunctionOperation at (Center, Center, Center)
-├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
-└── arguments: ("Field", "Field", "Field")
-└── computes: kinetic energy  ½uᵢuᵢ
-```
-"""
 function KineticEnergy(model, u, v, w; location = (Center, Center, Center))
     validate_location(location, "KineticEnergy")
     return KernelFunctionOperation{Center, Center, Center}(kinetic_energy_ccc, model.grid, u, v, w)
@@ -378,7 +358,7 @@ function KineticEnergyPressureRedistribution(model::NonhydrostaticModel; velocit
 end
 #---
 
-#+++ KineticEnergyBuoyancyProduction
+#+++ Potential-to-kinetic energy conversion
 @inline function uᵢbᵢᶜᶜᶜ(i, j, k, grid, velocities, buoyancy_model, tracers)
     ubˣ = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, x_dot_g_bᶠᶜᶜ, buoyancy_model, tracers)
     vbʸ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, y_dot_g_bᶜᶠᶜ, buoyancy_model, tracers)
@@ -386,22 +366,22 @@ end
     return ubˣ + vbʸ + wbᶻ
 end
 
-const KineticEnergyBuoyancyProduction = CustomKFO{<:typeof(uᵢbᵢᶜᶜᶜ)}
-const BuoyancyProduction = KineticEnergyBuoyancyProduction
+const PotentialToKineticEnergyConversion = CustomKFO{<:typeof(uᵢbᵢᶜᶜᶜ)}
+const PotentialEnergyConversion = PotentialToKineticEnergyConversion
 
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` that computes the buoyancy production term, defined as
+Return a `KernelFunctionOperation` that computes the conversion of potential energy into kinetic
+energy, defined as
 
-    BP = uᵢbᵢ
+    uᵢbᵢ
 
 where bᵢ is the component of the buoyancy acceleration in the `i`-th direction (which is zero for x
 and y, except when `gravity_unit_vector` isn't aligned with the grid's z-direction) and all three
 components of `i=1,2,3` are added up.
 
-By default, the buoyancy production will be calculated using the resolved `velocities` and
-`tracers`:
+By default, the conversion will be calculated using the resolved `velocities` and `tracers`:
 
 ```jldoctest wb_example
 julia> using Oceananigans
@@ -410,34 +390,34 @@ julia> grid = RectilinearGrid(size = (1, 1, 4), extent = (1,1,1));
 
 julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
 
-julia> using Oceanostics.KineticEnergyEquation: BuoyancyProduction
+julia> using Oceanostics.KineticEnergyEquation: PotentialEnergyConversion
 
-julia> wb = BuoyancyProduction(model)
-KineticEnergyBuoyancyProduction KernelFunctionOperation at (Center, Center, Center)
+julia> wb = PotentialEnergyConversion(model)
+PotentialToKineticEnergyConversion KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "BuoyancyForce", "NamedTuple")
-└── computes: kinetic energy buoyancy production  uᵢbᵢ
+└── computes: potential to kinetic energy conversion  uᵢbᵢ
 ```
 
-If we want to calculate only the _turbulent_ buoyancy production rate, we can do so by passing
-turbulent perturbations to the `velocities` and/or `tracers` options):
+If we want to calculate only the _turbulent_ conversion rate, we can do so by passing turbulent
+perturbations to the `velocities` and/or `tracers` options):
 
 ```jldoctest wb_example
 julia> w′ = Field(model.velocities.w - Field(Average(model.velocities.w)));
 
 julia> b′ = Field(model.tracers.b - Field(Average(model.tracers.b)));
 
-julia> w′b′ = BuoyancyProduction(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
-KineticEnergyBuoyancyProduction KernelFunctionOperation at (Center, Center, Center)
+julia> w′b′ = PotentialEnergyConversion(model, velocities=(u=model.velocities.u, v=model.velocities.v, w=w′), tracers=(b=b′,))
+PotentialToKineticEnergyConversion KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢbᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("NamedTuple", "BuoyancyForce", "NamedTuple")
-└── computes: kinetic energy buoyancy production  uᵢbᵢ
+└── computes: potential to kinetic energy conversion  uᵢbᵢ
 ```
 """
-function BuoyancyProduction(model::NonhydrostaticModel; velocities = model.velocities, tracers = model.tracers, location = (Center, Center, Center))
-    validate_location(location, "BuoyancyProduction")
+function PotentialEnergyConversion(model::NonhydrostaticModel; velocities = model.velocities, tracers = model.tracers, location = (Center, Center, Center))
+    validate_location(location, "PotentialEnergyConversion")
     return KernelFunctionOperation{Center, Center, Center}(uᵢbᵢᶜᶜᶜ, model.grid, velocities, model.buoyancy, tracers)
 end
 #---
@@ -570,4 +550,4 @@ end
     KineticEnergyIsotropicDissipationRate(model.velocities..., model.closure, model.closure_fields, fields(model), model.clock; location = location)
 #---
 
-end # module 
+end # module

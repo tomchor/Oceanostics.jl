@@ -13,12 +13,14 @@ using Oceanostics
 EXAMPLES_DIR = joinpath(@__DIR__, "examples")
 OUTPUT_DIR   = joinpath(@__DIR__, "src/generated")
 
-examples = ["Two-dimensional turbulence"   => "two_dimensional_turbulence",
-            "Kelvin-Helmholtz instability" => "kelvin_helmholtz",
-            "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability",
-            "Tilted bottom boundary layer" => "tilted_bottom_boundary_layer",
-            "Spatial filtering"            => "spatial_filtering",
-            ]
+examples = [
+    "Two-dimensional turbulence"   => "two_dimensional_turbulence", # KE and tracer variance budgets (~8 min)
+    "Baroclinic adjustment"        => "baroclinic_adjustment", # PE and KE budgets, double front (~20 min)
+    "Spatial filtering"            => "spatial_filtering", # Spatial filtering examples (~5 min)
+    "Kelvin-Helmholtz instability" => "kelvin_helmholtz", # Filtered KE budget (~8 min)
+    "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability", # SFS budget (~6 min)
+    "Lock release"                 => "lock_release", # APE and reference profiles calculation (~ 5 min)
+    ]
 
 example_pages = [ k => "generated/$v.md" for (k, v) in examples ]
 
@@ -48,6 +50,37 @@ function externalize_images(name)
 end
 
 """
+    colorize_ansi_output(content)
+
+Retag Literate's executed-output blocks so Documenter renders their ANSI escape sequences as
+colors. `Literate.markdown(..., execute = true)` writes each block's captured stdout/stderr into
+an info-less ```` ```` ```` fence, and Documenter's HTML writer only runs a code block through
+its ANSI-to-HTML printer when the block is tagged `documenter-ansi`; otherwise the escapes are
+emitted verbatim and the `ProgressMessengers` output reads as literal `^[[93m` (issue #284).
+Under the previous Documenter-executed `@example` path this came for free, because Documenter
+colorized the output it had captured itself.
+
+Prose fences carry three backticks and Literate's own code chunks carry a `julia` info string,
+so an info-less fence of four or more backticks is unambiguously executed output.
+"""
+function colorize_ansi_output(content::AbstractString)
+    lines = String.(split(content, '\n'))
+    fence = 0 # backtick count that opened the block we are inside; 0 when outside a block
+    for (i, line) in enumerate(lines)
+        m = match(r"^(`{3,})(.*)$", line)
+        m === nothing && continue
+        ticks, info = length(m[1]), strip(m[2])
+        if fence == 0
+            fence = ticks
+            isempty(info) && ticks >= 4 && (lines[i] = m[1] * "documenter-ansi")
+        elseif ticks >= fence && isempty(info)
+            fence = 0
+        end
+    end
+    return join(lines, '\n')
+end
+
+"""
     generate_example(slug)
 
 Run `examples/\$slug.jl` through Literate with `execute = true`. This runs the example
@@ -60,7 +93,7 @@ from the rendered code, exactly as under the previous Documenter-executed `@exam
 generate_example(slug) =
     Literate.markdown(joinpath(EXAMPLES_DIR, slug * ".jl"), OUTPUT_DIR;
                       execute = true, flavor = Literate.DocumenterFlavor(),
-                      postprocess = externalize_images(slug))
+                      postprocess = colorize_ansi_output ∘ externalize_images(slug))
 
 # Single-example mode: when OCEANOSTICS_DOCS_EXAMPLE names one example, build only that
 # page and stop. This is what each parallel CI job runs; the resulting page and media are
@@ -111,11 +144,14 @@ pages = ["Home" => "index.md",
                                 "Turbulent kinetic energy equation"      => "turbulent_kinetic_energy_equation.md",
                                 "Tracer variance equation"               => "tracer_variance_equation.md",
                                 "Potential energy equation"              => "potential_energy_equation.md",
+                                "Background potential energy equation"   => "background_potential_energy_equation.md",
+                                "Available potential energy equation"    => "available_potential_energy_equation.md",
                                 ],
          "Flow diagnostics" => "flow_diagnostics.md",
          "Progress messengers" => "progress_messengers.md",
          "Spatial filters" => "filters.md",
          "Examples" => example_pages,
+         "Validation" => ["Sorted reference state" => "validation/reference_state.md"],
          "Function library" => "library.md",
         ]
 

@@ -36,11 +36,12 @@ Base.summary(k::NamedKernel) = summary(k.func)
 
 #+++ Module export
 export TracerEquation, KineticEnergyEquation, FilteredKineticEnergyEquation, SubFilterKineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
-       UMomentumEquation, VMomentumEquation, WMomentumEquation
+       BackgroundPotentialEnergyEquation, AvailablePotentialEnergyEquation, UMomentumEquation, VMomentumEquation, WMomentumEquation
 #---
 
 #+++ TracerEquation exports
-export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing
+export TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, TracerForcing,
+       TracerXDiffusiveFlux, TracerYDiffusiveFlux,TracerZDiffusiveFlux
 #---
 
 #+++ UMomentumEquation exports
@@ -66,7 +67,7 @@ export TracerVarianceTendency, TracerVarianceDissipationRate, TracerVarianceDiff
 #---
 
 #+++ KineticEnergyEquation exports
-export KineticEnergyForcing, KineticEnergyPressureRedistribution, KineticEnergyBuoyancyProduction,
+export KineticEnergy, KineticEnergyForcing, KineticEnergyPressureRedistribution, PotentialToKineticEnergyConversion,
        KineticEnergyDissipationRate, KineticEnergyIsotropicDissipationRate
 #---
 
@@ -104,8 +105,21 @@ export BottomCellValue
 export BoxFilter, GaussianFilter, check_filter_staging
 #---
 
-#+++ PotentialEnergyEquationTerms exports
-export PotentialEnergy
+#+++ PotentialEnergyEquation exports
+export PotentialEnergy, PotentialEnergyDiffusiveVerticalBuoyancyFlux
+export PotentialEnergyTendency, PotentialEnergyAdvection, PotentialEnergyBuoyancyAdvection,
+       PotentialEnergyDiffusion, PotentialEnergyBuoyancyDiffusion, PotentialEnergyForcing
+#---
+
+#+++ BackgroundPotentialEnergyEquation exports
+# `reference_height`, `reference_buoyancy` and the reference-height methods are defined here and
+# re-exported by `AvailablePotentialEnergyEquation`, since both budgets are built on them.
+export BackgroundPotentialEnergy, reference_height, reference_buoyancy
+export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
+#---
+
+#+++ AvailablePotentialEnergyEquation exports
+export AvailablePotentialEnergy, BuoyancyDisplacementPotential, AvailablePotentialEnergyDissipationRate
 #---
 
 #+++ ProgressMessengers
@@ -222,6 +236,8 @@ include("TracerVarianceEquation.jl")
 include("KineticEnergyEquation.jl")
 include("TurbulentKineticEnergyEquation.jl")
 include("PotentialEnergyEquation.jl")
+include("BackgroundPotentialEnergyEquation.jl")
+include("AvailablePotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
 include("SpatialFilters/SpatialFilters.jl")
 include("FilteredKineticEnergyEquation.jl")
@@ -229,11 +245,20 @@ include("SubFilterKineticEnergyEquation.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
+using .BackgroundPotentialEnergyEquation, .AvailablePotentialEnergyEquation
 using .FlowDiagnostics
 using .SpatialFilters
 using .FilteredKineticEnergyEquation
 using .SubFilterKineticEnergyEquation
 using .ProgressMessengers
+
+#+++ Deprecated bindings
+# `Φ` is the vertical component of the diffusive flux, not the flux vector, so the name gained
+# `Vertical`. The old spelling resolves for one more release and warns when reached by name. It is
+# declared here rather than in `PotentialEnergyEquation` because a binding deprecation is lost when the
+# name is re-exported through another module, so the warning has to be attached where callers see it.
+Base.@deprecate_binding PotentialEnergyDiffusiveBuoyancyFlux PotentialEnergyDiffusiveVerticalBuoyancyFlux
+#---
 
 #+++ Custom `show` for diagnostics
 # Every diagnostic is a `KernelFunctionOperation` (KFO) under the hood, so by default it prints as the
@@ -341,6 +366,9 @@ end
 @diagnostic_show TracerEquation.Diffusion         "TracerDiffusion"          "tracer diffusion (interior)  ∂ⱼqᶜⱼ"
 @diagnostic_show TracerEquation.ImmersedDiffusion "TracerImmersedDiffusion"  "tracer diffusion through immersed boundaries  ∂ⱼ𝓆ᶜⱼ"
 @diagnostic_show TracerEquation.TotalDiffusion    "TracerTotalDiffusion"     "total tracer diffusion (interior + immersed)  ∂ⱼqᶜⱼ + ∂ⱼ𝓆ᶜⱼ"
+@diagnostic_show TracerEquation.XDiffusiveFlux    "TracerXDiffusiveFlux"     "subgrid tracer diffusion in x determined by the configured closure"
+@diagnostic_show TracerEquation.YDiffusiveFlux    "TracerYDiffusiveFlux"     "subgrid tracer diffusion in y determined by the configured closure"
+@diagnostic_show TracerEquation.ZDiffusiveFlux    "TracerZDiffusiveFlux"     "subgrid tracer diffusion in z determined by the configured closure"
 #---
 
 #+++ UMomentumEquation
@@ -396,7 +424,7 @@ end
 @diagnostic_show KineticEnergyEquation.KineticEnergyStress                   "KineticEnergyStress"                   "kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyForcing                  "KineticEnergyForcing"                  "kinetic energy forcing  uᵢFᵤᵢ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyPressureRedistribution   "KineticEnergyPressureRedistribution"   "kinetic energy pressure redistribution  uᵢ∂ᵢp"
-@diagnostic_show KineticEnergyEquation.KineticEnergyBuoyancyProduction       "KineticEnergyBuoyancyProduction"       "kinetic energy buoyancy production  uᵢbᵢ"
+@diagnostic_show KineticEnergyEquation.PotentialToKineticEnergyConversion    "PotentialToKineticEnergyConversion"    "potential to kinetic energy conversion  uᵢbᵢ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"          "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·τᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyIsotropicDissipationRate "KineticEnergyIsotropicDissipationRate" "isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ"
 #---
@@ -423,7 +451,24 @@ end
 #---
 
 #+++ PotentialEnergyEquation
-@diagnostic_show PotentialEnergyEquation.PotentialEnergy "PotentialEnergy" "potential energy per unit volume  Eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.PotentialEnergy               "PotentialEnergy"                     "potential energy per unit volume  eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.Tendency                      "PotentialEnergyTendency"             "potential energy tendency  ∂ₜeₚ = -z ∂ₜb"
+@diagnostic_show PotentialEnergyEquation.Advection                     "PotentialEnergyAdvection"            "potential energy advection  ∂ⱼ(uⱼeₚ)"
+@diagnostic_show PotentialEnergyEquation.BuoyancyAdvection             "PotentialEnergyBuoyancyAdvection"    "potential energy buoyancy advection  z ∂ⱼ(uⱼb)"
+@diagnostic_show PotentialEnergyEquation.Diffusion                     "PotentialEnergyDiffusion"            "potential energy diffusive transport  ∂ⱼ(z qⱼ)"
+@diagnostic_show PotentialEnergyEquation.BuoyancyDiffusion             "PotentialEnergyBuoyancyDiffusion"    "potential energy buoyancy diffusion  z ∂ⱼqⱼ"
+@diagnostic_show PotentialEnergyEquation.Forcing                       "PotentialEnergyForcing"              "potential energy forcing  -z Fᵇ"
+@diagnostic_show PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux "PotentialEnergyDiffusiveVerticalBuoyancyFlux" "diffusive vertical buoyancy flux  Φ = κ ∂b/∂z = -q₃"
+#---
+
+#+++ BackgroundPotentialEnergyEquation
+@diagnostic_show BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  e_b = -bz✶"
+#---
+
+#+++ AvailablePotentialEnergyEquation
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy                "AvailablePotentialEnergy"                "local available potential energy density  eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
+@diagnostic_show AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential           "BuoyancyDisplacementPotential"           "buoyancy displacement potential  Υ = z✶ - z"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  ε_A = κ ∂ᵢb ∂ᵢΥ"
 #---
 
 #+++ FlowDiagnostics

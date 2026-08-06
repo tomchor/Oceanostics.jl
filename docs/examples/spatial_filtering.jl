@@ -1,6 +1,6 @@
 # # [Spatial filtering and subfilter fluxes](@id spatial_filtering_example)
 #
-# In this example we use Oceanostics' [`GaussianFilter`](@ref) to coarse-grain a two-dimensional
+# In this example we use Oceanostics' [`GaussianFilter`](@ref) to filter a two-dimensional
 # turbulent flow. Spatial filtering splits a field into a smooth, large-scale (filtered) part and a
 # small-scale (subfilter) fluctuation,
 #
@@ -226,7 +226,7 @@ Colorbar(fig_Π[1, 4], hm_Π)
 resize_to_layout!(fig_Π)
 fig_Π
 
-# ## Coarse-grained kinetic energy dissipation
+# ## Filtered kinetic energy dissipation
 #
 # We can also calculate the dissipation acting on the *filtered* flow using [`FilteredKineticEnergyDissipationRate`](@ref):
 #
@@ -234,14 +234,15 @@ fig_Π
 # \varepsilon^l = \frac{\partial \overline{u}_i}{\partial x_j}\,\overline{F}_{ij},
 # ```
 #
-# where ``\varepsilon^l `` indicates the dissipation of the filtered flow and ``\overline{F}_{ij}``
-# is the filtered viscous stress tensor. In our case (width a constant-viscosity run)
-# ``\overline{F}_{ij}`` simplifies to ``\nu\,\partial_j\overline{u}_i\,\partial_\overline{u}_i``:
+# where ``\varepsilon^l`` indicates the dissipation of the filtered flow and ``\overline{F}_{ij}`` is
+# the filtered viscous stress tensor — filtered from the full flow, rather than rebuilt from
+# ``\bar{u}_i``. For the constant viscosity used here the two coincide, and ``\varepsilon^l`` reduces
+# to ``2\nu\,\bar{S}_{ij}\bar{S}_{ij}``, the dissipation of the resolved strain:
 
 εˡ = FilteredKineticEnergyDissipationRate(model, filter)
 
 fig_ε = Figure()
-ax_ε = Axis(fig_ε[1, 1]; title = "Coarse-grained KE dissipation εˡ", axis_kwargs...)
+ax_ε = Axis(fig_ε[1, 1]; title = "Filtered KE dissipation εˡ", axis_kwargs...)
 hm_ε = heatmap!(ax_ε, εˡ; colormap = :magma)
 Colorbar(fig_ε[1, 2], hm_ε)
 
