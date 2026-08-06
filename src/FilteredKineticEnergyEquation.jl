@@ -15,7 +15,7 @@ using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous
                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
                                        viscous_flux_wx, viscous_flux_wy, viscous_flux_wz
 
-using Oceanostics: CustomKFO
+using Oceanostics: CustomKFO, NamedKernel, index_operation_ccc
 using ..FlowDiagnostics: StressTensor, StrainRateTensor
 import ..FlowDiagnostics            # for the (unexported) `validate_dims`
 using ..SpatialFilters: GaussianFilter, BoxFilter   # BoxFilter is imported so its docstring `@ref` resolves in-module
@@ -49,12 +49,11 @@ end
 #---
 
 #+++ Filtered kinetic energy
-# Kˡ = ½ ūᵢūᵢ, the kinetic energy of the filtered velocity field ūᵢ = filter(uᵢ). It reuses
-# `KineticEnergyEquation`'s `kinetic_energy_ccc` kernel (½uᵢuᵢ interpolated to ccc); wrapping it under a
-# distinct kernel name gives `FilteredKineticEnergy` its own type alias and `@diagnostic_show` display.
-@inline filtered_kinetic_energy_ccc(i, j, k, grid, ū, v̄, w̄) = kinetic_energy_ccc(i, j, k, grid, ū, v̄, w̄)
-
-const FilteredKineticEnergy = CustomKFO{<:typeof(filtered_kinetic_energy_ccc)}
+# Kˡ = ½ ūᵢūᵢ, the kinetic energy of the filtered velocity field ūᵢ = filter(uᵢ). It is exactly
+# `KineticEnergyEquation`'s `kinetic_energy_ccc` kernel (½uᵢuᵢ interpolated to ccc) applied to the
+# filtered velocities, so we reuse that kernel directly and only tag it with a `NamedKernel` label
+# (`:Kˡ`) to give `FilteredKineticEnergy` its own type alias and `@diagnostic_show` display.
+const FilteredKineticEnergy = CustomKFO{<:NamedKernel{:Kˡ}}
 
 """
     $(SIGNATURES)
@@ -87,7 +86,7 @@ FilteredKineticEnergy(model, filter)
 
 FilteredKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: filtered_kinetic_energy_ccc (generic function with 1 method)
+├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
 └── computes: kinetic energy of the filtered flow  Kˡ = ½ūᵢūᵢ
 ```
@@ -98,7 +97,8 @@ for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a F
 function FilteredKineticEnergy(model, filter)
     u, v, w = model.velocities
     ū, v̄, w̄ = filtered_velocities(filter, (1, 2, 3), u, v, w)   # materialize all three filtered velocities
-    return KernelFunctionOperation{Center, Center, Center}(filtered_kinetic_energy_ccc, model.grid, ū, v̄, w̄)
+    kernel = NamedKernel{:Kˡ}(kinetic_energy_ccc)
+    return KernelFunctionOperation{Center, Center, Center}(kernel, model.grid, ū, v̄, w̄)
 end
 
 FilteredKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) = FilteredKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N))
@@ -184,12 +184,12 @@ function _cross_scale_ke_flux(τ, S̄)
 end
 
 # Expose the flux as a single `KernelFunctionOperation` so it displays like the other diagnostics (via
-# `@diagnostic_show` in `Oceanostics`) and composes inside larger operation trees. The kernel just
-# evaluates the contraction operation `Πᵏ` built above; `Πᵏ`'s leaves are the materialized filtered
-# `Field`s, so this per-cell evaluation only reads those fields and does arithmetic — it never re-filters.
-@inline cross_scale_ke_flux_ccc(i, j, k, grid, Πᵏ) = @inbounds Πᵏ[i, j, k]
-
-const KineticEnergyCrossScaleFlux = CustomKFO{<:typeof(cross_scale_ke_flux_ccc)}
+# `@diagnostic_show` in `Oceanostics`) and composes inside larger operation trees. The per-cell kernel
+# just evaluates the contraction operation `Πᵏ` built above; `Πᵏ`'s leaves are the materialized filtered
+# `Field`s, so it only reads those fields and does arithmetic, never re-filtering. That "index a
+# pre-assembled ccc operation" body is the shared `index_operation_ccc`, tagged here with the `:Πₖ`
+# `NamedKernel` label to give this diagnostic its own type alias and display.
+const KineticEnergyCrossScaleFlux = CustomKFO{<:NamedKernel{:Πₖ}}
 const CrossScaleFlux = KineticEnergyCrossScaleFlux
 
 """
@@ -228,7 +228,7 @@ KineticEnergyCrossScaleFlux(model, filter)
 
 KineticEnergyCrossScaleFlux KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: cross_scale_ke_flux_ccc (generic function with 1 method)
+├── kernel_function: index_operation_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.UnaryOperation",)
 └── computes: cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ
 ```
@@ -256,7 +256,8 @@ function KineticEnergyCrossScaleFlux(model, filter; dims = (1, 2, 3))
     # natural staggered locations here; the result is wrapped in a `KernelFunctionOperation`.
     S̄ = StrainRateTensor(grid, ū, v̄, w̄; dims)
     τ = subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims)
-    return KernelFunctionOperation{Center, Center, Center}(cross_scale_ke_flux_ccc, grid, _cross_scale_ke_flux(τ, S̄))
+    kernel = NamedKernel{:Πₖ}(index_operation_ccc)
+    return KernelFunctionOperation{Center, Center, Center}(kernel, grid, _cross_scale_ke_flux(τ, S̄))
 end
 
 KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =

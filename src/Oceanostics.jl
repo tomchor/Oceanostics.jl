@@ -1,8 +1,38 @@
 module Oceanostics
 using DocStringExtensions
 using Oceananigans.AbstractOperations: KernelFunctionOperation
+import Oceananigans.Utils: prettysummary   # extended for `NamedKernel` so KFO `show` names the real kernel
 
 const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, F}
+
+# A zero-cost callable wrapper that tags an existing kernel function with a distinct `label` (a
+# `Symbol`), so several diagnostics that share the *same* underlying kernel can still be told apart by
+# type. That type distinction is what the `CustomKFO` `show`/`operation_name`/`summary` dispatch keys
+# off (see `@diagnostic_show` below). `NamedKernel{label}(f)(args...)` just forwards to `f(args...)`,
+# and it prints exactly as `f` does, so a KFO's `kernel_function:` tree line still names the real
+# kernel. The `label` is never rendered; it only needs to be unique among the diagnostics that reuse
+# one base kernel (e.g. `FilteredKineticEnergy` reusing `kinetic_energy_ccc`). This avoids defining a
+# throwaway forwarding kernel per diagnostic purely to obtain a distinct type.
+struct NamedKernel{label, F} <: Function
+    func :: F
+end
+NamedKernel{label}(func::F) where {label, F} = NamedKernel{label, F}(func)
+@inline (k::NamedKernel)(args...) = k.func(args...)
+
+# Delegate every display path to the wrapped kernel so the `label` never surfaces: the KFO tree's
+# `kernel_function:` line goes through Oceananigans' `prettysummary` (which, for a bare `<:Function`
+# callable, would otherwise print the wrapper type name `NamedKernel`), and `show`/`summary` cover a
+# `NamedKernel` displayed on its own.
+prettysummary(k::NamedKernel, args...) = prettysummary(k.func, args...)
+Base.show(io::IO, k::NamedKernel) = show(io, k.func)
+Base.show(io::IO, m::MIME"text/plain", k::NamedKernel) = show(io, m, k.func)
+Base.summary(k::NamedKernel) = summary(k.func)
+
+# Shared per-cell kernel for diagnostics whose value is a pre-assembled `AbstractOperation` (with
+# materialized filtered-`Field` leaves) evaluated at cell centers: the kernel just indexes that
+# operation. Several diagnostics share this identical body (e.g. `KineticEnergyCrossScaleFlux` and
+# `SubFilterKineticEnergyDissipationRate`) and are differentiated only by their `NamedKernel` label.
+@inline index_operation_ccc(i, j, k, grid, op) = @inbounds op[i, j, k]
 
 #+++ Module export
 export TracerEquation, KineticEnergyEquation, FilteredKineticEnergyEquation, SubFilterKineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,

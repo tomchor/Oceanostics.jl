@@ -10,11 +10,11 @@ export KineticEnergyCrossScaleFlux
 using Oceananigans.Fields: Field
 using Oceananigans.Grids: Center
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceanostics: CustomKFO
+using Oceanostics: CustomKFO, NamedKernel, index_operation_ccc
 
-using ..KineticEnergyEquation: KineticEnergyDissipationRate, KineticEnergy
+using ..KineticEnergyEquation: KineticEnergyDissipationRate, KineticEnergy, kinetic_energy_ccc
 using ..FilteredKineticEnergyEquation: FilteredKineticEnergy, FilteredKineticEnergyDissipationRate,
-                                       KineticEnergyCrossScaleFlux, filtered_kinetic_energy_ccc, filtered_velocities
+                                       KineticEnergyCrossScaleFlux, filtered_velocities
 using ..FilteredKineticEnergyEquation: subfilter_stress_tensor # re-exported for convenience
 # `GaussianFilter` is used by the convenience methods; `BoxFilter` is imported only so its docstring
 # `@ref` resolves in-module.
@@ -25,8 +25,9 @@ using ..SpatialFilters: GaussianFilter, BoxFilter
 # Because `KineticEnergy` and `FilteredKineticEnergy` use the same interpolate-the-square (½⟨uᵢ²⟩)
 # discretization, the discrete decomposition filter(K) = Kˡ + Kˢ then holds exactly, by construction, on
 # any grid. The kernel reads the materialized filtered full KE `k̄ = filter(K)` and recomputes Kˡ in place
-# via `filtered_kinetic_energy_ccc` on the materialized filtered velocities `ūᵢ = filter(uᵢ)`.
-@inline subfilter_kinetic_energy_ccc(i, j, k, grid, k̄, ū, v̄, w̄) = @inbounds k̄[i, j, k] - filtered_kinetic_energy_ccc(i, j, k, grid, ū, v̄, w̄)
+# via `kinetic_energy_ccc` (the kernel `FilteredKineticEnergy` wraps) on the
+# materialized filtered velocities `ūᵢ = filter(uᵢ)`.
+@inline subfilter_kinetic_energy_ccc(i, j, k, grid, k̄, ū, v̄, w̄) = @inbounds k̄[i, j, k] - kinetic_energy_ccc(i, j, k, grid, ū, v̄, w̄)
 
 const SubFilterKineticEnergy = CustomKFO{<:typeof(subfilter_kinetic_energy_ccc)}
 
@@ -88,10 +89,10 @@ SubFilterKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = noth
 #+++ Sub-filter kinetic energy dissipation
 # Exposed as a single `KernelFunctionOperation` using the same wrapper trick as `KineticEnergyCrossScaleFlux`:
 # the kernel just indexes the pre-assembled operation εˢ = filter(ε) - εˡ, whose leaves are the materialized
-# filtered `Field`s, so per-cell evaluation only reads those fields and subtracts (it never re-filters).
-@inline subfilter_ke_dissipation_rate_ccc(i, j, k, grid, εˢ) = @inbounds εˢ[i, j, k]
-
-const SubFilterKineticEnergyDissipationRate = CustomKFO{<:typeof(subfilter_ke_dissipation_rate_ccc)}
+# filtered `Field`s, so per-cell evaluation only reads those fields and subtracts (it never re-filters). That
+# "index a pre-assembled ccc operation" body is the shared `index_operation_ccc` (the same kernel
+# `KineticEnergyCrossScaleFlux` uses), tagged here with the `:εˢ` `NamedKernel` label for its own display.
+const SubFilterKineticEnergyDissipationRate = CustomKFO{<:NamedKernel{:εˢ}}
 const DissipationRate = SubFilterKineticEnergyDissipationRate
 
 """
@@ -132,7 +133,7 @@ SubFilterKineticEnergyDissipationRate(model, filter)
 
 SubFilterKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: subfilter_ke_dissipation_rate_ccc (generic function with 1 method)
+├── kernel_function: index_operation_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
 └── computes: sub-filter kinetic energy dissipation rate  εˢ = filter(ε) - εˡ
 ```
@@ -144,7 +145,8 @@ function SubFilterKineticEnergyDissipationRate(model, filter)
     ε  = KineticEnergyDissipationRate(model)                 # dissipation of the full flow
     εˡ = FilteredKineticEnergyDissipationRate(model, filter) # dissipation of the filtered flow
     εˢ = Field(filter(Field(ε))) - εˡ                        # εˢ = filter(ε) - εˡ; leaves are materialized Fields
-    return KernelFunctionOperation{Center, Center, Center}(subfilter_ke_dissipation_rate_ccc, model.grid, εˢ)
+    kernel = NamedKernel{:εˢ}(index_operation_ccc)
+    return KernelFunctionOperation{Center, Center, Center}(kernel, model.grid, εˢ)
 end
 
 SubFilterKineticEnergyDissipationRate(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
