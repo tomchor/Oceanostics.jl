@@ -4,6 +4,7 @@ using Pkg; Pkg.instantiate()
 using Base64
 
 using Documenter
+using DocumenterCodeBlocks: CodeBlocks
 using Literate
 
 using Oceananigans
@@ -165,6 +166,11 @@ format = Documenter.HTML(collapselevel = 1,
 #---
 
 #+++ Make the docs
+# `CodeBlocks()` tokenizes Julia code blocks at build time with JuliaSyntax instead of leaving
+# them to highlight.js in the browser. That buys a real parse (so function calls, types and
+# macros get their own colors), line numbers with linkable gutters, and hover popups linking
+# identifiers to their docstrings. It only touches `julia`/`julia-repl`/`jldoctest` blocks, so
+# the executed-output blocks retagged by `colorize_ansi_output` above are left alone.
 makedocs(sitename = "Oceanostics.jl",
          authors = "Tomas Chor and contributors",
          pages = pages,
@@ -172,6 +178,7 @@ makedocs(sitename = "Oceanostics.jl",
          doctest = true,
          clean = true,
          format = format,
+         plugins = [CodeBlocks()],
          checkdocs = :none,
          doctestfilters = [r"with \d+ methods?"], # method count drifts with Oceananigans versions
          )
