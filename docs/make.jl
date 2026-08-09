@@ -4,6 +4,7 @@ using Pkg; Pkg.instantiate()
 using Base64
 
 using Documenter
+using DocumenterCodeBlocks: CodeBlocks
 using Literate
 
 using Oceananigans
@@ -172,6 +173,7 @@ makedocs(sitename = "Oceanostics.jl",
          doctest = true,
          clean = true,
          format = format,
+         plugins = [CodeBlocks()],
          checkdocs = :none,
          doctestfilters = [r"with \d+ methods?"], # method count drifts with Oceananigans versions
          )
