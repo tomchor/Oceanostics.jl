@@ -133,7 +133,7 @@ Two caveats worth noting:
 
 ## `HydrostaticFreeSurfaceModel` caveats
 
-- `WMomentumEquation.Tendency`, `WMomentumEquation.Forcing(model, Val(:w))`, and the
+- `WMomentumEquation.Tendency`, `WMomentumEquation.Forcing(model)`, and the
   U/V/W `StokesShear` and `StokesTendency` throw an `ArgumentError` on
   `HydrostaticFreeSurfaceModel`: `w` is diagnosed from continuity rather than evolved by a
   prognostic equation, and HFS has no `stokes_drift` field.
@@ -145,22 +145,6 @@ Two caveats worth noting:
   `U_dot_∇u`/`U_dot_∇v`, whereas the NH `Advection` diagnostic returns a KFO whose kernel
   function is `div_𝐯u`/`div_𝐯v` — both pass the `isa Advection` type check via the
   `Advection` Union alias.
-
-## `Forcing` dispatch quirk
-
-`Forcing` aliases `KernelFunctionOperation` directly (no narrowing on the kernel function),
-so its constructor methods are shared across the three modules. To avoid clobbering
-`UMomentumEquation.Forcing(model)` when the V and W modules are also loaded, the V/W
-single-argument convenience form takes an explicit `Val` tag:
-
-```julia
-UMomentumEquation.Forcing(model)              # u-momentum forcing
-VMomentumEquation.Forcing(model, Val(:v))     # v-momentum forcing
-WMomentumEquation.Forcing(model, Val(:w))     # w-momentum forcing
-```
-
-The full explicit form `Forcing(model, forcing, clock, model_fields, Val(:u/:v/:w))` is
-available in all three modules.
 
 ## U-momentum
 

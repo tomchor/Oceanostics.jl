@@ -110,6 +110,7 @@ function test_tracer_terms(model)
     FORC_field = Field(FORC)
     @test FORC isa TracerEquation.Forcing
     @test FORC isa TracerForcing
+    @test !(FORC isa UForcing) # the Forcing aliases are narrowed per module, not the generic KFO
     @test FORC_field isa Field
 
     return nothing

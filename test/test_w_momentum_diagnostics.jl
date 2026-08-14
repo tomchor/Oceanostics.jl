@@ -161,16 +161,17 @@ function test_w_momentum_terms(model)
     @test TSTOKES_field isa Field
 
     # Test Forcing
-    FORC = WMomentumEquation.Forcing(model, model.forcing.w, model.clock, fields(model), Val(:w))
+    FORC = WMomentumEquation.Forcing(model, model.forcing.w, model.clock, fields(model))
     FORC_field = Field(FORC)
     @test FORC isa WMomentumEquation.Forcing
     @test FORC isa WForcing
     @test FORC_field isa Field
 
-    FORC = WMomentumEquation.Forcing(model, Val(:w))
+    FORC = WMomentumEquation.Forcing(model)
     FORC_field = Field(FORC)
     @test FORC isa WMomentumEquation.Forcing
     @test FORC isa WForcing
+    @test !(FORC isa UForcing) # the Forcing aliases are narrowed per module, not the generic KFO
     @test FORC_field isa Field
 
     # Test Tendency (NonhydrostaticModel only)
@@ -215,7 +216,7 @@ function test_w_momentum_field_locations(model)
     TSTOKES = WMomentumEquation.StokesTendency(model)
     @test location(TSTOKES) == (Center, Center, Face)
 
-    FORC = WMomentumEquation.Forcing(model, Val(:w))
+    FORC = WMomentumEquation.Forcing(model)
     @test location(FORC) == (Center, Center, Face)
 
     TEND = WMomentumEquation.Tendency(model)
@@ -258,7 +259,7 @@ function test_w_momentum_budget_closure(grid; pressure_splitting = true)
     TVISC = WMomentumEquation.TotalViscousDissipation(model)
     SS    = WMomentumEquation.StokesShear(model)
     ST    = WMomentumEquation.StokesTendency(model)
-    FORC  = WMomentumEquation.Forcing(model, Val(:w))
+    FORC  = WMomentumEquation.Forcing(model)
     TEND  = WMomentumEquation.Tendency(model)
 
     budget = pressure_splitting ?
@@ -288,7 +289,7 @@ function test_w_momentum_hfs_unsupported()
     grid = first(values(grids))
     hfs_model = HydrostaticFreeSurfaceModel(grid; tracers, buoyancy=BuoyancyTracer())
     @test_throws ArgumentError WMomentumEquation.Tendency(hfs_model)
-    @test_throws ArgumentError WMomentumEquation.Forcing(hfs_model, Val(:w))
+    @test_throws ArgumentError WMomentumEquation.Forcing(hfs_model)
     @test_throws ArgumentError WMomentumEquation.StokesShear(hfs_model)
     @test_throws ArgumentError WMomentumEquation.StokesTendency(hfs_model)
     return nothing

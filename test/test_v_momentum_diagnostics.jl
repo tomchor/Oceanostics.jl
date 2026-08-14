@@ -196,16 +196,17 @@ function test_v_momentum_terms(model)
     end
 
     # Test Forcing
-    FORC = VMomentumEquation.Forcing(model, model.forcing.v, model.clock, fields(model), Val(:v))
+    FORC = VMomentumEquation.Forcing(model, model.forcing.v, model.clock, fields(model))
     FORC_field = Field(FORC)
     @test FORC isa VMomentumEquation.Forcing
     @test FORC isa VForcing
     @test FORC_field isa Field
 
-    FORC = VMomentumEquation.Forcing(model, Val(:v))
+    FORC = VMomentumEquation.Forcing(model)
     FORC_field = Field(FORC)
     @test FORC isa VMomentumEquation.Forcing
     @test FORC isa VForcing
+    @test !(FORC isa UForcing) # the Forcing aliases are narrowed per module, not the generic KFO
     @test FORC_field isa Field
 
     # Test Tendency
@@ -262,7 +263,7 @@ function test_v_momentum_field_locations(model)
         @test location(TSTOKES) == (Center, Face, Center)
     end
 
-    FORC = VMomentumEquation.Forcing(model, Val(:v))
+    FORC = VMomentumEquation.Forcing(model)
     @test location(FORC) == (Center, Face, Center)
 
     TEND = VMomentumEquation.Tendency(model)
@@ -298,7 +299,7 @@ function test_v_momentum_budget_closure(grid)
     TVISC = VMomentumEquation.TotalViscousDissipation(model)
     SS    = VMomentumEquation.StokesShear(model)
     ST    = VMomentumEquation.StokesTendency(model)
-    FORC  = VMomentumEquation.Forcing(model, Val(:v))
+    FORC  = VMomentumEquation.Forcing(model)
     TEND  = VMomentumEquation.Tendency(model)
 
     budget = Field(-ADV + BUOY - COR - PRES - TVISC + SS + ST + FORC)
@@ -333,7 +334,7 @@ function test_v_momentum_hfs_budget_closure(grid)
     PRES  = VMomentumEquation.PressureGradient(model)
     BARO  = VMomentumEquation.BarotropicPressureGradient(model)
     TVISC = VMomentumEquation.TotalViscousDissipation(model)
-    FORC  = VMomentumEquation.Forcing(model, Val(:v))
+    FORC  = VMomentumEquation.Forcing(model)
     TEND  = VMomentumEquation.Tendency(model)
 
     budget = Field(-ADV - BARO - COR - PRES - TVISC + FORC)

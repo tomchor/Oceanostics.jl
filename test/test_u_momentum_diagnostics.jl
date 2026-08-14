@@ -196,7 +196,7 @@ function test_u_momentum_terms(model)
     end
 
     # Test Forcing
-    FORC = UMomentumEquation.Forcing(model, model.forcing.u, model.clock, fields(model), Val(:u))
+    FORC = UMomentumEquation.Forcing(model, model.forcing.u, model.clock, fields(model))
     FORC_field = Field(FORC)
     @test FORC isa UMomentumEquation.Forcing
     @test FORC isa UForcing
@@ -206,6 +206,7 @@ function test_u_momentum_terms(model)
     FORC_field = Field(FORC)
     @test FORC isa UMomentumEquation.Forcing
     @test FORC isa UForcing
+    @test !(FORC isa VForcing) # the Forcing aliases are narrowed per module, not the generic KFO
     @test FORC_field isa Field
 
     # Test Tendency
