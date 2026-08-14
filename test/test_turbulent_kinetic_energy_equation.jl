@@ -84,6 +84,28 @@ function test_shear_production_terms(model)
 
 end
 
+function test_total_shear_production_consistency(model)
+    # A sheared flow with nonzero mean and nonzero perturbations: the total shear production
+    # rate must equal the sum of its X, Y and Z components, which only holds if the `model`
+    # method subtracts the mean from the velocities to form the perturbations
+    set!(model, u = (x, y, z) -> sin(2π*x) + 0.1*cos(2π*y), v = (x, y, z) -> cos(2π*x) + 0.1*sin(2π*z))
+
+    u, v, w = model.velocities
+    U = Field(Average(u, dims=(2, 3)))
+    V = Field(Average(v, dims=(2, 3)))
+    W = Field(Average(w, dims=(2, 3)))
+
+    XSP = Field(TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate(model; U=U, V=V, W=W))
+    YSP = Field(TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate(model; U=U, V=V, W=W))
+    ZSP = Field(TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate(model; U=U, V=V, W=W))
+    SP  = Field(TurbulentKineticEnergyEquation.TurbulentKineticEnergyShearProductionRate(model; U=U, V=V, W=W))
+
+    @test any(interior(SP) .!= 0) # the mean flow is sheared, so the total must be nonzero
+    @test all(interior(SP) .≈ interior(XSP) .+ interior(YSP) .+ interior(ZSP))
+
+    return nothing
+end
+
 function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1))
     model = model_type(grid; closure, buoyancy=BuoyancyTracer(), tracers=:b)
 
@@ -144,6 +166,9 @@ end
 
                 @info "          Testing shear production terms"
                 test_shear_production_terms(model)
+
+                @info "          Testing total shear production consistency"
+                test_total_shear_production_consistency(model)
             end
         end
 
