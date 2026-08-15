@@ -235,13 +235,16 @@ function KineticEnergyStress(model; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyStress")
     model_fields = fields(model)
 
+    # For HydrostaticFreeSurfaceModel there is no prognostic w-momentum equation, so w is
+    # zeroed out of the contraction, consistent with `perturbation_fields` (used by
+    # `DissipationRate`), which applies the same substitution
     if model isa HydrostaticFreeSurfaceModel
         model_fields = (; model_fields..., w=ZeroField())
     end
     dependencies = (model.closure,
                     model.closure_fields,
                     model.clock,
-                    fields(model),
+                    model_fields,
                     model.buoyancy)
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ, model.grid, dependencies...)
 end
@@ -291,8 +294,6 @@ KineticEnergyForcing KernelFunctionOperation at (Center, Center, Center)
 """
 function KineticEnergyForcing(model::NonhydrostaticModel; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyForcing")
-    model_fields = fields(model)
-
     dependencies = (model.forcing,
                     model.clock,
                     fields(model))
