@@ -4,7 +4,7 @@ using DocStringExtensions
 export BoxFilter, GaussianFilter, check_filter_staging
 
 using Oceananigans: location
-using Oceananigans.Grids: topology, Periodic,
+using Oceananigans.Grids: topology, Periodic, instantiate,
                           minimum_xspacing, minimum_yspacing, minimum_zspacing,
                           xspacings, yspacings, zspacings,
                           xnode, ynode, znode
@@ -114,6 +114,19 @@ end
     in_bounds = (1 <= k) & (k <= N)
     return ifelse(in_bounds, f(i, j, clamp(k, 1, N), grid, fargs...), zero(grid)), Int(in_bounds)
 end
+#---
+
+#+++ Operand extent along a filtered direction
+# Filtering does not move a field off its location, so a kernel iterates the operand's own index
+# space, whose length along direction `d` is Oceananigans' `length(loc, topo, N)`: `N` cells, but
+# `N + 1` faces when the direction is `Bounded` (under `Periodic` the wrap identifies face `N + 1`
+# with face `1`, so `Face` and `Center` coincide at `N`). `size(grid, d)` alone under-counts by one
+# exactly there, which would make every boundary policy treat the last face as out of range:
+# `:shrink` would drop the point's own weight at the top face (a bias toward the interior, or `0/0`
+# for a stencil whose off-center weights vanish) and `:edge` would read the face below instead. The
+# operand is the last argument at every level of the fused recursion, so the recursive kernel
+# methods read it from `fargs[end]`; everything here is singleton types, so the lookup constant-folds.
+@inline stencil_length(grid, d, ψ) = length(instantiate(location(ψ)[d]), instantiate(topology(grid, d)), size(grid, d))
 #---
 
 #+++ Shared filter infrastructure

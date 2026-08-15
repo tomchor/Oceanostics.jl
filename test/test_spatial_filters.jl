@@ -329,6 +329,35 @@ function test_per_dim_boundary(Ns, Filter, make_weights, fkw)
     @test Array(interior(cf)) ≈ edge_of_shrink_xy
 end
 
+# A Face-located operand along a Bounded direction is one cell longer than the grid there (N+1
+# faces). The kernels size their in-range test from the operand's location, so the last face is a
+# genuine interior point: under `:shrink` it keeps its own weight (a cell-count range check used to
+# drop it, biasing the top face toward the interior — or giving 0/0 when the off-center weights
+# vanish) and under `:edge` out-of-range offsets clamp to it rather than to the face below.
+function test_face_location_bounded_boundary(Ns, Filter, make_weights, fkw)
+    Nx, Ny, Nz = Ns
+    bounded_grid = make_grid(; topology=(Periodic, Periodic, Bounded))
+    w = ZFaceField(bounded_grid)
+    set!(w, (x, y, z) -> sin(2π * x) + z^2)
+    fill_halo_regions!(w)
+    iw = Array(interior(w))          # (Nx, Ny, Nz + 1): one more face than cells in z
+    Ns_face = (Nx, Ny, Nz + 1)
+
+    width = 2
+    w1d = make_weights(width)
+    for (boundary, reference) in ((:shrink, reference_weighted_average_shrink),
+                                  (:edge,   reference_weighted_average_edge))
+        wf = compute_filter(w, Filter, (3,), width; boundary, fkw...)
+        @test Array(interior(wf)) ≈ reference(iw, (3,), width, Ns_face, w1d)
+
+        # The fused (recursive-kernel) path reads the operand's extent through `fargs[end]` and must
+        # agree with the staged path on the same Face-located operand.
+        wf_staged = compute_filter(w, Filter, (1, 3), width; boundary, fkw...)
+        wf_fused  = Field(1.0 * Filter(w; dims=(1, 3), N=2*width + 1, boundary, fkw...))
+        @test Array(interior(wf_fused)) ≈ Array(interior(wf_staged))
+    end
+end
+
 function test_periodic_ignores_boundary(Filter, fkw)
     mixed_grid = make_grid(; halo=(1, 1, 1), topology=(Periodic, Bounded, Bounded))
     c = center_field_from(mixed_grid, (x, y, z) -> sin(2π * x) + y)
@@ -663,6 +692,25 @@ end
 # everywhere except at one interior point). The output must equal the
 # normalized Gaussian kernel — this is the filter's impulse response, and
 # verifies that GaussianFilter actually applies the kernel it advertises.
+# A Gaussian with σ ≪ Δ truncated at N=3 has off-center weights that underflow to exactly zero, so the
+# filter is the identity. On a Face-located operand along a Bounded direction the last face is only
+# in range when the kernel sizes its range check from the operand (N+1 faces) rather than the grid
+# (N cells): a cell-count check drops that face's own (only non-zero) weight and returns 0/0 = NaN
+# there. Both directions of the range matter, so the first face is checked too, and the identity is
+# checked bit for bit since it is the exactness these degenerate weights promise.
+function test_gaussian_identity_on_face_field()
+    grid = make_grid(; topology=(Periodic, Periodic, Bounded))
+    w = ZFaceField(grid)
+    set!(w, (x, y, z) -> sin(2π * x) + z^2)
+    fill_halo_regions!(w)
+
+    for dims in ((3,), (1, 3), (1, 2, 3))
+        wf = Field(GaussianFilter(w; dims, σ=1e-4, N=3))
+        @test all(isfinite, interior(wf))
+        @test Array(interior(wf)) == Array(interior(w))
+    end
+end
+
 function test_gaussian_dirac_delta()
     N = 21
     grid_1d = RectilinearGrid(arch, size = (N,),
@@ -843,6 +891,7 @@ filter_configs = [
                 test_edge_boundary(Ns, Filter, make_weights, fkw)
                 test_constant_pad_boundary(Ns, Filter, make_weights, fkw)
                 test_per_dim_boundary(Ns, Filter, make_weights, fkw)
+                test_face_location_bounded_boundary(Ns, Filter, make_weights, fkw)
                 test_periodic_ignores_boundary(Filter, fkw)
             end
 
@@ -872,6 +921,7 @@ filter_configs = [
     @testset "GaussianFilter-specific" begin
         test_σ_validation(make_grid())
         test_gaussian_dirac_delta()
+        test_gaussian_identity_on_face_field()
         test_gaussian_N_inferred()
         test_gaussian_N_inferred_anisotropic()
         test_gaussian_N_tuple_order()

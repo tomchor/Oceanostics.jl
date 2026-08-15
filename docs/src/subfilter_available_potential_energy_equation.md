@@ -1,0 +1,68 @@
+# Sub-filter available potential energy equation
+
+The `SubFilterAvailablePotentialEnergyEquation` module provides diagnostics for the available potential
+energy carried by the scales that a low-pass spatial filter ``\widetilde{(\,\cdot\,)}`` removes from the
+buoyancy field, following the filtered APE framework of
+[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879). It is the potential-energy
+counterpart of the [Sub-filter kinetic energy equation](@ref): where that module splits the kinetic
+energy across the filter scale, this one splits the *local* available potential energy ``e_a`` of
+[the available potential energy equation](available_potential_energy_equation.md).
+
+## The sub-filter available potential energy
+
+Both the full and the filtered buoyancy are measured against **one shared reference profile**
+``(b^\star, z^\star)``, ordinarily the sorted state of the full buoyancy field. The sub-filter
+available potential energy is the filtered full APE minus the APE of the filtered buoyancy
+``\tilde b``,
+
+```math
+e_a^s = \widetilde{e_a(b, z)} - e_a(\tilde b, z) ,
+\qquad
+e_a(b, z) = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z) - b\right] \mathrm{d}\tilde z ,
+```
+
+computed by [`SubFilterAvailablePotentialEnergy`](@ref). Looking the filtered buoyancy up in a profile
+it did not itself produce is exactly what
+[`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup) was built for, so
+these diagnostics accept only that reference-height method: the default sorts the model's own buoyancy
+into a [`VerticalSort`](@ref Oceanostics.BackgroundPotentialEnergyEquation.VerticalSort) column on
+every `compute!`, a column you built yourself can be shared across diagnostics, and a profile given as
+plain arrays holds the reference state fixed in time (which also makes the diagnostics sort-free).
+
+Because ``e_a`` is convex in buoyancy, a filter with no vertical component keeps ``e_a^s \geq 0``
+pointwise, by Jensen's inequality; a filter that acts vertically mixes heights as well as buoyancies
+and can produce locally negative values.
+
+```@docs
+Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy
+```
+
+## The sub-filter available potential energy dissipation
+
+The diffusive sink of the ``e_a^s`` budget is the sub-filter APE dissipation rate
+
+```math
+\varepsilon_A^s = \widetilde{\varepsilon_A} - \varepsilon_A^l ,
+\qquad
+\varepsilon_A^l = -\tilde q_i \, \partial_i \Upsilon^l ,
+```
+
+computed by [`SubFilterAvailablePotentialEnergyDissipationRate`](@ref): the filtered full-field
+dissipation ``\varepsilon_A = -q_i \partial_i \Upsilon``
+([`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate))
+minus the same contraction evaluated on the filtered state, with ``\tilde q_i`` the closure's diffusive
+buoyancy flux low-pass filtered and ``\Upsilon^l = z^\star(\tilde b) - z`` the displacement potential
+([`BuoyancyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential))
+of the filtered buoyancy. Filtering the flux, rather than recomputing it from ``\tilde b``, is the same
+choice the [Filtered kinetic energy equation](@ref) makes for the viscous flux, and the two coincide
+for a constant diffusivity.
+
+The remaining terms of the ``e_a^s`` budget — the cross-scale APE flux ``\Pi_A``, the sub-filter
+buoyancy-flux exchange with the kinetic energy, and the reference-tendency correction that appears
+when the reference profile evolves in time — do not have named diagnostics yet. With a fixed reference
+profile the correction vanishes identically, so that is the configuration in which the budget can be
+closed from what is currently available.
+
+```@docs
+Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate
+```

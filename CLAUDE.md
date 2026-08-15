@@ -16,7 +16,7 @@ julia --project -e 'using Pkg; Pkg.test()'
 TEST_GROUP=vel_diagnostics julia --project -e 'using Pkg; Pkg.test()'
 ```
 
-Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `u_momentum_diagnostics`, `v_momentum_diagnostics`, `w_momentum_diagnostics`, `ke_diagnostics`, `filtered_ke_diagnostics`, `subfilter_ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `ape_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `spatial_filters`, `perf_invariants`.
+Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `u_momentum_diagnostics`, `v_momentum_diagnostics`, `w_momentum_diagnostics`, `ke_diagnostics`, `filtered_ke_diagnostics`, `subfilter_ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `ape_diagnostics`, `subfilter_ape_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `spatial_filters`, `perf_invariants`.
 
 ```bash
 # Instantiate/build the package
@@ -43,7 +43,7 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 - **`Oceanostics`** (main module in `src/Oceanostics.jl`): Shared utilities — `validate_location`, `validate_dissipative_closure`, `add_background_fields`, `perturbation_fields`, `get_coriolis_frequency_components`, viscosity helpers for closure tuples (`_νᶜᶜᶜ`)
 - **`TracerEquation`**: Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, Forcing terms
 - **`UMomentumEquation` / `VMomentumEquation` / `WMomentumEquation`**: Per-component momentum-budget terms (advection, stress, pressure gradient, Coriolis, buoyancy, forcing). Tested as separate `*_momentum_diagnostics` groups.
-- **`SpatialFilters`** (submodule): Spatial filters (`box_filter.jl`, `gaussian_filter.jl`) for diagnostics that need scale separation.
+- **`SpatialFilters`** (submodule): Spatial filters (`box_filter.jl`, `gaussian_filter.jl`) for diagnostics that need scale separation. Every 1D kernel sizes its in-range check with `stencil_length(grid, d, ψ)` (the operand's own extent, `N+1` for a `Face` location along a `Bounded` direction) rather than `size(grid, d)`; the recursive (fused) methods reach the operand through `fargs[end]`. Using the cell count there silently mistreats the last face of a `Face`-located operand (`:shrink` drops its own weight, `:edge` clamps to the face below), which surfaced as `NaN`s when filtering the model's `diffusive_flux_z` KFO with a degenerate identity-scale Gaussian.
 - **`KineticEnergyEquation`**: KE, its tendency, advection, stress, forcing, pressure redistribution, buoyancy production, dissipation rate (general and isotropic)
 - **`FilteredKineticEnergyEquation`**: Filtered KE budget terms — `FilteredKineticEnergy` (Kˡ = ½ūᵢūᵢ, KE of the filtered flow; reuses `KineticEnergyEquation`'s `kinetic_energy_ccc` kernel), `subfilter_stress_tensor` (τⁱʲ = filter(uⁱuʲ) − ūⁱūʲ), `KineticEnergyCrossScaleFlux` (Πₖ = −τⁱʲS̄ⁱʲ, Aluie et al. 2018), and `FilteredKineticEnergyDissipationRate` (εˡ, dissipation of the filtered flow; kernel `filtered_dissipation_rate_ccc`). Built on `FlowDiagnostics`' `StressTensor`/`StrainRateTensor` and the `Filters` submodule, so it is included after both.
 - **`SubFilterKineticEnergyEquation`**: Sub-filter KE budget terms — `SubFilterKineticEnergy` (Kˢ = ½τⁱⁱ, computed as `filter(K) − Kˡ` from `KineticEnergy` and `FilteredKineticEnergy`, which share the same interpolate-the-square discretization, so the discrete decomposition `filter(K) = Kˡ + Kˢ` holds exactly by construction on any grid) and `SubFilterKineticEnergyDissipationRate` (εˢ = filter(ε) − εˡ). Both are `KernelFunctionOperation`s wrapping the underlying composite op (à la `KineticEnergyCrossScaleFlux`). Also re-exports `KineticEnergyCrossScaleFlux` (a source term of this budget). Built on `FilteredKineticEnergyEquation` and `KineticEnergyEquation`, so it is included after both.
@@ -100,6 +100,24 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `BackgroundPotentialEnergyEquation`, so it is included after it, and it re-exports
   `reference_height`, `reference_buoyancy` and the four reference-height methods so either module can
   be used on its own
+- **`SubFilterAvailablePotentialEnergyEquation`**: sub-filter APE budget terms —
+  `SubFilterAvailablePotentialEnergy` (Eₐˢ = filter(eₐ) − eₐ(b̄, z), the filtered full local APE minus
+  the local APE of the filtered buoyancy b̄ = filter(b)) and
+  `SubFilterAvailablePotentialEnergyDissipationRate` (ε_Aˢ = filter(ε_A) − ε_Aˡ, where
+  ε_Aˡ = −q̄ᵢ∂ᵢΥˡ contracts the closure's diffusive flux *low-pass filtered* — the same filtered-flux
+  choice `FilteredKineticEnergyDissipationRate` makes for the viscous flux, exact for constant κ —
+  against the displacement potential Υˡ of the filtered buoyancy). Both quantities measure the full
+  and the filtered buoyancy against *one shared reference profile*, so their `method` keyword must be
+  a `ProfileLookup`: the default `ProfileLookup()` internally builds a `VerticalSort` column of the
+  model's buoyancy (re-sorted every `compute!`, so the reference tracks the flow),
+  `ProfileLookup(z✶_column)` shares an existing column across diagnostics, and `ProfileLookup(b✶, z✶)`
+  with arrays freezes the reference in time and makes the diagnostics sort-free. eₐ is convex in b, so
+  Eₐˢ ≥ 0 pointwise for filters with no vertical component (Jensen); vertical filtering (and the
+  nearest-slot fallback for buoyancies outside the profile) can produce locally negative values. An
+  identity-scale filter (σ ≪ Δx, N=3) makes both diagnostics vanish to the bit, which
+  `test_subfilter_ape_diagnostics.jl` uses to check the filtered-state kernels against the full-state
+  ones without reimplementation. Built on `AvailablePotentialEnergyEquation` and `SpatialFilters`, so
+  it is included after both (currently last of the equation modules)
 - **`FlowDiagnostics`**: Richardson/Rossby numbers, Ertel/ThermalWind potential vorticity, strain rate & vorticity tensor moduli, Q-criterion, `subfilter_covariance` (generalized subfilter covariance `τ(a,b) = filter(a·b) − filter(a)·filter(b)`, unifying subfilter tracer flux and momentum stress), MixedLayerDepth, BottomCellValue
 - **`ProgressMessengers`** (submodule): Composable simulation progress reporters using `+` (comma-separated) and `*` (concatenation) operators
 
