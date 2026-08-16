@@ -157,6 +157,10 @@ function test_mixed_layer_depth(grid, buoyancy; zₘₓₗ = 0.5, δb = -1e-4 * 
         C = (; T = CenterField(grid; boundary_conditions), S = CenterField(grid))
     end
 
+    # Missing criterion arguments must throw at construction time rather than return a broken operation
+    @test_throws ArgumentError MixedLayerDepth(grid; criterion = BuoyancyAnomalyCriterion(δb))
+    @test_throws ArgumentError MixedLayerDepth(grid; criterion = DensityAnomalyCriterion())
+
     mld_b = MixedLayerDepth(grid, buoyancy, C; criterion = BuoyancyAnomalyCriterion(δb))
 
     if density_is_defined
