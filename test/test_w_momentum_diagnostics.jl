@@ -280,6 +280,7 @@ function test_w_momentum_location_validation(model)
     @test_throws ArgumentError WMomentumEquation.TotalViscousDissipation(model; location = (Center, Center, Center))
     @test_throws ArgumentError WMomentumEquation.StokesShear(model; location = (Center, Center, Center))
     @test_throws ArgumentError WMomentumEquation.StokesTendency(model; location = (Center, Center, Center))
+    @test_throws ArgumentError WMomentumEquation.Forcing(model; location = (Center, Center, Center))
     @test_throws ArgumentError WMomentumEquation.Tendency(model; location = (Center, Center, Center))
 
     return nothing

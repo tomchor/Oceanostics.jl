@@ -355,6 +355,7 @@ function test_v_momentum_location_validation(model)
     @test_throws ArgumentError VMomentumEquation.TotalViscousDissipation(model; location = (Center, Center, Center))
     @test_throws ArgumentError VMomentumEquation.StokesShear(model; location = (Center, Center, Center))
     @test_throws ArgumentError VMomentumEquation.StokesTendency(model; location = (Center, Center, Center))
+    @test_throws ArgumentError VMomentumEquation.Forcing(model; location = (Center, Center, Center))
     @test_throws ArgumentError VMomentumEquation.Tendency(model; location = (Center, Center, Center))
 
     return nothing

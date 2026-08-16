@@ -116,6 +116,21 @@ function test_tracer_terms(model)
     return nothing
 end
 
+function test_tracer_location_validation(model)
+    # Every tracer term lives at (Center, Center, Center) except the diffusive fluxes, which
+    # live on the faces normal to their direction; asking for anything else must throw
+    @test_throws ArgumentError TracerEquation.Advection(model, :a; location = (Face, Center, Center))
+    @test_throws ArgumentError TracerEquation.Diffusion(model, :a; location = (Face, Center, Center))
+    @test_throws ArgumentError TracerEquation.ImmersedDiffusion(model, :a; location = (Face, Center, Center))
+    @test_throws ArgumentError TracerEquation.TotalDiffusion(model, :a; location = (Face, Center, Center))
+    @test_throws ArgumentError TracerEquation.Forcing(model, :a; location = (Face, Center, Center))
+    @test_throws ArgumentError TracerEquation.XDiffusiveFlux(model, :a; location = (Center, Center, Center))
+    @test_throws ArgumentError TracerEquation.YDiffusiveFlux(model, :a; location = (Center, Center, Center))
+    @test_throws ArgumentError TracerEquation.ZDiffusiveFlux(model, :a; location = (Center, Center, Center))
+
+    return nothing
+end
+
 function test_subgrid_tracer_fluxes(model)
     DIFF_FLUX = TracerEquation.XDiffusiveFlux(model, Val(:a), model.tracers.a)
     DIFF_FLUX_field = Field(DIFF_FLUX)
@@ -167,6 +182,9 @@ end
 
             @info "        Testing tracer terms"
             test_tracer_terms(model)
+
+            @info "        Testing tracer location validation"
+            test_tracer_location_validation(model)
 
             closure = ScalarDiffusivity()
             model = model_type(grid; closure, model_kwargs...)
