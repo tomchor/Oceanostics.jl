@@ -101,7 +101,7 @@ function test_total_shear_production_consistency(model)
     SP  = Field(TurbulentKineticEnergyEquation.TurbulentKineticEnergyShearProductionRate(model; U=U, V=V, W=W))
 
     @test any(interior(SP) .!= 0) # the mean flow is sheared, so the total must be nonzero
-    @test all(interior(SP) .≈ interior(XSP) .+ interior(YSP) .+ interior(ZSP))
+    @test interior(SP) ≈ interior(XSP) .+ interior(YSP) .+ interior(ZSP)
 
     return nothing
 end
