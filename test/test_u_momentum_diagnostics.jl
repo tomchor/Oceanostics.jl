@@ -196,7 +196,7 @@ function test_u_momentum_terms(model)
     end
 
     # Test Forcing
-    FORC = UMomentumEquation.Forcing(model, model.forcing.u, model.clock, fields(model), Val(:u))
+    FORC = UMomentumEquation.Forcing(model, model.forcing.u, model.clock, fields(model))
     FORC_field = Field(FORC)
     @test FORC isa UMomentumEquation.Forcing
     @test FORC isa UForcing
@@ -206,6 +206,7 @@ function test_u_momentum_terms(model)
     FORC_field = Field(FORC)
     @test FORC isa UMomentumEquation.Forcing
     @test FORC isa UForcing
+    @test !(FORC isa VForcing) # the Forcing aliases are narrowed per module, not the generic KFO
     @test FORC_field isa Field
 
     # Test Tendency
@@ -377,9 +378,11 @@ end
     @test UStokesTendency !== VStokesTendency && UStokesTendency !== WStokesTendency
     @test UTendency !== VTendency && UTendency !== WTendency
 
-    # Forcing is intentionally aliased to the generic KernelFunctionOperation in every
-    # module (no kernel narrowing), so the prefixed Forcing aliases are the same type.
-    @test UForcing === VForcing === WForcing
+    # Forcing is narrowed on a per-module wrapper kernel (forcing_fcc/cfc/ccf), so the
+    # prefixed Forcing aliases are distinct like every other term, and none of them is the
+    # generic KernelFunctionOperation.
+    @test UForcing !== VForcing && UForcing !== WForcing && VForcing !== WForcing
+    @test UForcing !== KernelFunctionOperation && TracerForcing !== KernelFunctionOperation
 end
 
 @testset "U-momentum equation diagnostics tests" begin

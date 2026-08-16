@@ -46,10 +46,11 @@ TracerDiffusion KernelFunctionOperation at (Center, Center, Center)
 └── computes: tracer diffusion (interior)  ∂ⱼqᶜⱼ
 
 julia> forc = TracerEquation.Forcing(model, :b)
-KernelFunctionOperation at (Center, Center, Center)
+TracerForcing KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: Returns (generic function with 1 method)
-└── arguments: ("Clock", "NamedTuple")
+├── kernel_function: forcing_ccc (generic function with 1 method)
+└── arguments: ("Returns", "Clock", "NamedTuple")
+└── computes: tracer forcing  Fᶜ
 ```
 
 ## Advection
