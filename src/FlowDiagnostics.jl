@@ -1046,7 +1046,8 @@ BuoyancyAnomalyCriterion{Float64}(-0.0001)
 end
 
 validate_criterion_model(::BuoyancyAnomalyCriterion, args...) =
-    @error "For BuoyancyAnomalyCriterion you must supply the arguments `buoyancy_formulation` and `C`, where `C` is the named tuple `(; b)`, with `b` the buoyancy tracer."
+    throw(ArgumentError("For BuoyancyAnomalyCriterion you must supply the arguments `buoyancy_formulation` and `C`, " *
+                        "where `C` is the named tuple `(; b)`, with `b` the buoyancy tracer."))
 
 validate_criterion_model(::BuoyancyAnomalyCriterion, buoyancy_formulation, C) = nothing
 
@@ -1084,7 +1085,8 @@ function DensityAnomalyCriterion(buoyancy_formulation::SeawaterBuoyancy{<:Any, <
 end
 
 validate_criterion_model(::DensityAnomalyCriterion, args...) =
-    @error "For DensityAnomalyCriterion you must supply the arguments buoyancy_formulation and C, where C is a named tuple of (; T, S), (; T) or (; S)"
+    throw(ArgumentError("For DensityAnomalyCriterion you must supply the arguments `buoyancy_formulation` and `C`, " *
+                        "where `C` is a named tuple of `(; T, S)`, `(; T)` or `(; S)`."))
 
 validate_criterion_model(::DensityAnomalyCriterion, buoyancy_formulation, C) = nothing
     
