@@ -324,8 +324,10 @@ function TurbulentKineticEnergyShearProductionRate(u′, v′, w′, U, V, W;
                                                            u′, v′, w′, U, V, W)
 end
 
-@inline TurbulentKineticEnergyShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...) =
-    TurbulentKineticEnergyShearProductionRate(model.velocities..., U, V, W; kwargs...)
+function TurbulentKineticEnergyShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
+    u, v, w = model.velocities
+    return TurbulentKineticEnergyShearProductionRate(u-U, v-V, w-W, U, V, W; kwargs...)
+end
 #---
 
 end
