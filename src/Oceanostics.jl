@@ -345,6 +345,7 @@ end
 @diagnostic_show TracerEquation.XDiffusiveFlux    "TracerXDiffusiveFlux"     "subgrid tracer diffusion in x determined by the configured closure"
 @diagnostic_show TracerEquation.YDiffusiveFlux    "TracerYDiffusiveFlux"     "subgrid tracer diffusion in y determined by the configured closure"
 @diagnostic_show TracerEquation.ZDiffusiveFlux    "TracerZDiffusiveFlux"     "subgrid tracer diffusion in z determined by the configured closure"
+@diagnostic_show TracerEquation.Forcing           "TracerForcing"            "tracer forcing  Fᶜ"
 #---
 
 #+++ UMomentumEquation
@@ -358,6 +359,7 @@ end
 @diagnostic_show UMomentumEquation.TotalViscousDissipation    "UTotalViscousDissipation"    "total viscous term (interior + immersed, x)  ∂ⱼτ₁ⱼ"
 @diagnostic_show UMomentumEquation.StokesShear                "UStokesShear"                "Stokes shear forcing (x)  ((∇ × u⃗ˢ) × u⃗)ₓ"
 @diagnostic_show UMomentumEquation.StokesTendency             "UStokesTendency"             "Stokes drift tendency (x)  ∂uˢ/∂t"
+@diagnostic_show UMomentumEquation.Forcing                    "UForcing"                    "momentum forcing (x)  Fᵘ"
 @diagnostic_show UMomentumEquation.Tendency                   "UTendency"                   "total tendency of the u-momentum equation"
 #---
 
@@ -372,6 +374,7 @@ end
 @diagnostic_show VMomentumEquation.TotalViscousDissipation    "VTotalViscousDissipation"    "total viscous term (interior + immersed, y)  ∂ⱼτ₂ⱼ"
 @diagnostic_show VMomentumEquation.StokesShear                "VStokesShear"                "Stokes shear forcing (y)  ((∇ × u⃗ˢ) × u⃗)_y"
 @diagnostic_show VMomentumEquation.StokesTendency             "VStokesTendency"             "Stokes drift tendency (y)  ∂vˢ/∂t"
+@diagnostic_show VMomentumEquation.Forcing                    "VForcing"                    "momentum forcing (y)  Fᵛ"
 @diagnostic_show VMomentumEquation.Tendency                   "VTendency"                   "total tendency of the v-momentum equation"
 #---
 
@@ -384,6 +387,7 @@ end
 @diagnostic_show WMomentumEquation.TotalViscousDissipation    "WTotalViscousDissipation"    "total viscous term (interior + immersed, z)  ∂ⱼτ₃ⱼ"
 @diagnostic_show WMomentumEquation.StokesShear                "WStokesShear"                "Stokes shear forcing (z)  ((∇ × u⃗ˢ) × u⃗)_z"
 @diagnostic_show WMomentumEquation.StokesTendency             "WStokesTendency"             "Stokes drift tendency (z)  ∂wˢ/∂t"
+@diagnostic_show WMomentumEquation.Forcing                    "WForcing"                    "momentum forcing (z)  Fʷ"
 @diagnostic_show WMomentumEquation.Tendency                   "WTendency"                   "total tendency of the w-momentum equation"
 #---
 

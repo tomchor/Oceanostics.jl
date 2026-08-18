@@ -31,6 +31,12 @@ export Advection, BuoyancyAcceleration, CoriolisAcceleration, PressureGradient, 
 @inline hydrostatic_pressure_gradient_x(i, j, k, grid, hydrostatic_pressure) = ∂xᶠᶜᶜ(i, j, k, grid, hydrostatic_pressure)
 @inline hydrostatic_pressure_gradient_x(i, j, k, grid, ::Nothing) = zero(grid)
 
+# Inline wrapper that evaluates the forcing at (i, j, k). Passing the forcing as a kernel argument
+# rather than as the kernel function itself gives `Forcing` diagnostics a kernel function type of
+# their own to narrow the `Forcing` alias on, like every other term (the forcing object would
+# parameterize the KFO on the user's forcing type, which cannot be aliased)
+@inline forcing_fcc(i, j, k, grid, forcing, clock, model_fields) = forcing(i, j, k, grid, clock, model_fields)
+
 # Type aliases for major functions. `Advection` is a Union so that the NH flux-form
 # (`div_𝐯u`) and the HFS vector-invariant (`U_dot_∇u`) wrappers share the same alias.
 const Advection = Union{CustomKFO{<:typeof(div_𝐯u)}, CustomKFO{<:typeof(U_dot_∇u)}}
@@ -43,7 +49,7 @@ const ImmersedViscousDissipation = CustomKFO{<:typeof(immersed_∂ⱼ_τ₁ⱼ)}
 const TotalViscousDissipation = CustomKFO{<:typeof(total_∂ⱼ_τ₁ⱼ)}
 const StokesShear = CustomKFO{<:typeof(x_curl_Uˢ_cross_U)}
 const StokesTendency = CustomKFO{<:typeof(∂t_uˢ)}
-const Forcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any}
+const Forcing = CustomKFO{<:typeof(forcing_fcc)}
 const Tendency = Union{CustomKFO{<:typeof(u_velocity_tendency)},
                        CustomKFO{<:typeof(hydrostatic_free_surface_u_velocity_tendency)}}
 
@@ -437,18 +443,19 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> FORC = UMomentumEquation.Forcing(model)
-KernelFunctionOperation at (Face, Center, Center)
+UForcing KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: Returns (generic function with 1 method)
-└── arguments: ("Clock", "NamedTuple")
+├── kernel_function: forcing_fcc (generic function with 1 method)
+└── arguments: ("Returns", "Clock", "NamedTuple")
+└── computes: momentum forcing (x)  Fᵘ
 ```
 """
-function Forcing(model, forcing_func, clock, model_fields, ::Val{:u}; location = (Face, Center, Center))
+function Forcing(model, forcing, clock, model_fields; location = (Face, Center, Center))
     validate_location(location, "Forcing", (Face, Center, Center))
-    return KernelFunctionOperation{Face, Center, Center}(forcing_func, model.grid, clock, model_fields)
+    return KernelFunctionOperation{Face, Center, Center}(forcing_fcc, model.grid, forcing, clock, model_fields)
 end
 
-Forcing(model; kwargs...) = Forcing(model, model.forcing.u, model.clock, fields(model), Val(:u); kwargs...)
+Forcing(model; kwargs...) = Forcing(model, model.forcing.u, model.clock, fields(model); kwargs...)
 #---
 
 #+++ Total tendency

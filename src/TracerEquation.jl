@@ -17,6 +17,12 @@ export Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, XDiffusiveFlux, 
     ∇_dot_qᶜ(i, j, k, grid, closure, closure_fields, val_tracer_index, c, clock, model_fields, buoyancy) +
     immersed_∇_dot_qᶜ(i, j, k, grid, c, c_immersed_bc, closure, closure_fields, val_tracer_index, clock, model_fields, buoyancy)
 
+# Inline wrapper that evaluates the forcing at (i, j, k). Passing the forcing as a kernel argument
+# rather than as the kernel function itself gives `Forcing` diagnostics a kernel function type of
+# their own to narrow the `Forcing` alias on, like every other term (the forcing object would
+# parameterize the KFO on the user's forcing type, which cannot be aliased)
+@inline forcing_ccc(i, j, k, grid, forcing, clock, model_fields) = forcing(i, j, k, grid, clock, model_fields)
+
 # Type aliases for major functions
 const Advection = CustomKFO{<:typeof(div_Uc)}
 const Diffusion = CustomKFO{<:typeof(∇_dot_qᶜ)}
@@ -25,7 +31,7 @@ const TotalDiffusion = CustomKFO{<:typeof(total_∇_dot_qᶜ)}
 const XDiffusiveFlux = CustomKFO{<:typeof(diffusive_flux_x)}
 const YDiffusiveFlux = CustomKFO{<:typeof(diffusive_flux_y)}
 const ZDiffusiveFlux = CustomKFO{<:typeof(diffusive_flux_z)}
-const Forcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any}
+const Forcing = CustomKFO{<:typeof(forcing_ccc)}
 
 const TracerAdvection = Advection
 const TracerDiffusion = Diffusion
@@ -306,14 +312,16 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid; tracers=:a);
 
 julia> FORC = TracerEquation.Forcing(model, :a)
-KernelFunctionOperation at (Center, Center, Center)
+TracerForcing KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: Returns (generic function with 1 method)
-└── arguments: ("Clock", "NamedTuple")
+├── kernel_function: forcing_ccc (generic function with 1 method)
+└── arguments: ("Returns", "Clock", "NamedTuple")
+└── computes: tracer forcing  Fᶜ
 ```
 """
 function Forcing(model, forcing, clock, model_fields; location = (Center, Center, Center))
-    return KernelFunctionOperation{Center, Center, Center}(forcing, model.grid, clock, model_fields)
+    validate_location(location, "Forcing", (Center, Center, Center))
+    return KernelFunctionOperation{Center, Center, Center}(forcing_ccc, model.grid, forcing, clock, model_fields)
 end
 
 function Forcing(model, tracer_name; kwargs...)
