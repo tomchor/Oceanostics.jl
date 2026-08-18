@@ -624,8 +624,8 @@ set!(model, b = (x, y, z) -> z)
 
 z✶ = reference_height(model)                  # sort the domain once
 e_b = BackgroundPotentialEnergy(model, z✶)    # and reuse it for both diagnostics
-e_a = AvailablePotentialEnergy(model, z✶)
-e_b.grid === e_a.grid === grid
+eₐ = AvailablePotentialEnergy(model, z✶)
+e_b.grid === eₐ.grid === grid
 
 # output
 

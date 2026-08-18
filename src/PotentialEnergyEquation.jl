@@ -34,7 +34,7 @@ using SeawaterPolynomials: BoussinesqEquationOfState
 using ..KineticEnergyEquation: PotentialToKineticEnergyConversion
 
 # `uᵢbᵢ` is the source of kinetic energy and, with the sign flipped, the buoyancy conversion term of the
-# `e_p` equation. It is defined in `KineticEnergyEquation`, whose local alias `PotentialEnergyConversion`
+# `eₚ` equation. It is defined in `KineticEnergyEquation`, whose local alias `PotentialEnergyConversion`
 # names the reservoir the energy comes from; this one names where it goes. Each module names the other
 # side, so the term reads correctly whichever budget is being written. It is exported from this module
 # and from `AvailablePotentialEnergyEquation`, but not from `Oceanostics`, where unprefixed it would say
@@ -276,7 +276,7 @@ buoyancy_diffusive_flux_arguments(model) =
 
 #+++ Diffusive buoyancy flux
 # `Φ = κ ∂b/∂z = -q₃`, the vertical diffusive buoyancy flux taken upward. It is the diffusive conversion
-# term of the `e_p` equation, the only way diffusion changes the potential energy of a closed domain,
+# term of the `eₚ` equation, the only way diffusion changes the potential energy of a closed domain,
 # and it is also the second of the two parts `εₐ` is written out of. It comes off the closure's own
 # `diffusive_flux_z`, exactly as `εₐ` does, so the two always carry the same `κ`. The flux lives on the
 # `z` face, so it is interpolated to the cell center.
@@ -295,7 +295,7 @@ Return a `KernelFunctionOperation` computing the vertical diffusive buoyancy flu
 ```
 
 which is the work diffusion does against gravity as it smooths the stratification. It is the diffusive
-conversion term of the `e_p` equation, and the only way diffusion can change the potential energy of a
+conversion term of the `eₚ` equation, and the only way diffusion can change the potential energy of a
 closed domain: the rest of the diffusive contribution is a flux divergence that integrates to zero. The
 result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
 
@@ -307,8 +307,8 @@ is written out of,
     εₐ = κ (∂z✶/∂b) |∇b|² - Φ ,
 ```
 
-and it is the part that carries no available energy with it: `Φ` enters the `E_p` and `E_b` budgets
-identically, so it cancels from their difference, which is `E_a`. A statically stable, horizontally
+and it is the part that carries no available energy with it: `Φ` enters the `Eₚ` and `E_b` budgets
+identically, so it cancels from their difference, which is `Eₐ`. A statically stable, horizontally
 uniform stratification is its own reference state and has `εₐ = 0` cell by cell, so there `Φ` accounts
 for the whole of the diapycnal mixing rate. Adding it back to `εₐ` recovers that rate in general, and
 its volume integral is the rate
@@ -352,7 +352,7 @@ models only.
 Not to be confused with `TracerEquation.ZDiffusiveFlux(model, :b)`, which is the same closure call read
 raw: that one is `q₃` itself, down-gradient and on the `z` face. This is `-q₃`, interpolated to the cell
 center, which are the sign and the location the energy budgets want. Reach for the tracer diagnostic
-when you want the flux as a flux, and this one when you want it as a term of the `e_p` equation.
+when you want the flux as a flux, and this one when you want it as a term of the `eₚ` equation.
 
 ```jldoctest
 using Oceananigans, Oceanostics

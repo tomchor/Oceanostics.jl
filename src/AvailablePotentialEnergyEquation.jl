@@ -4,7 +4,7 @@ using DocStringExtensions
 
 export AvailablePotentialEnergy, BuoyancyDisplacementPotential
 export AvailablePotentialEnergyDissipationRate, DissipationRate
-# `Φ` is a term of the `e_p` equation and lives in `PotentialEnergyEquation`; re-exported here because
+# `Φ` is a term of the `eₚ` equation and lives in `PotentialEnergyEquation`; re-exported here because
 # `εₐ` is defined as the diapycnal mixing rate less `Φ`, so the two are almost always wanted together.
 export PotentialEnergyDiffusiveVerticalBuoyancyFlux
 # `wb` is the term this budget exchanges with the kinetic energy one; see `PotentialEnergyEquation`.
