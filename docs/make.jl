@@ -136,17 +136,26 @@ end
 
 
 #+++ Organize pages and HTML format
+# The kinetic and potential energy budgets and their decompositions are nested subgroups so the
+# "Budget equations" sidebar entry stays short. Within each subgroup the order follows the
+# derivation: the plain budget first, then the pages that split it into parts.
+kinetic_energy_pages = ["Kinetic energy"            => "kinetic_energy_equation.md",
+                        "Turbulent kinetic energy"  => "turbulent_kinetic_energy_equation.md",
+                        "Filtered kinetic energy"   => "filtered_kinetic_energy_equation.md",
+                        "Sub-filter kinetic energy" => "subfilter_kinetic_energy_equation.md",
+                        ]
+
+potential_energy_pages = ["Potential energy"            => "potential_energy_equation.md",
+                          "Background potential energy" => "background_potential_energy_equation.md",
+                          "Available potential energy"  => "available_potential_energy_equation.md",
+                          ]
+
 pages = ["Home" => "index.md",
-         "Budget equations" => ["Tracer equation"                        => "tracer_equation.md",
-                                "Tracer variance equation"               => "tracer_variance_equation.md",
-                                "Momentum equation"                      => "momentum_equation.md",
-                                "Kinetic energy equation"                => "kinetic_energy_equation.md",
-                                "Potential energy equation"              => "potential_energy_equation.md",
-                                "Filtered kinetic energy equation"       => "filtered_kinetic_energy_equation.md",
-                                "Sub-filter kinetic energy equation"     => "subfilter_kinetic_energy_equation.md",
-                                "Turbulent kinetic energy equation"      => "turbulent_kinetic_energy_equation.md",
-                                "Background potential energy equation"   => "background_potential_energy_equation.md",
-                                "Available potential energy equation"    => "available_potential_energy_equation.md",
+         "Budget equations" => ["Tracer"           => "tracer_equation.md",
+                                "Tracer variance"  => "tracer_variance_equation.md",
+                                "Momentum"         => "momentum_equation.md",
+                                "Kinetic energy"   => kinetic_energy_pages,
+                                "Potential energy" => potential_energy_pages,
                                 ],
          "Flow diagnostics" => "flow_diagnostics.md",
          "Progress messengers" => "progress_messengers.md",
