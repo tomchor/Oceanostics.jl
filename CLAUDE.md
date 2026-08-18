@@ -16,7 +16,7 @@ julia --project -e 'using Pkg; Pkg.test()'
 TEST_GROUP=vel_diagnostics julia --project -e 'using Pkg; Pkg.test()'
 ```
 
-Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `u_momentum_diagnostics`, `v_momentum_diagnostics`, `w_momentum_diagnostics`, `ke_diagnostics`, `filtered_ke_diagnostics`, `subfilter_ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `ape_diagnostics`, `subfilter_ape_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `spatial_filters`, `perf_invariants`.
+Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `u_momentum_diagnostics`, `v_momentum_diagnostics`, `w_momentum_diagnostics`, `ke_diagnostics`, `filtered_ke_diagnostics`, `subfilter_ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `ape_diagnostics`, `filtered_ape_diagnostics`, `subfilter_ape_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `spatial_filters`, `perf_invariants`.
 
 ```bash
 # Instantiate/build the package
@@ -100,24 +100,42 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `BackgroundPotentialEnergyEquation`, so it is included after it, and it re-exports
   `reference_height`, `reference_buoyancy` and the four reference-height methods so either module can
   be used on its own
+- **`FilteredAvailablePotentialEnergyEquation`**: the APE of the *filtered* buoyancy and its
+  dissipation — `FilteredAvailablePotentialEnergy` (Eₐˡ = eₐ(b̄, z), the local APE kernel evaluated on
+  the reference height of b̄ = filter(b); its kernel `filtered_ape_ccc` just forwards to
+  `local_ape_ccc` so it gets its own type alias/display, the way `FilteredKineticEnergy` wraps
+  `kinetic_energy_ccc`) and `FilteredAvailablePotentialEnergyDissipationRate` (εₐˡ = −q̄ᵢ∂ᵢΥˡ, the
+  closure's diffusive flux *low-pass filtered* — the same filtered-flux choice
+  `FilteredKineticEnergyDissipationRate` makes for the viscous flux, exact for constant κ — against the
+  displacement potential Υˡ of b̄). Both take `(model, filter; method, geopotential_height)` and a
+  low-level form on a prebuilt `z✶ˡ` (`FilteredAvailablePotentialEnergy(model, z✶ˡ)`,
+  `FilteredAvailablePotentialEnergyDissipationRate(model, filter, z✶ˡ; upsilon)`) so one lookup / one Υˡ
+  can be shared. b̄ is measured against a profile it did not produce (ordinarily the full field's), so
+  `method` must be a `ProfileLookup`; `shared_profile_lookup` resolves the default `ProfileLookup()`
+  into a `VerticalSort` column of the model's buoyancy (re-sorted every `compute!`), and
+  `filtered_buoyancy_and_lookup` returns `(b, b̄, lookup)` for the sub-filter module to build the full
+  field's `z✶` against the same lookup. Built on `AvailablePotentialEnergyEquation` and
+  `SpatialFilters`, so it is included after both
 - **`SubFilterAvailablePotentialEnergyEquation`**: sub-filter APE budget terms —
-  `SubFilterAvailablePotentialEnergy` (Eₐˢ = filter(eₐ) − eₐ(b̄, z), the filtered full local APE minus
-  the local APE of the filtered buoyancy b̄ = filter(b)) and
-  `SubFilterAvailablePotentialEnergyDissipationRate` (εₐˢ = filter(εₐ) − εₐˡ, where
-  εₐˡ = −q̄ᵢ∂ᵢΥˡ contracts the closure's diffusive flux *low-pass filtered* — the same filtered-flux
-  choice `FilteredKineticEnergyDissipationRate` makes for the viscous flux, exact for constant κ —
-  against the displacement potential Υˡ of the filtered buoyancy). Both quantities measure the full
-  and the filtered buoyancy against *one shared reference profile*, so their `method` keyword must be
-  a `ProfileLookup`: the default `ProfileLookup()` internally builds a `VerticalSort` column of the
-  model's buoyancy (re-sorted every `compute!`, so the reference tracks the flow),
-  `ProfileLookup(z✶_column)` shares an existing column across diagnostics, and `ProfileLookup(b✶, z✶)`
-  with arrays freezes the reference in time and makes the diagnostics sort-free. eₐ is convex in b, so
-  Eₐˢ ≥ 0 pointwise for filters with no vertical component (Jensen); vertical filtering (and the
-  nearest-slot fallback for buoyancies outside the profile) can produce locally negative values. An
-  identity-scale filter (σ ≪ Δx, N=3) makes both diagnostics vanish to the bit, which
-  `test_subfilter_ape_diagnostics.jl` uses to check the filtered-state kernels against the full-state
-  ones without reimplementation. Built on `AvailablePotentialEnergyEquation` and `SpatialFilters`, so
-  it is included after both (currently last of the equation modules)
+  `SubFilterAvailablePotentialEnergy` (Eₐˢ = filter(eₐ) − eₐˡ) and
+  `SubFilterAvailablePotentialEnergyDissipationRate` (εₐˢ = filter(εₐ) − εₐˡ), each the filtered
+  full-field quantity minus the `FilteredAvailablePotentialEnergyEquation` one on the same shared
+  profile (`subfilter_reference_heights` builds `z✶` and `z✶ˡ` from that module's
+  `filtered_buoyancy_and_lookup`, which is what makes the difference a decomposition). Both are
+  `KernelFunctionOperation`s wrapping the underlying `BinaryOperation` (à la
+  `SubFilterKineticEnergyDissipationRate`), and the module re-exports `FilteredAvailablePotentialEnergy`
+  and `FilteredAvailablePotentialEnergyDissipationRate` (as `SubFilterKineticEnergyEquation` re-exports
+  `KineticEnergyCrossScaleFlux`). `method` must be a `ProfileLookup`: the default builds a
+  `VerticalSort` column of the model's buoyancy, `ProfileLookup(z✶_column)` shares an existing column,
+  and `ProfileLookup(b✶, z✶)` with arrays freezes the reference and makes the diagnostics sort-free.
+  eₐ is convex in b, so Eₐˢ ≥ 0 pointwise for filters with no vertical component (Jensen); vertical
+  filtering (and the nearest-class fallback for buoyancies off the profile) can produce locally
+  negative values. An identity-scale filter (σ ≪ Δx, N=3) makes the filtered diagnostics equal the
+  full-field ones and the sub-filter ones vanish, all to the bit, which
+  `test_filtered_ape_diagnostics.jl` / `test_subfilter_ape_diagnostics.jl` use to check the filtered
+  kernels against the full-field ones without reimplementation. Built on
+  `FilteredAvailablePotentialEnergyEquation`, so it is included after it (currently last of the
+  equation modules)
 - **`FlowDiagnostics`**: Richardson/Rossby numbers, Ertel/ThermalWind potential vorticity, strain rate & vorticity tensor moduli, Q-criterion, `subfilter_covariance` (generalized subfilter covariance `τ(a,b) = filter(a·b) − filter(a)·filter(b)`, unifying subfilter tracer flux and momentum stress), MixedLayerDepth, BottomCellValue
 - **`ProgressMessengers`** (submodule): Composable simulation progress reporters using `+` (comma-separated) and `*` (concatenation) operators
 

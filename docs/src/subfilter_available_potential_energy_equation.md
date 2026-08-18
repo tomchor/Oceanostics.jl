@@ -6,7 +6,9 @@ buoyancy field, following the filtered APE framework of
 [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879). It is the potential-energy
 counterpart of the [Sub-filter kinetic energy equation](@ref): where that module splits the kinetic
 energy across the filter scale, this one splits the *local* available potential energy ``e_a`` of
-[the available potential energy equation](available_potential_energy_equation.md).
+[the available potential energy equation](available_potential_energy_equation.md). The other half of
+the split, the APE of the filtered buoyancy and its dissipation, lives in the
+[Filtered available potential energy equation](@ref) and is re-exported here.
 
 ## The sub-filter available potential energy
 
@@ -21,7 +23,8 @@ e_a^s = \widetilde{e_a(b, z)} - e_a(\tilde b, z) ,
 e_a(b, z) = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z) - b\right] \mathrm{d}\tilde z ,
 ```
 
-computed by [`SubFilterAvailablePotentialEnergy`](@ref). Looking the filtered buoyancy up in a profile
+computed by [`SubFilterAvailablePotentialEnergy`](@ref); ``e_a(\tilde b, z)`` is
+[`FilteredAvailablePotentialEnergy`](@ref). Looking the filtered buoyancy up in a profile
 it did not itself produce is exactly what
 [`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup) was built for, so
 these diagnostics accept only that reference-height method: the default sorts the model's own buoyancy
@@ -50,12 +53,12 @@ The diffusive sink of the ``e_a^s`` budget is the sub-filter APE dissipation rat
 computed by [`SubFilterAvailablePotentialEnergyDissipationRate`](@ref): the filtered full-field
 dissipation ``\varepsilon_a = -q_i \partial_i \Upsilon``
 ([`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate))
-minus the same contraction evaluated on the filtered state, with ``\tilde q_i`` the closure's diffusive
-buoyancy flux low-pass filtered and ``\Upsilon^l = z^\star(\tilde b) - z`` the displacement potential
-([`BuoyancyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential))
-of the filtered buoyancy. Filtering the flux, rather than recomputing it from ``\tilde b``, is the same
-choice the [Filtered kinetic energy equation](@ref) makes for the viscous flux, and the two coincide
-for a constant diffusivity.
+minus the same contraction evaluated on the filtered state,
+``\varepsilon_a^l`` ([`FilteredAvailablePotentialEnergyDissipationRate`](@ref)), with ``\tilde q_i``
+the closure's diffusive buoyancy flux low-pass filtered and ``\Upsilon^l = z^\star(\tilde b) - z`` the
+displacement potential of the filtered buoyancy. Filtering the flux, rather than recomputing it from
+``\tilde b``, is the same choice the [Filtered kinetic energy equation](@ref) makes for the viscous
+flux; the [Filtered available potential energy equation](@ref) has the details.
 
 The remaining terms of the ``e_a^s`` budget — the cross-scale APE flux ``\Pi_a``, the sub-filter
 buoyancy-flux exchange with the kinetic energy, and the reference-tendency correction that appears

@@ -195,6 +195,16 @@ end
         test_kfo_invariants("DiffusiveVerticalBuoyancyFlux", DiffusiveVerticalBuoyancyFlux(model))  # short name, via `using ...PotentialEnergyEquation`
     end
 
+    @testset "FilteredAvailablePotentialEnergyEquation" begin
+        # `filtered_ape_ccc` forwards its varargs to `local_ape_ccc`, and `filtered_ape_dissipation_rate_ccc`
+        # contracts four materialized `Field`s: both are per-cell kernels that must stay allocation-free
+        # and type-stable like the full-field ones they mirror. (The sub-filter diagnostics wrap a
+        # `BinaryOperation` and only index it, so they are not probed here.)
+        gf = GaussianFilter(; dims=(1, 2, 3), σ=2/N)
+        test_kfo_invariants("FilteredAvailablePotentialEnergy", FilteredAvailablePotentialEnergy(model, gf))
+        test_kfo_invariants("FilteredAvailablePotentialEnergyDissipationRate", FilteredAvailablePotentialEnergyDissipationRate(model, gf))
+    end
+
     @testset "FlowDiagnostics" begin
         test_kfo_invariants("RossbyNumber",            RossbyNumber(model))
         test_kfo_invariants("ErtelPotentialVorticity", ErtelPotentialVorticity(model))

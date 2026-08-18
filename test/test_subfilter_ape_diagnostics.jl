@@ -5,6 +5,7 @@ using Oceananigans.Fields: location, compute_at!
 
 using Oceanostics
 using Oceanostics: SubFilterAvailablePotentialEnergy, SubFilterAvailablePotentialEnergyDissipationRate
+using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipationRate
 using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate,
                    reference_height, reference_buoyancy, VerticalSort, ProfileLookup, HeavisideIntegral,
                    GaussianFilter
@@ -174,9 +175,14 @@ function test_subfilter_ape_errors(grid, filt)
     return nothing
 end
 
-# The module aliases its dissipation rate as `DissipationRate` and re-exports the reference-profile
-# machinery so it can be used on its own.
+# The module re-exports the filtered-flow APE and its dissipation (the "ˡ" halves of both splits) from
+# `FilteredAvailablePotentialEnergyEquation`, aliases its own dissipation rate as `DissipationRate`,
+# and re-exports the reference-profile machinery so it can be used on its own.
 function test_subfilter_ape_module_reexports()
+    @test SubFilterAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergy === FilteredAvailablePotentialEnergy
+    @test SubFilterAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyDissipationRate === FilteredAvailablePotentialEnergyDissipationRate
+    @test :FilteredAvailablePotentialEnergy in names(SubFilterAvailablePotentialEnergyEquation)
+    @test :FilteredAvailablePotentialEnergyDissipationRate in names(SubFilterAvailablePotentialEnergyEquation)
     @test SubFilterAvailablePotentialEnergyEquation.DissipationRate === SubFilterAvailablePotentialEnergyDissipationRate
     @test SubFilterAvailablePotentialEnergyEquation.ProfileLookup === ProfileLookup
     @test SubFilterAvailablePotentialEnergyEquation.VerticalSort === VerticalSort
