@@ -145,10 +145,10 @@ kinetic_energy_pages = ["Kinetic energy"            => "kinetic_energy_equation.
                         "Sub-filter kinetic energy" => "subfilter_kinetic_energy_equation.md",
                         ]
 
-potential_energy_pages = ["Potential energy"            => "potential_energy_equation.md",
-                          "Background potential energy" => "background_potential_energy_equation.md",
-                          "Available potential energy"  => "available_potential_energy_equation.md",
-                          "Filtered available potential energy" => "filtered_available_potential_energy_equation.md",
+potential_energy_pages = ["Potential energy"                      => "potential_energy_equation.md",
+                          "Background potential energy"           => "background_potential_energy_equation.md",
+                          "Available potential energy"            => "available_potential_energy_equation.md",
+                          "Filtered available potential energy"   => "filtered_available_potential_energy_equation.md",
                           "Sub-filter available potential energy" => "subfilter_available_potential_energy_equation.md",
                           ]
 
