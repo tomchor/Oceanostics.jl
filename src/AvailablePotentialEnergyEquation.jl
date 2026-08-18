@@ -5,7 +5,7 @@ using DocStringExtensions
 export AvailablePotentialEnergy, BuoyancyDisplacementPotential
 export AvailablePotentialEnergyDissipationRate, DissipationRate
 # `Φ` is a term of the `e_p` equation and lives in `PotentialEnergyEquation`; re-exported here because
-# `ε_A` is defined as the diapycnal mixing rate less `Φ`, so the two are almost always wanted together.
+# `εₐ` is defined as the diapycnal mixing rate less `Φ`, so the two are almost always wanted together.
 export PotentialEnergyDiffusiveVerticalBuoyancyFlux
 # `wb` is the term this budget exchanges with the kinetic energy one; see `PotentialEnergyEquation`.
 export PotentialToKineticEnergyConversion, KineticEnergyConversion
@@ -112,7 +112,7 @@ available_potential_energy(z✶, b, z)         = KernelFunctionOperation{Center,
 #---
 
 #+++ Reference height on the model grid
-# `Υ` and `ε_A` both read the parcel's own height off the grid `z✶` lives on, so both need that to be
+# `Υ` and `εₐ` both read the parcel's own height off the grid `z✶` lives on, so both need that to be
 # the model grid. [`VerticalSort`](@ref) answers on the sorted column instead, where the grid's own
 # `Zᶜᶜᶜ` *is* `z✶` (which would make `Υ` silently zero) and a horizontal gradient of `b` means nothing.
 validate_reference_height_grid(diagnostic, model, z✶) =
@@ -192,7 +192,7 @@ end
 #---
 
 #+++ Available potential energy dissipation rate
-# `ε_A = κ ∂ᵢb ∂ᵢΥ = -qᵢ ∂ᵢΥ`, where `qᵢ = -κ ∂ᵢb` is the buoyancy tracer's diffusive flux. Taking it
+# `εₐ = κ ∂ᵢb ∂ᵢΥ = -qᵢ ∂ᵢΥ`, where `qᵢ = -κ ∂ᵢb` is the buoyancy tracer's diffusive flux. Taking it
 # from the closure's own `diffusive_flux_*` rather than from a diffusivity of our own makes this follow
 # whatever closure the model runs with, and keeps the dissipation consistent with the diffusion the
 # model actually applied — the same conservative formulation `TracerVarianceDissipationRate` uses for
@@ -224,14 +224,14 @@ Return a `KernelFunctionOperation` computing the rate at which diffusion destroy
 energy,
 
 ```
-    ε_A = κ ∂ᵢb ∂ᵢΥ = κ [(∂z✶/∂b)|∇b|² - ∂b/∂z] ,
+    εₐ = κ ∂ᵢb ∂ᵢΥ = κ [(∂z✶/∂b)|∇b|² - ∂b/∂z] ,
 ```
 
 the sink of the local available potential energy equation of
 [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) (their Eqs. 11 and 14, where it
-appears as `-ε_A`), with `Υ` the [`BuoyancyDisplacementPotential`](@ref). It follows from
+appears as `-εₐ`), with `Υ` the [`BuoyancyDisplacementPotential`](@ref). It follows from
 `∂eₐ/∂b = Υ`, which makes the diffusive part of `Deₐ/Dt` equal to `Υκ∇²b = ∇·(κΥ∇b) - κ∇Υ·∇b`: once
-the flux divergence is set aside, `ε_A = κ∇Υ·∇b` is what remains.
+the flux divergence is set aside, `εₐ = κ∇Υ·∇b` is what remains.
 
 Written out, the first part is the diapycnal mixing rate of
 [Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X), the work done rearranging the
@@ -239,7 +239,7 @@ reference state, and the second is
 [`PotentialEnergyDiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux), the diffusion that state
 undergoes on its own, which carries no APE with it. The two cancel exactly for a statically stable,
 horizontally uniform stratification, where `z✶ = z` and there is no available energy to destroy, so
-`ε_A` measures only the APE actually lost — it is not the sign-definite `κ|∇b|²`-like quantity the name
+`εₐ` measures only the APE actually lost — it is not the sign-definite `κ|∇b|²`-like quantity the name
 might suggest.
 
 `κ ∂ᵢb` is taken from the closure's own diffusive flux rather than from a diffusivity supplied here, so
@@ -276,7 +276,7 @@ AvailablePotentialEnergyDissipationRate KernelFunctionOperation at (Center, Cent
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ape_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "BuoyancyForce")
-└── computes: available potential energy dissipation rate  ε_A = κ ∂ᵢb ∂ᵢΥ
+└── computes: available potential energy dissipation rate  εₐ = κ ∂ᵢb ∂ᵢΥ
 ```
 """
 function AvailablePotentialEnergyDissipationRate(model; method = HeavisideIntegral(),

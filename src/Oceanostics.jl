@@ -448,12 +448,12 @@ end
 #+++ AvailablePotentialEnergyEquation
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy                "AvailablePotentialEnergy"                "local available potential energy density  eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
 @diagnostic_show AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential           "BuoyancyDisplacementPotential"           "buoyancy displacement potential  Υ = z✶ - z"
-@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  ε_A = κ ∂ᵢb ∂ᵢΥ"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  εₐ = κ ∂ᵢb ∂ᵢΥ"
 #---
 
 #+++ SubFilterAvailablePotentialEnergyEquation
 @diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy                "SubFilterAvailablePotentialEnergy"                "sub-filter available potential energy  eₐˢ = filter(eₐ) - eₐˡ"
-@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate "SubFilterAvailablePotentialEnergyDissipationRate" "sub-filter available potential energy dissipation rate  ε_Aˢ = filter(ε_A) - ε_Aˡ"
+@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate "SubFilterAvailablePotentialEnergyDissipationRate" "sub-filter available potential energy dissipation rate  εₐˢ = filter(εₐ) - εₐˡ"
 #---
 
 #+++ FlowDiagnostics

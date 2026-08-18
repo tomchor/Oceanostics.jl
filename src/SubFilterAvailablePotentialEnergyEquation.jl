@@ -29,7 +29,7 @@ using ..AvailablePotentialEnergyEquation: AvailablePotentialEnergy, BuoyancyDisp
 using ..SpatialFilters: GaussianFilter, BoxFilter
 
 #+++ Shared reference profile
-# The sub-filter split compares `eₐ` (or `ε_A`) of the full buoyancy with the same quantity of the
+# The sub-filter split compares `eₐ` (or `εₐ`) of the full buoyancy with the same quantity of the
 # filtered buoyancy, and the comparison only means anything when both are measured against one shared
 # reference profile. `ProfileLookup` is the one method built to match a field into a profile that did
 # not come from sorting that field, so it is the only method these diagnostics accept. The default
@@ -149,7 +149,7 @@ SubFilterAvailablePotentialEnergy(model; σ, dims = (1, 2, 3), boundary = :shrin
 #---
 
 #+++ Sub-filter available potential energy dissipation rate
-# ε_Aˡ = -q̄ᵢ∂ᵢΥˡ, the `ape_dissipation_rate_ccc` contraction with the pre-filtered flux `Field`s read
+# εₐˡ = -q̄ᵢ∂ᵢΥˡ, the `ape_dissipation_rate_ccc` contraction with the pre-filtered flux `Field`s read
 # directly in place of the inline `diffusive_flux_*` calls (the same substitution
 # `FilteredKineticEnergyDissipationRate` makes for the viscous fluxes). Each product is formed on the
 # face where both factors live and only then interpolated to the cell center.
@@ -163,8 +163,8 @@ SubFilterAvailablePotentialEnergy(model; σ, dims = (1, 2, 3), boundary = :shrin
      ℑzᵃᵃᶜ(i, j, k, grid, Azᶜᶜᶠ_δΥˡᶜᶜᶠ_q̄₃ᶜᶜᶠ, Υˡ, q̄₃)   # C, C, F  → C, C, C
      ) / Vᶜᶜᶜ(i, j, k, grid) # the division by volume, against the `A δΥˡ` above, is what makes it a derivative
 
-# ε_Aˢ = filter(ε_A) - ε_Aˡ, the same wrapper trick as `SubFilterKineticEnergyDissipationRate`.
-@inline subfilter_ape_dissipation_rate_ccc(i, j, k, grid, ε_Aˢ) = @inbounds ε_Aˢ[i, j, k]
+# εₐˢ = filter(εₐ) - εₐˡ, the same wrapper trick as `SubFilterKineticEnergyDissipationRate`.
+@inline subfilter_ape_dissipation_rate_ccc(i, j, k, grid, εₐˢ) = @inbounds εₐˢ[i, j, k]
 
 const SubFilterAvailablePotentialEnergyDissipationRate = CustomKFO{<:typeof(subfilter_ape_dissipation_rate_ccc)}
 const DissipationRate = SubFilterAvailablePotentialEnergyDissipationRate
@@ -172,16 +172,16 @@ const DissipationRate = SubFilterAvailablePotentialEnergyDissipationRate
 """
     $(SIGNATURES)
 
-Return the sub-filter-scale (SFS) available potential energy dissipation rate `ε_Aˢ`, the APE
+Return the sub-filter-scale (SFS) available potential energy dissipation rate `εₐˢ`, the APE
 destruction by diffusion carried by the scales that a low-pass `filter` removes:
 
 ```
-    ε_Aˢ = filter(ε_A) - ε_Aˡ ,   ε_Aˡ = -q̄ᵢ ∂ᵢΥˡ ,   q̄ᵢ = filter(qᵢ) ,   Υˡ = z✶(b̄) - z
+    εₐˢ = filter(εₐ) - εₐˡ ,   εₐˡ = -q̄ᵢ ∂ᵢΥˡ ,   q̄ᵢ = filter(qᵢ) ,   Υˡ = z✶(b̄) - z
 ```
 
-where `ε_A = -qᵢ∂ᵢΥ` is the dissipation rate of the full field
+where `εₐ = -qᵢ∂ᵢΥ` is the dissipation rate of the full field
 ([`AvailablePotentialEnergyDissipationRate`](@ref)), `qᵢ` is the closure's own diffusive buoyancy
-flux, and `ε_Aˡ` is the same contraction evaluated on the filtered state: the filtered flux against
+flux, and `εₐˡ` is the same contraction evaluated on the filtered state: the filtered flux against
 the displacement potential `Υˡ` ([`BuoyancyDisplacementPotential`](@ref)) of the filtered buoyancy
 `b̄ = filter(b)`. Both states are measured against one shared reference profile, exactly as in
 [`SubFilterAvailablePotentialEnergy`](@ref), whose budget this is the diffusive sink of
@@ -189,7 +189,7 @@ the displacement potential `Υˡ` ([`BuoyancyDisplacementPotential`](@ref)) of t
 [`SubFilterKineticEnergyDissipationRate`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate)
 is to the sub-filter kinetic energy.
 
-The flux in `ε_Aˡ` is filtered, `q̄ᵢ = filter(qᵢ(b))`, not recomputed from the filtered buoyancy: the
+The flux in `εₐˡ` is filtered, `q̄ᵢ = filter(qᵢ(b))`, not recomputed from the filtered buoyancy: the
 filtered buoyancy equation carries the divergence of the filtered flux, so `-q̄ᵢ∂ᵢΥˡ` is the
 dissipation that appears in the filtered-state budget. The two forms agree for a constant
 diffusivity, where the filter commutes with the flux, and differ once `κ` varies in space — the same
@@ -224,7 +224,7 @@ SubFilterAvailablePotentialEnergyDissipationRate KernelFunctionOperation at (Cen
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ape_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
-└── computes: sub-filter available potential energy dissipation rate  ε_Aˢ = filter(ε_A) - ε_Aˡ
+└── computes: sub-filter available potential energy dissipation rate  εₐˢ = filter(εₐ) - εₐˡ
 ```
 
 A convenience method `SubFilterAvailablePotentialEnergyDissipationRate(model; σ, dims, boundary, N)`
@@ -239,7 +239,7 @@ function SubFilterAvailablePotentialEnergyDissipationRate(model, filter; method 
     z✶, z✶ˡ = subfilter_reference_heights("SubFilterAvailablePotentialEnergyDissipationRate", model, filter, method,
                                           geopotential_height)
 
-    ε_A = AvailablePotentialEnergyDissipationRate(model, z✶)   # -qᵢ∂ᵢΥ off the closure's own flux
+    εₐ = AvailablePotentialEnergyDissipationRate(model, z✶)   # -qᵢ∂ᵢΥ off the closure's own flux
 
     # q̄ᵢ = filter(qᵢ(b)): the closure's diffusive fluxes of the FULL buoyancy, each low-pass filtered and
     # materialized at its staggered location. The flux operation reads the live model fields, so the
@@ -251,11 +251,11 @@ function SubFilterAvailablePotentialEnergyDissipationRate(model, filter; method 
     q̄₃ = filtered_flux(diffusive_flux_z, Center, Center, Face)
 
     Υˡ = Field(BuoyancyDisplacementPotential(model, z✶ˡ))
-    ε_Aˡ = KernelFunctionOperation{Center, Center, Center}(filtered_ape_dissipation_rate_ccc, model.grid, Υˡ, q̄₁, q̄₂, q̄₃)
+    εₐˡ = KernelFunctionOperation{Center, Center, Center}(filtered_ape_dissipation_rate_ccc, model.grid, Υˡ, q̄₁, q̄₂, q̄₃)
 
-    ε_Aˢ = Field(filter(Field(ε_A))) - ε_Aˡ
+    εₐˢ = Field(filter(Field(εₐ))) - εₐˡ
 
-    return KernelFunctionOperation{Center, Center, Center}(subfilter_ape_dissipation_rate_ccc, model.grid, ε_Aˢ)
+    return KernelFunctionOperation{Center, Center, Center}(subfilter_ape_dissipation_rate_ccc, model.grid, εₐˢ)
 end
 
 SubFilterAvailablePotentialEnergyDissipationRate(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing, kwargs...) =

@@ -577,20 +577,20 @@ function test_ape_dissipation_matches_tracer_variance_discretization(grid)
     set!(model, b = grid_noise)
 
     z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
-    ε_A = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = model.tracers.b)
-    @test ε_A isa AvailablePotentialEnergyDissipationRate
+    εₐ = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = model.tracers.b)
+    @test εₐ isa AvailablePotentialEnergyDissipationRate
 
     χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)
-    @test interior(Field(ε_A)) ≈ interior(Field(χ)) ./ 2
+    @test interior(Field(εₐ)) ≈ interior(Field(χ)) ./ 2
 
     return nothing
 end
 
 """
 A horizontally uniform, statically stable stratification is its own sorted state, so under
-[`HeavisideIntegral`](@ref) it gets `z✶ = z` and holds no available energy to destroy: `Υ` and `ε_A`
-both vanish cell by cell. `ε_A` is the sharper of the two, since the diapycnal mixing rate and the
-diffusion of the reference state have to cancel rather than each being small — `κ|∇b|²`, which `ε_A` is
+[`HeavisideIntegral`](@ref) it gets `z✶ = z` and holds no available energy to destroy: `Υ` and `εₐ`
+both vanish cell by cell. `εₐ` is the sharper of the two, since the diapycnal mixing rate and the
+diffusion of the reference state have to cancel rather than each being small — `κ|∇b|²`, which `εₐ` is
 sometimes mistaken for, would be nowhere near zero here. `χ/2` is that non-cancelling scale, so it is
 what the residual is measured against.
 """
@@ -610,7 +610,7 @@ function test_ape_dissipation_vanishes_when_sorted(grid)
 end
 
 """
-`ε_A` holds `Υ`, which holds `z✶`, so a `compute!` has to refresh the whole chain rather than read a
+`εₐ` holds `Υ`, which holds `z✶`, so a `compute!` has to refresh the whole chain rather than read a
 stale displacement. A frozen `Υ` would not throw or look obviously wrong — it would just report the
 previous step's dissipation — so this moves the flow on and checks the result against a diagnostic
 built fresh from the new state.
@@ -623,27 +623,27 @@ function test_ape_dissipation_is_recomputed(grid)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
     set!(model, b = (x, y, z) -> z + 0.3 * sin(9x))
 
-    ε_A = Field(AvailablePotentialEnergyDissipationRate(model))
-    stirred = maximum(abs, interior(ε_A))
+    εₐ = Field(AvailablePotentialEnergyDissipationRate(model))
+    stirred = maximum(abs, interior(εₐ))
     @test stirred > 0
 
     set!(model, b = (x, y, z) -> 2z + 0.5 * sin(7x) * cos(5z))
-    compute!(ε_A)
+    compute!(εₐ)
 
-    @test maximum(abs, interior(ε_A)) != stirred
-    @test interior(ε_A) ≈ interior(Field(AvailablePotentialEnergyDissipationRate(model)))
+    @test maximum(abs, interior(εₐ)) != stirred
+    @test interior(εₐ) ≈ interior(Field(AvailablePotentialEnergyDissipationRate(model)))
 
     z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
     shared = Field(BuoyancyDisplacementPotential(model, z✶))
-    @test interior(Field(AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = shared))) ≈ interior(ε_A)
+    @test interior(Field(AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = shared))) ≈ interior(εₐ)
 
     return nothing
 end
 
 """
-`ε_A` is the diapycnal mixing rate less `Φ`, so adding the two back gives that mixing rate,
+`εₐ` is the diapycnal mixing rate less `Φ`, so adding the two back gives that mixing rate,
 `κ ∇b·∇z✶`, the quantity mixing raises `E_b` by. `z✶` rises with `b`, so the sum has to be non-negative,
-and that is the sharp check: neither `ε_A` nor `Φ` is sign-definite on its own, so getting either one's
+and that is the sharp check: neither `εₐ` nor `Φ` is sign-definite on its own, so getting either one's
 sign, scaling or grid metrics wrong shows up here as a negative. Checked cell by cell, which is the
 stronger statement, and in the volume integral, which is the one the budget rests on.
 """
@@ -654,21 +654,21 @@ function test_ape_dissipation_plus_diffusive_flux_is_the_mixing_rate(grid)
 
     z✶  = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
     Υ   = Field(BuoyancyDisplacementPotential(model, z✶))
-    ε_A = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = Υ)
+    εₐ = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = Υ)
     Φ   = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)
 
-    mixing_rate = interior(Field(ε_A)) .+ interior(Field(Φ))
+    mixing_rate = interior(Field(εₐ)) .+ interior(Field(Φ))
     scale = maximum(abs, interior(Field(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)))) / 2
     @test scale > 0
     @test minimum(mixing_rate) > -sqrt(eps(eltype(grid))) * scale
     @test maximum(mixing_rate) > 0.01 * scale   # and it is not uniformly zero, which would pass trivially
-    @test volume_integral(ε_A) + volume_integral(Φ) > 0
+    @test volume_integral(εₐ) + volume_integral(Φ) > 0
 
     return nothing
 end
 
 """
-`ε_A` reads `κ∇b` off the closure's own diffusive flux, so the buoyancy has to be a tracer the closure
+`εₐ` reads `κ∇b` off the closure's own diffusive flux, so the buoyancy has to be a tracer the closure
 diffuses; and both diagnostics read the parcel's height off the grid `z✶` lives on, so a
 [`VerticalSort`](@ref) column — where that height *is* `z✶`, and a horizontal gradient means nothing —
 has to be rejected rather than silently returning zero.
@@ -774,8 +774,8 @@ end
         test_tilted_gravity_is_rejected(grid)
 
         # `Φ` itself is tested with the rest of the `e_p` equation, in `test_pe_diagnostics.jl`; what
-        # belongs here is the identity that defines `ε_A` in terms of it.
-        @info "      Testing that ε_A + Φ is the diapycnal mixing rate"
+        # belongs here is the identity that defines `εₐ` in terms of it.
+        @info "      Testing that εₐ + Φ is the diapycnal mixing rate"
         test_ape_dissipation_plus_diffusive_flux_is_the_mixing_rate(grid)
 
         @info "      Testing the `ThreeDimensionalSort`, `HeavisideIntegral` and `VerticalSort` methods"

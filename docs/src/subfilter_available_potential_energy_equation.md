@@ -42,13 +42,13 @@ Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentia
 The diffusive sink of the ``e_a^s`` budget is the sub-filter APE dissipation rate
 
 ```math
-\varepsilon_A^s = \widetilde{\varepsilon_A} - \varepsilon_A^l ,
+\varepsilon_a^s = \widetilde{\varepsilon_a} - \varepsilon_a^l ,
 \qquad
-\varepsilon_A^l = -\tilde q_i \, \partial_i \Upsilon^l ,
+\varepsilon_a^l = -\tilde q_i \, \partial_i \Upsilon^l ,
 ```
 
 computed by [`SubFilterAvailablePotentialEnergyDissipationRate`](@ref): the filtered full-field
-dissipation ``\varepsilon_A = -q_i \partial_i \Upsilon``
+dissipation ``\varepsilon_a = -q_i \partial_i \Upsilon``
 ([`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate))
 minus the same contraction evaluated on the filtered state, with ``\tilde q_i`` the closure's diffusive
 buoyancy flux low-pass filtered and ``\Upsilon^l = z^\star(\tilde b) - z`` the displacement potential
@@ -57,7 +57,7 @@ of the filtered buoyancy. Filtering the flux, rather than recomputing it from ``
 choice the [Filtered kinetic energy equation](@ref) makes for the viscous flux, and the two coincide
 for a constant diffusivity.
 
-The remaining terms of the ``e_a^s`` budget — the cross-scale APE flux ``\Pi_A``, the sub-filter
+The remaining terms of the ``e_a^s`` budget — the cross-scale APE flux ``\Pi_a``, the sub-filter
 buoyancy-flux exchange with the kinetic energy, and the reference-tendency correction that appears
 when the reference profile evolves in time — do not have named diagnostics yet. With a fixed reference
 profile the correction vanishes identically, so that is the configuration in which the budget can be

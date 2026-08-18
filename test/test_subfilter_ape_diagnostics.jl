@@ -107,14 +107,14 @@ function test_subfilter_ape_fixed_profile(model, filt)
     return nothing
 end
 
-# ε_Aˢ display/type checks, on a model with a closure so the diffusive fluxes exist.
+# εₐˢ display/type checks, on a model with a closure so the diffusive fluxes exist.
 function test_subfilter_ape_dissipation_basics(model, filt)
-    ε_Aˢ = SubFilterAvailablePotentialEnergyDissipationRate(model, filt)
-    @test location(ε_Aˢ) == (Center, Center, Center)
-    @test ε_Aˢ isa SubFilterAvailablePotentialEnergyDissipationRate
-    @test occursin("SubFilterAvailablePotentialEnergyDissipationRate", sprint(show, ε_Aˢ))
-    @test occursin("computes:", sprint(show, MIME("text/plain"), ε_Aˢ))
-    @test all(isfinite, interior(Field(ε_Aˢ)))
+    εₐˢ = SubFilterAvailablePotentialEnergyDissipationRate(model, filt)
+    @test location(εₐˢ) == (Center, Center, Center)
+    @test εₐˢ isa SubFilterAvailablePotentialEnergyDissipationRate
+    @test occursin("SubFilterAvailablePotentialEnergyDissipationRate", sprint(show, εₐˢ))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), εₐˢ))
+    @test all(isfinite, interior(Field(εₐˢ)))
     return nothing
 end
 
@@ -150,7 +150,7 @@ function test_subfilter_ape_dissipation_recomputes(model, filt)
     compute_at!(fresh, 2.0)
 
     @test !(Array(interior(εf)) ≈ snapshot)   # tracked the change in the flow
-    @test interior(εf) ≈ interior(fresh)      # equals an ε_Aˢ built fresh on the new state
+    @test interior(εf) ≈ interior(fresh)      # equals an εₐˢ built fresh on the new state
     return nothing
 end
 
@@ -198,7 +198,7 @@ end
     @info "    Sub-filter APE eₐˢ = filter(eₐ) - eₐˡ matches manual"
     test_subfilter_ape_matches_manual(model, filt)
 
-    @info "    Identity filter makes eₐˢ and ε_Aˢ vanish identically"
+    @info "    Identity filter makes eₐˢ and εₐˢ vanish identically"
     test_subfilter_ape_identity_filter_vanishes(model)
 
     @info "    Horizontally uniform stratification vanishes (eₐˢ)"
@@ -214,10 +214,10 @@ end
     @info "    Fixed profile (arrays) agrees with borrowing the live column"
     test_subfilter_ape_fixed_profile(model, filt)
 
-    @info "    Sub-filter APE dissipation ε_Aˢ = filter(ε_A) - ε_Aˡ basics"
+    @info "    Sub-filter APE dissipation εₐˢ = filter(εₐ) - εₐˡ basics"
     test_subfilter_ape_dissipation_basics(model, filt)
 
-    @info "    eₐˢ and ε_Aˢ recompute as the flow evolves"
+    @info "    eₐˢ and εₐˢ recompute as the flow evolves"
     test_subfilter_ape_recomputes(model, filt)              # mutates model; keep after the other `model` tests
     test_subfilter_ape_dissipation_recomputes(model, filt)
 

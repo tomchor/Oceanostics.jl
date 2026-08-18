@@ -103,8 +103,8 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 - **`SubFilterAvailablePotentialEnergyEquation`**: sub-filter APE budget terms —
   `SubFilterAvailablePotentialEnergy` (Eₐˢ = filter(eₐ) − eₐ(b̄, z), the filtered full local APE minus
   the local APE of the filtered buoyancy b̄ = filter(b)) and
-  `SubFilterAvailablePotentialEnergyDissipationRate` (ε_Aˢ = filter(ε_A) − ε_Aˡ, where
-  ε_Aˡ = −q̄ᵢ∂ᵢΥˡ contracts the closure's diffusive flux *low-pass filtered* — the same filtered-flux
+  `SubFilterAvailablePotentialEnergyDissipationRate` (εₐˢ = filter(εₐ) − εₐˡ, where
+  εₐˡ = −q̄ᵢ∂ᵢΥˡ contracts the closure's diffusive flux *low-pass filtered* — the same filtered-flux
   choice `FilteredKineticEnergyDissipationRate` makes for the viscous flux, exact for constant κ —
   against the displacement potential Υˡ of the filtered buoyancy). Both quantities measure the full
   and the filtered buoyancy against *one shared reference profile*, so their `method` keyword must be

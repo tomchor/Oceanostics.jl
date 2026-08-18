@@ -229,7 +229,7 @@ end
 #---
 
 #+++ Buoyancy as a diffused tracer
-# `Φ` here, and `ε_A` over in `AvailablePotentialEnergyEquation`, both read `κ∇b` off the closure's own
+# `Φ` here, and `εₐ` over in `AvailablePotentialEnergyEquation`, both read `κ∇b` off the closure's own
 # diffusive flux, which needs the buoyancy to be a tracer the closure diffuses. `SeawaterBuoyancy` would
 # need the fluxes of temperature and salinity combined through the equation of state. Both helpers live
 # here because this is the module the two diagnostics have in common.
@@ -277,8 +277,8 @@ buoyancy_diffusive_flux_arguments(model) =
 #+++ Diffusive buoyancy flux
 # `Φ = κ ∂b/∂z = -q₃`, the vertical diffusive buoyancy flux taken upward. It is the diffusive conversion
 # term of the `e_p` equation, the only way diffusion changes the potential energy of a closed domain,
-# and it is also the second of the two parts `ε_A` is written out of. It comes off the closure's own
-# `diffusive_flux_z`, exactly as `ε_A` does, so the two always carry the same `κ`. The flux lives on the
+# and it is also the second of the two parts `εₐ` is written out of. It comes off the closure's own
+# `diffusive_flux_z`, exactly as `εₐ` does, so the two always carry the same `κ`. The flux lives on the
 # `z` face, so it is interpolated to the cell center.
 @inline diffusive_buoyancy_flux_ccc(i, j, k, grid, args...) = -ℑzᵃᵃᶜ(i, j, k, grid, diffusive_flux_z, args...)
 
@@ -304,19 +304,19 @@ result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
 is written out of,
 
 ```
-    ε_A = κ (∂z✶/∂b) |∇b|² - Φ ,
+    εₐ = κ (∂z✶/∂b) |∇b|² - Φ ,
 ```
 
 and it is the part that carries no available energy with it: `Φ` enters the `E_p` and `E_b` budgets
 identically, so it cancels from their difference, which is `E_a`. A statically stable, horizontally
-uniform stratification is its own reference state and has `ε_A = 0` cell by cell, so there `Φ` accounts
-for the whole of the diapycnal mixing rate. Adding it back to `ε_A` recovers that rate in general, and
+uniform stratification is its own reference state and has `εₐ = 0` cell by cell, so there `Φ` accounts
+for the whole of the diapycnal mixing rate. Adding it back to `εₐ` recovers that rate in general, and
 its volume integral is the rate
 [`BackgroundPotentialEnergy`](@ref Oceanostics.BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy)
 grows:
 
 ```
-    d/dt ∫e_b dV = ∫(ε_A + Φ) dV .
+    d/dt ∫e_b dV = ∫(εₐ + Φ) dV .
 ```
 
 For a **constant** `κ`, `Φ` volume-integrates to a boundary term, since no buoyancy crosses the top or
@@ -342,7 +342,7 @@ which collapses only when `κ` factors out of the sum. Under a depth-dependent d
 that computes `κ` from the flow, the integral depends on the interior arrangement and can come out with
 the opposite sign to `κ A [b(z_top) - b(z_bottom)]`, so do not reach for the boundary form as a check
 there. `Φ` is returned as a field rather than as either number, since it is the pointwise partner of
-`ε_A`.
+`εₐ`.
 
 `κ ∂b/∂z` is taken from the closure's own diffusive flux rather than from a diffusivity supplied here,
 so this follows whatever closure the model runs with, including ones that compute `κ` from the flow.
