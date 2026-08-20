@@ -57,3 +57,23 @@ and differ once ``\kappa`` varies in space, the same distinction the
 ```@docs
 Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyDissipationRate
 ```
+
+## Cross-scale available potential energy flux
+
+```math
+\Pi_a = -\tau_i \, \partial_i \Upsilon^l , \qquad
+\tau_i = \overline{b u_i} - \bar b \, \bar u_i , \qquad
+\Upsilon^l = z^\star(\bar b) - z
+```
+
+is the rate at which the filter transfers available potential energy from the filtered to the
+sub-filter scales, the APE analogue of the
+[cross-scale kinetic energy flux](filtered_kinetic_energy_equation.md) ``\Pi_k = -\tau^{ij}\bar S^{ij}``:
+the sub-filter buoyancy flux takes the place of the sub-filter stress, and ``\nabla\Upsilon^l`` takes
+the place of the resolved strain. ``\Pi_a > 0`` is forward (downscale) transfer. It enters the filtered
+APE budget as ``-\Pi_a`` and the sub-filter one as ``+\Pi_a``, which is what makes it a transfer rather
+than a source or a sink ([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)).
+
+```@docs
+Oceanostics.FilteredAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux
+```
