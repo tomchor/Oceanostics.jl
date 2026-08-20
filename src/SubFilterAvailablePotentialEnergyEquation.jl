@@ -8,6 +8,9 @@ export SubFilterAvailablePotentialEnergyDissipationRate, DissipationRate
 # the filtered budget), so they are re-exported here from `FilteredAvailablePotentialEnergyEquation`,
 # where they are defined — as `SubFilterKineticEnergyEquation` re-exports `KineticEnergyCrossScaleFlux`.
 export FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipationRate
+# Πₐ is a source term of the sub-filter APE budget (and a sink of the filtered one), so it is
+# re-exported from the same module.
+export AvailablePotentialEnergyCrossScaleFlux
 # The shared reference profile both states are measured against is built with
 # `BackgroundPotentialEnergyEquation`'s machinery, so the pieces needed to construct and share one are
 # re-exported here and this module can be used on its own.
@@ -26,6 +29,7 @@ using ..BackgroundPotentialEnergyEquation: reference_height, reference_buoyancy,
 using ..AvailablePotentialEnergyEquation: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate
 using ..FilteredAvailablePotentialEnergyEquation: FilteredAvailablePotentialEnergy,
                                                   FilteredAvailablePotentialEnergyDissipationRate,
+                                                  AvailablePotentialEnergyCrossScaleFlux,
                                                   filtered_buoyancy_and_lookup
 # `GaussianFilter` builds the convenience methods' filter; `BoxFilter` is imported only so its docstring
 # `@ref` resolves in-module.

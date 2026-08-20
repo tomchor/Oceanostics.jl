@@ -239,6 +239,11 @@ function test_ape_cross_scale_flux_matches_manual(model, filt)
 
     @test interior(Field(Πₐ)) ≈ interior(Field(manual))
 
+    # the low-level form on a prebuilt z✶ˡ (one lookup, and through `upsilon` one Υˡ, shared with the
+    # other filtered-state diagnostics) matches the high-level form
+    @test interior(Field(AvailablePotentialEnergyCrossScaleFlux(model, filt, z✶ˡ; upsilon=Υˡ))) ≈
+          interior(Field(Πₐ))
+
     return nothing
 end
 

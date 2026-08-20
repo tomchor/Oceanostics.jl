@@ -110,7 +110,9 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   displacement potential Υˡ of b̄). Both take `(model, filter; method, geopotential_height)` and a
   low-level form on a prebuilt `z✶ˡ` (`FilteredAvailablePotentialEnergy(model, z✶ˡ)`,
   `FilteredAvailablePotentialEnergyDissipationRate(model, filter, z✶ˡ; upsilon)`) so one lookup / one Υˡ
-  can be shared. b̄ is measured against a profile it did not produce (ordinarily the full field's), so
+  can be shared. Also owns `AvailablePotentialEnergyCrossScaleFlux` (Πₐ = −τᵢ∂ᵢΥˡ, the sub-filter
+  buoyancy flux — `subfilter_covariance` per direction with one shared b̄ — contracted with ∇Υˡ, the APE
+  analogue of `KineticEnergyCrossScaleFlux`), with the same high-level/low-level constructor pair. b̄ is measured against a profile it did not produce (ordinarily the full field's), so
   `method` must be a `ProfileLookup`; `shared_profile_lookup` resolves the default `ProfileLookup()`
   into a `VerticalSort` column of the model's buoyancy (re-sorted every `compute!`), and
   `filtered_buoyancy_and_lookup` returns `(b, b̄, lookup)` for the sub-filter module to build the full
@@ -123,8 +125,9 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   profile (`subfilter_reference_heights` builds `z✶` and `z✶ˡ` from that module's
   `filtered_buoyancy_and_lookup`, which is what makes the difference a decomposition). Both are
   `KernelFunctionOperation`s wrapping the underlying `BinaryOperation` (à la
-  `SubFilterKineticEnergyDissipationRate`), and the module re-exports `FilteredAvailablePotentialEnergy`
-  and `FilteredAvailablePotentialEnergyDissipationRate` (as `SubFilterKineticEnergyEquation` re-exports
+  `SubFilterKineticEnergyDissipationRate`), and the module re-exports `FilteredAvailablePotentialEnergy`,
+  `FilteredAvailablePotentialEnergyDissipationRate` and `AvailablePotentialEnergyCrossScaleFlux` (a
+  source term of this budget; as `SubFilterKineticEnergyEquation` re-exports
   `KineticEnergyCrossScaleFlux`). `method` must be a `ProfileLookup`: the default builds a
   `VerticalSort` column of the model's buoyancy, `ProfileLookup(z✶_column)` shares an existing column,
   and `ProfileLookup(b✶, z✶)` with arrays freezes the reference and makes the diagnostics sort-free.

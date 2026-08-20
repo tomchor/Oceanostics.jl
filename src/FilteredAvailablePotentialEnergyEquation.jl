@@ -364,22 +364,37 @@ AvailablePotentialEnergyCrossScaleFlux KernelFunctionOperation at (Center, Cente
 └── computes: cross-scale available potential energy flux  Πₐ = -τᵢ∂ᵢΥˡ
 ```
 
+A second method, `AvailablePotentialEnergyCrossScaleFlux(model, filter, z✶ˡ; upsilon, dims)`, takes a
+reference height you built from the filtered buoyancy (see [`FilteredAvailablePotentialEnergy`](@ref)),
+so one lookup — and, through `upsilon`, one `Υˡ` — can serve this flux and the other filtered-state
+diagnostics. The filtered buoyancy is read off `z✶ˡ` itself; `filter` is still needed there, to build
+the sub-filter buoyancy flux.
+
 A convenience method `AvailablePotentialEnergyCrossScaleFlux(model; σ, dims, boundary, N)` builds the
 Gaussian `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
 """
 function AvailablePotentialEnergyCrossScaleFlux(model, filter; dims = (1, 2, 3), method = ProfileLookup(),
                                                 geopotential_height = model_geopotential_height(model))
+    validate_gravity_is_z_aligned("AvailablePotentialEnergyCrossScaleFlux", model)
+    z✶ˡ = filtered_reference_height("AvailablePotentialEnergyCrossScaleFlux", model, filter, method,
+                                    geopotential_height)
+    return AvailablePotentialEnergyCrossScaleFlux(model, filter, z✶ˡ; dims, geopotential_height)
+end
+
+function AvailablePotentialEnergyCrossScaleFlux(model, filter, z✶ˡ::SortedReferenceHeightField;
+                                                upsilon = nothing, dims = (1, 2, 3),
+                                                geopotential_height = model_geopotential_height(model))
     validate_dims(dims)
     validate_gravity_is_z_aligned("AvailablePotentialEnergyCrossScaleFlux", model)
+    validate_reference_height_grid("AvailablePotentialEnergyCrossScaleFlux", model, z✶ˡ)
 
-    # One `filtered_buoyancy_and_lookup` serves both factors: its `b̄` feeds the reference height (and so
-    # `Υˡ`) and the sub-filter buoyancy flux, so the buoyancy is filtered once per compute rather than
-    # once for the lookup and again for the flux.
-    b, b̄, lookup = filtered_buoyancy_and_lookup("AvailablePotentialEnergyCrossScaleFlux", model, filter, method,
-                                                geopotential_height)
-    z✶ˡ = reference_height(b̄; method = lookup)
-    Υˡ = Field(BuoyancyDisplacementPotential(model, z✶ˡ))
+    Υˡ = isnothing(upsilon) ? Field(BuoyancyDisplacementPotential(model, z✶ˡ)) : upsilon
 
+    # The filtered buoyancy is `z✶ˡ`'s own (the field the caller filtered and looked up), so the one `b̄`
+    # serves both the reference height — and so `Υˡ` — and the sub-filter buoyancy flux: the buoyancy is
+    # filtered once per compute rather than once for the lookup and again for the flux.
+    b = buoyancy_field(model, model.buoyancy, geopotential_height)
+    b̄ = reference_buoyancy(z✶ˡ.operand)
     τ = subfilter_buoyancy_flux(filter, b, b̄, model.velocities, dims)
 
     ∂ᵢ = (∂x, ∂y, ∂z)   # the τᵢ are already at cell centers, so only the gradient needs collocating

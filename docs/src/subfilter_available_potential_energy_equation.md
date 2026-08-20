@@ -60,11 +60,14 @@ displacement potential of the filtered buoyancy. Filtering the flux, rather than
 ``\tilde b``, is the same choice the [Filtered kinetic energy equation](@ref) makes for the viscous
 flux; the [Filtered available potential energy equation](@ref) has the details.
 
-The remaining terms of the ``e_a^s`` budget — the cross-scale APE flux ``\Pi_a``, the sub-filter
-buoyancy-flux exchange with the kinetic energy, and the reference-tendency correction that appears
-when the reference profile evolves in time — do not have named diagnostics yet. With a fixed reference
-profile the correction vanishes identically, so that is the configuration in which the budget can be
-closed from what is currently available.
+The cross-scale APE flux ``\Pi_a``, which enters this budget as a source (``+\Pi_a``) and the
+filtered one as a sink, is
+[`AvailablePotentialEnergyCrossScaleFlux`](@ref Oceanostics.FilteredAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux),
+defined in the [Filtered available potential energy equation](@ref) and re-exported here. The remaining
+terms of the ``e_a^s`` budget — the sub-filter buoyancy-flux exchange with the kinetic energy, and the
+reference-tendency correction that appears when the reference profile evolves in time — do not have
+named diagnostics yet. With a fixed reference profile the correction vanishes identically, so that is
+the configuration in which the budget can be closed from what is currently available.
 
 ```@docs
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate
