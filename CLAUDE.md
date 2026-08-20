@@ -136,7 +136,7 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   kernels against the full-field ones without reimplementation. Built on
   `FilteredAvailablePotentialEnergyEquation`, so it is included after it (currently last of the
   equation modules)
-- **`FlowDiagnostics`**: Richardson/Rossby numbers, Ertel/ThermalWind potential vorticity, strain rate & vorticity tensor moduli, Q-criterion, `subfilter_covariance` (generalized subfilter covariance `τ(a,b) = filter(a·b) − filter(a)·filter(b)`, unifying subfilter tracer flux and momentum stress), MixedLayerDepth, BottomCellValue
+- **`FlowDiagnostics`**: Richardson/Rossby numbers, Ertel/ThermalWind potential vorticity, strain rate & vorticity tensor moduli, Q-criterion, `subfilter_covariance` (generalized subfilter covariance `τ(a,b) = filter(a·b) − filter(a)·filter(b)`, unifying subfilter tracer flux and momentum stress; a `filtered_a` kwarg takes a pre-filtered factor so several covariances can share one, and the collocation helper `to_center` lives alongside it for the cross-scale fluxes), MixedLayerDepth, BottomCellValue
 - **`ProgressMessengers`** (submodule): Composable simulation progress reporters using `+` (comma-separated) and `*` (concatenation) operators
 
 ### Key Dependencies

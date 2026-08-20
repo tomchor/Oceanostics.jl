@@ -214,11 +214,11 @@ end
 
 
 """
-Πₐ = -τᵢ ∂ᵢΥˡ is a contraction of two things the package already exports separately: the sub-filter
-buoyancy flux, which `subfilter_covariance` builds one component at a time, and the gradient of the
-filtered-state displacement potential. Rebuilding it from those and comparing pins the sign, the
-directions summed over, and the co-location of every factor against primitives tested elsewhere —
-which no approximate check could separate.
+Πₐ = -τᵢ ∂ᵢΥˡ rebuilt from raw filter calls (`filter(b uᵢ) - b̄ ūᵢ`, every factor collocated at cell
+centers) contracted with the gradient of the filtered-state displacement potential. The diagnostic
+itself builds τᵢ through `subfilter_covariance`, so the manual construction here deliberately does
+not: the comparison pins the covariance, the sign, the directions summed over, and the co-location of
+every factor independently — which no approximate check could separate.
 """
 function test_ape_cross_scale_flux_matches_manual(model, filt)
 
@@ -232,7 +232,9 @@ function test_ape_cross_scale_flux_matches_manual(model, filt)
     Υˡ = Field(BuoyancyDisplacementPotential(model, z✶ˡ))
 
     ccc = (Center, Center, Center)
-    manual = -sum(Field(@at ccc subfilter_covariance(b, uᵈ, filt) * ∂ᵈ(Υˡ))
+    b̄ = Field(filt(b))
+    raw_τ(uᵈ_ccc) = Field(filt(Field(b * uᵈ_ccc))) - b̄ * Field(filt(uᵈ_ccc))
+    manual = -sum(Field(@at ccc raw_τ(Field(@at ccc uᵈ)) * ∂ᵈ(Υˡ))
                   for (uᵈ, ∂ᵈ) in zip((u, v, w), (∂x, ∂y, ∂z)))
 
     @test interior(Field(Πₐ)) ≈ interior(Field(manual))

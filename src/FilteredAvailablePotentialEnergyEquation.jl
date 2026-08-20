@@ -11,7 +11,7 @@ export AvailablePotentialEnergyCrossScaleFlux, CrossScaleFlux
 export reference_height, reference_buoyancy, VerticalSort, ProfileLookup
 
 using Oceananigans: NonhydrostaticModel
-using Oceananigans.AbstractOperations: KernelFunctionOperation, @at, ∂x, ∂y, ∂z
+using Oceananigans.AbstractOperations: KernelFunctionOperation, ∂x, ∂y, ∂z
 using Oceananigans.Fields: Field
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Models: model_geopotential_height
@@ -30,7 +30,7 @@ using ..AvailablePotentialEnergyEquation: AvailablePotentialEnergy, BuoyancyDisp
 # `GaussianFilter` builds the convenience methods' filter; `BoxFilter` is imported only so its docstring
 # `@ref` resolves in-module.
 using ..SpatialFilters: GaussianFilter, BoxFilter
-using ..FlowDiagnostics: validate_dims
+using ..FlowDiagnostics: validate_dims, subfilter_covariance, to_center
 
 #+++ Shared reference profile
 # The filtered-flow diagnostics measure the filtered buoyancy `b̄` against a reference profile that
@@ -59,7 +59,9 @@ shared_profile_lookup(diagnostic, b, method) =
 # are measured with. `b̄` is materialized as a `Field` (so the separable filter takes its fast staged
 # path), and `compute!` on anything built from it re-filters it, so the filtered state follows the
 # flow. `SubFilterAvailablePotentialEnergyEquation` builds its full-field reference height from the same
-# three pieces, which is what guarantees the two states share one profile.
+# three pieces, which is what guarantees the two states share one profile, and
+# `AvailablePotentialEnergyCrossScaleFlux` shares the one `b̄` between its reference height and its
+# sub-filter buoyancy flux.
 function filtered_buoyancy_and_lookup(diagnostic, model, filter, method, geopotential_height)
     b = buoyancy_field(model, model.buoyancy, geopotential_height)
     b̄ = Field(filter(b))
@@ -284,29 +286,21 @@ FilteredAvailablePotentialEnergyDissipationRate(model; σ, dims = (1, 2, 3), bou
 # Πₐ = -τᵢ ∂ᵢΥˡ, the APE analogue of `KineticEnergyCrossScaleFlux`'s Πₖ = -τⁱʲS̄ⁱʲ. The sub-filter
 # buoyancy flux τᵢ = filter(buᵢ) - b̄ūᵢ takes the place of the sub-filter stress, and the gradient of
 # the filtered-state displacement potential Υˡ takes the place of the resolved strain. Every factor is
-# interpolated to (Center, Center, Center) before multiplying, matching the contraction convention of
-# the kinetic-energy flux.
-to_center(ψ) = @at (Center, Center, Center) ψ
-
+# interpolated to (Center, Center, Center) before multiplying (via `FlowDiagnostics`' shared
+# `to_center`), matching the contraction convention of the kinetic-energy flux.
 """
     $(SIGNATURES)
 
 The sub-filter buoyancy flux `τᵢ = filter(b uᵢ) - b̄ ūᵢ` for the directions in `dims`, as a `NamedTuple`
-keyed `τ₁`, `τ₂`, `τ₃`. `b̄` is filtered once and shared across the components, which is what
-[`subfilter_covariance`](@ref Oceanostics.FlowDiagnostics.subfilter_covariance) applied per direction
-would not do.
+keyed `τ₁`, `τ₂`, `τ₃`:
+[`subfilter_covariance`](@ref Oceanostics.FlowDiagnostics.subfilter_covariance) applied per direction,
+with the caller's pre-filtered buoyancy `b̄` shared across the components through its `filtered_a`
+keyword, so the buoyancy is filtered once rather than once per component.
 """
-function subfilter_buoyancy_flux(filter, b, velocities, dims)
-
-    b_ccc = to_center(b)
-    b̄ = Field(filter(Field(b_ccc)))
-
+function subfilter_buoyancy_flux(filter, b, b̄, velocities, dims)
     pairs = map(dims) do d
-        uᵈ = to_center(velocities[d])
-        τᵈ = Field(filter(Field(b_ccc * uᵈ))) - b̄ * Field(filter(Field(uᵈ)))
-        Symbol(:τ, ('₁', '₂', '₃')[d]) => τᵈ
+        Symbol(:τ, ('₁', '₂', '₃')[d]) => subfilter_covariance(b, velocities[d], filter; filtered_a = b̄)
     end
-
     return (; pairs...)
 end
 
@@ -378,14 +372,18 @@ function AvailablePotentialEnergyCrossScaleFlux(model, filter; dims = (1, 2, 3),
     validate_dims(dims)
     validate_gravity_is_z_aligned("AvailablePotentialEnergyCrossScaleFlux", model)
 
-    z✶ˡ = filtered_reference_height("AvailablePotentialEnergyCrossScaleFlux", model, filter, method, geopotential_height)
+    # One `filtered_buoyancy_and_lookup` serves both factors: its `b̄` feeds the reference height (and so
+    # `Υˡ`) and the sub-filter buoyancy flux, so the buoyancy is filtered once per compute rather than
+    # once for the lookup and again for the flux.
+    b, b̄, lookup = filtered_buoyancy_and_lookup("AvailablePotentialEnergyCrossScaleFlux", model, filter, method,
+                                                geopotential_height)
+    z✶ˡ = reference_height(b̄; method = lookup)
     Υˡ = Field(BuoyancyDisplacementPotential(model, z✶ˡ))
 
-    b = buoyancy_field(model, model.buoyancy, geopotential_height)
-    τ = subfilter_buoyancy_flux(filter, b, model.velocities, dims)
+    τ = subfilter_buoyancy_flux(filter, b, b̄, model.velocities, dims)
 
-    ∂ᵢ = (∂x, ∂y, ∂z)
-    Πᵃ = -sum(to_center(τ[Symbol(:τ, ('₁', '₂', '₃')[d])]) * to_center(∂ᵢ[d](Υˡ)) for d in dims)
+    ∂ᵢ = (∂x, ∂y, ∂z)   # the τᵢ are already at cell centers, so only the gradient needs collocating
+    Πᵃ = -sum(τ[Symbol(:τ, ('₁', '₂', '₃')[d])] * to_center(∂ᵢ[d](Υˡ)) for d in dims)
 
     return KernelFunctionOperation{Center, Center, Center}(cross_scale_ape_flux_ccc, model.grid, Πᵃ)
 end
