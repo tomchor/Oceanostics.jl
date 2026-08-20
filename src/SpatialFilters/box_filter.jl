@@ -17,7 +17,7 @@ const BoxFilter = CustomKFO{<:BoxFilterKernel}
 
 #+++ Terminal methods (indexable input).
 @inline function (::BoxFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
-    Nx = stencil_length(grid, 1, ψ)
+    Nx = stencil_extent(policy)
     s = zero(grid); n = 0
     @unroll_full for Δi in -width:width
         val, cnt = x_stencil_fetch(policy, ψ, i + Δi, j, k, Nx)
@@ -27,7 +27,7 @@ const BoxFilter = CustomKFO{<:BoxFilterKernel}
 end
 
 @inline function (::BoxFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
-    Ny = stencil_length(grid, 2, ψ)
+    Ny = stencil_extent(policy)
     s = zero(grid); n = 0
     @unroll_full for Δj in -width:width
         val, cnt = y_stencil_fetch(policy, ψ, i, j + Δj, k, Ny)
@@ -37,7 +37,7 @@ end
 end
 
 @inline function (::BoxFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
-    Nz = stencil_length(grid, 3, ψ)
+    Nz = stencil_extent(policy)
     s = zero(grid); n = 0
     @unroll_full for Δk in -width:width
         val, cnt = z_stencil_fetch(policy, ψ, i, j, k + Δk, Nz)
@@ -49,7 +49,7 @@ end
 
 #+++ Recursive methods (function input — typically another BoxFilterKernel).
 @inline function (::BoxFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
-    Nx = stencil_length(grid, 1, fargs[end])
+    Nx = stencil_extent(policy)
     s = zero(grid); n = 0
     @unroll_full for Δi in -width:width
         val, cnt = x_stencil_call(policy, f, i + Δi, j, k, Nx, grid, fargs...)
@@ -59,7 +59,7 @@ end
 end
 
 @inline function (::BoxFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
-    Ny = stencil_length(grid, 2, fargs[end])
+    Ny = stencil_extent(policy)
     s = zero(grid); n = 0
     @unroll_full for Δj in -width:width
         val, cnt = y_stencil_call(policy, f, i, j + Δj, k, Ny, grid, fargs...)
@@ -69,7 +69,7 @@ end
 end
 
 @inline function (::BoxFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
-    Nz = stencil_length(grid, 3, fargs[end])
+    Nz = stencil_extent(policy)
     s = zero(grid); n = 0
     @unroll_full for Δk in -width:width
         val, cnt = z_stencil_call(policy, f, i, j, k + Δk, Nz, grid, fargs...)
