@@ -178,7 +178,11 @@ it:
     whatever they are built from rather than staying fixed.
 
 Like [`HeavisideIntegral`](@ref) this makes `z✶` a function of buoyancy alone, so it is constant on
-isopycnals: a tied run is placed at the mid-height of the band it fills, exactly as that method does.
+isopycnals: a tied run is placed at the mid-height of the band it fills, exactly as that method does. A
+buoyancy that matches no entry of the profile (which only an external profile can produce, e.g. a
+filtered field looked up in the full field's profile) is assigned to the nearest buoyancy class and
+placed at that class's mid-height, so a value off the profile by roundoff lands exactly where an exact
+match would.
 
 !!! warning "Non-negativity needs a profile that resolves the field"
     `eₐ ≥ 0` rests on a parcel carrying `b = b✶(z✶)` exactly, which holds when the profile contains the
@@ -541,24 +545,28 @@ end
 
 function assign_reference_height!(z✶_field, s::SortedReferenceState, method::ProfileLookup)
     sz = size(z✶_field)
-    b✶, z✶_slot, faces = lookup_profile(s, method)
+    b✶, _, faces = lookup_profile(s, method)   # the slot centres are not needed: every cell takes a run mid-height
     b = s.workspace   # the model-ordered buoyancy, which `lookup_profile` leaves in place
     M = length(b✶)
 
-    # `b✶` is non-decreasing, so a cell's own buoyancy brackets a run of slots `[lo, hi]` by binary
-    # search. Its reference height is the mid-height of the band that run fills, which is what
-    # `HeavisideIntegral` assigns and what leaves `∫e_b dV` independent of the method; taking the run's
-    # first slot instead would drag every tied layer down to its own floor. A single-slot run reduces to
-    # that slot's own centre, so a field without ties is unaffected.
-    lo  = clamp.(searchsortedfirst.(Ref(b✶), b), 1, M)
-    hi  = clamp.(searchsortedlast.(Ref(b✶), b), 1, M)
-    loₗ = max.(lo .- 1, 1)
+    # `b✶` is non-decreasing, so binary search brackets a cell's own buoyancy between two slots, and a
+    # value that matches no slot — which only an externally supplied profile can produce, e.g. a filtered
+    # buoyancy that is off the profile by roundoff — is assigned to the nearer of the two buoyancy
+    # classes. A cell's reference height is then the mid-height of the band its class's run of slots
+    # `[run_first, run_last]` fills, which is what `HeavisideIntegral` assigns and what leaves `∫e_b dV`
+    # independent of the method; taking the run's first slot instead would drag every tied layer down to
+    # its own floor. Placing near-matches by the same rule as exact ones is what keeps `z✶` a function of
+    # buoyancy alone with no seams at roundoff: sending them to the nearest *slot* would put a filtered
+    # buoyancy that is `b(1 + ε)` at the top or the bottom of its level's run depending on the sign of
+    # `ε`, and `∇Υ` of the filtered field would pick up a ±half-cell comb where the full field's is zero.
+    # A single-slot run reduces to that slot's own centre, so a field without ties is unaffected.
+    lo  = clamp.(searchsortedfirst.(Ref(b✶), b), 1, M)   # first slot with b✶ ≥ b (b itself, on an exact match)
+    loₗ = max.(lo .- 1, 1)                                 # the slot below it, the other bracket
+    b_class = ifelse.(abs.(view(b✶, loₗ) .- b) .< abs.(view(b✶, lo) .- b), view(b✶, loₗ), view(b✶, lo))
 
-    run_mid = (faces[lo] .+ faces[hi .+ 1]) ./ 2
-    # A value that matches no slot has no run, which only an externally supplied profile can produce.
-    # There the nearer of the two bracketing slots stands in.
-    nearest = ifelse.(abs.(view(b✶, loₗ) .- b) .< abs.(view(b✶, lo) .- b), view(z✶_slot, loₗ), view(z✶_slot, lo))
-    z✶ = ifelse.(view(b✶, lo) .== b, run_mid, nearest)
+    run_first = searchsortedfirst.(Ref(b✶), b_class)   # `b_class` is an entry of `b✶`, so both land in 1:M
+    run_last  = searchsortedlast.(Ref(b✶), b_class)
+    z✶ = (faces[run_first] .+ faces[run_last .+ 1]) ./ 2
 
     interior(z✶_field) .= reshape(z✶, sz)
     # `z✶` is already in the model's ordering, so `Ψ` is evaluated directly rather than scattered
@@ -624,8 +632,8 @@ set!(model, b = (x, y, z) -> z)
 
 z✶ = reference_height(model)                  # sort the domain once
 e_b = BackgroundPotentialEnergy(model, z✶)    # and reuse it for both diagnostics
-e_a = AvailablePotentialEnergy(model, z✶)
-e_b.grid === e_a.grid === grid
+eₐ = AvailablePotentialEnergy(model, z✶)
+e_b.grid === eₐ.grid === grid
 
 # output
 

@@ -420,7 +420,7 @@ APE_bud  = ds["∫APE_heaviside"][:]
 KE_bud   = ds["∫KE"][:]
 wb_bud   = ds["∫wb"][:]
 ε_bud    = ds["∫εₖ"][:]
-ε_A_bud  = ds["∫εₐ"][:]
+εₐ_bud  = ds["∫εₐ"][:]
 ## all four methods integrate to the same eₐ, however they place cells of equal buoyancy  #hide
 @test ds["∫APE"][:]        ≈ APE_bud rtol=1e-8                                             #hide
 @test ds["∫APE_lookup"][:] ≈ APE_bud rtol=1e-8                                             #hide
@@ -487,13 +487,13 @@ pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
 
 wb_pair  = pair_mean(wb_bud);
 ε_pair   = pair_mean(ε_bud);
-ε_A_pair = pair_mean(ε_A_bud);
+εₐ_pair = pair_mean(εₐ_bud);
 
 # Both budgets are written in sum-to-zero form: each curve is plotted with the sign it carries here, so
 # the panels below add up to the residual.
 
 KE_resid  = @. -dKEdt  + wb_pair - ε_pair
-APE_resid = @. -dAPEdt - wb_pair - ε_A_pair
+APE_resid = @. -dAPEdt - wb_pair - εₐ_pair
 
 rms(x) = √(sum(abs2, x) / length(x))                                       #hide
 @test rms(KE_resid)  < 0.01 * rms(dKEdt)                                   #hide
@@ -501,11 +501,11 @@ rms(x) = √(sum(abs2, x) / length(x))                                       #hi
 @test rms(APE_resid) < 0.01 * rms(dAPEdt)                                  #hide
 ## the sharp one: the APE residual is a small fraction of εₐ itself, so the budget resolves     #hide
 ## the new term rather than closing to within its size                                           #hide
-@test rms(APE_resid) < 0.05 * rms(ε_A_pair)                                #hide
+@test rms(APE_resid) < 0.05 * rms(εₐ_pair)                                #hide
 ## `wb` is the same term in both, so it cancels from the sum of the two budgets                  #hide
 @test rms(KE_resid .+ APE_resid) < 0.02 * rms(ε_pair)                      #hide
 ## and εₐ takes both signs over the run, which is what the discussion below rests on            #hide
-@test minimum(ε_A_pair) < 0 < maximum(ε_A_pair);                           #hide
+@test minimum(εₐ_pair) < 0 < maximum(εₐ_pair);                           #hide
 
 fig4 = Figure(size = (900, 760))
 
@@ -521,7 +521,7 @@ Legend(fig4[1, 2], ax_KE_bud; labelsize = 12, framevisible = false)
 ax_APE_bud = Axis(fig4[2, 1]; title = "Volume-integrated APE budget", budget_kwargs...)
 lines!(ax_APE_bud, t_pair, -dAPEdt,   label = "-d(∫eₐ)/dt")
 lines!(ax_APE_bud, t_pair, -wb_pair,  label = "-∫wb dV")
-lines!(ax_APE_bud, t_pair, -ε_A_pair, label = "-∫εₐ dV")
+lines!(ax_APE_bud, t_pair, -εₐ_pair, label = "-∫εₐ dV")
 lines!(ax_APE_bud, t_pair, APE_resid; label = "residual", color = :black, linestyle = :dash)
 Legend(fig4[2, 2], ax_APE_bud; labelsize = 12, framevisible = false)
 
@@ -531,7 +531,7 @@ Legend(fig4[2, 2], ax_APE_bud; labelsize = 12, framevisible = false)
 # `d(∫eₐ)/dt`, it is small next to `∫εₐ dV`, the smallest term in the budget.
 
 ax_small = Axis(fig4[3, 1]; title = "The small terms, magnified", budget_kwargs...)
-lines!(ax_small, t_pair, -ε_A_pair, label = "-∫εₐ dV", color = Cycled(3))
+lines!(ax_small, t_pair, -εₐ_pair, label = "-∫εₐ dV", color = Cycled(3))
 lines!(ax_small, t_pair, APE_resid, label = "APE residual", color = :black, linestyle = :dash)
 lines!(ax_small, t_pair, KE_resid,  label = "KE residual", color = :grey40, linestyle = :dot)
 Legend(fig4[3, 2], ax_small; labelsize = 12, framevisible = false)

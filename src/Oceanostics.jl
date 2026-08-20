@@ -6,7 +6,8 @@ const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, 
 
 #+++ Module export
 export TracerEquation, KineticEnergyEquation, FilteredKineticEnergyEquation, SubFilterKineticEnergyEquation, TurbulentKineticEnergyEquation, TracerVarianceEquation, PotentialEnergyEquation,
-       BackgroundPotentialEnergyEquation, AvailablePotentialEnergyEquation, UMomentumEquation, VMomentumEquation, WMomentumEquation
+       BackgroundPotentialEnergyEquation, AvailablePotentialEnergyEquation, FilteredAvailablePotentialEnergyEquation,
+       SubFilterAvailablePotentialEnergyEquation, UMomentumEquation, VMomentumEquation, WMomentumEquation
 #---
 
 #+++ TracerEquation exports
@@ -90,6 +91,14 @@ export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 
 #+++ AvailablePotentialEnergyEquation exports
 export AvailablePotentialEnergy, BuoyancyDisplacementPotential, AvailablePotentialEnergyDissipationRate
+#---
+
+#+++ FilteredAvailablePotentialEnergyEquation exports
+export FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipationRate
+#---
+
+#+++ SubFilterAvailablePotentialEnergyEquation exports
+export SubFilterAvailablePotentialEnergy, SubFilterAvailablePotentialEnergyDissipationRate
 #---
 
 #+++ ProgressMessengers
@@ -212,6 +221,8 @@ include("FlowDiagnostics.jl")
 include("SpatialFilters/SpatialFilters.jl")
 include("FilteredKineticEnergyEquation.jl")
 include("SubFilterKineticEnergyEquation.jl")
+include("FilteredAvailablePotentialEnergyEquation.jl")
+include("SubFilterAvailablePotentialEnergyEquation.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
@@ -220,6 +231,8 @@ using .FlowDiagnostics
 using .SpatialFilters
 using .FilteredKineticEnergyEquation
 using .SubFilterKineticEnergyEquation
+using .FilteredAvailablePotentialEnergyEquation
+using .SubFilterAvailablePotentialEnergyEquation
 using .ProgressMessengers
 
 #+++ Deprecated bindings
@@ -442,7 +455,17 @@ end
 #+++ AvailablePotentialEnergyEquation
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy                "AvailablePotentialEnergy"                "local available potential energy density  eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
 @diagnostic_show AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential           "BuoyancyDisplacementPotential"           "buoyancy displacement potential  Υ = z✶ - z"
-@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  ε_A = κ ∂ᵢb ∂ᵢΥ"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  εₐ = κ ∂ᵢb ∂ᵢΥ"
+#---
+
+#+++ FilteredAvailablePotentialEnergyEquation
+@diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergy                "FilteredAvailablePotentialEnergy"                "available potential energy of the filtered buoyancy  eₐˡ = eₐ(b̄, z)"
+@diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyDissipationRate "FilteredAvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate of the filtered buoyancy  εₐˡ = -q̄ᵢ∂ᵢΥˡ"
+#---
+
+#+++ SubFilterAvailablePotentialEnergyEquation
+@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy                "SubFilterAvailablePotentialEnergy"                "sub-filter available potential energy  eₐˢ = filter(eₐ) - eₐˡ"
+@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate "SubFilterAvailablePotentialEnergyDissipationRate" "sub-filter available potential energy dissipation rate  εₐˢ = filter(εₐ) - εₐˡ"
 #---
 
 #+++ FlowDiagnostics
