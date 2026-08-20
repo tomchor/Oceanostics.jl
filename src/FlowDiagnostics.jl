@@ -887,9 +887,15 @@ the returned object is a lazy `AbstractOperation` over those computed fields, re
 `Integral`, and `OutputWriter`s.
 """
 function subfilter_covariance(a, b, filter; loc = (Center, Center, Center))
-    # co-locate operands at `loc`
-    a_loc = @at loc a
-    b_loc = @at loc b
+    # Co-locate operands at `loc`, materializing each one. The `Field` wrappers are load-bearing
+    # on GPUs and not just a compilation aid: handing the filter an unmaterialized interpolation
+    # evaluates it at the wrong indices there, so `filter(@at loc a)` and `filter(Field(@at loc a))`
+    # disagree by O(field amplitude) while agreeing exactly on the CPU. Constant fields mask it
+    # completely — every index returns the same value — which is why it went unnoticed until the
+    # suite first ran on a GPU. Tracked in #297; once that is fixed these can go back to being
+    # bare operations.
+    a_loc = Field(@at loc a)
+    b_loc = Field(@at loc b)
 
     # Wrap some computations in Field to make them compile more easily on GPUs
     filtered_product = Field(filter(Field(a_loc * b_loc))) # ⟨a b⟩

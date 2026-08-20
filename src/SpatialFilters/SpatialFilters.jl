@@ -292,15 +292,27 @@ function _launch_compute_into!(dest, grid, kfo)
     return nothing
 end
 
-# Allocate an intermediate Field and compute the 1D pass into it *without*
-# filling halo regions. The next pass reads only the interior of the
-# intermediate (every `*_stencil_fetch` / `*_stencil_call` clamps or wraps
-# offsets into `1:N`), so halo data is irrelevant. Skipping the halo fill
-# saves several small kernel launches per intermediate.
+# Allocate an intermediate Field, compute the 1D pass into it, and fill its halos before
+# the next pass reads it.
+#
+# The halo fill is *not* optional, despite only the interior being written here. This code
+# previously skipped it, on the reasoning that every `*_stencil_fetch` / `*_stencil_call`
+# clamps or wraps its offsets into `1:N` so halo data could never be read. That reasoning
+# holds on the CPU and silently fails on the GPU, where each pass reads unwritten memory
+# from the previous intermediate and loses stencil weight — wrong by ~60% of the signal for
+# a wide stencil, and growing with the number of intermediates (one for a 2D filter, two for
+# 3D). Nothing crashed and no test caught it: the only stencil narrow enough to stay correct
+# unpatched is half-width 1, which is exactly where the identity-scale filters used by the
+# filtered/sub-filter test suites sit.
+#
+# Correctness still requires `halo ≥ stencil half-width` along each filtered direction, since
+# a fill can only supply as many cells as the halo holds. A `BoxFilter(N=11)` (half-width 5)
+# on a default 3-cell halo remains wrong; it is exact once the grid is built with `halo=6`.
 function _stage_into_temp(loc, grid, kern, valw, pol, input)
     kfo = _single_dim_kfo(loc, grid, kern, valw, pol, input)
     temp = Field(kfo, compute=false)
     _launch_compute_into!(temp, grid, kfo)
+    fill_halo_regions!(temp)
     return temp
 end
 
