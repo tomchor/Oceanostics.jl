@@ -1,0 +1,131 @@
+# GPU CI for Oceanostics.jl, run by a self-hosted Buildkite agent on nautilus.
+#
+# This pipeline exists for the coverage GitHub Actions cannot give: Actions has no
+# GPU, and `test/test_utils.jl` picks `arch = has_cuda_gpu() ? GPU() : CPU()`, so the
+# entire suite silently runs on CPU there. On this agent the same suite runs against
+# CUDA with no changes to the test code. `.github/workflows/ci.yml` keeps covering CPU,
+# so the two do not overlap.
+#
+# The agent is a container on nautilus pinned to one V100; see the buildkite-oceanostics
+# compose project for how it is deployed and which Buildkite organization it belongs to.
+
+env:
+  JULIA_VERSION: "1.12"
+
+  # A dedicated depot, not the agent's default ~/.julia: it is shared by every job in
+  # this pipeline (the `init` step below warms it once so the matrix jobs hit
+  # precompile caches instead of each rebuilding Oceananigans and CUDA), and keeping it
+  # separate means clearing it never disturbs anything else on the agent.
+  JULIA_DEPOT_PATH: "$HOME/.julia-oceanostics"
+
+  JULIA_PKG_SERVER_REGISTRY_PREFERENCE: eager
+
+  # nautilus' cards are V100s (sm_70) behind a 535 host driver (CUDA 12.2), and the
+  # agent image is nvidia/cuda:12.9.0-devel, which also ships a forward-compat driver
+  # (libcuda.so.575.51.03). Measured in this exact container: CUDA.jl selects runtime
+  # 12.9 unprompted and a V100 kernel runs correctly -- so no CUDA_Runtime_jll pin is
+  # needed here, unlike the Oceananigans and Chitin pipelines on this same host.
+  #
+  # Measured too: this variable changes nothing today. Either setting reports driver
+  # 12.9 and passes, because the container runtime puts the compat driver in the
+  # library path regardless, and 575 still supports sm_70. It is pinned to false as the
+  # conservative default -- it matches the other Julia GPU pipeline here, and the
+  # compat path is what breaks if this image is ever rebased onto CUDA 13, whose driver
+  # drops sm_70 outright (the ERROR_UNKNOWN at cuDevicePrimaryCtxRetain that Chitin.jl
+  # documents).
+  JULIA_CUDA_USE_COMPAT: "false"
+
+# Keep every job on the Oceanostics agent. Two other organizations (atdepth and CliMA)
+# run agents on this same host, and this tag is what separates the three.
+agents:
+  queue: "Oceanostics-nautilus"
+
+steps:
+  - label: "🏕️ initialize environment"
+    key: "init"
+    env:
+      # Any group works to warm the depot -- every test file includes test_utils.jl,
+      # which loads Oceananigans and CUDA. A cheap one is used so this step stays a
+      # smoke test rather than a second full run.
+      TEST_GROUP: "vel_diagnostics"
+    command: |
+      juliaup add $JULIA_VERSION
+
+      nvidia-smi
+
+      # Manifest.toml is gitignored, so every build resolves from scratch. Remove any
+      # stale one the agent may have left in its checkout before resolving.
+      rm -f Manifest.toml
+
+      # Registry.update() is not optional here. JULIA_DEPOT_PATH points at a persistent
+      # depot whose General registry clone is otherwise only as fresh as the last build,
+      # and instantiate/precompile do NOT refresh registries -- so a newly released
+      # dependency (an Oceananigans minor, say) stays invisible and resolution fails
+      # with a confusing "possible versions are ..." error.
+      julia +$JULIA_VERSION -O0 --color=yes --project -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate(); Pkg.precompile()'
+
+      # Resolve and precompile the real test sandbox once, into the shared depot, and
+      # prove the GPU actually works end to end before 19 matrix jobs depend on it. The
+      # matrix below reuses these precompile caches, so this is the step that pays for
+      # the package load time rather than every job paying it separately.
+      julia +$JULIA_VERSION -O0 --color=yes --project -e 'using Pkg; Pkg.test()'
+
+      # Hand the resolved Manifest to the matrix jobs. Each of them runs in its own
+      # checkout on its own agent, so without this they would each resolve independently
+      # and could disagree about dependency versions if something is published mid-build.
+      buildkite-agent artifact upload Manifest.toml
+    timeout_in_minutes: 90
+
+  - label: "🧪 {{ matrix.group }}"
+    key: "tests"
+    depends_on: "init"
+    env:
+      TEST_GROUP: "{{ matrix.group }}"
+    command: |
+      # Reuse init's resolution so the whole matrix tests one dependency set.
+      buildkite-agent artifact download Manifest.toml .
+
+      julia +$JULIA_VERSION -O0 --color=yes --project -e 'using Pkg; Pkg.instantiate()'
+      julia +$JULIA_VERSION -O0 --color=yes --project -e 'using Pkg; Pkg.test()'
+    timeout_in_minutes: 60
+
+    matrix:
+      setup:
+        group:
+          # Ordered roughly heaviest-first so the long poles start while agent slots are
+          # free -- the agent spawns fewer workers than there are groups, so ordering
+          # decides the critical path. This ordering is a guess at relative cost; worth
+          # revisiting once a few builds have produced real per-group timings.
+          - "canonical_flows"
+          - "subfilter_ape_diagnostics"
+          - "filtered_ape_diagnostics"
+          - "ape_diagnostics"
+          - "subfilter_ke_diagnostics"
+          - "filtered_ke_diagnostics"
+          - "spatial_filters"
+          - "pe_diagnostics"
+          - "ke_diagnostics"
+          - "tke_diagnostics"
+          - "u_momentum_diagnostics"
+          - "v_momentum_diagnostics"
+          - "w_momentum_diagnostics"
+          - "tracer_diagnostics"
+          - "active_tracer_diagnostics"
+          - "tracer_variance_diagnostics"
+          - "general_flow_diagnostics"
+          - "vel_diagnostics"
+          - "progress_messengers"
+          #
+          # `perf_invariants` is deliberately absent. It builds `RectilinearGrid(CPU(), ...)`
+          # explicitly throughout, so it would do pure-CPU work on the GPU agent and add
+          # nothing over the GitHub Actions run -- and its separable-filter checks are
+          # wall-clock ratio assertions, which are a poor fit for a host shared with two
+          # other organizations' CI. Leave it to Actions, where the runner is dedicated.
+
+    # Retry only when the agent itself disappears (a lost or interrupted job), never on a
+    # genuine test failure. Auto-retrying real failures turns an intermittent GPU bug into
+    # a green build, which is exactly the class of bug this pipeline is here to catch.
+    retry:
+      automatic:
+        - exit_status: -1
+          limit: 2

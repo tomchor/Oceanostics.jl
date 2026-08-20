@@ -154,6 +154,18 @@ Budget closure is checked by `@test` assertions embedded in `docs/examples/two_d
 
 The `perf_invariants` test group guards against performance regressions without encoding hardware-specific numbers: it asserts zero-allocation, type-stable per-cell evaluation on representative KFOs from every module (so accidental boxing or `Any`-typed dispatch fails immediately), plus same-runner ratio invariants on the separable filters (staged 3D wide-stencil path must beat the fused path by ≥2× — same hardware, ratio cancels noise).
 
+GPU coverage comes from a Buildkite pipeline (`.buildkite/gpu-pipeline.yml`) rather than GitHub Actions,
+which has no GPU: `test_utils.jl` picks `arch = has_cuda_gpu() ? GPU() : CPU()`, so *every* Actions run
+is CPU-only regardless of group. The pipeline runs the same `Pkg.test()` path over the same
+`TEST_GROUP`s on a self-hosted V100 agent (`queue=Oceanostics-nautilus`), minus `perf_invariants`, whose
+grids are `CPU()` by construction and whose filter checks are wall-clock ratios that a CI host shared
+with other projects would make flaky. No `CUDA_Runtime_jll` pin is needed — CUDA.jl already selects a
+12.x runtime against the agent's 535 driver — unlike the Oceananigans and Chitin pipelines on the same
+host, which pin explicitly. `JULIA_CUDA_USE_COMPAT=false` is set as a conservative default rather than a
+fix: measured in the agent container, either setting works, since the container runtime exposes the
+image's forward-compat driver (575, still sm_70-capable) regardless. It would start to matter if the
+image were rebased onto CUDA 13, whose driver drops sm_70.
+
 ## Conventions
 
 - **Naming**: functions and methods use `snake_case`; `CamelCase` is reserved for types, structs, and modules. A `const X = CustomKFO{<:typeof(...)}` parametric type alias *is* a type — methods like `function X(model, ...)` are constructor methods on it and stay CamelCase, since `X(args)` invokes the type's constructor. Genuine standalone helper functions (e.g. inline kernel helpers like `total_∂ⱼ_τ₁ⱼ`) are snake_case.
