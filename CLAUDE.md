@@ -16,7 +16,7 @@ julia --project -e 'using Pkg; Pkg.test()'
 TEST_GROUP=vel_diagnostics julia --project -e 'using Pkg; Pkg.test()'
 ```
 
-Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `u_momentum_diagnostics`, `v_momentum_diagnostics`, `w_momentum_diagnostics`, `ke_diagnostics`, `filtered_ke_diagnostics`, `subfilter_ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `ape_diagnostics`, `filtered_ape_diagnostics`, `subfilter_ape_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `spatial_filters`, `perf_invariants`.
+Available TEST_GROUP values: `vel_diagnostics`, `tracer_diagnostics`, `momentum_diagnostics`, `ke_diagnostics`, `filtered_ke_diagnostics`, `subfilter_ke_diagnostics`, `tke_diagnostics`, `pe_diagnostics`, `ape_diagnostics`, `filtered_ape_diagnostics`, `subfilter_ape_diagnostics`, `active_tracer_diagnostics`, `tracer_variance_diagnostics`, `general_flow_diagnostics`, `canonical_flows`, `progress_messengers`, `spatial_filters`, `perf_invariants`.
 
 ```bash
 # Instantiate/build the package
@@ -42,8 +42,8 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 
 - **`Oceanostics`** (main module in `src/Oceanostics.jl`): Shared utilities — `validate_location`, `validate_dissipative_closure`, `add_background_fields`, `perturbation_fields`, `get_coriolis_frequency_components`, viscosity helpers for closure tuples (`_νᶜᶜᶜ`)
 - **`TracerEquation`**: Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, Forcing terms
-- **`UMomentumEquation` / `VMomentumEquation` / `WMomentumEquation`**: Per-component momentum-budget terms (advection, stress, pressure gradient, Coriolis, buoyancy, forcing). Tested as separate `*_momentum_diagnostics` groups.
-- **`SpatialFilters`** (submodule): Spatial filters (`box_filter.jl`, `gaussian_filter.jl`) for diagnostics that need scale separation. Every 1D kernel sizes its in-range check with `stencil_length(grid, d, ψ)` (the operand's own extent, `N+1` for a `Face` location along a `Bounded` direction) rather than `size(grid, d)`; the recursive (fused) methods reach the operand through `fargs[end]`. Using the cell count there silently mistreats the last face of a `Face`-located operand (`:shrink` drops its own weight, `:edge` clamps to the face below), which surfaced as `NaN`s when filtering the model's `diffusive_flux_z` KFO with a degenerate identity-scale Gaussian.
+- **`UMomentumEquation` / `VMomentumEquation` / `WMomentumEquation`**: Per-component momentum-budget terms (advection, stress, pressure gradient, Coriolis, buoyancy, forcing). All three are covered by the single `momentum_diagnostics` group: `test_momentum_diagnostics.jl` drives one set of test functions over a `DIRECTIONS` table holding each component's equation module, field location, prefixed type aliases and supported model types.
+- **`SpatialFilters`** (submodule): Spatial filters (`box_filter.jl`, `gaussian_filter.jl`) for diagnostics that need scale separation. Every 1D kernel sizes its in-range check with `stencil_length(grid, d, ψ)` (the operand's own extent, `N+1` for a `Face` location along a `Bounded` direction) rather than `size(grid, d)`; the recursive (fused) methods reach the operand through `fargs[end]`. Using the cell count there silently mistreats the last face of a `Face`-located operand (`:shrink` drops its own weight, `:edge` clamps to the face below), which surfaced as `NaN`s when filtering the model's `diffusive_flux_z` KFO with a degenerate identity-scale Gaussian. That extent must be measured **on the host** and carried into the kernel by the boundary policy (`SizedBoundary`), never recomputed inside it: on a GPU the kernel's `ψ` is the *adapted* operand, which has no location, so `location(ψ)[d]` is `Nothing` and Oceananigans' `length(::Nothing, topo, N)` collapses it to `1`. That made every filtered direction one cell long, and failed silently in two directions at once — `wrap_periodic_index(i, 1) == i-1` displaced the whole field by a cell per filtered dimension, while `ShrinkBoundary` kept only the tap at index 1. Constant fields are immune to both, which is why the identity-scale checks in the filtered/sub-filter suites never caught it and only real GPU hardware did.
 - **`KineticEnergyEquation`**: KE, its tendency, advection, stress, forcing, pressure redistribution, buoyancy production, dissipation rate (general and isotropic)
 - **`FilteredKineticEnergyEquation`**: Filtered KE budget terms — `FilteredKineticEnergy` (Kˡ = ½ūᵢūᵢ, KE of the filtered flow; reuses `KineticEnergyEquation`'s `kinetic_energy_ccc` kernel), `subfilter_stress_tensor` (τⁱʲ = filter(uⁱuʲ) − ūⁱūʲ), `KineticEnergyCrossScaleFlux` (Πₖ = −τⁱʲS̄ⁱʲ, Aluie et al. 2018), and `FilteredKineticEnergyDissipationRate` (εˡ, dissipation of the filtered flow; kernel `filtered_dissipation_rate_ccc`). Built on `FlowDiagnostics`' `StressTensor`/`StrainRateTensor` and the `Filters` submodule, so it is included after both.
 - **`SubFilterKineticEnergyEquation`**: Sub-filter KE budget terms — `SubFilterKineticEnergy` (Kˢ = ½τⁱⁱ, computed as `filter(K) − Kˡ` from `KineticEnergy` and `FilteredKineticEnergy`, which share the same interpolate-the-square discretization, so the discrete decomposition `filter(K) = Kˡ + Kˢ` holds exactly by construction on any grid) and `SubFilterKineticEnergyDissipationRate` (εˢ = filter(ε) − εˡ). Both are `KernelFunctionOperation`s wrapping the underlying composite op (à la `KineticEnergyCrossScaleFlux`). Also re-exports `KineticEnergyCrossScaleFlux` (a source term of this budget). Built on `FilteredKineticEnergyEquation` and `KineticEnergyEquation`, so it is included after both.
@@ -92,7 +92,11 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `reference_buoyancy(z✶)` returns the buoyancy that pairs with z✶ cell by cell, which is the sorted
   profile b✶ under `VerticalSort` and the model's own buoyancy under the model-grid methods. It also
   owns `Ψ = ∫b✶dz̃` (`reference_potential`), a property of the reference profile that
-  `AvailablePotentialEnergy` consumes. No method runs on an `ImmersedBoundaryGrid` yet. Built on
+  `AvailablePotentialEnergy` consumes. No method runs on an `ImmersedBoundaryGrid` yet. The profile
+  arrays live wherever the field does, so this module must stay clear of host-side element access:
+  single-element writes go through one-element broadcasts (`@views f[1:1] .= x`) and ordering checks
+  through `is_nondecreasing` rather than `issorted`, since both `setindex!` and `issorted`'s iteration
+  trip the scalar-indexing guard on a GPU. Built on
   `PotentialEnergyEquation`, so it is included after it
 - **`AvailablePotentialEnergyEquation`**: the other half of the Winters et al. (1995) split,
   `AvailablePotentialEnergy` (Eₐ), computed in the local Holliday & McIntyre (1981) form
@@ -156,6 +160,18 @@ Tests in `test/` share setup via `test_utils.jl` which defines common grids (reg
 Budget closure is checked by `@test` assertions embedded in `docs/examples/two_dimensional_turbulence.jl` (hidden from the rendered output via Literate `#hide`), so the docs build acts as the budget regression test.
 
 The `perf_invariants` test group guards against performance regressions without encoding hardware-specific numbers: it asserts zero-allocation, type-stable per-cell evaluation on representative KFOs from every module (so accidental boxing or `Any`-typed dispatch fails immediately), plus same-runner ratio invariants on the separable filters (staged 3D wide-stencil path must beat the fused path by ≥2× — same hardware, ratio cancels noise).
+
+GPU coverage comes from a Buildkite pipeline (`.buildkite/gpu-pipeline.yml`) rather than GitHub Actions,
+which has no GPU: `test_utils.jl` picks `arch = has_cuda_gpu() ? GPU() : CPU()`, so *every* Actions run
+is CPU-only regardless of group. The pipeline runs the same `Pkg.test()` path over the same
+`TEST_GROUP`s on a self-hosted V100 agent (`queue=Oceanostics-nautilus`), minus `perf_invariants`, whose
+grids are `CPU()` by construction and whose filter checks are wall-clock ratios that a CI host shared
+with other projects would make flaky. No `CUDA_Runtime_jll` pin is needed — CUDA.jl already selects a
+12.x runtime against the agent's 535 driver — unlike the Oceananigans and Chitin pipelines on the same
+host, which pin explicitly. `JULIA_CUDA_USE_COMPAT=false` is set as a conservative default rather than a
+fix: measured in the agent container, either setting works, since the container runtime exposes the
+image's forward-compat driver (575, still sm_70-capable) regardless. It would start to matter if the
+image were rebased onto CUDA 13, whose driver drops sm_70.
 
 ## Conventions
 

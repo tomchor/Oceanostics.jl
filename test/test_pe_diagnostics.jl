@@ -103,7 +103,7 @@ function test_diffusive_buoyancy_flux(grid)
                                   closure=ScalarDiffusivity(ν=1e-6, κ=κ_of_z))
     set!(varying, b = (x, y, z) -> 3z)
 
-    κ_face = [κ_of_z(0, 0, z, 0) for z in znodes(grid, Face())]
+    κ_face = [κ_of_z(0, 0, z, 0) for z in Array(znodes(grid, Face()))]
     κ_face[1] = κ_face[end] = 0                                # no buoyancy crosses the walls
     @test Array(interior(Field(PotentialEnergyDiffusiveVerticalBuoyancyFlux(varying))))[1, 1, :] ≈
           3 .* (κ_face[1:end-1] .+ κ_face[2:end]) ./ 2
