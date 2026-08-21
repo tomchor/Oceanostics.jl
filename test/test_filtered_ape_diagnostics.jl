@@ -6,6 +6,8 @@ using Oceananigans.Fields: location, compute_at!
 using Oceanostics
 using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipationRate
 using Oceanostics: AvailablePotentialEnergyCrossScaleFlux, subfilter_covariance
+using Oceanostics: FilteredAvailablePotentialToKineticEnergyConversion
+using Oceanostics.BackgroundPotentialEnergyEquation: reference_buoyancy_at_height
 using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate, BuoyancyDisplacementPotential,
                    reference_height, reference_buoyancy, VerticalSort, ProfileLookup, HeavisideIntegral,
                    GaussianFilter
@@ -301,6 +303,131 @@ function test_ape_cross_scale_flux_errors(grid, filt)
     return nothing
 end
 
+"""
+w̄b_rˡ = w̄(b̄ − b✶(z)) rebuilt by hand from the filtered vertical velocity, the filtered buoyancy and the
+reference profile read at each cell's own height. The product is formed on the `w` face and only then
+interpolated to the center, so the manual construction pins that co-location too.
+"""
+function test_filtered_ape_ke_conversion_matches_manual(model, filt)
+
+    lookup = shared_lookup(model)
+    b✶z = reference_buoyancy_at_height(model.grid, lookup.profile)
+    w̄  = Field(filt(model.velocities.w))
+    b̄  = Field(filt(model.tracers.b))
+    b_rˡ_ccf = Field(@at (Center, Center, Face) Field(b̄ - b✶z))
+    manual = Field(@at (Center, Center, Center) (w̄ * b_rˡ_ccf))
+
+    conversion = FilteredAvailablePotentialToKineticEnergyConversion(model, filt; method = lookup)
+    @test location(conversion) == (Center, Center, Center)
+    @test conversion isa FilteredAvailablePotentialToKineticEnergyConversion
+    @test occursin("FilteredAvailablePotentialToKineticEnergyConversion", sprint(show, conversion))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), conversion))
+    @test interior(Field(conversion)) ≈ interior(manual)
+
+    return nothing
+end
+
+"""
+The reference profile is read at the parcel's own height, so a horizontally uniform stable
+stratification is its own reference state: b✶(z) = b(z) cell by cell, hence b_rˡ ≡ 0 and no energy is
+converted however vigorous the vertical velocity. This is the sharp check on the lookup, since a
+half-slot error in b✶(z) would show up here as an O(N²Δz) anomaly rather than as roundoff.
+"""
+function test_filtered_ape_ke_conversion_uniform_stratification_vanishes(grid, filt)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = (x, y, z) -> 1e-2 * z, w = (x, y, z) -> 1e-2 * randn())
+
+    b✶z = Field(reference_buoyancy_at_height(grid, ProfileLookup(reference_height(model, method=VerticalSort())).profile))
+    @test interior(b✶z) == interior(model.tracers.b)   # its own reference state, to the bit
+
+    @test maximum(abs, interior(Field(FilteredAvailablePotentialToKineticEnergyConversion(model, filt)))) < 1e-18
+
+    return nothing
+end
+
+"""
+The conversion is a flux carried by the filtered vertical velocity, so it vanishes identically with no
+motion however sharp the buoyancy — the check a stray sign or a leftover term would break, since b_rˡ
+is nowhere near zero here.
+"""
+function test_filtered_ape_ke_conversion_vanishes_without_motion(grid, filt)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = random_stratified_b)   # velocities left at zero
+
+    lookup = shared_lookup(model)
+    b_rˡ = Field(Field(filt(model.tracers.b)) - reference_buoyancy_at_height(grid, lookup.profile))
+    @test maximum(abs, interior(b_rˡ)) > 0   # otherwise the assertion below would hold trivially
+    @test maximum(abs, interior(Field(FilteredAvailablePotentialToKineticEnergyConversion(model, filt; method = lookup)))) == 0
+
+    return nothing
+end
+
+"""
+b_rˡ = b̄ − b✶(z) measures the filtered buoyancy against the *unfiltered* reference profile, which is
+what differentiating eₐˡ produces; it is not filter(b_r) = b̄ − filter(b✶(z)), which filters the
+reference too. The two differ once the filter acts in the vertical and coincide for a purely horizontal
+one, since b✶ is a function of z alone — exactly the distinction this term is defined by.
+"""
+function test_filtered_ape_ke_conversion_unfiltered_reference(model, filt, filt_horizontal)
+
+    lookup = shared_lookup(model)
+    b = model.tracers.b
+
+    for (filter, coincide) in ((filt, false), (filt_horizontal, true))
+        b✶z = reference_buoyancy_at_height(model.grid, lookup.profile)
+        b_rˡ         = Field(Field(filter(b)) - b✶z)     # filtered buoyancy, unfiltered reference
+        filtered_b_r = Field(filter(Field(b - b✶z)))     # filters the reference too
+        @test (interior(b_rˡ) ≈ interior(filtered_b_r)) == coincide
+    end
+
+    return nothing
+end
+
+# The Gaussian convenience method must reproduce the explicit filter-factory call with matching kwargs.
+function test_filtered_ape_ke_conversion_convenience(model)
+    σ = 0.12
+    filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
+    @test interior(Field(FilteredAvailablePotentialToKineticEnergyConversion(model; σ))) ≈
+          interior(Field(FilteredAvailablePotentialToKineticEnergyConversion(model, filt)))
+    return nothing
+end
+
+# The conversion holds a filtered `Field` and a profile that is re-sorted on every `compute!`, so it has
+# to track the flow like the other filtered-state diagnostics. This mutates the model, so it runs last.
+function test_filtered_ape_ke_conversion_recomputes(model, filt)
+
+    cf = Field(FilteredAvailablePotentialToKineticEnergyConversion(model, filt))
+    compute_at!(cf, 0.0)
+    snapshot = Array(interior(cf))
+
+    set!(model, b = (x, y, z) -> 1e-2 * z + 2e-3 * randn(), w = (x, y, z) -> 2e-2 * randn())
+    compute_at!(cf, 1.0)
+
+    fresh = Field(FilteredAvailablePotentialToKineticEnergyConversion(model, filt))
+    compute_at!(fresh, 2.0)
+
+    @test !(Array(interior(cf)) ≈ snapshot)   # tracked the change in the flow
+    @test interior(cf) ≈ interior(fresh)      # equals a conversion built fresh on the new state
+    return nothing
+end
+
+"""
+Like the other filtered-state diagnostics, the conversion measures the filtered buoyancy against a
+profile it did not produce, so anything but a `ProfileLookup` has to be refused.
+"""
+function test_filtered_ape_ke_conversion_errors(grid, filt)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = random_stratified_b)
+
+    @test_throws "ProfileLookup" FilteredAvailablePotentialToKineticEnergyConversion(model, filt; method = HeavisideIntegral())
+    @test_throws ArgumentError FilteredAvailablePotentialToKineticEnergyConversion(NonhydrostaticModel(grid), filt)
+
+    return nothing
+end
+
 @testset "Filtered available potential energy equation" begin
     @info "  Testing filtered available potential energy diagnostics"
     grid = RectilinearGrid(arch, size=(8, 8, 8), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
@@ -341,9 +468,20 @@ end
     @info "    Module re-exports and aliases"
     test_filtered_ape_module_reexports()
 
+    @info "  Testing the filtered APE to filtered KE conversion w̄b_rˡ"
+    test_filtered_ape_ke_conversion_matches_manual(model, filt)
+    test_filtered_ape_ke_conversion_unfiltered_reference(model, filt, filt_horizontal)
+    test_filtered_ape_ke_conversion_convenience(model)
+    test_filtered_ape_ke_conversion_uniform_stratification_vanishes(grid, filt_horizontal)
+    test_filtered_ape_ke_conversion_vanishes_without_motion(grid, filt)
+    test_filtered_ape_ke_conversion_errors(grid, filt)
+
     @info "  Testing the cross-scale available potential energy flux Πₐ"
     test_ape_cross_scale_flux_matches_manual(model, filt)
     test_ape_cross_scale_flux_dims(model, filt)
     test_ape_cross_scale_flux_vanishes_without_motion(grid, filt)
     test_ape_cross_scale_flux_errors(grid, filt)
+
+    @info "    w̄b_rˡ recomputes as the flow evolves"
+    test_filtered_ape_ke_conversion_recomputes(model, filt)   # mutates model; keep last
 end

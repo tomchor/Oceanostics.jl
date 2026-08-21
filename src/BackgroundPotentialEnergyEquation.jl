@@ -495,16 +495,19 @@ between neighbouring `z✶`, closed off by the bottom and top of the domain, so 
 exactly however the profile is spaced. For a profile of equal-volume slots (what [`VerticalSort`](@ref)
 produces) this recovers their boundaries exactly.
 """
-function profile_slot_faces(s::SortedReferenceState, z)
+function profile_slot_faces(bottom_height, top_height, z)
 
     M     = length(z)
     faces = similar(z, M + 1)
-    @views faces[1:1]         .= s.bottom_height
-    @views faces[M + 1:M + 1] .= s.bottom_height + sum(s.cell_volume) / s.horizontal_area
+    @views faces[1:1]         .= bottom_height
+    @views faces[M + 1:M + 1] .= top_height
     @views @. faces[2:M] = (z[1:M-1] + z[2:M]) / 2
 
     return faces
 end
+
+profile_slot_faces(s::SortedReferenceState, z) =
+    profile_slot_faces(s.bottom_height, s.bottom_height + sum(s.cell_volume) / s.horizontal_area, z)
 
 """
     $(SIGNATURES)
@@ -846,6 +849,79 @@ function build_sorting_method(::VerticalSort, grid, cell_volume, horizontal_area
     return VerticalSort(CenterField(column), CenterField(column))
 end
 #---
+#---
+
+#+++ The reference profile at a parcel's own height
+"""
+    $(TYPEDEF)
+
+Operand of the `Field` [`reference_buoyancy_at_height`](@ref) returns. It carries the reference profile
+to read, the height of every cell of the grid to read it at, and the domain's vertical bounds. Like
+[`SortedReferenceState`](@ref) this hooks a whole-field computation into `compute!` — here a lookup
+rather than a sort — so a profile that tracks the flow is re-read whenever the diagnostic is written out.
+"""
+struct ReferenceProfileAtHeight{P, S, FT}
+    profile :: P
+    source_height :: S
+    bottom_height :: FT
+    top_height :: FT
+end
+
+Base.summary(s::ReferenceProfileAtHeight) = string("ReferenceProfileAtHeight of ", summary(s.profile))
+
+const ReferenceProfileAtHeightField = Field{<:Any, <:Any, <:Any, <:ReferenceProfileAtHeight}
+
+function compute!(b✶z::ReferenceProfileAtHeightField, time=nothing)
+    s = b✶z.operand
+    refresh_profile_source!(s.profile, time)   # a borrowed column is re-sorted before it is read
+
+    b✶, z✶ = profile_arrays(s.profile)
+    faces  = profile_slot_faces(s.bottom_height, s.top_height, z✶)
+    M      = length(b✶)
+
+    # The profile is a stack of slots, each holding one buoyancy; a cell reads the slot its own height
+    # falls in. `faces` are the midpoints between neighbouring `z✶`, so this is also the nearest slot.
+    slot = clamp.(searchsortedlast.(Ref(faces), s.source_height), 1, M)
+    interior(b✶z) .= reshape(view(b✶, slot), size(b✶z))
+
+    fill_halo_regions!(b✶z)
+    set_status!(b✶z.status, time)
+
+    return b✶z
+end
+
+"""
+    $(SIGNATURES)
+
+Return a `Field` holding `b✶(z)`: the buoyancy the adiabatically resorted reference state carries at
+each cell's **own height**, rather than at the reference height [`reference_height`](@ref) sends that
+cell's buoyancy to. It is the inverse of that map — `b✶` is defined implicitly by `z✶(b✶(z)) = z`
+([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879), §2.1) — and it is what turns a
+buoyancy into an anomaly against the reference state, `b_r = b - b✶(z)`.
+
+`profile` is the reference profile to read, in any of the forms [`ProfileLookup`](@ref) accepts a
+profile in: a reference height built with [`VerticalSort`](@ref), which is recomputed first so the
+profile tracks the flow, or a `(b✶, z✶)` pair of arrays held fixed. The profile is a stack of slots,
+each holding one buoyancy class, and a cell reads the slot its own height falls in.
+
+The result lives at `(Center, Center, Center)` on `grid`, in units of buoyancy (`m s⁻²`). Being a
+lookup rather than a sort it is `O(N log M)` per `compute!`, cheaper than the reference height itself.
+"""
+function reference_buoyancy_at_height(grid, profile)
+
+    validate_not_immersed(grid)
+
+    FT       = eltype(grid)
+    arch     = architecture(grid)
+    z_bottom = convert(FT, znode(1, 1, 1, on_architecture(CPU(), grid), Center(), Center(), Face()))
+
+    # A host `Vector` profile would be broadcast against on-architecture workspaces; move it once here,
+    # exactly as `build_sorting_method` does for `ProfileLookup`.
+    operand = ReferenceProfileAtHeight(on_architecture_profile(arch, profile), flat_grid_metric(grid, Zᶜᶜᶜ),
+                                       z_bottom, convert(FT, z_bottom + grid.Lz))
+
+    return compute!(Field{Center, Center, Center}(grid; operand, status = FieldStatus()))
+end
 #---
 
 #+++ Background potential energy

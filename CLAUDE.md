@@ -116,7 +116,14 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `FilteredAvailablePotentialEnergyDissipationRate(model, filter, z✶ˡ; upsilon)`) so one lookup / one Υˡ
   can be shared. Also owns `AvailablePotentialEnergyCrossScaleFlux` (Πₐ = −τᵢ∂ᵢΥˡ, the sub-filter
   buoyancy flux — `subfilter_covariance` per direction with one shared b̄ — contracted with ∇Υˡ, the APE
-  analogue of `KineticEnergyCrossScaleFlux`), with the same high-level/low-level constructor pair. b̄ is measured against a profile it did not produce (ordinarily the full field's), so
+  analogue of `KineticEnergyCrossScaleFlux`), with the same high-level/low-level constructor pair, and
+  `FilteredAvailablePotentialToKineticEnergyConversion` (w̄b_rˡ, the term the filtered APE and filtered
+  KE budgets exchange). Its `b_rˡ = b̄ − b✶(z)` pairs the filtered buoyancy with the *unfiltered*
+  reference profile, which is what differentiating eₐˡ in z produces and what `eₐˡ` itself is measured
+  against — not `filter(b_r)`, which filters the reference too; the two coincide only for a purely
+  horizontal filter. `b✶(z)` (the reference profile read at a cell's own height, the inverse of the
+  `z✶(b)` map) comes from `BackgroundPotentialEnergyEquation`'s `reference_buoyancy_at_height`, a
+  `Field` whose `compute!` re-reads the profile by slot lookup rather than sorting. b̄ is measured against a profile it did not produce (ordinarily the full field's), so
   `method` must be a `ProfileLookup`; `shared_profile_lookup` resolves the default `ProfileLookup()`
   into a `VerticalSort` column of the model's buoyancy (re-sorted every `compute!`), and
   `filtered_buoyancy_and_lookup` returns `(b, b̄, lookup)` for the sub-filter module to build the full
