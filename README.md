@@ -14,6 +14,7 @@ companion package to [Oceananigans](https://github.com/CliMA/Oceananigans.jl), s
 first to the [Oceananigans documentation](https://clima.github.io/OceananigansDocumentation/stable/)
 before getting started with Oceanostics.
 
+GPU testing runs on hardware provided by [atdepth](https://www.atdepth.org).
 
 ## Installation
 
