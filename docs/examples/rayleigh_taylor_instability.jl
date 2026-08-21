@@ -151,10 +151,10 @@ wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux �
 
 # The budget needs only the (cheap) volume integrals of these terms:
 
-∫Kˢ  = Integral(Kˢ)
-∫Πₖ  = Integral(Πₖ)
-∫wbˢ = Integral(wbˢ)
-∫εˢ  = Integral(εˢ)
+∫Kˢ  = ∫dV(Kˢ)
+∫Πₖ  = ∫dV(Πₖ)
+∫wbˢ = ∫dV(wbˢ)
+∫εˢ  = ∫dV(εˢ)
 
 # For the movie we also keep the filtered kinetic energy
 # ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i`` ([`FilteredKineticEnergy`](@ref)), the

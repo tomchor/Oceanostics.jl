@@ -117,10 +117,10 @@ KE        = KineticEnergyEquation.KineticEnergy(model)
 # independently. The two relations are consistent in the continuum limit but only approximately
 # at the discrete level for a well-resolved flow, so we expect the KE budget to close only approximately.
 
-∫KE = Integral(KE)
-∫c² = Integral(c^2)
-∫ε  = Integral(ε)
-∫χ  = Integral(χ)
+∫KE = ∫dV(KE)
+∫c² = ∫dV(c^2)
+∫ε  = ∫dV(ε)
+∫χ  = ∫dV(χ)
 
 # We use two NetCDF writers. A *visualization* writer outputs the 2D snapshot fields on a plain
 # `TimeInterval(0.6)`. A *budget* writer outputs only the (cheap) integrated scalars on
