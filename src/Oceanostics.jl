@@ -95,7 +95,7 @@ export AvailablePotentialEnergy, BuoyancyDisplacementPotential, AvailablePotenti
 
 #+++ FilteredAvailablePotentialEnergyEquation exports
 export FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipationRate
-export AvailablePotentialEnergyCrossScaleFlux
+export AvailablePotentialEnergyCrossScaleFlux, FilteredAvailablePotentialToKineticEnergyConversion
 #---
 
 #+++ SubFilterAvailablePotentialEnergyEquation exports
@@ -463,6 +463,7 @@ end
 @diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergy                "FilteredAvailablePotentialEnergy"                "available potential energy of the filtered buoyancy  eₐˡ = eₐ(b̄, z)"
 @diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyDissipationRate "FilteredAvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate of the filtered buoyancy  εₐˡ = -q̄ᵢ∂ᵢΥˡ"
 @diagnostic_show FilteredAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux            "AvailablePotentialEnergyCrossScaleFlux"            "cross-scale available potential energy flux  Πₐ = -τᵢ∂ᵢΥˡ"
+@diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion "FilteredAvailablePotentialToKineticEnergyConversion" "filtered APE to filtered KE conversion  w̄b_rˡ = w̄(b̄ - b✶(z))"
 #---
 
 #+++ SubFilterAvailablePotentialEnergyEquation

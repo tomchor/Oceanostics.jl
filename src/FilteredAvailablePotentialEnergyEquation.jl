@@ -5,6 +5,7 @@ using DocStringExtensions
 export FilteredAvailablePotentialEnergy
 export FilteredAvailablePotentialEnergyDissipationRate, DissipationRate
 export AvailablePotentialEnergyCrossScaleFlux, CrossScaleFlux
+export FilteredAvailablePotentialToKineticEnergyConversion
 # The reference profile the filtered buoyancy is measured against is built with
 # `BackgroundPotentialEnergyEquation`'s machinery, so the pieces needed to construct and share one are
 # re-exported here and this module can be used on its own.
@@ -23,7 +24,8 @@ using Oceanostics: CustomKFO
 using ..PotentialEnergyEquation: validate_buoyancy_is_a_diffused_tracer, validate_closure_supplies_a_flux,
                                  validate_gravity_is_z_aligned, buoyancy_diffusive_flux_arguments
 using ..BackgroundPotentialEnergyEquation: SortedReferenceHeightField, reference_height, reference_buoyancy,
-                                           VerticalSort, ProfileLookup, buoyancy_field
+                                           reference_buoyancy_at_height, VerticalSort, ProfileLookup,
+                                           buoyancy_field
 using ..AvailablePotentialEnergyEquation: AvailablePotentialEnergy, BuoyancyDisplacementPotential,
                                           AvailablePotentialEnergyDissipationRate, local_ape_ccc,
                                           validate_reference_height_grid
@@ -405,6 +407,95 @@ end
 
 AvailablePotentialEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing, kwargs...) =
     AvailablePotentialEnergyCrossScaleFlux(model, GaussianFilter(; dims, σ, boundary, N); dims, kwargs...)
+#---
+
+#+++ Filtered available-potential-to-kinetic-energy conversion
+# w̄b_rˡ, the term the filtered APE and the filtered KE budgets exchange. `b_rˡ = b̄ - b✶(z)` is the
+# filtered buoyancy measured against the reference profile at the parcel's own height — the *unfiltered*
+# reference, matching `eₐˡ = eₐ(b̄, z)` itself. `w̄` lives on the z face, so the product is formed there
+# and only then interpolated to the cell center, exactly as `PotentialToKineticEnergyConversion` does.
+@inline b_rˡᶜᶜᶜ(i, j, k, grid, b̄, b✶z) = @inbounds b̄[i, j, k] - b✶z[i, j, k]
+
+@inline w̄b_rˡᶜᶜᶠ(i, j, k, grid, w̄, b̄, b✶z) = @inbounds w̄[i, j, k] * ℑzᵃᵃᶠ(i, j, k, grid, b_rˡᶜᶜᶜ, b̄, b✶z)
+
+@inline filtered_ape_to_ke_conversion_ccc(i, j, k, grid, w̄, b̄, b✶z) =
+    ℑzᵃᵃᶜ(i, j, k, grid, w̄b_rˡᶜᶜᶠ, w̄, b̄, b✶z)
+
+const FilteredAvailablePotentialToKineticEnergyConversion = CustomKFO{<:typeof(filtered_ape_to_ke_conversion_ccc)}
+
+"""
+    $(SIGNATURES)
+
+Return the conversion of filtered available potential energy into filtered kinetic energy `w̄b_rˡ`,
+the rate at which the scales a low-pass `filter` keeps release their APE to the filtered flow
+([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)):
+
+```
+    w̄ b_rˡ ,   b_rˡ = b̄ - b✶(z) ,   b̄ = filter(b)
+```
+
+Here `b_rˡ` is the buoyancy anomaly of the filtered field against the reference state, and `b✶(z)` is
+the reference profile read at the parcel's **own height** `z` rather than at the reference height `z✶`
+its buoyancy would take it to (`reference_buoyancy_at_height`). It is the term the filtered APE budget
+carries as `-w̄b_rˡ` and the filtered kinetic energy budget as `+w̄b_rˡ`, which is what makes it a
+reversible exchange rather than a source or a sink; `w̄b_rˡ > 0` converts filtered APE into filtered KE.
+See the [Filtered available potential energy equation](@ref) docs page for the derivation.
+
+Note the reference profile is **not** filtered: `b_rˡ = b̄ - b✶(z)`, not `filter(b_r) = b̄ - filter(b✶(z))`.
+The two differ once the filter acts in the vertical, and only the first is the conversion the filtered
+budget carries, since it comes from differentiating `eₐˡ = eₐ(b̄, z)` — which is itself measured against
+the full field's reference state ([`FilteredAvailablePotentialEnergy`](@ref)) — with respect to `z`.
+For a purely horizontal filter the two coincide, `b✶` being a function of `z` alone.
+
+`method` has to be a [`ProfileLookup`](@ref), for the reason [`FilteredAvailablePotentialEnergy`](@ref)
+gives, and it supplies the profile `b✶(z)` is read from. Unlike the other diagnostics here this one
+needs no reference *height* of its own, so it takes no `z✶ˡ`; share a profile by passing the same
+`ProfileLookup(z✶_column)` the others get.
+
+`filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
+[`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The filtered buoyancy, the filtered vertical velocity
+and `b✶(z)` are materialized as `Field`s internally, so the returned object is a lazy operation ready
+for `Field`, `Integral` and `OutputWriter`s, re-filtering and re-sorting as the simulation evolves. It
+lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`):
+
+```jldoctest
+using Oceananigans, Oceanostics
+
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+
+filter = GaussianFilter(; dims=(1, 2, 3), σ=0.1)
+FilteredAvailablePotentialToKineticEnergyConversion(model, filter)
+
+# output
+
+FilteredAvailablePotentialToKineticEnergyConversion KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: filtered_ape_to_ke_conversion_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field", "Field")
+└── computes: filtered APE to filtered KE conversion  w̄b_rˡ = w̄(b̄ - b✶(z))
+```
+
+A convenience method `FilteredAvailablePotentialToKineticEnergyConversion(model; σ, dims, boundary, N)`
+builds the Gaussian `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a
+FWHM `ℓ`).
+"""
+function FilteredAvailablePotentialToKineticEnergyConversion(model, filter; method = ProfileLookup(),
+                                                             geopotential_height = model_geopotential_height(model))
+    validate_gravity_is_z_aligned("FilteredAvailablePotentialToKineticEnergyConversion", model)
+
+    # The lookup's profile is the *unfiltered* reference state, which is what `b✶(z)` is read from; `b̄`
+    # comes back from the same helper, so the buoyancy is filtered once.
+    _, b̄, lookup = filtered_buoyancy_and_lookup("FilteredAvailablePotentialToKineticEnergyConversion", model, filter,
+                                                method, geopotential_height)
+    b✶z = reference_buoyancy_at_height(model.grid, lookup.profile)
+    w̄  = Field(filter(model.velocities.w))
+
+    return KernelFunctionOperation{Center, Center, Center}(filtered_ape_to_ke_conversion_ccc, model.grid, w̄, b̄, b✶z)
+end
+
+FilteredAvailablePotentialToKineticEnergyConversion(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing, kwargs...) =
+    FilteredAvailablePotentialToKineticEnergyConversion(model, GaussianFilter(; dims, σ, boundary, N); kwargs...)
 #---
 
 end # module
