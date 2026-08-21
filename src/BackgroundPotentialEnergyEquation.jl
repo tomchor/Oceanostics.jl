@@ -341,7 +341,7 @@ function slot_faces(s::SortedReferenceState, ΔV)
     N     = length(ΔV)
     Δz    = ΔV ./ s.horizontal_area                  # slot thickness, sorted order
     faces = similar(Δz, N + 1)
-    faces[1] = s.bottom_height
+    @views faces[1:1] .= s.bottom_height
     cumsum!(view(faces, 2:N+1), Δz);  view(faces, 2:N+1) .+= s.bottom_height
 
     return faces
@@ -360,7 +360,7 @@ function reference_potential_function(faces, b)
 
     N     = length(b)
     Ψface = similar(faces)                           # Ψ evaluated at the slot faces
-    Ψface[1] = zero(eltype(faces))
+    @views Ψface[1:1] .= zero(eltype(faces))
     cumsum!(view(Ψface, 2:N+1), b .* diff(faces))
 
     ## Ψ inside slot k is Ψface[k] + b✶[k](z - faces[k]); `searchsortedlast` locates the slot
@@ -499,8 +499,8 @@ function profile_slot_faces(s::SortedReferenceState, z)
 
     M     = length(z)
     faces = similar(z, M + 1)
-    faces[1]     = s.bottom_height
-    faces[M + 1] = s.bottom_height + sum(s.cell_volume) / s.horizontal_area
+    @views faces[1:1]         .= s.bottom_height
+    @views faces[M + 1:M + 1] .= s.bottom_height + sum(s.cell_volume) / s.horizontal_area
     @views @. faces[2:M] = (z[1:M-1] + z[2:M]) / 2
 
     return faces
@@ -521,6 +521,10 @@ function lookup_profile(s::SortedReferenceState, method::ProfileLookup{Nothing})
     return b✶, slot_centers!(similar(ΔV), s, ΔV), slot_faces(s, ΔV)
 end
 
+# `issorted` walks its argument element by element, which is scalar indexing when the profile lives
+# on a GPU. This is the same predicate written as a broadcast plus a reduction, so it runs on device.
+@inline is_nondecreasing(v) = all(diff(v) .>= 0)
+
 function lookup_profile(s::SortedReferenceState, method::ProfileLookup)
 
     reshape(s.workspace, size(s.buoyancy)) .= interior(s.buoyancy)   # what `rank_by_buoyancy!` would leave, unsorted
@@ -529,12 +533,12 @@ function lookup_profile(s::SortedReferenceState, method::ProfileLookup)
     length(b✶) == length(z✶) ||
         throw(ArgumentError("`ProfileLookup` was given a profile whose buoyancy and height have different \
                              lengths ($(length(b✶)) and $(length(z✶)))."))
-    issorted(b✶) ||
+    is_nondecreasing(b✶) ||
         throw(ArgumentError("`ProfileLookup` needs a reference profile ordered from the densest fluid up, \
                              but the buoyancy it was given is not non-decreasing."))
     # `profile_slot_faces` reads the slot faces off the midpoints between neighbouring heights, so a
     # height that steps back down would leave them out of order and silently corrupt `Ψ`.
-    issorted(z✶) ||
+    is_nondecreasing(z✶) ||
         throw(ArgumentError("`ProfileLookup` needs the heights paired with `b✶` to rise with it, but the \
                              heights it was given are not non-decreasing. A reference profile runs from the \
                              densest fluid at the bottom to the lightest at the top."))

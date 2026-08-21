@@ -42,7 +42,7 @@ GaussianFilterKernel{D}(weights::W) where {D, W} = GaussianFilterKernel{D, W}(we
 
 #+++ Terminal methods (indexable input).
 @inline function (kern::GaussianFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
-    Nx = stencil_length(grid, 1, ψ)
+    Nx = stencil_extent(policy)
     s = zero(grid); w_sum = zero(grid)
     @unroll_full for idx in 1:(2*width+1)
         Δi = idx - width - 1
@@ -55,7 +55,7 @@ GaussianFilterKernel{D}(weights::W) where {D, W} = GaussianFilterKernel{D, W}(we
 end
 
 @inline function (kern::GaussianFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
-    Ny = stencil_length(grid, 2, ψ)
+    Ny = stencil_extent(policy)
     s = zero(grid); w_sum = zero(grid)
     @unroll_full for idx in 1:(2*width+1)
         Δj = idx - width - 1
@@ -68,7 +68,7 @@ end
 end
 
 @inline function (kern::GaussianFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
-    Nz = stencil_length(grid, 3, ψ)
+    Nz = stencil_extent(policy)
     s = zero(grid); w_sum = zero(grid)
     @unroll_full for idx in 1:(2*width+1)
         Δk = idx - width - 1
@@ -83,7 +83,7 @@ end
 
 #+++ Recursive methods (function input — typically another GaussianFilterKernel).
 @inline function (kern::GaussianFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
-    Nx = stencil_length(grid, 1, fargs[end])
+    Nx = stencil_extent(policy)
     s = zero(grid); w_sum = zero(grid)
     @unroll_full for idx in 1:(2*width+1)
         Δi = idx - width - 1
@@ -96,7 +96,7 @@ end
 end
 
 @inline function (kern::GaussianFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
-    Ny = stencil_length(grid, 2, fargs[end])
+    Ny = stencil_extent(policy)
     s = zero(grid); w_sum = zero(grid)
     @unroll_full for idx in 1:(2*width+1)
         Δj = idx - width - 1
@@ -109,7 +109,7 @@ end
 end
 
 @inline function (kern::GaussianFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
-    Nz = stencil_length(grid, 3, fargs[end])
+    Nz = stencil_extent(policy)
     s = zero(grid); w_sum = zero(grid)
     @unroll_full for idx in 1:(2*width+1)
         Δk = idx - width - 1
@@ -184,6 +184,12 @@ Adapt.adapt_structure(to, k::StretchedGaussianFilterKernel{D}) where {D} =
 #     width. For `:shrink` this is irrelevant (out-of-range offsets carry count
 #     0); for `:edge`/constant padding it places the contributing value at the
 #     boundary, matching where that value is read from.
+# Unwrap a `SizedBoundary` first, so a wrapped `PeriodicBoundary` still reaches the periodic
+# method below rather than falling through to the generic clamping one.
+@inline x_node_geometry(sb::SizedBoundary, grid, loc, i, j, k, m, N, L) = x_node_geometry(sb.policy, grid, loc, i, j, k, m, N, L)
+@inline y_node_geometry(sb::SizedBoundary, grid, loc, i, j, k, m, N, L) = y_node_geometry(sb.policy, grid, loc, i, j, k, m, N, L)
+@inline z_node_geometry(sb::SizedBoundary, grid, loc, i, j, k, m, N, L) = z_node_geometry(sb.policy, grid, loc, i, j, k, m, N, L)
+
 @inline function x_node_geometry(::PeriodicBoundary, grid, loc, i, j, k, m, N, L)
     mr = wrap_periodic_index(m, N)
     return xnode(mr, j, k, grid, loc...) - L * (m < 1) + L * (m > N), xspacing(mr, j, k, grid, loc...)
@@ -211,7 +217,7 @@ end
 
 #+++ Terminal methods (indexable input).
 @inline function (kern::StretchedGaussianFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
-    Nx = stencil_length(grid, 1, ψ); loc = kern.loc
+    Nx = stencil_extent(policy); loc = kern.loc
     x₀ = xnode(i, j, k, grid, loc...); σ = kern.σ
     s = zero(grid); w_sum = zero(grid)
     @unroll_full for idx in 1:(2*width+1)
@@ -226,7 +232,7 @@ end
 end
 
 @inline function (kern::StretchedGaussianFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
-    Ny = stencil_length(grid, 2, ψ); loc = kern.loc
+    Ny = stencil_extent(policy); loc = kern.loc
     y₀ = ynode(i, j, k, grid, loc...); σ = kern.σ
     s = zero(grid); w_sum = zero(grid)
     @unroll_full for idx in 1:(2*width+1)
@@ -241,7 +247,7 @@ end
 end
 
 @inline function (kern::StretchedGaussianFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, ψ) where {width}
-    Nz = stencil_length(grid, 3, ψ); loc = kern.loc
+    Nz = stencil_extent(policy); loc = kern.loc
     z₀ = znode(i, j, k, grid, loc...); σ = kern.σ
     s = zero(grid); w_sum = zero(grid)
     @unroll_full for idx in 1:(2*width+1)
@@ -258,7 +264,7 @@ end
 
 #+++ Recursive methods (function input — typically another AbstractGaussianFilterKernel).
 @inline function (kern::StretchedGaussianFilterKernel{1})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
-    Nx = stencil_length(grid, 1, fargs[end]); loc = kern.loc
+    Nx = stencil_extent(policy); loc = kern.loc
     x₀ = xnode(i, j, k, grid, loc...); σ = kern.σ
     s = zero(grid); w_sum = zero(grid)
     @unroll_full for idx in 1:(2*width+1)
@@ -273,7 +279,7 @@ end
 end
 
 @inline function (kern::StretchedGaussianFilterKernel{2})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
-    Ny = stencil_length(grid, 2, fargs[end]); loc = kern.loc
+    Ny = stencil_extent(policy); loc = kern.loc
     y₀ = ynode(i, j, k, grid, loc...); σ = kern.σ
     s = zero(grid); w_sum = zero(grid)
     @unroll_full for idx in 1:(2*width+1)
@@ -288,7 +294,7 @@ end
 end
 
 @inline function (kern::StretchedGaussianFilterKernel{3})(i, j, k, grid, ::Val{width}, policy, f::Function, fargs...) where {width}
-    Nz = stencil_length(grid, 3, fargs[end]); loc = kern.loc
+    Nz = stencil_extent(policy); loc = kern.loc
     z₀ = znode(i, j, k, grid, loc...); σ = kern.σ
     s = zero(grid); w_sum = zero(grid)
     @unroll_full for idx in 1:(2*width+1)

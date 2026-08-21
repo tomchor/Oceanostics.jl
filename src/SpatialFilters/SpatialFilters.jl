@@ -51,6 +51,30 @@ struct ConstantBoundary{T} <: AbstractBoundaryPolicy
     ConstantBoundary{T}(l, r) where {T} = new{T}(l, r)
 end
 ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), typeof(right))}(promote(left, right)...)
+
+"""
+    SizedBoundary(policy, N)
+
+Internal. A boundary policy paired with the operand's extent `N` along the direction it
+governs.
+
+The extent has to be attached here, on the host, because it cannot be recovered inside a
+kernel. `stencil_length` derives it from `location(ψ)`, and on a GPU the `ψ` a kernel sees is
+the *adapted* operand, which carries no location: `location(ψ)[d]` comes back `Nothing`, and
+Oceananigans' `length(::Nothing, topo, N)` is `1`. Every filtered direction then looks one
+cell long, and the failure is silent in two ways at once — `wrap_periodic_index(i, 1) == i-1`
+displaces the whole field by a cell, and `ShrinkBoundary` keeps only the single tap at index
+1. Neither is visible on a constant field, which is why CPU-only CI never caught it.
+"""
+struct SizedBoundary{P <: AbstractBoundaryPolicy, I} <: AbstractBoundaryPolicy
+    policy::P
+    N::I
+end
+
+# The extent the kernels filter over, and the underlying policy for dispatch.
+@inline stencil_extent(sb::SizedBoundary) = sb.N
+@inline unwrap_policy(sb::SizedBoundary) = sb.policy
+@inline unwrap_policy(p::AbstractBoundaryPolicy) = p
 #---
 
 #+++ Stencil value readers
@@ -64,6 +88,15 @@ ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), type
 # `x/y/z_stencil_call`  evaluate a kernel function `f` at the adjusted index.
 
 @inline wrap_periodic_index(i, N) = i + N * (i < 1) - N * (i > N)
+
+# Unwrap a `SizedBoundary` so the readers below keep dispatching on the underlying policy.
+@inline x_stencil_fetch(sb::SizedBoundary, ψ, i, j, k, N) = x_stencil_fetch(sb.policy, ψ, i, j, k, N)
+@inline y_stencil_fetch(sb::SizedBoundary, ψ, i, j, k, N) = y_stencil_fetch(sb.policy, ψ, i, j, k, N)
+@inline z_stencil_fetch(sb::SizedBoundary, ψ, i, j, k, N) = z_stencil_fetch(sb.policy, ψ, i, j, k, N)
+
+@inline x_stencil_call(sb::SizedBoundary, f, i, j, k, N, grid, fargs...) = x_stencil_call(sb.policy, f, i, j, k, N, grid, fargs...)
+@inline y_stencil_call(sb::SizedBoundary, f, i, j, k, N, grid, fargs...) = y_stencil_call(sb.policy, f, i, j, k, N, grid, fargs...)
+@inline z_stencil_call(sb::SizedBoundary, f, i, j, k, N, grid, fargs...) = z_stencil_call(sb.policy, f, i, j, k, N, grid, fargs...)
 
 @inline x_stencil_fetch(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[wrap_periodic_index(i, N), j, k], 1)
 @inline y_stencil_fetch(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, wrap_periodic_index(j, N), k], 1)
@@ -152,13 +185,17 @@ function resolve_filter_policies(ψ, dims, boundary)
         per_user_dim_specs[user_idx]
     end, length(sorted_dims))
 
+    # Each policy carries the operand's extent along its own direction, measured here where
+    # `location(ψ)` is still available. See `SizedBoundary` for why this cannot be deferred
+    # to the kernel.
     policies = ntuple(i -> begin
         d = sorted_dims[i]
-        if topology(grid, d) === Periodic
+        base = if topology(grid, d) === Periodic
             PeriodicBoundary()
         else
             parse_boundary_spec(sorted_specs[i])
         end
+        SizedBoundary(base, stencil_length(grid, d, ψ))
     end, length(sorted_dims))
 
     return grid, loc, sorted_dims, policies
@@ -210,7 +247,7 @@ validate_N(N) = throw(ArgumentError("`N` must be an odd integer ≥ 3; got $(typ
 
 function validate_periodic_widths(grid, sorted_dims, policies, widths)
     for (i, (d, policy)) in enumerate(zip(sorted_dims, policies))
-        if policy isa PeriodicBoundary
+        if unwrap_policy(policy) isa PeriodicBoundary
             Nd_grid = size(grid, d)
             N = 2 * widths[i] + 1
             N <= 2 * Nd_grid + 1 ||
