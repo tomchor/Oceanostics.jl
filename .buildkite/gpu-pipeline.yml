@@ -20,6 +20,11 @@ env:
 
   JULIA_PKG_SERVER_REGISTRY_PREFERENCE: eager
 
+  # Demand a GPU rather than letting the suite quietly fall back. `runtests.jl` already
+  # infers this from `BUILDKITE`, but stating it here is what the sibling pipelines on this
+  # host do, and it keeps the intent visible at the top of the file.
+  TEST_ARCHITECTURE: "GPU"
+
   # nautilus' cards are V100s (sm_70) behind a 535 host driver (CUDA 12.2), and the
   # agent image is nvidia/cuda:12.9.0-devel, which also ships a forward-compat driver
   # (libcuda.so.575.51.03). Measured in this exact container: CUDA.jl selects runtime
