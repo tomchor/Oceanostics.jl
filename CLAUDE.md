@@ -92,7 +92,11 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `reference_buoyancy(z✶)` returns the buoyancy that pairs with z✶ cell by cell, which is the sorted
   profile b✶ under `VerticalSort` and the model's own buoyancy under the model-grid methods. It also
   owns `Ψ = ∫b✶dz̃` (`reference_potential`), a property of the reference profile that
-  `AvailablePotentialEnergy` consumes. No method runs on an `ImmersedBoundaryGrid` yet. Built on
+  `AvailablePotentialEnergy` consumes. No method runs on an `ImmersedBoundaryGrid` yet. The profile
+  arrays live wherever the field does, so this module must stay clear of host-side element access:
+  single-element writes go through one-element broadcasts (`@views f[1:1] .= x`) and ordering checks
+  through `is_nondecreasing` rather than `issorted`, since both `setindex!` and `issorted`'s iteration
+  trip the scalar-indexing guard on a GPU. Built on
   `PotentialEnergyEquation`, so it is included after it
 - **`AvailablePotentialEnergyEquation`**: the other half of the Winters et al. (1995) split,
   `AvailablePotentialEnergy` (Eₐ), computed in the local Holliday & McIntyre (1981) form
