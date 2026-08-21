@@ -5,6 +5,7 @@ using Oceananigans.Fields: location, compute_at!
 
 using Oceanostics
 using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipationRate
+using Oceanostics: AvailablePotentialEnergyCrossScaleFlux, subfilter_covariance
 using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate, BuoyancyDisplacementPotential,
                    reference_height, reference_buoyancy, VerticalSort, ProfileLookup, HeavisideIntegral,
                    GaussianFilter
@@ -211,6 +212,95 @@ function test_filtered_ape_module_reexports()
 end
 #---
 
+
+"""
+Πₐ = -τᵢ ∂ᵢΥˡ rebuilt from raw filter calls (`filter(b uᵢ) - b̄ ūᵢ`, every factor collocated at cell
+centers) contracted with the gradient of the filtered-state displacement potential. The diagnostic
+itself builds τᵢ through `subfilter_covariance`, so the manual construction here deliberately does
+not: the comparison pins the covariance, the sign, the directions summed over, and the co-location of
+every factor independently — which no approximate check could separate.
+"""
+function test_ape_cross_scale_flux_matches_manual(model, filt)
+
+    lookup = shared_lookup(model)
+    Πₐ = AvailablePotentialEnergyCrossScaleFlux(model, filt; method = lookup)
+    @test Πₐ isa AvailablePotentialEnergyCrossScaleFlux
+
+    b = model.tracers.b
+    u, v, w = model.velocities
+    z✶ˡ = reference_height(Field(filt(b)); method = lookup)
+    Υˡ = Field(BuoyancyDisplacementPotential(model, z✶ˡ))
+
+    ccc = (Center, Center, Center)
+    b̄ = Field(filt(b))
+    raw_τ(uᵈ_ccc) = Field(filt(Field(b * uᵈ_ccc))) - b̄ * Field(filt(uᵈ_ccc))
+    manual = -sum(Field(@at ccc raw_τ(Field(@at ccc uᵈ)) * ∂ᵈ(Υˡ))
+                  for (uᵈ, ∂ᵈ) in zip((u, v, w), (∂x, ∂y, ∂z)))
+
+    @test interior(Field(Πₐ)) ≈ interior(Field(manual))
+
+    # the low-level form on a prebuilt z✶ˡ (one lookup, and through `upsilon` one Υˡ, shared with the
+    # other filtered-state diagnostics) matches the high-level form
+    @test interior(Field(AvailablePotentialEnergyCrossScaleFlux(model, filt, z✶ˡ; upsilon=Υˡ))) ≈
+          interior(Field(Πₐ))
+
+    return nothing
+end
+
+"""
+The flux is a *transfer*: with no motion there is no sub-filter buoyancy flux to carry APE across the
+filter scale, so τᵢ and hence Πₐ vanish identically however sharp the buoyancy is. This is the check
+that a stray sign or a leftover term would break, since Υˡ itself is nowhere near zero here.
+"""
+function test_ape_cross_scale_flux_vanishes_without_motion(grid, filt)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = random_stratified_b)   # velocities left at zero
+
+    Πₐ = Field(AvailablePotentialEnergyCrossScaleFlux(model, filt))
+    Υˡ = Field(BuoyancyDisplacementPotential(model, reference_height(Field(filt(model.tracers.b)); method = shared_lookup(model))))
+
+    @test maximum(abs, interior(Υˡ)) > 0   # otherwise the assertion below would hold trivially
+    @test maximum(abs, interior(Πₐ)) == 0
+
+    return nothing
+end
+
+"""
+`dims` selects which directions are summed, exactly as it does for the kinetic-energy flux: the 2D
+`x`–`z` flux has to be the full one less its `y` term.
+"""
+function test_ape_cross_scale_flux_dims(model, filt)
+
+    lookup = shared_lookup(model)
+    full = Field(AvailablePotentialEnergyCrossScaleFlux(model, filt; method = lookup))
+    xz   = Field(AvailablePotentialEnergyCrossScaleFlux(model, filt; dims = (1, 3), method = lookup))
+
+    b = model.tracers.b
+    Υˡ = Field(BuoyancyDisplacementPotential(model, reference_height(Field(filt(b)); method = lookup)))
+    y_term = Field(@at (Center, Center, Center) -subfilter_covariance(b, model.velocities[2], filt) * ∂y(Υˡ))
+
+    @test interior(xz) ≈ interior(full) .- interior(y_term)
+
+    return nothing
+end
+
+"""
+Like the other filtered-state diagnostics, the flux measures the filtered buoyancy against a profile it
+did not produce, so anything but a `ProfileLookup` has to be refused rather than silently sorting `b̄`
+into its own reference state.
+"""
+function test_ape_cross_scale_flux_errors(grid, filt)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = random_stratified_b)
+
+    @test_throws "ProfileLookup" AvailablePotentialEnergyCrossScaleFlux(model, filt; method = HeavisideIntegral())
+    @test_throws ArgumentError AvailablePotentialEnergyCrossScaleFlux(model, filt; dims = (1, 4))
+
+    return nothing
+end
+
 @testset "Filtered available potential energy equation" begin
     @info "  Testing filtered available potential energy diagnostics"
     grid = RectilinearGrid(arch, size=(8, 8, 8), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
@@ -250,4 +340,10 @@ end
 
     @info "    Module re-exports and aliases"
     test_filtered_ape_module_reexports()
+
+    @info "  Testing the cross-scale available potential energy flux Πₐ"
+    test_ape_cross_scale_flux_matches_manual(model, filt)
+    test_ape_cross_scale_flux_dims(model, filt)
+    test_ape_cross_scale_flux_vanishes_without_motion(grid, filt)
+    test_ape_cross_scale_flux_errors(grid, filt)
 end

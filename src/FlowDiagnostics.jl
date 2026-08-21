@@ -851,6 +851,13 @@ function StressTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3), collocate_d
 end
 #---
 
+#+++ Collocation helper
+# Collocate an operand at cell centers. The cross-scale fluxes (`KineticEnergyCrossScaleFlux`,
+# `AvailablePotentialEnergyCrossScaleFlux`) interpolate every factor to `(Center, Center, Center)`
+# before contracting, and both their modules already build on this one, so the helper lives here.
+to_center(ψ) = @at (Center, Center, Center) ψ
+#---
+
 #+++ Subfilter covariance (generalized second moment)
 """
     $(SIGNATURES)
@@ -885,15 +892,21 @@ internally.
 The filtered pieces are materialized as `Field`s (so the separable filter's fast staged path fires);
 the returned object is a lazy `AbstractOperation` over those computed fields, ready for `Field`,
 `Integral`, and `OutputWriter`s.
+
+When several covariances share a factor — e.g. the sub-filter buoyancy flux `τ(b, uᵢ)`, whose `b̄` is
+the same for every component — pass the pre-filtered factor as `filtered_a` (a `filter(a)` already
+co-located at `loc`, typically a materialized `Field`) and it is used in place of filtering `a` here,
+so the shared factor is filtered once rather than once per covariance.
 """
-function subfilter_covariance(a, b, filter; loc = (Center, Center, Center))
+function subfilter_covariance(a, b, filter; loc = (Center, Center, Center), filtered_a = nothing)
     # co-locate operands at `loc`
     a_loc = @at loc a
     b_loc = @at loc b
 
     # Wrap some computations in Field to make them compile more easily on GPUs
+    ā = isnothing(filtered_a) ? Field(filter(a_loc)) : filtered_a   # ⟨a⟩, possibly shared by the caller
     filtered_product = Field(filter(Field(a_loc * b_loc))) # ⟨a b⟩
-    return filtered_product - Field(filter(a_loc)) * Field(filter(b_loc))  # ⟨a b⟩ - ⟨a⟩ ⟨b⟩
+    return filtered_product - ā * Field(filter(b_loc))  # ⟨a b⟩ - ⟨a⟩ ⟨b⟩
 end
 #---
 

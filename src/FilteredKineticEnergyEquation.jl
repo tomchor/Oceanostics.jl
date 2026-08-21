@@ -10,13 +10,13 @@ using Oceananigans: fields
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: Field
 using Oceananigans.Operators
-using Oceananigans.AbstractOperations: @at, KernelFunctionOperation
+using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz,
                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
                                        viscous_flux_wx, viscous_flux_wy, viscous_flux_wz
 
 using Oceanostics: CustomKFO
-using ..FlowDiagnostics: StressTensor, StrainRateTensor
+using ..FlowDiagnostics: StressTensor, StrainRateTensor, to_center
 import ..FlowDiagnostics            # for the (unexported) `validate_dims`
 using ..SpatialFilters: GaussianFilter, BoxFilter   # BoxFilter is imported so its docstring `@ref` resolves in-module
 using ..KineticEnergyEquation: kinetic_energy_ccc   # reuse the ½uᵢuᵢ kernel, applied to the filtered velocities
@@ -171,10 +171,8 @@ subfilter_stress_tensor(model; σ, dims = (1, 2, 3), boundary = :shrink, N = not
 #+++ Cross-scale kinetic-energy flux
 # Πₖ = -τⁱʲ S̄ⁱʲ contracted at cell centers. τ and S̄ share keys/ordering (both built with the same
 # `dims`), so we pair them component-by-component and weight the off-diagonals by 2 (tensor symmetry).
-# Each component is interpolated to (Center, Center, Center) before multiplying, matching the offline
-# postprocessing convention.
-to_center(ψ) = @at (Center, Center, Center) ψ
-
+# Each component is interpolated to (Center, Center, Center) before multiplying (via `FlowDiagnostics`'
+# shared `to_center`), matching the offline postprocessing convention.
 const _CONTRACTION = ((:τ₁₁, :S₁₁, 1), (:τ₂₂, :S₂₂, 1), (:τ₃₃, :S₃₃, 1),
                       (:τ₁₂, :S₁₂, 2), (:τ₁₃, :S₁₃, 2), (:τ₂₃, :S₂₃, 2))
 

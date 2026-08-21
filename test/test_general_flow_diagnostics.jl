@@ -93,6 +93,12 @@ arch = has_cuda_gpu() ? GPU() : CPU()
         @test interior(Field(subfilter_covariance(c, b, filter_object; loc))) ≈
               interior(Field(subfilter_covariance(c, b, filt; loc)))
 
+        # a pre-filtered shared factor passed as `filtered_a` reproduces the default path, which is what
+        # lets e.g. the sub-filter buoyancy flux filter its b̄ once across components
+        c̄ = Field(filt(Field(@at loc c)))
+        @test interior(Field(subfilter_covariance(c, b, filt; loc, filtered_a=c̄))) ≈
+              interior(Field(subfilter_covariance(c, b, filt; loc)))
+
         # subfilter tracer flux special case reproduces the hand-rolled construction (cf. spatial_filtering.jl)
         uᶜ = Field(@at loc u); ū = Field(filt(uᶜ)); c̄ = Field(filt(c)); ūc̄ = Field(filt(Field(uᶜ * c)))
         τx_hand = Field(ūc̄ - ū * c̄)

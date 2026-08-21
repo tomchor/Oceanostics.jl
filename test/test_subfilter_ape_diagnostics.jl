@@ -5,7 +5,8 @@ using Oceananigans.Fields: location, compute_at!
 
 using Oceanostics
 using Oceanostics: SubFilterAvailablePotentialEnergy, SubFilterAvailablePotentialEnergyDissipationRate
-using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipationRate
+using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipationRate,
+                   AvailablePotentialEnergyCrossScaleFlux
 using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate,
                    reference_height, reference_buoyancy, VerticalSort, ProfileLookup, HeavisideIntegral,
                    GaussianFilter
@@ -181,8 +182,10 @@ end
 function test_subfilter_ape_module_reexports()
     @test SubFilterAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergy === FilteredAvailablePotentialEnergy
     @test SubFilterAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyDissipationRate === FilteredAvailablePotentialEnergyDissipationRate
+    @test SubFilterAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux === AvailablePotentialEnergyCrossScaleFlux
     @test :FilteredAvailablePotentialEnergy in names(SubFilterAvailablePotentialEnergyEquation)
     @test :FilteredAvailablePotentialEnergyDissipationRate in names(SubFilterAvailablePotentialEnergyEquation)
+    @test :AvailablePotentialEnergyCrossScaleFlux in names(SubFilterAvailablePotentialEnergyEquation)
     @test SubFilterAvailablePotentialEnergyEquation.DissipationRate === SubFilterAvailablePotentialEnergyDissipationRate
     @test SubFilterAvailablePotentialEnergyEquation.ProfileLookup === ProfileLookup
     @test SubFilterAvailablePotentialEnergyEquation.VerticalSort === VerticalSort
