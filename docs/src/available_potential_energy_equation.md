@@ -72,7 +72,7 @@ domain ([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X)). See 
 example for an application of this budget.
 
 
-## Terms and what is implemented
+## Terms and diagnostics
 
 Five of the quantities above have diagnostics; the two transport terms and ``R`` have none.
 
@@ -96,7 +96,7 @@ The available potential energy converts to kinetic energy at a rate set by the b
 with the background state. Their sum,
 
 ```math
-w b = w b_r + w \, b^\star(z,\, t) ,
+w b = w b_r + w \, b^\star,
 ```
 
 is [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion),

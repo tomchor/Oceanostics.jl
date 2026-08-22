@@ -87,7 +87,7 @@ available energy with it. So
 Neither term is sign-definite on its own; their sum is, which is the sharpest check available on either
 of them.
 
-### Terms and what is implemented
+### Terms and diagnostics
 
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
