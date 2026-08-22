@@ -117,25 +117,31 @@ KE            = KineticEnergy(model)
 # the walls are free-slip and insulating, so the viscous and diffusive fluxes leave nothing at the
 # boundary either. What survives is the exchange between the two reservoirs and the two sinks.
 #
-# Note that exchange term is written ``w b_r`` ([`AvailablePotentialToKineticEnergyConversion`](@ref))
+# Note that the exchange term is written ``w b_r`` ([`AvailablePotentialToKineticEnergyConversion`](@ref))
 # in both budgets, not ``wb`` ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion)),
-# where ``b_r = b - b^\star(z)`` is the buoyancy anomaly relative to the reference profile at the parcel's own height.
-# representing an exchange between kinetic energy and _Available potential_ energy, not _potential_ energy. This is possible in
-# the KE equation since ``b_r`` is a function of height only, and therefore the reference profile's
-# hydrostatic pressure contribution can be absorbed into the pressure term. That said, both terms
-# are equal in an integrated sense (as we'll show below).
+# where ``b_r = b - b^\star(z)`` is the buoyancy anomaly relative to the reference profile at the
+# parcel's own height, representing an exchange between kinetic energy and _available potential_
+# energy rather than _potential_ energy. This is possible in the KE equation since ``b^\star`` is a
+# function of height alone, so the hydrostatic pressure that goes with it, ``p^\star(z)`` with
+# ``\partial p^\star/\partial z = b^\star``, has no horizontal gradient and can be absorbed into the
+# pressure term. That said, both terms are equal in an integrated sense (as we'll show below).
 #
-# ``\varepsilon_a`` is the term this example is built around. It is the contraction of the buoyancy
-# gradient with the displacement potential
+# ``\varepsilon_a`` is the term this example is built around. It is the contraction of the closure's
+# diffusive buoyancy flux with the gradient of the displacement potential
 # [``\Upsilon = z^\star - z``](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential),
 # which is ``\partial e_a / \partial b`` and hence the conjugate of ``b``:
 #
 # ```math
-# \varepsilon_a = \kappa\, \partial_i b\, \partial_i \Upsilon
-#               = \kappa \left[\frac{\partial z^\star}{\partial b} |\nabla b|^2 - \frac{\partial b}{\partial z}\right] ,
+# \varepsilon_a = -q_i\, \partial_i \Upsilon
+#               = -\frac{\partial z^\star}{\partial b}\, q_i\, \partial_i b \;+\; q_3 ,
 # ```
-# the diapycnal mixing rate of Winters et al. (1995) less the diffusion the reference state undergoes
-# on its own, which carries no available energy with it.
+# where ``q_i`` is whatever diffusive buoyancy flux the closure supplies. Nothing here assumes a form
+# for it: the diagnostic reads it off the model's own closure, so these expressions hold for an LES
+# closure as they do for the constant diffusivity this run uses. The first term is the diapycnal mixing
+# rate of Winters et al. (1995), and the second removes the diffusion the reference state undergoes on
+# its own, which carries no available energy with it. That second piece is ``q_3 = -\Phi``, the
+# diffusive buoyancy flux the [Potential energy equation](@ref) defines, with the sign it carries
+# there.
 #
 # We hand ``\varepsilon_a`` the [`HeavisideIntegral`](@ref) reference height already built above rather
 # than letting it sort the domain again, and that method rather than another because
@@ -480,7 +486,7 @@ nothing #hide
 # `BPE` never turns back, since mixing across density surfaces cannot be undone. Everything the flow
 # can still do sits in `APE`, which trades with `KE` as the box seiches, each cycle weaker than the
 # last. The dashed total is `∫KE + ∫eₚ`, and it has no reason to fall monotonically: viscosity drains it
-# at `∫εₖ` while diffusion working against gravity feeds it back at `∫κ ∂b/∂z`, and a run quiet enough
+# at `∫εₖ` while the diffusive flux working against gravity feeds it back at `∫Φ dV = -∫q₃ dV`, and a run quiet enough
 # for the second to win would see the total edge back up. At `Re = 1000` the first stays the larger of
 # the two throughout, and the total ends down by about a fifth of the available energy the lock started
 # with.
@@ -507,7 +513,7 @@ wbᵣ_pair = pair_mean(wbᵣ_bud);
 # Both budgets are written in sum-to-zero form: each curve is plotted with the sign it carries here, so
 # the panels below add up to the residual.
 
-KE_resid  = @. -dKEdt  + wb_pair  - ε_pair
+KE_resid  = @. -dKEdt  + wbᵣ_pair - ε_pair
 APE_resid = @. -dAPEdt - wbᵣ_pair - εₐ_pair
 
 rms(x) = √(sum(abs2, x) / length(x))                                       #hide
@@ -529,7 +535,7 @@ budget_kwargs = (xlabel = "Time", ylabel = "Rate", height = 190, width = 560)
 
 ax_KE_bud = Axis(fig4[1, 1]; title = "Volume-integrated KE budget", budget_kwargs...)
 lines!(ax_KE_bud, t_pair, -dKEdt,   label = "-d(∫KE)/dt")
-lines!(ax_KE_bud, t_pair,  wb_pair, label = "∫wb dV")
+lines!(ax_KE_bud, t_pair, wbᵣ_pair, label = "∫wbᵣ dV")
 lines!(ax_KE_bud, t_pair, -ε_pair,  label = "-∫εₖ dV")
 lines!(ax_KE_bud, t_pair, KE_resid; label = "residual", color = :black, linestyle = :dash)
 Legend(fig4[1, 2], ax_KE_bud; labelsize = 12, framevisible = false)
@@ -567,8 +573,9 @@ nothing #hide
 # definition allows: at `t = 0` the lock is uniform in the vertical, the reference state has nothing to
 # diffuse along, and `εₐ` is the whole diapycnal mixing rate, but as the current lays the fluid out in
 # layers the reference state's own diffusion catches up and for a moment overtakes it. A sign-definite
-# quantity like `κ|∇b|²` cannot go negative at all, which is the practical difference between `εₐ` and
-# the buoyancy variance dissipation it is easily confused with.
+# quantity like the buoyancy variance dissipation `-2 qᵢ∂ᵢb`, which no down-gradient closure lets turn
+# negative, cannot do that at all. That is the practical difference between `εₐ` and the variance
+# dissipation it is easily confused with.
 #
 # Both residuals stay near zero. They do not vanish, and cannot: the discrete KE and `eₐ` equations are
 # not derived from the discrete momentum and buoyancy equations the model steps, so the two sides agree
@@ -579,10 +586,10 @@ nothing #hide
 
 # ## Two ways of writing the exchange
 #
-# The KE budget above is closed with `∫wb dV` and the APE budget with `∫wbᵣ dV`, and both residuals are
-# small, which can only happen if the two integrals agree. They do, and the reason is visible in the
-# maps: what separates them is `w b✶(z)`, the work the flow does against the reference stratification,
-# which is a flux divergence and integrates to nothing in a closed box.
+# Both budgets above are closed with `∫wbᵣ dV`, and closing the KE one with `∫wb dV` instead would work
+# just as well, since the two integrals agree. The reason is visible in the maps: what separates them is
+# `w b✶(z)`, the work the flow does against the reference stratification, which is a flux divergence and
+# integrates to nothing in a closed box.
 
 wb_t  = FieldTimeSeries(filepath, "wb")
 wbᵣ_t = FieldTimeSeries(filepath, "wbᵣ")

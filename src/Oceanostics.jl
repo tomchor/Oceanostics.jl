@@ -457,7 +457,7 @@ end
 #+++ AvailablePotentialEnergyEquation
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy                "AvailablePotentialEnergy"                "local available potential energy density  eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential "AvailablePotentialEnergyDisplacementPotential" "displacement potential  Υ = z✶ - z"
-@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  εₐ = κ ∂ᵢb ∂ᵢΥ"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  εₐ = -qᵢ∂ᵢΥ"
 @diagnostic_show AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly                "ReferenceBuoyancyAnomaly"                "reference buoyancy anomaly  bᵣ = b - b✶(z)"
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion "AvailablePotentialToKineticEnergyConversion" "available potential to kinetic energy conversion  wbᵣ"
 #---

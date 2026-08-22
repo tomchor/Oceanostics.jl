@@ -349,7 +349,8 @@ end
 #---
 
 #+++ Available potential energy dissipation rate
-# `εₐ = κ ∂ᵢb ∂ᵢΥ = -qᵢ ∂ᵢΥ`, where `qᵢ = -κ ∂ᵢb` is the buoyancy tracer's diffusive flux. Taking it
+# `εₐ = -qᵢ ∂ᵢΥ`, where `qᵢ` is the buoyancy tracer's diffusive flux (`-κ ∂ᵢb` for Fickian diffusion,
+# but the form is never assumed: an LES closure's flux goes through unchanged). Taking it
 # from the closure's own `diffusive_flux_*` rather than from a diffusivity of our own makes this follow
 # whatever closure the model runs with, and keeps the dissipation consistent with the diffusion the
 # model actually applied — the same conservative formulation `TracerVarianceDissipationRate` uses for
@@ -381,14 +382,16 @@ Return a `KernelFunctionOperation` computing the rate at which diffusion destroy
 energy,
 
 ```
-    εₐ = κ ∂ᵢb ∂ᵢΥ = κ [(∂z✶/∂b)|∇b|² - ∂b/∂z] ,
+    εₐ = -qᵢ ∂ᵢΥ = -(∂z✶/∂b) qᵢ ∂ᵢb + q₃ ,
 ```
 
 the sink of the local available potential energy equation of
 [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) (their Eqs. 11 and 14, where it
-appears as `-εₐ`), with `Υ` the [`AvailablePotentialEnergyDisplacementPotential`](@ref). It follows from
-`∂eₐ/∂b = Υ`, which makes the diffusive part of `Deₐ/Dt` equal to `Υκ∇²b = ∇·(κΥ∇b) - κ∇Υ·∇b`: once
-the flux divergence is set aside, `εₐ = κ∇Υ·∇b` is what remains.
+appears as `-εₐ`), with `Υ` the [`AvailablePotentialEnergyDisplacementPotential`](@ref) and `qᵢ` the
+diffusive buoyancy flux the closure supplies. It follows from `∂eₐ/∂b = Υ`, which makes the diffusive
+part of `Deₐ/Dt` equal to `-Υ ∂ᵢqᵢ = -∂ᵢ(Υqᵢ) + qᵢ∂ᵢΥ`: once the flux divergence is set aside,
+`εₐ = -qᵢ∂ᵢΥ` is what remains. Nothing here assumes a form for `qᵢ`: it is `-κ∂ᵢb` for Fickian
+diffusion, and whatever an LES closure returns otherwise.
 
 Written out, the first part is the diapycnal mixing rate of
 [Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X), the work done rearranging the
@@ -396,10 +399,10 @@ reference state, and the second is
 [`PotentialEnergyDiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux), the diffusion that state
 undergoes on its own, which carries no APE with it. The two cancel exactly for a statically stable,
 horizontally uniform stratification, where `z✶ = z` and there is no available energy to destroy, so
-`εₐ` measures only the APE actually lost — it is not the sign-definite `κ|∇b|²`-like quantity the name
-might suggest.
+`εₐ` measures only the APE actually lost — it is not the sign-definite buoyancy-variance-like quantity
+the name might suggest.
 
-`κ ∂ᵢb` is taken from the closure's own diffusive flux rather than from a diffusivity supplied here, so
+`qᵢ` is taken from the closure's own diffusive flux rather than from a diffusivity supplied here, so
 this follows whatever closure the model runs with, and is written in the same conservative form
 [`TracerVarianceDissipationRate`](@ref Oceanostics.TracerVarianceEquation.TracerVarianceDissipationRate) uses. The
 result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
@@ -433,7 +436,7 @@ AvailablePotentialEnergyDissipationRate KernelFunctionOperation at (Center, Cent
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ape_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "BuoyancyForce")
-└── computes: available potential energy dissipation rate  εₐ = κ ∂ᵢb ∂ᵢΥ
+└── computes: available potential energy dissipation rate  εₐ = -qᵢ∂ᵢΥ
 ```
 """
 function AvailablePotentialEnergyDissipationRate(model; method = HeavisideIntegral(),
