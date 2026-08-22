@@ -12,14 +12,76 @@ Oceanostics computes the available potential energy in its *local* form,
 [Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742):
 
 ```math
-e_a(b, z) = \int_{z^\star}^{z} \left[b^\star(\tilde z) - b\right] \mathrm{d}\tilde z
-          = \frac{g}{\rho_0}\int_{z^\star}^{z} \left[\rho - \rho^\star(\tilde z)\right] \mathrm{d}\tilde z .
+e_a(b, z) = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z,\, t) - b\right] \,\mathrm{d}\tilde z
+          = \frac{g}{\rho_0}\int_{z^\star(\rho)}^{z} \left[\rho - \rho^\star(\tilde z,\, t)\right] \,\mathrm{d}\tilde z .
 ```
 
 In this form ``e_a`` is **non-negative everywhere in space** whenever the reference state is sorted from
-the field itself, so it can be mapped as a field. Its volume integral recovers
-``\int e_p - \int e_b`` in the continuum limit, although at finite ``\Delta z`` the two differ at second
-order.
+the field itself. Its volume integral recovers ``\int e_p - \int e_b`` in the continuum limit, although
+at finite ``\Delta z`` the two differ at second order.
+
+## Deriving the local available potential energy budget
+
+The budget follows from the material derivative of ``e_a(b, z, t)`` along the flow
+([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)):
+
+
+```math
+\frac{D e_a}{D t} = \left.\frac{\partial e_a}{\partial b}\right|_{z,t} \frac{D b}{D t}
+                  + \left.\frac{\partial e_a}{\partial z}\right|_{b,t} \frac{D z}{D t}
+                  + \left.\frac{\partial e_a}{\partial t}\right|_{z,b} \frac{D t}{D t},
+```
+which we can simplify to
+
+```math
+\frac{D e_a}{D t} = \left.\frac{\partial e_a}{\partial b}\right|_{z,t} \frac{D b}{D t}
+                  + \left.\frac{\partial e_a}{\partial z}\right|_{b,t} w
+                  + R ,
+\qquad
+R = \int_{z^\star}^{z} \partial_t b^\star(\tilde z, t) \, \mathrm{d}\tilde z .
+```
+
+Both partial derivatives come straight from the definition of ``e_a``. In the first, the boundary term
+from moving the lower limit ``z^\star(b)`` drops out because ``b^\star(z^\star(b)) = b``, which leaves
+the displacement potential ``\Upsilon``. The second is minus the buoyancy anomaly ``b_r`` the parcel
+carries relative to the reference profile at its own height:
+
+```math
+\left.\frac{\partial e_a}{\partial b}\right|_{z} = z^\star - z = \Upsilon ,
+\qquad
+\left.\frac{\partial e_a}{\partial z}\right|_{b} = b^\star(z) - b = -b_r .
+```
+
+The buoyancy obeys [the tracer equation](tracer_equation.md), ``Db/Dt = -\partial_j q_j`` for an
+unforced tracer with the closure's diffusive flux ``q_j``, so ``\Upsilon\,Db/Dt`` splits into a
+transport divergence plus the contraction ``q_j\,\partial_j\Upsilon``. Writing the advective part as a
+divergence as well (incompressibility), the local APE budget is
+
+```math
+\partial_t e_a = \underbrace{-\partial_j(u_j e_a)}_{\text{advection}}
+                 \underbrace{-\,w b_r}_{\text{APE to KE conversion}}
+                 \underbrace{-\,\partial_j(\Upsilon q_j)}_{\text{diffusive transport}}
+                 \underbrace{-\,\varepsilon_a}_{\text{dissipation}}
+                 + \underbrace{R}_{\text{reference tendency}} ,
+\qquad
+\varepsilon_a = -q_j \, \partial_j \Upsilon = \kappa \, \partial_j b \, \partial_j \Upsilon .
+```
+
+The two divergences redistribute ``e_a`` and vanish when integrated over a periodic or closed domain,
+and so does ``R`` ([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X)), which therefore
+shifts APE around in space without creating or destroying any. The exchange with the kinetic energy
+carries the anomaly ``b_r`` because in this framework the pressure is measured against the hydrostatic
+pressure of the reference profile. Its reference part ``w\,b^\star(z)`` is a divergence in its own
+right, so ``\int w b_r \, \mathrm{d}V = \int w b \, \mathrm{d}V`` and the volume-integrated budget
+reduces to the one the [Lock release](@ref lock_release_example) example closes below.
+
+Repeating these steps with the filtered buoyancy ``\tilde b`` in place of ``b``, and using the filtered
+buoyancy equation, gives the budget for the available potential energy of the filtered field; filtering
+the budget above and subtracting that one gives the sub-filter budget. Those two budgets, and the
+cross-scale flux ``\Pi_a`` that transfers APE between them, are the subject of
+[the filtered](filtered_available_potential_energy_equation.md) and
+[the sub-filter](subfilter_available_potential_energy_equation.md) available potential energy equation
+pages.
 
 ## Available potential energy
 
@@ -29,7 +91,8 @@ Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy
 
 ## Buoyancy displacement potential
 
-Differentiating ``e_a`` with respect to buoyancy gives the displacement potential
+The factor multiplying ``Db/Dt`` in the budget above, the derivative of ``e_a`` with respect to
+buoyancy, is the displacement potential
 
 ```math
 \Upsilon = \frac{\partial e_a}{\partial b} = z^\star - z ,
