@@ -188,8 +188,8 @@ end
 
         # The three that read `κ∇b` off the closure, so they run its `diffusive_flux_*` per cell.
         z✶ₕ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
-        Υ   = Field(AvailablePotentialEnergyEquation.DisplacementPotential(model, z✶ₕ))
-        test_kfo_invariants("DisplacementPotential", DisplacementPotential(model, z✶ₕ))
+        Υ   = Field(AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential(model, z✶ₕ))
+        test_kfo_invariants("AvailablePotentialEnergyDisplacementPotential", AvailablePotentialEnergyDisplacementPotential(model, z✶ₕ))
         test_kfo_invariants("AvailablePotentialEnergyDissipationRate",
                             AvailablePotentialEnergyDissipationRate(model, z✶ₕ; upsilon = Υ))
         test_kfo_invariants("DiffusiveVerticalBuoyancyFlux", DiffusiveVerticalBuoyancyFlux(model))  # short name, via `using ...PotentialEnergyEquation`

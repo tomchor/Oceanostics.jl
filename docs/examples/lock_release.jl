@@ -603,20 +603,21 @@ wb✶_map = wb_map .- wbᵣ_map                # `wb = wbᵣ + w b✶(z)` holds 
 @test abs(sum(wb✶_map)) < 1e-8 * sum(abs, wb✶_map);                                               #hide
 
 set_theme!(Theme(fontsize = 20)) #hide
-fig5 = Figure(size = (900, 640))
+fig5 = Figure(size = (900, 620))
 
-lim = maximum(abs, wb_map)
+## one range for all three panels, taken over all three: `wbᵣ` runs about twice as large as `wb` here,
+## and scaling each panel to itself would hide that
+lim = maximum(maximum(abs, conversion) for conversion in (wb_map, wbᵣ_map, wb✶_map))
 conv_kwargs = (ylabel = "z", height = 150, aspect = DataAspect())
 xs, zs = xnodes(grid, Center()), znodes(grid, Center())
 
-ax_wb  = Axis(fig5[2, 1]; title = "wb,  the KE budget's production",     conv_kwargs...)
-ax_wbᵣ = Axis(fig5[4, 1]; title = "wbᵣ,  the eₐ budget's release",      conv_kwargs...)
-ax_dif = Axis(fig5[6, 1]; title = "wb - wbᵣ = w b✶(z)", xlabel = "x",   conv_kwargs...)
+ax_wb  = Axis(fig5[2, 1]; title = "wb,  the KE budget's production",   conv_kwargs...)
+ax_wbᵣ = Axis(fig5[3, 1]; title = "wbᵣ,  the eₐ budget's release",    conv_kwargs...)
+ax_dif = Axis(fig5[4, 1]; title = "wb - wbᵣ = w b✶(z)", xlabel = "x", conv_kwargs...)
 
-for (row, (ax, conversion)) in enumerate(zip((ax_wb, ax_wbᵣ, ax_dif), (wb_map, wbᵣ_map, wb✶_map)))
-    hm = heatmap!(ax, xs, zs, conversion; colormap = :balance, colorrange = (-lim, lim))
-    Colorbar(fig5[2row + 1, 1], hm; vertical = false, height = 8)
-end
+hms = [heatmap!(ax, xs, zs, conversion; colormap = :balance, colorrange = (-lim, lim))
+       for (ax, conversion) in zip((ax_wb, ax_wbᵣ, ax_dif), (wb_map, wbᵣ_map, wb✶_map))]
+Colorbar(fig5[5, 1], hms[1]; vertical = false, height = 8)
 
 Label(fig5[1, 1], "Conversion terms,  t = " * string(round(t_peak, digits = 1)),
       fontsize = 22, tellwidth = false)
@@ -628,8 +629,9 @@ nothing #hide
 
 # ![](lock_release_conversion.png)
 #
-# `wbᵣ` is the local release of `eₐ`: it vanishes wherever a parcel already carries the buoyancy its own
-# height calls for, whatever the vertical velocity is doing there. `wb` does not, since it counts the
-# reference stratification's own contribution as well, which is the horizontally banded pattern in the
-# bottom panel. Only `wbᵣ` maps where available potential energy is actually being converted; only in
-# the volume integral can `wb` stand in for it.
+# `wbᵣ` is the local release of `eₐ`: it concentrates in the two intruding noses and falls away to
+# nothing in the fluid the fronts have not reached yet, where each parcel still carries the buoyancy its
+# own height calls for. `wb` does not, since it counts the reference stratification's own contribution
+# as well, the banded pattern about `z = 0.5` in the bottom panel, and that contribution is large enough
+# here to leave `wbᵣ` running at about twice the amplitude of `wb`. Only `wbᵣ` maps where available
+# potential energy is actually being converted; only in the volume integral can `wb` stand in for it.

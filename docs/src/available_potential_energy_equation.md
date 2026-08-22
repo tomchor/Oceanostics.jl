@@ -79,13 +79,17 @@ Five of the quantities above have diagnostics; the two transport terms and ``R``
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
 | Available potential energy | ``e_a = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z,\, t) - b\right] \mathrm{d}\tilde z`` | [`AvailablePotentialEnergy`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy) |
-| Displacement potential | ``\Upsilon = z^\star - z`` | [`DisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.DisplacementPotential) |
+| Displacement potential | ``\Upsilon = z^\star - z`` | [`AvailablePotentialEnergyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential) |
 | Advection | ``\partial_j(u_j e_a)`` | not implemented |
 | Buoyancy anomaly | ``b_r = b - b^\star(z,\, t)`` | [`ReferenceBuoyancyAnomaly`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly) |
 | APE to KE conversion | ``w b_r`` | [`AvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion) |
 | Diffusive transport | ``\partial_j(\Upsilon q_j)`` | not implemented |
 | Dissipation | ``\varepsilon_a = -q_j \, \partial_j \Upsilon`` | [`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate) |
 | Reference tendency | ``R = \int_{z^\star}^{z} \partial_t b^\star(\tilde z,\, t) \, \mathrm{d}\tilde z`` | not implemented |
+
+``\Upsilon`` also answers to `DisplacementPotential`, and ``\varepsilon_a`` to `DissipationRate`. Both
+aliases are scoped to this module: `using Oceanostics.AvailablePotentialEnergyEquation` brings them in,
+`using Oceanostics` does not, since unprefixed neither name says which budget it belongs to.
 
 The available potential energy converts to kinetic energy at a rate set by the buoyancy anomaly
 ``b_r``, not by the buoyancy itself. The remainder ``w \, b^\star(z,\, t)`` exchanges kinetic energy
@@ -117,7 +121,7 @@ the flux ``\Phi = -q_3`` that ``\varepsilon_a`` leaves out of the diapycnal mixi
 
 ```@docs
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy
-Oceanostics.AvailablePotentialEnergyEquation.DisplacementPotential
+Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential
 Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate

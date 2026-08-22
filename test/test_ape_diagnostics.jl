@@ -8,6 +8,8 @@ using Oceananigans.Grids: topology
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
 
 using Oceanostics
+# `DisplacementPotential` is scoped to its own module, so it is imported rather than exported here
+using Oceanostics.AvailablePotentialEnergyEquation: DisplacementPotential
 
 # Include common test utilities
 include("test_utils.jl")
@@ -801,7 +803,7 @@ function test_tilted_gravity_is_rejected(grid)
     z✶ = AvailablePotentialEnergyEquation.reference_height(model.tracers.b; method = HeavisideIntegral())
     @test_throws "`BackgroundPotentialEnergy`" BackgroundPotentialEnergy(model, z✶)
     @test_throws "`AvailablePotentialEnergy`" AvailablePotentialEnergy(model, z✶)
-    @test_throws "`DisplacementPotential`" DisplacementPotential(model, z✶)
+    @test_throws "`AvailablePotentialEnergyDisplacementPotential`" DisplacementPotential(model, z✶)
     @test_throws "`AvailablePotentialEnergyDissipationRate`" AvailablePotentialEnergyDissipationRate(model, z✶)
     @test_throws "`ReferenceBuoyancyAnomaly`" ReferenceBuoyancyAnomaly(model, z✶)
     @test_throws "`AvailablePotentialToKineticEnergyConversion`" AvailablePotentialToKineticEnergyConversion(model, z✶)

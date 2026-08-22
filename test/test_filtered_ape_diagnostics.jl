@@ -6,7 +6,8 @@ using Oceananigans.Fields: location, compute_at!
 using Oceanostics
 using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipationRate
 using Oceanostics: AvailablePotentialEnergyCrossScaleFlux, subfilter_covariance
-using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate, DisplacementPotential,
+using Oceanostics.AvailablePotentialEnergyEquation: DisplacementPotential
+using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate,
                    reference_height, reference_buoyancy, VerticalSort, ProfileLookup, HeavisideIntegral,
                    GaussianFilter
 

@@ -105,9 +105,11 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 - **`AvailablePotentialEnergyEquation`**: the other half of the Winters et al. (1995) split,
   `AvailablePotentialEnergy` (Eₐ), computed in the local Holliday & McIntyre (1981) form
   `∫[b✶(z̃) - b]dz̃`, which is non-negative everywhere rather than only in the integral, plus the terms
-  of its budget: `DisplacementPotential` (Υ = z✶ - z, named `BuoyancyDisplacementPotential` before
-  0.20), `AvailablePotentialEnergyDissipationRate` (εₐ = -qⱼ∂ⱼΥ), `ReferenceBuoyancyAnomaly`
-  (bᵣ = b - b✶(z)) and `AvailablePotentialToKineticEnergyConversion` (wbᵣ). That last one is *not*
+  of its budget: `AvailablePotentialEnergyDisplacementPotential` (Υ = z✶ - z, named
+  `BuoyancyDisplacementPotential` before 0.20, and aliased `DisplacementPotential` inside the module
+  the way `AvailablePotentialEnergyDissipationRate` is aliased `DissipationRate` — exported by the
+  module, not by `Oceanostics`), `AvailablePotentialEnergyDissipationRate` (εₐ = -qⱼ∂ⱼΥ),
+  `ReferenceBuoyancyAnomaly` (bᵣ = b - b✶(z)) and `AvailablePotentialToKineticEnergyConversion` (wbᵣ). That last one is *not*
   `PotentialToKineticEnergyConversion`, which is uᵢbᵢ over the total buoyancy and belongs to the eₚ
   budget: the two differ by wb✶(z), the exchange with the background state, and since both form the
   product on the same face (`ℑzᵃᵃᶠ` of a cell-centered buoyancy, which is what `z_dot_g_bᶜᶜᶠ` is under

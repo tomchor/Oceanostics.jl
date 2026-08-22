@@ -2,7 +2,7 @@ module AvailablePotentialEnergyEquation
 
 using DocStringExtensions
 
-export AvailablePotentialEnergy, DisplacementPotential
+export AvailablePotentialEnergy, AvailablePotentialEnergyDisplacementPotential, DisplacementPotential
 export ReferenceBuoyancyAnomaly, AvailablePotentialToKineticEnergyConversion
 export AvailablePotentialEnergyDissipationRate, DissipationRate
 # `Φ` is a term of the `eₚ` equation and lives in `PotentialEnergyEquation`; re-exported here because
@@ -124,10 +124,14 @@ validate_reference_height_grid(diagnostic, model, z✶) =
                              `ProfileLookup()` rather than `VerticalSort()`."))
 #---
 
-#+++ Buoyancy displacement potential
+#+++ Displacement potential
 @inline upsilon_ccc(i, j, k, grid, z✶) = @inbounds z✶[i, j, k] - Zᶜᶜᶜ(i, j, k, grid)
 
-const DisplacementPotential = CustomKFO{<:typeof(upsilon_ccc)}
+const AvailablePotentialEnergyDisplacementPotential = CustomKFO{<:typeof(upsilon_ccc)}
+# Short enough to read beside the other terms of an `eₐ` budget, and scoped to this module the way
+# `DissipationRate` is: `using Oceanostics` does not bring it in, since unprefixed it says nothing
+# about which budget's displacement it is.
+const DisplacementPotential = AvailablePotentialEnergyDisplacementPotential
 
 """
     $(SIGNATURES)
@@ -155,6 +159,11 @@ is a length (units `m`).
 single sort with the other reference-state diagnostics, or pass `method` through to choose how it is
 built. It has to be one that lives on the model grid, so [`VerticalSort`](@ref) is rejected.
 
+`using Oceanostics.AvailablePotentialEnergyEquation` additionally brings in `DisplacementPotential`,
+short enough to read beside the other terms of an `eₐ` budget. That alias is scoped to this module, as
+`DissipationRate` is: `using Oceanostics` does not bring it in, since unprefixed it says nothing about
+which budget's displacement it names.
+
 [`HeavisideIntegral`](@ref) is the default here rather than the package-wide
 [`ThreeDimensionalSort`](@ref) because `Υ` is a map, and every use of it differentiates that map. Only
 Eq. (11) of Winters et al. makes `z✶` a function of buoyancy alone, so tied cells share one reference
@@ -168,27 +177,27 @@ using Oceananigans, Oceanostics
 grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
 model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
 
-DisplacementPotential(model)
+AvailablePotentialEnergyDisplacementPotential(model)
 
 # output
 
-DisplacementPotential KernelFunctionOperation at (Center, Center, Center)
+AvailablePotentialEnergyDisplacementPotential KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: upsilon_ccc (generic function with 1 method)
 └── arguments: ("Field",)
 └── computes: displacement potential  Υ = z✶ - z
 ```
 """
-function DisplacementPotential(model; method = HeavisideIntegral(),
-                                       geopotential_height = model_geopotential_height(model),
-                                       location = (Center, Center, Center))
-    validate_location(location, "DisplacementPotential")
-    return DisplacementPotential(model, reference_height(model; method, geopotential_height))
+function AvailablePotentialEnergyDisplacementPotential(model; method = HeavisideIntegral(),
+                                                       geopotential_height = model_geopotential_height(model),
+                                                       location = (Center, Center, Center))
+    validate_location(location, "AvailablePotentialEnergyDisplacementPotential")
+    return AvailablePotentialEnergyDisplacementPotential(model, reference_height(model; method, geopotential_height))
 end
 
-function DisplacementPotential(model, z✶::SortedReferenceHeightField)
-    validate_gravity_is_z_aligned("DisplacementPotential", model)
-    validate_reference_height_grid("DisplacementPotential", model, z✶)
+function AvailablePotentialEnergyDisplacementPotential(model, z✶::SortedReferenceHeightField)
+    validate_gravity_is_z_aligned("AvailablePotentialEnergyDisplacementPotential", model)
+    validate_reference_height_grid("AvailablePotentialEnergyDisplacementPotential", model, z✶)
     return KernelFunctionOperation{Center, Center, Center}(upsilon_ccc, z✶.grid, z✶)
 end
 #---
@@ -212,7 +221,7 @@ the buoyancy form of `b_r(ρ, z) = -g(ρ - ρ✶(z))/ρ₀` in
 [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879), their Eq. (8). It is what the
 available potential energy exchanges with the kinetic energy
 ([`AvailablePotentialToKineticEnergyConversion`](@ref)), and the buoyancy-space counterpart of
-[`DisplacementPotential`](@ref): `Υ = z✶ - z` measures a parcel's displacement from the reference state
+[`AvailablePotentialEnergyDisplacementPotential`](@ref): `Υ = z✶ - z` measures a parcel's displacement from the reference state
 as a height, `bᵣ` measures it as a buoyancy, and both vanish exactly where the fluid is already sorted.
 
 Note that `b✶(z)` is the reference profile at the height the parcel actually occupies, which is not
@@ -377,7 +386,7 @@ energy,
 
 the sink of the local available potential energy equation of
 [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) (their Eqs. 11 and 14, where it
-appears as `-εₐ`), with `Υ` the [`DisplacementPotential`](@ref). It follows from
+appears as `-εₐ`), with `Υ` the [`AvailablePotentialEnergyDisplacementPotential`](@ref). It follows from
 `∂eₐ/∂b = Υ`, which makes the diffusive part of `Deₐ/Dt` equal to `Υκ∇²b = ∇·(κΥ∇b) - κ∇Υ·∇b`: once
 the flux divergence is set aside, `εₐ = κ∇Υ·∇b` is what remains.
 
@@ -405,7 +414,7 @@ to build a `z✶` it then uses for nothing but a grid check.
 
 `z✶` is the reference height computed by [`reference_height`](@ref), and has to be one that lives on
 the model grid, since `∇b` is taken there; [`HeavisideIntegral`](@ref) is the default for the reason
-[`DisplacementPotential`](@ref) gives. `upsilon` takes a `Υ` you already have, so that writing
+[`AvailablePotentialEnergyDisplacementPotential`](@ref) gives. `upsilon` takes a `Υ` you already have, so that writing
 both out costs one sort and one `Υ` rather than two of each:
 
 ```jldoctest
