@@ -109,7 +109,7 @@ KE            = KineticEnergy(model)
 # single term and each drains through a dissipation of its own,
 #
 # ```math
-# \frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon_k\, dV, \qquad
+# \frac{d}{dt}\int e_k\, dV = +\int w b_r\, dV - \int \varepsilon_k\, dV, \qquad
 # \frac{d}{dt}\int e_a\, dV = -\int w b_r\, dV - \int \varepsilon_a\, dV .
 # ```
 #
@@ -117,14 +117,13 @@ KE            = KineticEnergy(model)
 # the walls are free-slip and insulating, so the viscous and diffusive fluxes leave nothing at the
 # boundary either. What survives is the exchange between the two reservoirs and the two sinks.
 #
-# The exchange is written differently in the two budgets. The kinetic energy is produced at ``wb``, the
-# term the model's own momentum equation carries
-# ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion)),
-# while the available potential energy is released at
-# ``w b_r`` ([`AvailablePotentialToKineticEnergyConversion`](@ref)), set by the buoyancy anomaly
-# ``b_r = b - b^\star(z)`` relative to the reference profile at the parcel's own height. They are
-# different fields, and equal in the volume integral, which is what lets them cancel from the sum of the
-# two budgets. [Two ways of writing the exchange](@ref) below is that statement made in the data.
+# Note that exchange term is written ``w b_r`` ([`AvailablePotentialToKineticEnergyConversion`](@ref))
+# in both budgets, not ``wb`` ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion)),
+# where ``b_r = b - b^\star(z)`` is the buoyancy anomaly relative to the reference profile at the parcel's own height.
+# representing an exchange between kinetic energy and _Available potential_ energy, not _potential_ energy. This is possible in
+# the KE equation since ``b_r`` is a function of height only, and therefore the reference profile's
+# hydrostatic pressure contribution can be absorbed into the pressure term. That said, both terms
+# are equal in an integrated sense (as we'll show below).
 #
 # ``\varepsilon_a`` is the term this example is built around. It is the contraction of the buoyancy
 # gradient with the displacement potential
@@ -133,8 +132,7 @@ KE            = KineticEnergy(model)
 #
 # ```math
 # \varepsilon_a = \kappa\, \partial_i b\, \partial_i \Upsilon
-#               = \kappa \left[\frac{\partial z^\star}{\partial b} |\nabla b|^2
-#                              - \frac{\partial b}{\partial z}\right] ,
+#               = \kappa \left[\frac{\partial z^\star}{\partial b} |\nabla b|^2 - \frac{\partial b}{\partial z}\right] ,
 # ```
 # the diapycnal mixing rate of Winters et al. (1995) less the diffusion the reference state undergoes
 # on its own, which carries no available energy with it.
@@ -145,19 +143,19 @@ KE            = KineticEnergy(model)
 # ``z^\star`` a function of buoyancy alone, so tied cells do not spread ``z^\star`` over the depth they
 # fill and show up in ``\nabla \Upsilon`` as grid-scale noise.
 
-εₐ = AvailablePotentialEnergyDissipationRate(model, z✶_heaviside)
-εₖ = KineticEnergyDissipationRate(model)
-wb = PotentialToKineticEnergyConversion(model)
-
-# ``w b_r`` takes the same reference height, and builds its own anomaly from it rather than being
-# handed one, since nothing else here needs ``b_r`` on its own:
-
+εₐ  = AvailablePotentialEnergyDissipationRate(model, z✶_heaviside)
+εₖ  = KineticEnergyDissipationRate(model)
 wbᵣ = AvailablePotentialToKineticEnergyConversion(model, z✶_heaviside)
 
-∫wb  = Integral(wb)
+# Let's also calculate the exchange between kinetic and potential energy ``wb`` for comparison
+# along with integrals for all terms
+
+wb = PotentialToKineticEnergyConversion(model)
+
 ∫wbᵣ = Integral(wbᵣ)
-∫εₖ = Integral(εₖ)
-∫εₐ = Integral(εₐ)
+∫wb  = Integral(wb)
+∫εₖ  = Integral(εₖ)
+∫εₐ  = Integral(εₐ)
 
 using NCDatasets
 filename = "lock_release"
