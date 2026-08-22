@@ -74,31 +74,30 @@ example for an application of this budget.
 
 ## Terms and what is implemented
 
-Four of the quantities above have diagnostics, one of them defined elsewhere in Oceanostics.
+Three of the quantities above have diagnostics of their own. The conversion has one that matches it
+only under a volume integral, and the two transports and ``R`` have none.
 
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
 | Available potential energy | ``e_a = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z,\, t) - b\right] \mathrm{d}\tilde z`` | [`AvailablePotentialEnergy`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy) |
 | Displacement potential | ``\Upsilon = z^\star - z`` | [`BuoyancyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential) |
 | Advection | ``\partial_j(u_j e_a)`` | not implemented |
-| APE to KE conversion | ``w b_r`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
+| APE to KE conversion | ``w b_r``, with ``b_r = b - b^\star(z,\, t)`` | not implemented |
 | Diffusive transport | ``\partial_j(\Upsilon q_j)`` | not implemented |
 | Dissipation | ``\varepsilon_a = -q_j \, \partial_j \Upsilon`` | [`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate) |
 | Reference tendency | ``R = \int_{z^\star}^{z} \partial_t b^\star(\tilde z,\, t) \, \mathrm{d}\tilde z`` | not implemented |
 
-The conversion diagnostic computes ``u_j b_j``, which is ``wb`` under the vertical gravity these terms
-require, and not ``w b_r``. The two differ by ``w \, b^\star(z, t)``, itself a divergence, so they agree
-once integrated. It is defined in [the kinetic energy equation](kinetic_energy_equation.md), where
-`PotentialEnergyConversion` names what it does to the kinetic energy, and re-exported here both under
-that name and as the shorter `KineticEnergyConversion`.
-
-What is missing are the two transport terms and ``R``, which integrate to zero over a periodic or
-closed domain, so the integrated budget closes with the diagnostics that do exist:
+The available potential energy converts to kinetic energy at a rate set by the buoyancy anomaly
+``b_r``, not by the buoyancy itself. The remainder ``w \, b^\star(z,\, t)`` exchanges kinetic energy
+with the background state. Their
+sum,
 
 ```math
-\frac{\mathrm{d}}{\mathrm{d}t}\int e_a \, \mathrm{d}V
-    = -\int w b \, \mathrm{d}V - \int \varepsilon_a \, \mathrm{d}V .
+w b = w b_r + w \, b^\star(z,\, t) ,
 ```
+
+is implemented as [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion).
+Under a volume integral the distinction goes away since ``w \, b^\star(z,\, t)`` is a divergence.
 
 The three diagnostics this module defines are built on the reference state of
 [the background potential energy equation](background_potential_energy_equation.md), whose
