@@ -110,17 +110,26 @@ KE            = KineticEnergy(model)
 #
 # ```math
 # \frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon_k\, dV, \qquad
-# \frac{d}{dt}\int e_a\, dV = -\int wb\, dV - \int \varepsilon_a\, dV .
+# \frac{d}{dt}\int e_a\, dV = -\int w b_r\, dV - \int \varepsilon_a\, dV .
 # ```
 #
 # Advection and the pressure gradient integrate to zero for an incompressible flow in a closed box, and
 # the walls are free-slip and insulating, so the viscous and diffusive fluxes leave nothing at the
-# boundary either. What survives is the buoyancy production ``wb``, which carries opposite signs in the
-# two budgets and so cancels from their sum, and the two sinks.
+# boundary either. What survives is the exchange between the two reservoirs and the two sinks.
+#
+# The exchange is written differently in the two budgets. The kinetic energy is produced at ``wb``, the
+# term the model's own momentum equation carries
+# ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion)),
+# while the available potential energy is released at
+# ``w b_r`` ([`AvailablePotentialToKineticEnergyConversion`](@ref)), set by the buoyancy anomaly
+# ``b_r = b - b^\star(z)`` relative to the reference profile at the parcel's own height. They are
+# different fields, and equal in the volume integral, which is what lets them cancel from the sum of the
+# two budgets. [Two ways of writing the exchange](@ref) below is that statement made in the data.
 #
 # ``\varepsilon_a`` is the term this example is built around. It is the contraction of the buoyancy
-# gradient with the [`DisplacementPotential`](@ref) ``\Upsilon = z^\star - z``, which is
-# ``\partial e_a / \partial b`` and hence the conjugate of ``b``:
+# gradient with the displacement potential
+# [``\Upsilon = z^\star - z``](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential),
+# which is ``\partial e_a / \partial b`` and hence the conjugate of ``b``:
 #
 # ```math
 # \varepsilon_a = \kappa\, \partial_i b\, \partial_i \Upsilon
@@ -140,7 +149,13 @@ KE            = KineticEnergy(model)
 εₖ = KineticEnergyDissipationRate(model)
 wb = PotentialToKineticEnergyConversion(model)
 
-∫wb = Integral(wb)
+# ``w b_r`` takes the same reference height, and builds its own anomaly from it rather than being
+# handed one, since nothing else here needs ``b_r`` on its own:
+
+wbᵣ = AvailablePotentialToKineticEnergyConversion(model, z✶_heaviside)
+
+∫wb  = Integral(wb)
+∫wbᵣ = Integral(wbᵣ)
 ∫εₖ = Integral(εₖ)
 ∫εₐ = Integral(εₐ)
 
@@ -152,7 +167,7 @@ filename = "lock_release"
 # its own `N`-cell vertical axis.
 
 outputs = (; b, KE, APE_ranked, APE_heaviside, APE_lookup, APE_column,
-             z✶_ranked, z✶_heaviside, z✶_lookup, z✶_column, b✶_column)
+             z✶_ranked, z✶_heaviside, z✶_lookup, z✶_column, b✶_column, wb, wbᵣ)
 
 simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
                                                   filename = joinpath(@__DIR__, filename),
@@ -165,7 +180,7 @@ simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
 # The `∫APE_heaviside` written here is the tendency term that pairs with ``\varepsilon_a``, since the
 # two come off the same sort.
 
-integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫εₖ, ∫εₐ)
+integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫wbᵣ, ∫εₖ, ∫εₐ)
 
 simulation.output_writers[:budget] = NetCDFWriter(model, integrals,
                                                   filename = joinpath(@__DIR__, filename * "_budget"),
@@ -419,6 +434,7 @@ BPE_bud  = ds["∫BPE"][:]
 APE_bud  = ds["∫APE_heaviside"][:]
 KE_bud   = ds["∫KE"][:]
 wb_bud   = ds["∫wb"][:]
+wbᵣ_bud  = ds["∫wbᵣ"][:]
 ε_bud    = ds["∫εₖ"][:]
 εₐ_bud  = ds["∫εₐ"][:]
 ## all four methods integrate to the same eₐ, however they place cells of equal buoyancy  #hide
@@ -486,14 +502,15 @@ dAPEdt = (APE_bud[idx2] .- APE_bud[idx1]) ./ Δt_pair
 pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
 
 wb_pair  = pair_mean(wb_bud);
+wbᵣ_pair = pair_mean(wbᵣ_bud);
 ε_pair   = pair_mean(ε_bud);
 εₐ_pair = pair_mean(εₐ_bud);
 
 # Both budgets are written in sum-to-zero form: each curve is plotted with the sign it carries here, so
 # the panels below add up to the residual.
 
-KE_resid  = @. -dKEdt  + wb_pair - ε_pair
-APE_resid = @. -dAPEdt - wb_pair - εₐ_pair
+KE_resid  = @. -dKEdt  + wb_pair  - ε_pair
+APE_resid = @. -dAPEdt - wbᵣ_pair - εₐ_pair
 
 rms(x) = √(sum(abs2, x) / length(x))                                       #hide
 @test rms(KE_resid)  < 0.01 * rms(dKEdt)                                   #hide
@@ -502,7 +519,8 @@ rms(x) = √(sum(abs2, x) / length(x))                                       #hi
 ## the sharp one: the APE residual is a small fraction of εₐ itself, so the budget resolves     #hide
 ## the new term rather than closing to within its size                                           #hide
 @test rms(APE_resid) < 0.05 * rms(εₐ_pair)                                #hide
-## `wb` is the same term in both, so it cancels from the sum of the two budgets                  #hide
+## the two conversions have the same volume integral, so they cancel from the sum of the budgets #hide
+@test rms(wb_pair .- wbᵣ_pair) < 1e-8 * rms(wb_pair)                       #hide
 @test rms(KE_resid .+ APE_resid) < 0.02 * rms(ε_pair)                      #hide
 ## and εₐ takes both signs over the run, which is what the discussion below rests on            #hide
 @test minimum(εₐ_pair) < 0 < maximum(εₐ_pair);                           #hide
@@ -520,7 +538,7 @@ Legend(fig4[1, 2], ax_KE_bud; labelsize = 12, framevisible = false)
 
 ax_APE_bud = Axis(fig4[2, 1]; title = "Volume-integrated APE budget", budget_kwargs...)
 lines!(ax_APE_bud, t_pair, -dAPEdt,   label = "-d(∫eₐ)/dt")
-lines!(ax_APE_bud, t_pair, -wb_pair,  label = "-∫wb dV")
+lines!(ax_APE_bud, t_pair, -wbᵣ_pair, label = "-∫wbᵣ dV")
 lines!(ax_APE_bud, t_pair, -εₐ_pair, label = "-∫εₐ dV")
 lines!(ax_APE_bud, t_pair, APE_resid; label = "residual", color = :black, linestyle = :dash)
 Legend(fig4[2, 2], ax_APE_bud; labelsize = 12, framevisible = false)
@@ -560,3 +578,58 @@ nothing #hide
 # [the two-dimensional turbulence example](@ref two_d_turbulence_example), with one more source of
 # discrepancy here: `Integral(eₐ)` of the local Holliday & McIntyre density samples the reference
 # profile at the model's cell centers, and that midpoint quadrature is itself second order in `Δz`.
+
+# ## Two ways of writing the exchange
+#
+# The KE budget above is closed with `∫wb dV` and the APE budget with `∫wbᵣ dV`, and both residuals are
+# small, which can only happen if the two integrals agree. They do, and the reason is visible in the
+# maps: what separates them is `w b✶(z)`, the work the flow does against the reference stratification,
+# which is a flux divergence and integrates to nothing in a closed box.
+
+wb_t  = FieldTimeSeries(filepath, "wb")
+wbᵣ_t = FieldTimeSeries(filepath, "wbᵣ")
+
+t_peak = t_e[argmax(abs.(wb_bud[idx1]))]   # the snapshot where the exchange is strongest
+n_peak = argmin(abs.(times .- t_peak))
+
+wb_map  = interior(wb_t[n_peak],  :, 1, :)
+wbᵣ_map = interior(wbᵣ_t[n_peak], :, 1, :)
+wb✶_map = wb_map .- wbᵣ_map                # `wb = wbᵣ + w b✶(z)` holds cell by cell
+
+## the two conversions are genuinely different maps, so the agreement above is about the integral #hide
+@test maximum(abs, wb✶_map) > 0.1 * maximum(abs, wb_map)                                          #hide
+## while their difference is the piece that integrates away, which is what lets either one close  #hide
+## the integrated budget: on a uniform grid that is the plain sum over the cells                   #hide
+@test abs(sum(wb✶_map)) < 1e-8 * sum(abs, wb✶_map);                                               #hide
+
+set_theme!(Theme(fontsize = 20)) #hide
+fig5 = Figure(size = (900, 640))
+
+lim = maximum(abs, wb_map)
+conv_kwargs = (ylabel = "z", height = 150, aspect = DataAspect())
+xs, zs = xnodes(grid, Center()), znodes(grid, Center())
+
+ax_wb  = Axis(fig5[2, 1]; title = "wb,  the KE budget's production",     conv_kwargs...)
+ax_wbᵣ = Axis(fig5[4, 1]; title = "wbᵣ,  the eₐ budget's release",      conv_kwargs...)
+ax_dif = Axis(fig5[6, 1]; title = "wb - wbᵣ = w b✶(z)", xlabel = "x",   conv_kwargs...)
+
+for (row, (ax, conversion)) in enumerate(zip((ax_wb, ax_wbᵣ, ax_dif), (wb_map, wbᵣ_map, wb✶_map)))
+    hm = heatmap!(ax, xs, zs, conversion; colormap = :balance, colorrange = (-lim, lim))
+    Colorbar(fig5[2row + 1, 1], hm; vertical = false, height = 8)
+end
+
+Label(fig5[1, 1], "Conversion terms,  t = " * string(round(t_peak, digits = 1)),
+      fontsize = 22, tellwidth = false)
+
+resize_to_layout!(fig5)
+save("lock_release_conversion.png", fig5)
+set_theme!() #hide
+nothing #hide
+
+# ![](lock_release_conversion.png)
+#
+# `wbᵣ` is the local release of `eₐ`: it vanishes wherever a parcel already carries the buoyancy its own
+# height calls for, whatever the vertical velocity is doing there. `wb` does not, since it counts the
+# reference stratification's own contribution as well, which is the horizontally banded pattern in the
+# bottom panel. Only `wbᵣ` maps where available potential energy is actually being converted; only in
+# the volume integral can `wb` stand in for it.
