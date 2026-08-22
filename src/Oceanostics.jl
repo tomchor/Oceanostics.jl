@@ -85,12 +85,13 @@ export PotentialEnergyTendency, PotentialEnergyAdvection, PotentialEnergyBuoyanc
 #+++ BackgroundPotentialEnergyEquation exports
 # `reference_height`, `reference_buoyancy` and the reference-height methods are defined here and
 # re-exported by `AvailablePotentialEnergyEquation`, since both budgets are built on them.
-export BackgroundPotentialEnergy, reference_height, reference_buoyancy
+export BackgroundPotentialEnergy, reference_height, reference_buoyancy, reference_buoyancy_at_height
 export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 #---
 
 #+++ AvailablePotentialEnergyEquation exports
-export AvailablePotentialEnergy, BuoyancyDisplacementPotential, AvailablePotentialEnergyDissipationRate
+export AvailablePotentialEnergy, DisplacementPotential, AvailablePotentialEnergyDissipationRate
+export ReferenceBuoyancyAnomaly, AvailablePotentialToKineticEnergyConversion
 #---
 
 #+++ FilteredAvailablePotentialEnergyEquation exports
@@ -455,8 +456,10 @@ end
 
 #+++ AvailablePotentialEnergyEquation
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergy                "AvailablePotentialEnergy"                "local available potential energy density  eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0"
-@diagnostic_show AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential           "BuoyancyDisplacementPotential"           "buoyancy displacement potential  Υ = z✶ - z"
+@diagnostic_show AvailablePotentialEnergyEquation.DisplacementPotential           "DisplacementPotential"           "displacement potential  Υ = z✶ - z"
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  εₐ = κ ∂ᵢb ∂ᵢΥ"
+@diagnostic_show AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly                "ReferenceBuoyancyAnomaly"                "reference buoyancy anomaly  bᵣ = b - b✶(z)"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion "AvailablePotentialToKineticEnergyConversion" "available potential to kinetic energy conversion  wbᵣ"
 #---
 
 #+++ FilteredAvailablePotentialEnergyEquation

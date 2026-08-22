@@ -2,7 +2,8 @@ module AvailablePotentialEnergyEquation
 
 using DocStringExtensions
 
-export AvailablePotentialEnergy, BuoyancyDisplacementPotential
+export AvailablePotentialEnergy, DisplacementPotential
+export ReferenceBuoyancyAnomaly, AvailablePotentialToKineticEnergyConversion
 export AvailablePotentialEnergyDissipationRate, DissipationRate
 # `Φ` is a term of the `eₚ` equation and lives in `PotentialEnergyEquation`; re-exported here because
 # `εₐ` is defined as the diapycnal mixing rate less `Φ`, so the two are almost always wanted together.
@@ -11,7 +12,7 @@ export PotentialEnergyDiffusiveVerticalBuoyancyFlux
 export PotentialToKineticEnergyConversion, KineticEnergyConversion
 # The reference state lives in `BackgroundPotentialEnergyEquation`; re-exported here so either module
 # can be used on its own without reaching across for the pieces that build `z✶`.
-export BackgroundPotentialEnergy, reference_height, reference_buoyancy
+export BackgroundPotentialEnergy, reference_height, reference_buoyancy, reference_buoyancy_at_height
 export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -31,7 +32,8 @@ using ..PotentialEnergyEquation: PotentialEnergy, PotentialEnergyDiffusiveVertic
                                  buoyancy_diffusive_flux_arguments
 using ..BackgroundPotentialEnergyEquation: BackgroundPotentialEnergy, SortedReferenceHeightField,
                                            AbstractReferenceHeightMethod, reference_height,
-                                           reference_buoyancy, sorted_height, ThreeDimensionalSort,
+                                           reference_buoyancy, reference_buoyancy_at_height,
+                                           sorted_height, ThreeDimensionalSort,
                                            HeavisideIntegral, VerticalSort, ProfileLookup
 
 #+++ Available potential energy
@@ -125,12 +127,12 @@ validate_reference_height_grid(diagnostic, model, z✶) =
 #+++ Buoyancy displacement potential
 @inline upsilon_ccc(i, j, k, grid, z✶) = @inbounds z✶[i, j, k] - Zᶜᶜᶜ(i, j, k, grid)
 
-const BuoyancyDisplacementPotential = CustomKFO{<:typeof(upsilon_ccc)}
+const DisplacementPotential = CustomKFO{<:typeof(upsilon_ccc)}
 
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` computing the buoyancy displacement potential
+Return a `KernelFunctionOperation` computing the displacement potential
 
 ```
     Υ = z✶ - z
@@ -166,28 +168,174 @@ using Oceananigans, Oceanostics
 grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
 model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
 
-BuoyancyDisplacementPotential(model)
+DisplacementPotential(model)
 
 # output
 
-BuoyancyDisplacementPotential KernelFunctionOperation at (Center, Center, Center)
+DisplacementPotential KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: upsilon_ccc (generic function with 1 method)
 └── arguments: ("Field",)
-└── computes: buoyancy displacement potential  Υ = z✶ - z
+└── computes: displacement potential  Υ = z✶ - z
 ```
 """
-function BuoyancyDisplacementPotential(model; method = HeavisideIntegral(),
+function DisplacementPotential(model; method = HeavisideIntegral(),
                                        geopotential_height = model_geopotential_height(model),
                                        location = (Center, Center, Center))
-    validate_location(location, "BuoyancyDisplacementPotential")
-    return BuoyancyDisplacementPotential(model, reference_height(model; method, geopotential_height))
+    validate_location(location, "DisplacementPotential")
+    return DisplacementPotential(model, reference_height(model; method, geopotential_height))
 end
 
-function BuoyancyDisplacementPotential(model, z✶::SortedReferenceHeightField)
-    validate_gravity_is_z_aligned("BuoyancyDisplacementPotential", model)
-    validate_reference_height_grid("BuoyancyDisplacementPotential", model, z✶)
+function DisplacementPotential(model, z✶::SortedReferenceHeightField)
+    validate_gravity_is_z_aligned("DisplacementPotential", model)
+    validate_reference_height_grid("DisplacementPotential", model, z✶)
     return KernelFunctionOperation{Center, Center, Center}(upsilon_ccc, z✶.grid, z✶)
+end
+#---
+
+#+++ Reference buoyancy anomaly
+@inline reference_buoyancy_anomaly_ccc(i, j, k, grid, b, b✶ᶻ) = @inbounds b[i, j, k] - b✶ᶻ[i, j, k]
+
+const ReferenceBuoyancyAnomaly = CustomKFO{<:typeof(reference_buoyancy_anomaly_ccc)}
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` computing the buoyancy anomaly a parcel carries relative to the
+adiabatically sorted reference profile taken at the parcel's **own** height,
+
+```
+    bᵣ = b - b✶(z) ,
+```
+
+the buoyancy form of `b_r(ρ, z) = -g(ρ - ρ✶(z))/ρ₀` in
+[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879), their Eq. (8). It is what the
+available potential energy exchanges with the kinetic energy
+([`AvailablePotentialToKineticEnergyConversion`](@ref)), and the buoyancy-space counterpart of
+[`DisplacementPotential`](@ref): `Υ = z✶ - z` measures a parcel's displacement from the reference state
+as a height, `bᵣ` measures it as a buoyancy, and both vanish exactly where the fluid is already sorted.
+
+Note that `b✶(z)` is the reference profile at the height the parcel actually occupies, which is not
+[`reference_buoyancy`](@ref): that pairs the profile with `z✶` instead, and `b✶(z✶)` is the parcel's own
+buoyancy, so the anomaly built from it would be zero everywhere. The profile is sampled by
+[`reference_buoyancy_at_height`](@ref), which reads it off the sort rather than repeating it.
+
+The result lives at `(Center, Center, Center)` and is a buoyancy (units `m s⁻²`). `z✶` is the reference
+height computed by [`reference_height`](@ref); pass one explicitly to share a single sort with the
+other reference-state diagnostics, or pass `method` through to choose how it is built. It has to be one
+that lives on the model grid, so [`VerticalSort`](@ref) is rejected.
+
+```jldoctest
+using Oceananigans, Oceanostics
+
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+
+ReferenceBuoyancyAnomaly(model)
+
+# output
+
+ReferenceBuoyancyAnomaly KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: reference_buoyancy_anomaly_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field")
+└── computes: reference buoyancy anomaly  bᵣ = b - b✶(z)
+```
+"""
+function ReferenceBuoyancyAnomaly(model; method = HeavisideIntegral(),
+                                  geopotential_height = model_geopotential_height(model),
+                                  location = (Center, Center, Center))
+    validate_location(location, "ReferenceBuoyancyAnomaly")
+    return ReferenceBuoyancyAnomaly(model, reference_height(model; method, geopotential_height))
+end
+
+function ReferenceBuoyancyAnomaly(model, z✶::SortedReferenceHeightField)
+    validate_gravity_is_z_aligned("ReferenceBuoyancyAnomaly", model)
+    validate_reference_height_grid("ReferenceBuoyancyAnomaly", model, z✶)
+
+    return KernelFunctionOperation{Center, Center, Center}(reference_buoyancy_anomaly_ccc, z✶.grid,
+                                                           reference_buoyancy(z✶.operand),
+                                                           reference_buoyancy_at_height(z✶))
+end
+#---
+
+#+++ Available potential to kinetic energy conversion
+# The product is formed on the face where `w` lives and only then interpolated to the cell center,
+# which is the discretization `PotentialToKineticEnergyConversion` uses for `wb` (its `z_dot_g_bᶜᶜᶠ` is
+# the same `ℑzᵃᵃᶠ` of a cell-centered buoyancy). Since `bᵣ = b - b✶(z)` and interpolation is linear,
+# the two conversions then differ by exactly `w b✶(z)` cell by cell rather than only in the mean.
+@inline w_bᵣᶜᶜᶠ(i, j, k, grid, w, bᵣ) = @inbounds w[i, j, k] * ℑzᵃᵃᶠ(i, j, k, grid, bᵣ)
+
+@inline ape_to_ke_conversion_ccc(i, j, k, grid, w, bᵣ) = ℑzᵃᵃᶜ(i, j, k, grid, w_bᵣᶜᶜᶠ, w, bᵣ)
+
+const AvailablePotentialToKineticEnergyConversion = CustomKFO{<:typeof(ape_to_ke_conversion_ccc)}
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` computing the rate at which available potential energy is converted
+into kinetic energy,
+
+```
+    w bᵣ = w [b - b✶(z)] ,
+```
+
+the exchange term of the local available potential energy equation of
+[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879), which the `eₐ` budget takes with a
+minus sign and the kinetic energy budget with a plus.
+
+This is **not** [`PotentialToKineticEnergyConversion`](@ref), which computes `uᵢbᵢ` over the total
+buoyancy (`wb` under the vertical gravity these diagnostics require) and belongs to the `eₚ` budget.
+The two differ by `w b✶(z)`, the exchange between the kinetic energy and the background state, and that
+difference is why the pressure that goes with this budget is the deviation from the hydrostatic
+pressure of the reference profile. As fields they are different maps; `w b✶(z)` is a flux divergence,
+so the two only agree once integrated over a periodic or closed domain:
+
+```
+    ∫ w bᵣ dV = ∫ w b dV .
+```
+
+The anomaly `bᵣ` is [`ReferenceBuoyancyAnomaly`](@ref), built here unless one is passed as `anomaly`,
+which is worth doing when both are wanted, since a `Field` of it is then computed once. `z✶` is the
+reference height computed by [`reference_height`](@ref); it has to be one that lives on the model grid,
+so [`VerticalSort`](@ref) is rejected. The result lives at `(Center, Center, Center)` and is a
+conversion rate per unit mass (units `m² s⁻³`).
+
+```jldoctest
+using Oceananigans, Oceanostics
+
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+
+z✶ = reference_height(model, method=HeavisideIntegral())
+bᵣ = Field(ReferenceBuoyancyAnomaly(model, z✶))   # share the anomaly between the two
+AvailablePotentialToKineticEnergyConversion(model, z✶; anomaly=bᵣ)
+
+# output
+
+AvailablePotentialToKineticEnergyConversion KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ape_to_ke_conversion_ccc (generic function with 1 method)
+└── arguments: ("Field", "Field")
+└── computes: available potential to kinetic energy conversion  wbᵣ
+```
+"""
+function AvailablePotentialToKineticEnergyConversion(model; method = HeavisideIntegral(),
+                                                     geopotential_height = model_geopotential_height(model),
+                                                     location = (Center, Center, Center))
+    validate_location(location, "AvailablePotentialToKineticEnergyConversion")
+    return AvailablePotentialToKineticEnergyConversion(model, reference_height(model; method, geopotential_height))
+end
+
+function AvailablePotentialToKineticEnergyConversion(model, z✶::SortedReferenceHeightField; anomaly = nothing)
+
+    validate_gravity_is_z_aligned("AvailablePotentialToKineticEnergyConversion", model)
+    validate_reference_height_grid("AvailablePotentialToKineticEnergyConversion", model, z✶)
+
+    bᵣ = isnothing(anomaly) ? ReferenceBuoyancyAnomaly(model, z✶) : anomaly
+
+    return KernelFunctionOperation{Center, Center, Center}(ape_to_ke_conversion_ccc, z✶.grid,
+                                                           model.velocities.w, bᵣ)
 end
 #---
 
@@ -229,7 +377,7 @@ energy,
 
 the sink of the local available potential energy equation of
 [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) (their Eqs. 11 and 14, where it
-appears as `-εₐ`), with `Υ` the [`BuoyancyDisplacementPotential`](@ref). It follows from
+appears as `-εₐ`), with `Υ` the [`DisplacementPotential`](@ref). It follows from
 `∂eₐ/∂b = Υ`, which makes the diffusive part of `Deₐ/Dt` equal to `Υκ∇²b = ∇·(κΥ∇b) - κ∇Υ·∇b`: once
 the flux divergence is set aside, `εₐ = κ∇Υ·∇b` is what remains.
 
@@ -257,7 +405,7 @@ to build a `z✶` it then uses for nothing but a grid check.
 
 `z✶` is the reference height computed by [`reference_height`](@ref), and has to be one that lives on
 the model grid, since `∇b` is taken there; [`HeavisideIntegral`](@ref) is the default for the reason
-[`BuoyancyDisplacementPotential`](@ref) gives. `upsilon` takes a `Υ` you already have, so that writing
+[`DisplacementPotential`](@ref) gives. `upsilon` takes a `Υ` you already have, so that writing
 both out costs one sort and one `Υ` rather than two of each:
 
 ```jldoctest
@@ -267,7 +415,7 @@ grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Per
 model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
 
 z✶ = reference_height(model, method=HeavisideIntegral())
-Υ = Field(BuoyancyDisplacementPotential(model, z✶))
+Υ = Field(DisplacementPotential(model, z✶))
 AvailablePotentialEnergyDissipationRate(model, z✶; upsilon=Υ)
 
 # output
@@ -293,7 +441,7 @@ function AvailablePotentialEnergyDissipationRate(model, z✶::SortedReferenceHei
     validate_gravity_is_z_aligned("AvailablePotentialEnergyDissipationRate", model)
     validate_reference_height_grid("AvailablePotentialEnergyDissipationRate", model, z✶)
 
-    Υ = isnothing(upsilon) ? Field(BuoyancyDisplacementPotential(model, z✶)) : upsilon
+    Υ = isnothing(upsilon) ? Field(DisplacementPotential(model, z✶)) : upsilon
 
     return KernelFunctionOperation{Center, Center, Center}(ape_dissipation_rate_ccc, model.grid,
                                                            Υ, buoyancy_diffusive_flux_arguments(model)...)

@@ -549,17 +549,94 @@ fixed by `z✶` and the grid alone. Checking it against that difference pins the
 thing about `Υ` a reader cannot verify from the result. Sorting moves cells between heights but no
 volume, so `Υ` also has to average to zero over the domain.
 """
-function test_buoyancy_displacement_potential(grid; method = HeavisideIntegral())
+function test_displacement_potential(grid; method = HeavisideIntegral())
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = grid_noise)
 
     z✶ = AvailablePotentialEnergyEquation.reference_height(model; method)
-    Υ  = BuoyancyDisplacementPotential(model, z✶)
-    @test Υ isa BuoyancyDisplacementPotential
+    Υ  = DisplacementPotential(model, z✶)
+    @test Υ isa DisplacementPotential
 
     @test interior(Field(Υ)) ≈ interior(z✶) .- interior(Field(height_operation(grid)))
     @test volume_mean(Υ) ≈ 0 atol = sqrt(eps(eltype(grid))) * grid.Lz
+
+    return nothing
+end
+
+"""
+`bᵣ` is the buoyancy a parcel carries relative to the reference profile at its *own* height, so the
+sharp check is against that profile rather than against the anomaly's own kernel: `b✶(z)` is the
+buoyancy of whichever slot of the sorted column contains `z`, which for a horizontally uniform
+stratification is the parcel's own level. Sorting cannot move fluid between levels there, so `bᵣ`
+vanishes cell by cell — the same statement `Υ = 0` makes about the displacement, in buoyancy rather
+than in height.
+"""
+function test_reference_buoyancy_anomaly(grid; method = HeavisideIntegral())
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = grid_noise)
+
+    z✶  = AvailablePotentialEnergyEquation.reference_height(model; method)
+    b✶ᶻ = BackgroundPotentialEnergyEquation.reference_buoyancy_at_height(z✶)
+    bᵣ  = ReferenceBuoyancyAnomaly(model, z✶)
+    @test bᵣ isa ReferenceBuoyancyAnomaly
+
+    @test interior(Field(bᵣ)) ≈ interior(model.tracers.b) .- interior(b✶ᶻ)
+
+    # Every cell's `b✶(z)` is one of the buoyancies the field holds, since the profile is the sorted
+    # field itself: reading it off any other profile would show up here.
+    @test all(b -> b ∈ interior(model.tracers.b), interior(b✶ᶻ))
+
+    sorted = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(sorted, b = (x, y, z) -> 3z)
+    @test maximum(abs, interior(Field(ReferenceBuoyancyAnomaly(sorted; method)))) == 0
+
+    return nothing
+end
+
+"""
+The `eₐ` budget converts at `w bᵣ` while the `eₚ` budget converts at `wb`, and the two differ by
+`w b✶(z)`. Both products are formed on the same face and interpolated the same way, so that difference
+is exact cell by cell rather than approximate, which is what this pins down: the conversion is fed the
+reference profile itself in place of the anomaly to compute `w b✶(z)`.
+
+`w b✶(z)` is a flux divergence, so it integrates away and leaves `∫w bᵣ dV = ∫wb dV` — the identity the
+lock release example's integrated budget rests on, and the reason `PotentialToKineticEnergyConversion`
+closes it despite not being this quantity.
+"""
+function test_ape_to_ke_conversion(grid; method = HeavisideIntegral())
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = (x, y, z) -> z + 0.3sin(6x)*cos(4y)*z, w = (x, y, z) -> 0.2sin(3x)*sin(2y)*sin(π*z/grid.Lz))
+
+    z✶  = AvailablePotentialEnergyEquation.reference_height(model; method)
+    b✶ᶻ = BackgroundPotentialEnergyEquation.reference_buoyancy_at_height(z✶)
+    bᵣ  = Field(ReferenceBuoyancyAnomaly(model, z✶))
+
+    wbᵣ = AvailablePotentialToKineticEnergyConversion(model, z✶; anomaly = bᵣ)
+    wb✶ = AvailablePotentialToKineticEnergyConversion(model, z✶; anomaly = b✶ᶻ)
+    wb  = PotentialToKineticEnergyConversion(model)
+    @test wbᵣ isa AvailablePotentialToKineticEnergyConversion
+
+    @test interior(Field(wb)) ≈ interior(Field(wbᵣ)) .+ interior(Field(wb✶))
+
+    # The two conversions are different fields, so the identity above is a statement about the split
+    # and not about them being the same thing.
+    @test !(interior(Field(wbᵣ)) ≈ interior(Field(wb)))
+
+    FT = eltype(grid)
+    scale = maximum(abs, interior(Field(wb)))
+    @test volume_mean(wb✶) ≈ 0 atol = sqrt(eps(FT)) * scale
+    @test volume_mean(wbᵣ) ≈ volume_mean(wb)
+
+    # Built without a prebuilt anomaly it has to give the same answer, sorting on its own.
+    @test interior(Field(AvailablePotentialToKineticEnergyConversion(model; method))) ≈ interior(Field(wbᵣ))
+
+    # A sorted field has no available energy to release, whatever the velocity does.
+    sorted = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(sorted, b = (x, y, z) -> 3z, w = (x, y, z) -> 0.2sin(3x)*sin(π*z/grid.Lz))
+    @test maximum(abs, interior(Field(AvailablePotentialToKineticEnergyConversion(sorted; method)))) == 0
 
     return nothing
 end
@@ -603,7 +680,7 @@ function test_ape_dissipation_vanishes_when_sorted(grid)
     scale = maximum(abs, interior(Field(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)))) / 2
     @test scale > 0   # otherwise the assertion below would hold for any implementation
 
-    @test maximum(abs, interior(Field(BuoyancyDisplacementPotential(model)))) < sqrt(eps(FT)) * grid.Lz
+    @test maximum(abs, interior(Field(DisplacementPotential(model)))) < sqrt(eps(FT)) * grid.Lz
     @test maximum(abs, interior(Field(AvailablePotentialEnergyDissipationRate(model)))) < sqrt(eps(FT)) * scale
 
     return nothing
@@ -634,7 +711,7 @@ function test_ape_dissipation_is_recomputed(grid)
     @test interior(εₐ) ≈ interior(Field(AvailablePotentialEnergyDissipationRate(model)))
 
     z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
-    shared = Field(BuoyancyDisplacementPotential(model, z✶))
+    shared = Field(DisplacementPotential(model, z✶))
     @test interior(Field(AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = shared))) ≈ interior(εₐ)
 
     return nothing
@@ -653,7 +730,7 @@ function test_ape_dissipation_plus_diffusive_flux_is_the_mixing_rate(grid)
     set!(model, b = (x, y, z) -> 2z + 0.4 * sin(7x) * cos(5z))
 
     z✶  = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
-    Υ   = Field(BuoyancyDisplacementPotential(model, z✶))
+    Υ   = Field(DisplacementPotential(model, z✶))
     εₐ = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = Υ)
     Φ   = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)
 
@@ -692,8 +769,10 @@ function test_upsilon_and_ape_dissipation_errors(grid)
     set!(model, b = grid_noise)
     column = AvailablePotentialEnergyEquation.reference_height(model, method=VerticalSort())
 
-    @test_throws "model grid" BuoyancyDisplacementPotential(model, column)
+    @test_throws "model grid" DisplacementPotential(model, column)
     @test_throws "model grid" AvailablePotentialEnergyDissipationRate(model, column)
+    @test_throws "model grid" ReferenceBuoyancyAnomaly(model, column)
+    @test_throws "model grid" AvailablePotentialToKineticEnergyConversion(model, column)
 
     return nothing
 end
@@ -722,8 +801,10 @@ function test_tilted_gravity_is_rejected(grid)
     z✶ = AvailablePotentialEnergyEquation.reference_height(model.tracers.b; method = HeavisideIntegral())
     @test_throws "`BackgroundPotentialEnergy`" BackgroundPotentialEnergy(model, z✶)
     @test_throws "`AvailablePotentialEnergy`" AvailablePotentialEnergy(model, z✶)
-    @test_throws "`BuoyancyDisplacementPotential`" BuoyancyDisplacementPotential(model, z✶)
+    @test_throws "`DisplacementPotential`" DisplacementPotential(model, z✶)
     @test_throws "`AvailablePotentialEnergyDissipationRate`" AvailablePotentialEnergyDissipationRate(model, z✶)
+    @test_throws "`ReferenceBuoyancyAnomaly`" ReferenceBuoyancyAnomaly(model, z✶)
+    @test_throws "`AvailablePotentialToKineticEnergyConversion`" AvailablePotentialToKineticEnergyConversion(model, z✶)
 
     return nothing
 end
@@ -765,8 +846,12 @@ end
         @info "      Testing that the local available potential energy is non-negative"
         test_local_ape_is_non_negative(grid)
 
-        @info "      Testing the buoyancy displacement potential and the APE dissipation rate"
-        test_buoyancy_displacement_potential(grid; method = grid_method)
+        @info "      Testing the displacement potential and the APE dissipation rate"
+        test_displacement_potential(grid; method = grid_method)
+
+        @info "      Testing the reference buoyancy anomaly and the APE to KE conversion"
+        test_reference_buoyancy_anomaly(grid; method = grid_method)
+        test_ape_to_ke_conversion(grid; method = grid_method)
         test_ape_dissipation_matches_tracer_variance_discretization(grid)
         test_ape_dissipation_vanishes_when_sorted(grid)
         test_ape_dissipation_is_recomputed(grid)

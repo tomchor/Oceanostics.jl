@@ -90,9 +90,13 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   diagnosed), and `VerticalSort` (the sorted column on its own `1×1×N` grid of equal-volume cells).
   Only the last three actually sort: `ProfileLookup` handed an external profile does not.
   `reference_buoyancy(z✶)` returns the buoyancy that pairs with z✶ cell by cell, which is the sorted
-  profile b✶ under `VerticalSort` and the model's own buoyancy under the model-grid methods. It also
-  owns `Ψ = ∫b✶dz̃` (`reference_potential`), a property of the reference profile that
-  `AvailablePotentialEnergy` consumes. No method runs on an `ImmersedBoundaryGrid` yet. The profile
+  profile b✶ under `VerticalSort` and the model's own buoyancy under the model-grid methods.
+  `reference_buoyancy_at_height(z✶)` is the other sampling of the same profile, b✶(z) at each cell's
+  *own* height, which is what `ReferenceBuoyancyAnomaly` measures b against; its field reads the
+  profile off the sort through `s.permutation` (`reference_profile`) rather than sorting again, and is
+  piecewise constant on the same slots `Ψ` integrates, so b✶(z) is that `Ψ`'s derivative rather than a
+  second reconstruction. It also owns `Ψ = ∫b✶dz̃` (`reference_potential`), a property of the reference
+  profile that `AvailablePotentialEnergy` consumes. No method runs on an `ImmersedBoundaryGrid` yet. The profile
   arrays live wherever the field does, so this module must stay clear of host-side element access:
   single-element writes go through one-element broadcasts (`@views f[1:1] .= x`) and ordering checks
   through `is_nondecreasing` rather than `issorted`, since both `setindex!` and `issorted`'s iteration
@@ -100,10 +104,21 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `PotentialEnergyEquation`, so it is included after it
 - **`AvailablePotentialEnergyEquation`**: the other half of the Winters et al. (1995) split,
   `AvailablePotentialEnergy` (Eₐ), computed in the local Holliday & McIntyre (1981) form
-  `∫[b✶(z̃) - b]dz̃`, which is non-negative everywhere rather than only in the integral. Built on
-  `BackgroundPotentialEnergyEquation`, so it is included after it, and it re-exports
-  `reference_height`, `reference_buoyancy` and the four reference-height methods so either module can
-  be used on its own
+  `∫[b✶(z̃) - b]dz̃`, which is non-negative everywhere rather than only in the integral, plus the terms
+  of its budget: `DisplacementPotential` (Υ = z✶ - z, named `BuoyancyDisplacementPotential` before
+  0.20), `AvailablePotentialEnergyDissipationRate` (εₐ = -qⱼ∂ⱼΥ), `ReferenceBuoyancyAnomaly`
+  (bᵣ = b - b✶(z)) and `AvailablePotentialToKineticEnergyConversion` (wbᵣ). That last one is *not*
+  `PotentialToKineticEnergyConversion`, which is uᵢbᵢ over the total buoyancy and belongs to the eₚ
+  budget: the two differ by wb✶(z), the exchange with the background state, and since both form the
+  product on the same face (`ℑzᵃᵃᶠ` of a cell-centered buoyancy, which is what `z_dot_g_bᶜᶜᶠ` is under
+  a vertical gravity) the split wb = wbᵣ + wb✶ holds to roundoff cell by cell, not just in the volume
+  integral where wb✶ integrates away. `wbᵣ` takes its anomaly as a KFO argument, so passing
+  `anomaly = Field(...)` shares one computed anomaly the way `upsilon` shares one Υ — and handing it
+  `reference_buoyancy_at_height(z✶)` instead is how the tests form wb✶. Υ, bᵣ, wbᵣ and εₐ are maps on
+  the model grid, so all four reject `VerticalSort` (`validate_reference_height_grid`) and default to
+  `HeavisideIntegral`. Built on `BackgroundPotentialEnergyEquation`, so it is included after it, and it
+  re-exports `reference_height`, `reference_buoyancy`, `reference_buoyancy_at_height` and the four
+  reference-height methods so either module can be used on its own
 - **`FilteredAvailablePotentialEnergyEquation`**: the APE of the *filtered* buoyancy and its
   dissipation — `FilteredAvailablePotentialEnergy` (Eₐˡ = eₐ(b̄, z), the local APE kernel evaluated on
   the reference height of b̄ = filter(b); its kernel `filtered_ape_ccc` just forwards to
