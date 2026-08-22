@@ -74,37 +74,40 @@ example for an application of this budget.
 
 ## Terms and what is implemented
 
-Three of the quantities above have diagnostics of their own. The conversion has one that matches it
-only under a volume integral, and the two transports and ``R`` have none.
+Five of the quantities above have diagnostics; the two transport terms and ``R`` have none.
 
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
 | Available potential energy | ``e_a = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z,\, t) - b\right] \mathrm{d}\tilde z`` | [`AvailablePotentialEnergy`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy) |
-| Displacement potential | ``\Upsilon = z^\star - z`` | [`BuoyancyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential) |
+| Displacement potential | ``\Upsilon = z^\star - z`` | [`DisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.DisplacementPotential) |
 | Advection | ``\partial_j(u_j e_a)`` | not implemented |
-| APE to KE conversion | ``w b_r``, with ``b_r = b - b^\star(z,\, t)`` | not implemented |
+| Buoyancy anomaly | ``b_r = b - b^\star(z,\, t)`` | [`ReferenceBuoyancyAnomaly`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly) |
+| APE to KE conversion | ``w b_r`` | [`AvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion) |
 | Diffusive transport | ``\partial_j(\Upsilon q_j)`` | not implemented |
 | Dissipation | ``\varepsilon_a = -q_j \, \partial_j \Upsilon`` | [`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate) |
 | Reference tendency | ``R = \int_{z^\star}^{z} \partial_t b^\star(\tilde z,\, t) \, \mathrm{d}\tilde z`` | not implemented |
 
 The available potential energy converts to kinetic energy at a rate set by the buoyancy anomaly
 ``b_r``, not by the buoyancy itself. The remainder ``w \, b^\star(z,\, t)`` exchanges kinetic energy
-with the background state. Their
-sum,
+with the background state. Their sum,
 
 ```math
 w b = w b_r + w \, b^\star(z,\, t) ,
 ```
 
-is implemented as [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion).
-Under a volume integral the distinction goes away since ``w \, b^\star(z,\, t)`` is a divergence.
+is [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion),
+the conversion of the ``e_p`` budget. Both are formed from the same face-centered product, so the split
+holds cell by cell; under a volume integral the distinction goes away entirely, since
+``w \, b^\star(z,\, t)`` is a divergence.
 
-The three diagnostics this module defines are built on the reference state of
+Every diagnostic here is built on the reference state of
 [the background potential energy equation](background_potential_energy_equation.md), whose
 [`reference_height`](@ref Oceanostics.BackgroundPotentialEnergyEquation.reference_height) supplies
-``z^\star`` and
+``z^\star``,
 [`reference_buoyancy`](@ref Oceanostics.BackgroundPotentialEnergyEquation.reference_buoyancy) the
-profile ``b^\star``; both are re-exported here, as is
+profile ``b^\star`` paired with it, and
+[`reference_buoyancy_at_height`](@ref Oceanostics.BackgroundPotentialEnergyEquation.reference_buoyancy_at_height)
+the ``b^\star(z,\, t)`` that ``b_r`` is measured against; all three are re-exported here, as is
 [`DiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux),
 the flux ``\Phi = -q_3`` that ``\varepsilon_a`` leaves out of the diapycnal mixing rate of
 [Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X).
@@ -114,6 +117,8 @@ the flux ``\Phi = -q_3`` that ``\varepsilon_a`` leaves out of the diapycnal mixi
 
 ```@docs
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy
-Oceanostics.AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential
+Oceanostics.AvailablePotentialEnergyEquation.DisplacementPotential
+Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly
+Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate
 ```

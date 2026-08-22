@@ -119,7 +119,7 @@ KE            = KineticEnergy(model)
 # two budgets and so cancels from their sum, and the two sinks.
 #
 # ``\varepsilon_a`` is the term this example is built around. It is the contraction of the buoyancy
-# gradient with the [`BuoyancyDisplacementPotential`](@ref) ``\Upsilon = z^\star - z``, which is
+# gradient with the [`DisplacementPotential`](@ref) ``\Upsilon = z^\star - z``, which is
 # ``\partial e_a / \partial b`` and hence the conjugate of ``b``:
 #
 # ```math

@@ -66,7 +66,7 @@ survives in a simulation with no explicit diffusion came from the advection sche
 
 ``\phi_d`` has no diagnostic of its own, and needs none, because it splits into two that do. Writing it
 as ``\kappa \nabla b \cdot \nabla z^\star`` and substituting ``z^\star = z + \Upsilon``, with
-``\Upsilon`` the [buoyancy displacement potential](available_potential_energy_equation.md),
+``\Upsilon`` the [displacement potential](available_potential_energy_equation.md),
 
 ```math
 \phi_d = \kappa \nabla b \cdot \nabla z^\star
@@ -257,6 +257,7 @@ Oceanostics.BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy
 ```@docs
 Oceanostics.BackgroundPotentialEnergyEquation.reference_height
 Oceanostics.BackgroundPotentialEnergyEquation.reference_buoyancy
+Oceanostics.BackgroundPotentialEnergyEquation.reference_buoyancy_at_height
 Oceanostics.BackgroundPotentialEnergyEquation.AbstractReferenceHeightMethod
 Oceanostics.BackgroundPotentialEnergyEquation.ThreeDimensionalSort
 Oceanostics.BackgroundPotentialEnergyEquation.HeavisideIntegral
