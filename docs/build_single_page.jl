@@ -12,6 +12,31 @@
 #
 # Both stay set for the rest of the session. The full docs are still built with `docs/make.jl`; this
 # is a fast loop for one page, not a substitute for it.
+#
+# An example page is a special case. Those are Literate scripts under `docs/examples`, rendered to
+# `docs/src/generated/<name>.md`, and it is that generated page this script stages:
+#
+#     julia> PAGE = "generated/lock_release.md"; include("docs/build_single_page.jl")
+#
+# Editing the `.jl` therefore changes nothing here until Literate regenerates the page. For a preview
+# of the prose and the structure, regenerate it in CommonMark flavor, which emits plain fenced code
+# blocks:
+#
+#     julia> using Literate
+#     julia> Literate.markdown("docs/examples/lock_release.jl", "docs/src/generated";
+#                              execute = false, flavor = Literate.CommonMarkFlavor())
+#
+# That takes seconds, runs none of the code, and drops the `#hide` lines. `DocumenterFlavor` is the
+# wrong tool for a preview: it emits `@example` blocks, which Documenter runs itself while expanding
+# the page, so `execute = false` hands the simulation to `makedocs` rather than skipping it, and in
+# this staged directory it fails outright when the example's output writer looks for a NetCDF file
+# that is not there. `make.jl` pairs that flavor with `execute = true`, which bakes the outputs in and
+# takes the several minutes this script exists to avoid.
+#
+# Two more things to know. The figures and movies live beside the page in `docs/src/generated` and are
+# not staged here, so they render as broken links. And `make.jl` reuses any generated page newer than
+# its `.jl`, so a page left behind by a preview would be reused as it stands: delete it, or touch the
+# `.jl`, before the next full build.
 
 #+++ Environment (only the first `include` of a session pays for this)
 using Pkg
