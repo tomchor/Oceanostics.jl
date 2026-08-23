@@ -587,8 +587,11 @@ function test_reference_buoyancy_anomaly(grid; method = HeavisideIntegral())
     @test interior(Field(bᵣ)) ≈ interior(model.tracers.b) .- interior(b✶ᶻ)
 
     # Every cell's `b✶(z)` is one of the buoyancies the field holds, since the profile is the sorted
-    # field itself: reading it off any other profile would show up here.
-    @test all(b -> b ∈ interior(model.tracers.b), interior(b✶ᶻ))
+    # field itself: reading it off any other profile would show up here. Both sides come to the host
+    # first: `∈` over one array inside a reduction over another is a nested reduction, which a GPU
+    # cannot run (`mapreduce cannot figure the output element type`), and a `Set` keeps it linear.
+    buoyancies = Set(Array(interior(model.tracers.b)))
+    @test all(b -> b ∈ buoyancies, Array(interior(b✶ᶻ)))
 
     sorted = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(sorted, b = (x, y, z) -> 3z)
