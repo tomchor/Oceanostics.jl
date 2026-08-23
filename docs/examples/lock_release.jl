@@ -425,13 +425,13 @@ nothing #hide
 # energy curves use; the pair as a whole is what gives `d/dt` further down.
 
 ds = NCDataset(simulation.output_writers[:budget].filepath)
-t_bud    = ds["time"][:]
-BPE_bud  = ds["∫BPE"][:]
-APE_bud  = ds["∫APE_heaviside"][:]
-KE_bud   = ds["∫KE"][:]
-wb_bud   = ds["∫wb"][:]
-wbᵣ_bud  = ds["∫wbᵣ"][:]
-ε_bud    = ds["∫εₖ"][:]
+t_bud   = ds["time"][:]
+BPE_bud = ds["∫BPE"][:]
+APE_bud = ds["∫APE_heaviside"][:]
+KE_bud  = ds["∫KE"][:]
+wb_bud  = ds["∫wb"][:]
+wbᵣ_bud = ds["∫wbᵣ"][:]
+εₖ_bud  = ds["∫εₖ"][:]
 εₐ_bud  = ds["∫εₐ"][:]
 ## all four methods integrate to the same eₐ, however they place cells of equal buoyancy  #hide
 @test ds["∫APE"][:]        ≈ APE_bud rtol=1e-8                                             #hide
@@ -499,25 +499,25 @@ pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
 
 wb_pair  = pair_mean(wb_bud);
 wbᵣ_pair = pair_mean(wbᵣ_bud);
-ε_pair   = pair_mean(ε_bud);
-εₐ_pair = pair_mean(εₐ_bud);
+εₖ_pair  = pair_mean(εₖ_bud);
+εₐ_pair  = pair_mean(εₐ_bud);
 
 # Both budgets are written in sum-to-zero form: each curve is plotted with the sign it carries here, so
 # the panels below add up to the residual.
 
-KE_resid  = @. -dKEdt  + wbᵣ_pair - ε_pair
+KE_resid  = @. -dKEdt  + wbᵣ_pair - εₖ_pair
 APE_resid = @. -dAPEdt - wbᵣ_pair - εₐ_pair
 
 rms(x) = √(sum(abs2, x) / length(x))                                       #hide
 @test rms(KE_resid)  < 0.01 * rms(dKEdt)                                   #hide
-@test rms(KE_resid)  < 0.02 * rms(ε_pair)                                  #hide
+@test rms(KE_resid)  < 0.02 * rms(εₖ_pair)                                  #hide
 @test rms(APE_resid) < 0.01 * rms(dAPEdt)                                  #hide
 ## the sharp one: the APE residual is a small fraction of εₐ itself, so the budget resolves     #hide
 ## the new term rather than closing to within its size                                           #hide
 @test rms(APE_resid) < 0.05 * rms(εₐ_pair)                                #hide
 ## the two conversions have the same volume integral, so they cancel from the sum of the budgets #hide
 @test rms(wb_pair .- wbᵣ_pair) < 1e-8 * rms(wb_pair)                       #hide
-@test rms(KE_resid .+ APE_resid) < 0.02 * rms(ε_pair)                      #hide
+@test rms(KE_resid .+ APE_resid) < 0.02 * rms(εₖ_pair)                      #hide
 ## and εₐ takes both signs over the run, which is what the discussion below rests on            #hide
 @test minimum(εₐ_pair) < 0 < maximum(εₐ_pair);                           #hide
 
@@ -528,7 +528,7 @@ budget_kwargs = (xlabel = "Time", ylabel = "Rate", height = 190, width = 560)
 ax_KE_bud = Axis(fig4[1, 1]; title = "Volume-integrated KE budget", budget_kwargs...)
 lines!(ax_KE_bud, t_pair, -dKEdt,   label = "-d(∫KE)/dt")
 lines!(ax_KE_bud, t_pair, wbᵣ_pair, label = "∫wbᵣ dV")
-lines!(ax_KE_bud, t_pair, -ε_pair,  label = "-∫εₖ dV")
+lines!(ax_KE_bud, t_pair, -εₖ_pair, label = "-∫εₖ dV")
 lines!(ax_KE_bud, t_pair, KE_resid; label = "residual", color = :black, linestyle = :dash)
 Legend(fig4[1, 2], ax_KE_bud; labelsize = 12, framevisible = false)
 
