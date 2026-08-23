@@ -293,7 +293,9 @@ the exchange term of the local available potential energy equation of
 [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879), which the `eₐ` budget takes with a
 minus sign and the kinetic energy budget with a plus.
 
-This is **not** [`PotentialToKineticEnergyConversion`](@ref), which computes `uᵢbᵢ` over the total
+This is **not**
+[`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion),
+which computes `uᵢbᵢ` over the total
 buoyancy (`wb` under the vertical gravity these diagnostics require) and belongs to the `eₚ` budget.
 The two differ by `w b✶(z)`, the exchange between the kinetic energy and the background state, and that
 difference is why the pressure that goes with this budget is the deviation from the hydrostatic
