@@ -168,7 +168,7 @@ is to the sub-filter kinetic energy.
 `method` has to be a [`ProfileLookup`](@ref), for the reason
 [`SubFilterAvailablePotentialEnergy`](@ref) gives, and the lookup also makes each `z✶` a function of
 buoyancy alone — the property that differentiating `Υ` and `Υˡ` needs (see
-[`BuoyancyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential)).
+[`AvailablePotentialEnergyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential)).
 Like [`AvailablePotentialEnergyDissipationRate`](@ref), this diagnostic needs the buoyancy to be a
 tracer the closure diffuses (`BuoyancyTracer` only) and a closure that supplies a diffusive flux.
 

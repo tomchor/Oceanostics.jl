@@ -109,26 +109,31 @@ KE            = KineticEnergy(model)
 # single term and each drains through a dissipation of its own,
 #
 # ```math
-# \frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon_k\, dV, \qquad
-# \frac{d}{dt}\int e_a\, dV = -\int wb\, dV - \int \varepsilon_a\, dV .
+# \frac{d}{dt}\int e_k\, dV = +\int w b_r\, dV - \int \varepsilon_k\, dV, \qquad
+# \frac{d}{dt}\int e_a\, dV = -\int w b_r\, dV - \int \varepsilon_a\, dV .
 # ```
 #
 # Advection and the pressure gradient integrate to zero for an incompressible flow in a closed box, and
 # the walls are free-slip and insulating, so the viscous and diffusive fluxes leave nothing at the
-# boundary either. What survives is the buoyancy production ``wb``, which carries opposite signs in the
-# two budgets and so cancels from their sum, and the two sinks.
+# boundary either. What survives is the exchange between the two reservoirs and the two sinks.
 #
-# ``\varepsilon_a`` is the term this example is built around. It is the contraction of the buoyancy
-# gradient with the [`BuoyancyDisplacementPotential`](@ref) ``\Upsilon = z^\star - z``, which is
-# ``\partial e_a / \partial b`` and hence the conjugate of ``b``:
+# Note that the exchange term is written ``w b_r`` ([`AvailablePotentialToKineticEnergyConversion`](@ref))
+# in both budgets, not ``wb`` ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion)),
+# where ``b_r = b - b^\star(z)`` is the buoyancy anomaly relative to the reference profile at the
+# parcel's own height, representing an exchange between kinetic energy and _available potential_
+# energy rather than _potential_ energy. This is possible in the KE equation since ``b^\star`` is a
+# function of height alone, so the hydrostatic pressure that goes with it, ``p^\star(z)`` with
+# ``\partial p^\star/\partial z = b^\star``, has no horizontal gradient and can be absorbed into the
+# pressure term. That said, both terms are equal in an integrated sense (as we'll show below).
+#
+# The dissipation term ``\varepsilon_a`` is the contraction of the closure's diffusive buoyancy
+# flux with the gradient of the displacement potential
+# [``\Upsilon = z^\star - z``](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential):
 #
 # ```math
-# \varepsilon_a = \kappa\, \partial_i b\, \partial_i \Upsilon
-#               = \kappa \left[\frac{\partial z^\star}{\partial b} |\nabla b|^2
-#                              - \frac{\partial b}{\partial z}\right] ,
+# \varepsilon_a = -q_i\, \partial_i \Upsilon
 # ```
-# the diapycnal mixing rate of Winters et al. (1995) less the diffusion the reference state undergoes
-# on its own, which carries no available energy with it.
+# where ``q_i`` is whatever diffusive buoyancy flux the closure supplies.
 #
 # We hand ``\varepsilon_a`` the [`HeavisideIntegral`](@ref) reference height already built above rather
 # than letting it sort the domain again, and that method rather than another because
@@ -136,13 +141,19 @@ KE            = KineticEnergy(model)
 # ``z^\star`` a function of buoyancy alone, so tied cells do not spread ``z^\star`` over the depth they
 # fill and show up in ``\nabla \Upsilon`` as grid-scale noise.
 
-εₐ = AvailablePotentialEnergyDissipationRate(model, z✶_heaviside)
-εₖ = KineticEnergyDissipationRate(model)
+εₐ  = AvailablePotentialEnergyDissipationRate(model, z✶_heaviside)
+εₖ  = KineticEnergyDissipationRate(model)
+wbᵣ = AvailablePotentialToKineticEnergyConversion(model, z✶_heaviside)
+
+# Let's also calculate the exchange between kinetic and potential energy ``wb`` for comparison
+# along with integrals for all terms
+
 wb = PotentialToKineticEnergyConversion(model)
 
-∫wb = Integral(wb)
-∫εₖ = Integral(εₖ)
-∫εₐ = Integral(εₐ)
+∫wbᵣ = Integral(wbᵣ)
+∫wb  = Integral(wb)
+∫εₖ  = Integral(εₖ)
+∫εₐ  = Integral(εₐ)
 
 using NCDatasets
 filename = "lock_release"
@@ -152,7 +163,7 @@ filename = "lock_release"
 # its own `N`-cell vertical axis.
 
 outputs = (; b, KE, APE_ranked, APE_heaviside, APE_lookup, APE_column,
-             z✶_ranked, z✶_heaviside, z✶_lookup, z✶_column, b✶_column)
+             z✶_ranked, z✶_heaviside, z✶_lookup, z✶_column, b✶_column, wb, wbᵣ)
 
 simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
                                                   filename = joinpath(@__DIR__, filename),
@@ -165,7 +176,7 @@ simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
 # The `∫APE_heaviside` written here is the tendency term that pairs with ``\varepsilon_a``, since the
 # two come off the same sort.
 
-integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫εₖ, ∫εₐ)
+integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫wbᵣ, ∫εₖ, ∫εₐ)
 
 simulation.output_writers[:budget] = NetCDFWriter(model, integrals,
                                                   filename = joinpath(@__DIR__, filename * "_budget"),
@@ -414,12 +425,13 @@ nothing #hide
 # energy curves use; the pair as a whole is what gives `d/dt` further down.
 
 ds = NCDataset(simulation.output_writers[:budget].filepath)
-t_bud    = ds["time"][:]
-BPE_bud  = ds["∫BPE"][:]
-APE_bud  = ds["∫APE_heaviside"][:]
-KE_bud   = ds["∫KE"][:]
-wb_bud   = ds["∫wb"][:]
-ε_bud    = ds["∫εₖ"][:]
+t_bud   = ds["time"][:]
+BPE_bud = ds["∫BPE"][:]
+APE_bud = ds["∫APE_heaviside"][:]
+KE_bud  = ds["∫KE"][:]
+wb_bud  = ds["∫wb"][:]
+wbᵣ_bud = ds["∫wbᵣ"][:]
+εₖ_bud  = ds["∫εₖ"][:]
 εₐ_bud  = ds["∫εₐ"][:]
 ## all four methods integrate to the same eₐ, however they place cells of equal buoyancy  #hide
 @test ds["∫APE"][:]        ≈ APE_bud rtol=1e-8                                             #hide
@@ -466,7 +478,7 @@ nothing #hide
 # `BPE` never turns back, since mixing across density surfaces cannot be undone. Everything the flow
 # can still do sits in `APE`, which trades with `KE` as the box seiches, each cycle weaker than the
 # last. The dashed total is `∫KE + ∫eₚ`, and it has no reason to fall monotonically: viscosity drains it
-# at `∫εₖ` while diffusion working against gravity feeds it back at `∫κ ∂b/∂z`, and a run quiet enough
+# at `∫εₖ` while the diffusive flux working against gravity feeds it back at `∫Φ dV = -∫q₃ dV`, and a run quiet enough
 # for the second to win would see the total edge back up. At `Re = 1000` the first stays the larger of
 # the two throughout, and the total ends down by about a fifth of the available energy the lock started
 # with.
@@ -486,24 +498,26 @@ dAPEdt = (APE_bud[idx2] .- APE_bud[idx1]) ./ Δt_pair
 pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
 
 wb_pair  = pair_mean(wb_bud);
-ε_pair   = pair_mean(ε_bud);
-εₐ_pair = pair_mean(εₐ_bud);
+wbᵣ_pair = pair_mean(wbᵣ_bud);
+εₖ_pair  = pair_mean(εₖ_bud);
+εₐ_pair  = pair_mean(εₐ_bud);
 
 # Both budgets are written in sum-to-zero form: each curve is plotted with the sign it carries here, so
 # the panels below add up to the residual.
 
-KE_resid  = @. -dKEdt  + wb_pair - ε_pair
-APE_resid = @. -dAPEdt - wb_pair - εₐ_pair
+KE_resid  = @. -dKEdt  + wbᵣ_pair - εₖ_pair
+APE_resid = @. -dAPEdt - wbᵣ_pair - εₐ_pair
 
 rms(x) = √(sum(abs2, x) / length(x))                                       #hide
 @test rms(KE_resid)  < 0.01 * rms(dKEdt)                                   #hide
-@test rms(KE_resid)  < 0.02 * rms(ε_pair)                                  #hide
+@test rms(KE_resid)  < 0.02 * rms(εₖ_pair)                                  #hide
 @test rms(APE_resid) < 0.01 * rms(dAPEdt)                                  #hide
 ## the sharp one: the APE residual is a small fraction of εₐ itself, so the budget resolves     #hide
 ## the new term rather than closing to within its size                                           #hide
 @test rms(APE_resid) < 0.05 * rms(εₐ_pair)                                #hide
-## `wb` is the same term in both, so it cancels from the sum of the two budgets                  #hide
-@test rms(KE_resid .+ APE_resid) < 0.02 * rms(ε_pair)                      #hide
+## the two conversions have the same volume integral, so they cancel from the sum of the budgets #hide
+@test rms(wb_pair .- wbᵣ_pair) < 1e-8 * rms(wb_pair)                       #hide
+@test rms(KE_resid .+ APE_resid) < 0.02 * rms(εₖ_pair)                      #hide
 ## and εₐ takes both signs over the run, which is what the discussion below rests on            #hide
 @test minimum(εₐ_pair) < 0 < maximum(εₐ_pair);                           #hide
 
@@ -513,14 +527,14 @@ budget_kwargs = (xlabel = "Time", ylabel = "Rate", height = 190, width = 560)
 
 ax_KE_bud = Axis(fig4[1, 1]; title = "Volume-integrated KE budget", budget_kwargs...)
 lines!(ax_KE_bud, t_pair, -dKEdt,   label = "-d(∫KE)/dt")
-lines!(ax_KE_bud, t_pair,  wb_pair, label = "∫wb dV")
-lines!(ax_KE_bud, t_pair, -ε_pair,  label = "-∫εₖ dV")
+lines!(ax_KE_bud, t_pair, wbᵣ_pair, label = "∫wbᵣ dV")
+lines!(ax_KE_bud, t_pair, -εₖ_pair, label = "-∫εₖ dV")
 lines!(ax_KE_bud, t_pair, KE_resid; label = "residual", color = :black, linestyle = :dash)
 Legend(fig4[1, 2], ax_KE_bud; labelsize = 12, framevisible = false)
 
 ax_APE_bud = Axis(fig4[2, 1]; title = "Volume-integrated APE budget", budget_kwargs...)
 lines!(ax_APE_bud, t_pair, -dAPEdt,   label = "-d(∫eₐ)/dt")
-lines!(ax_APE_bud, t_pair, -wb_pair,  label = "-∫wb dV")
+lines!(ax_APE_bud, t_pair, -wbᵣ_pair, label = "-∫wbᵣ dV")
 lines!(ax_APE_bud, t_pair, -εₐ_pair, label = "-∫εₐ dV")
 lines!(ax_APE_bud, t_pair, APE_resid; label = "residual", color = :black, linestyle = :dash)
 Legend(fig4[2, 2], ax_APE_bud; labelsize = 12, framevisible = false)
@@ -551,8 +565,9 @@ nothing #hide
 # definition allows: at `t = 0` the lock is uniform in the vertical, the reference state has nothing to
 # diffuse along, and `εₐ` is the whole diapycnal mixing rate, but as the current lays the fluid out in
 # layers the reference state's own diffusion catches up and for a moment overtakes it. A sign-definite
-# quantity like `κ|∇b|²` cannot go negative at all, which is the practical difference between `εₐ` and
-# the buoyancy variance dissipation it is easily confused with.
+# quantity like the buoyancy variance dissipation `-2 qᵢ∂ᵢb`, which no down-gradient closure lets turn
+# negative, cannot do that at all. That is the practical difference between `εₐ` and the variance
+# dissipation it is easily confused with.
 #
 # Both residuals stay near zero. They do not vanish, and cannot: the discrete KE and `eₐ` equations are
 # not derived from the discrete momentum and buoyancy equations the model steps, so the two sides agree
@@ -560,3 +575,54 @@ nothing #hide
 # [the two-dimensional turbulence example](@ref two_d_turbulence_example), with one more source of
 # discrepancy here: `Integral(eₐ)` of the local Holliday & McIntyre density samples the reference
 # profile at the model's cell centers, and that midpoint quadrature is itself second order in `Δz`.
+
+# ## Two ways of writing the exchange
+#
+# Both budgets above are closed with `∫wbᵣ dV`, and closing the KE one with `∫wb dV` instead would work
+# just as well, since the two integrals agree. The reason is visible in the maps: what separates them is
+# `w b✶(z)`, the work the flow does against the reference stratification, which is a flux divergence and
+# integrates to nothing in a closed box.
+
+wb_t  = FieldTimeSeries(filepath, "wb")
+wbᵣ_t = FieldTimeSeries(filepath, "wbᵣ")
+
+t_peak = t_e[argmax(abs.(wb_bud[idx1]))]   # the snapshot where the exchange is strongest
+n_peak = argmin(abs.(times .- t_peak))
+
+wb_map  = interior(wb_t[n_peak],  :, 1, :)
+wbᵣ_map = interior(wbᵣ_t[n_peak], :, 1, :)
+wb✶_map = wb_map .- wbᵣ_map                # `wb = wbᵣ + w b✶(z)` holds cell by cell
+
+## the two conversions are genuinely different maps, so the agreement above is about the integral #hide
+@test maximum(abs, wb✶_map) > 0.1 * maximum(abs, wb_map)                                          #hide
+## while their difference is the piece that integrates away, which is what lets either one close  #hide
+## the integrated budget: on a uniform grid that is the plain sum over the cells                   #hide
+@test abs(sum(wb✶_map)) < 1e-8 * sum(abs, wb✶_map);                                               #hide
+
+set_theme!(Theme(fontsize = 20)) #hide
+fig5 = Figure(size = (900, 620))
+
+## one range for all three panels, taken over all three: `wbᵣ` runs about twice as large as `wb` here,
+## and scaling each panel to itself would hide that
+lim = maximum(maximum(abs, conversion) for conversion in (wb_map, wbᵣ_map, wb✶_map))
+conv_kwargs = (ylabel = "z", height = 150, aspect = DataAspect())
+xs, zs = xnodes(grid, Center()), znodes(grid, Center())
+
+ax_wb  = Axis(fig5[2, 1]; title = "wb,  the KE budget's production",   conv_kwargs...)
+ax_wbᵣ = Axis(fig5[3, 1]; title = "wbᵣ,  the eₐ budget's release",    conv_kwargs...)
+ax_dif = Axis(fig5[4, 1]; title = "wb - wbᵣ = w b✶(z)", xlabel = "x", conv_kwargs...)
+
+hms = [heatmap!(ax, xs, zs, conversion; colormap = :balance, colorrange = (-lim, lim))
+       for (ax, conversion) in zip((ax_wb, ax_wbᵣ, ax_dif), (wb_map, wbᵣ_map, wb✶_map))]
+Colorbar(fig5[5, 1], hms[1]; vertical = false, height = 8)
+
+Label(fig5[1, 1], "Conversion terms,  t = " * string(round(t_peak, digits = 1)),
+      fontsize = 22, tellwidth = false)
+
+resize_to_layout!(fig5)
+save("lock_release_conversion.png", fig5)
+set_theme!() #hide
+nothing #hide
+
+# ![](lock_release_conversion.png)
+#

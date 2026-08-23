@@ -24,7 +24,7 @@ using ..PotentialEnergyEquation: validate_buoyancy_is_a_diffused_tracer, validat
                                  validate_gravity_is_z_aligned, buoyancy_diffusive_flux_arguments
 using ..BackgroundPotentialEnergyEquation: SortedReferenceHeightField, reference_height, reference_buoyancy,
                                            VerticalSort, ProfileLookup, buoyancy_field
-using ..AvailablePotentialEnergyEquation: AvailablePotentialEnergy, BuoyancyDisplacementPotential,
+using ..AvailablePotentialEnergyEquation: AvailablePotentialEnergy, AvailablePotentialEnergyDisplacementPotential,
                                           AvailablePotentialEnergyDissipationRate, local_ape_ccc,
                                           validate_reference_height_grid
 # `GaussianFilter` builds the convenience methods' filter; `BoxFilter` is imported only so its docstring
@@ -197,7 +197,7 @@ which diffusion removes APE from the scales a low-pass `filter` keeps:
 
 It is the full-field contraction `εₐ = -qᵢ∂ᵢΥ` ([`AvailablePotentialEnergyDissipationRate`](@ref))
 evaluated on the filtered state: the closure's diffusive buoyancy flux `qᵢ` low-pass filtered, against
-the displacement potential `Υˡ` ([`BuoyancyDisplacementPotential`](@ref)) of the filtered buoyancy.
+the displacement potential `Υˡ` ([`AvailablePotentialEnergyDisplacementPotential`](@ref)) of the filtered buoyancy.
 It is the diffusive sink of the budget of [`FilteredAvailablePotentialEnergy`](@ref)
 ([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)), and it mirrors what
 [`FilteredKineticEnergyDissipationRate`](@ref Oceanostics.FilteredKineticEnergyEquation.FilteredKineticEnergyDissipationRate)
@@ -213,7 +213,7 @@ draws for the viscous flux.
 
 `method` has to be a [`ProfileLookup`](@ref), for the reason [`FilteredAvailablePotentialEnergy`](@ref)
 gives, and the lookup also makes `z✶ˡ` a function of buoyancy alone — the property that differentiating
-`Υˡ` needs (see [`BuoyancyDisplacementPotential`](@ref)). Like
+`Υˡ` needs (see [`AvailablePotentialEnergyDisplacementPotential`](@ref)). Like
 [`AvailablePotentialEnergyDissipationRate`](@ref), this diagnostic needs the buoyancy to be a tracer
 the closure diffuses (`BuoyancyTracer` only) and a closure that supplies a diffusive flux.
 
@@ -264,7 +264,7 @@ function FilteredAvailablePotentialEnergyDissipationRate(model, filter, z✶ˡ::
     validate_gravity_is_z_aligned("FilteredAvailablePotentialEnergyDissipationRate", model)
     validate_reference_height_grid("FilteredAvailablePotentialEnergyDissipationRate", model, z✶ˡ)
 
-    Υˡ = isnothing(upsilon) ? Field(BuoyancyDisplacementPotential(model, z✶ˡ)) : upsilon
+    Υˡ = isnothing(upsilon) ? Field(AvailablePotentialEnergyDisplacementPotential(model, z✶ˡ)) : upsilon
 
     # q̄ᵢ = filter(qᵢ(b)): the closure's diffusive fluxes of the FULL buoyancy, each low-pass filtered and
     # materialized at its staggered location. The flux operation reads the live model fields, so the
@@ -324,7 +324,7 @@ low-pass `filter` transfers available potential energy from the filtered to the 
 ```
 
 where `τᵢ` is the sub-filter buoyancy flux and `Υˡ` is the
-[`BuoyancyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential)
+[`AvailablePotentialEnergyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential)
 of the filtered buoyancy. It is the APE analogue of
 [`KineticEnergyCrossScaleFlux`](@ref Oceanostics.FilteredKineticEnergyEquation.KineticEnergyCrossScaleFlux),
 with the sub-filter buoyancy flux in place of the sub-filter stress and `∇Υˡ` in place of the resolved
@@ -388,7 +388,7 @@ function AvailablePotentialEnergyCrossScaleFlux(model, filter, z✶ˡ::SortedRef
     validate_gravity_is_z_aligned("AvailablePotentialEnergyCrossScaleFlux", model)
     validate_reference_height_grid("AvailablePotentialEnergyCrossScaleFlux", model, z✶ˡ)
 
-    Υˡ = isnothing(upsilon) ? Field(BuoyancyDisplacementPotential(model, z✶ˡ)) : upsilon
+    Υˡ = isnothing(upsilon) ? Field(AvailablePotentialEnergyDisplacementPotential(model, z✶ˡ)) : upsilon
 
     # The filtered buoyancy is `z✶ˡ`'s own (the field the caller filtered and looked up), so the one `b̄`
     # serves both the reference height — and so `Υˡ` — and the sub-filter buoyancy flux: the buoyancy is

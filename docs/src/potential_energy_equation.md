@@ -54,7 +54,7 @@ vertical, the product rule gives
 The two terms written as divergences transport ``e_p`` and vanish when integrated over a periodic or closed domain
 (with impermeable, insulating walls).
 
-## Terms and what is implemented
+## Terms and diagnostics
 
 Every term above is implemented, two of them elsewhere in Oceanostics.
 
