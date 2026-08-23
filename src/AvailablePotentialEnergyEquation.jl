@@ -427,7 +427,7 @@ grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Per
 model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
 
 z✶ = reference_height(model, method=HeavisideIntegral())
-Υ = Field(DisplacementPotential(model, z✶))
+Υ = Field(AvailablePotentialEnergyDisplacementPotential(model, z✶))
 AvailablePotentialEnergyDissipationRate(model, z✶; upsilon=Υ)
 
 # output
