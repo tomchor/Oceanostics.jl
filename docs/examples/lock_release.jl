@@ -626,9 +626,3 @@ nothing #hide
 
 # ![](lock_release_conversion.png)
 #
-# `wbᵣ` is the local release of `eₐ`: it concentrates in the two intruding noses and falls away to
-# nothing in the fluid the fronts have not reached yet, where each parcel still carries the buoyancy its
-# own height calls for. `wb` does not, since it counts the reference stratification's own contribution
-# as well, the banded pattern about `z = 0.5` in the bottom panel, and that contribution is large enough
-# here to leave `wbᵣ` running at about twice the amplitude of `wb`. Only `wbᵣ` maps where available
-# potential energy is actually being converted; only in the volume integral can `wb` stand in for it.
