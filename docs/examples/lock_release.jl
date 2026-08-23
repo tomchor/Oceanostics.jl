@@ -126,22 +126,14 @@ KE            = KineticEnergy(model)
 # ``\partial p^\star/\partial z = b^\star``, has no horizontal gradient and can be absorbed into the
 # pressure term. That said, both terms are equal in an integrated sense (as we'll show below).
 #
-# ``\varepsilon_a`` is the term this example is built around. It is the contraction of the closure's
-# diffusive buoyancy flux with the gradient of the displacement potential
-# [``\Upsilon = z^\star - z``](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential),
-# which is ``\partial e_a / \partial b`` and hence the conjugate of ``b``:
+# The dissipation term ``\varepsilon_a`` is the contraction of the closure's diffusive buoyancy
+# flux with the gradient of the displacement potential
+# [``\Upsilon = z^\star - z``](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential):
 #
 # ```math
 # \varepsilon_a = -q_i\, \partial_i \Upsilon
-#               = -\frac{\partial z^\star}{\partial b}\, q_i\, \partial_i b \;+\; q_3 ,
 # ```
-# where ``q_i`` is whatever diffusive buoyancy flux the closure supplies. Nothing here assumes a form
-# for it: the diagnostic reads it off the model's own closure, so these expressions hold for an LES
-# closure as they do for the constant diffusivity this run uses. The first term is the diapycnal mixing
-# rate of Winters et al. (1995), and the second removes the diffusion the reference state undergoes on
-# its own, which carries no available energy with it. That second piece is ``q_3 = -\Phi``, the
-# diffusive buoyancy flux the [Potential energy equation](@ref) defines, with the sign it carries
-# there.
+# where ``q_i`` is whatever diffusive buoyancy flux the closure supplies.
 #
 # We hand ``\varepsilon_a`` the [`HeavisideIntegral`](@ref) reference height already built above rather
 # than letting it sort the domain again, and that method rather than another because
