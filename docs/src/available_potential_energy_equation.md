@@ -1,19 +1,15 @@
 # Available potential energy equation
 
 The `AvailablePotentialEnergyEquation` module computes the share of the potential energy
-``e_p = -bz`` of [the potential energy equation](potential_energy_equation.md) that the flow *can*
-release. The other half, the reference state and the background potential energy ``e_b`` it carries,
-lives in [the background potential energy equation](background_potential_energy_equation.md). The
-reference height ``z^\star`` built there is the input to everything below, and this module re-exports
-`reference_height`, `reference_buoyancy` and the reference-height methods so that either module can be
-used on its own.
+``e_p = -bz`` that the flow is capable of releasing. The other part being the
+[background potential energy](background_potential_energy_equation.md) ``e_b``.
 
 Oceanostics computes the available potential energy in its *local* form,
 [Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742):
 
 ```math
-e_a(b, z) = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z,\, t) - b\right] \,\mathrm{d}\tilde z
-          = \frac{g}{\rho_0}\int_{z^\star(\rho)}^{z} \left[\rho - \rho^\star(\tilde z,\, t)\right] \,\mathrm{d}\tilde z .
+e_a(b, z, t) = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z,\, t) - b\right] \,\mathrm{d}\tilde z
+             = \frac{g}{\rho_0}\int_{z^\star(\rho)}^{z} \left[\rho - \rho^\star(\tilde z,\, t)\right] \,\mathrm{d}\tilde z .
 ```
 
 In this form ``e_a`` is **non-negative everywhere in space** whenever the reference state is sorted from
@@ -52,10 +48,10 @@ carries relative to the reference profile at its own height:
 \left.\frac{\partial e_a}{\partial z}\right|_{b} = b^\star(z, t) - b = -b_r .
 ```
 
-The buoyancy obeys [the tracer equation](tracer_equation.md), ``Db/Dt = -\partial_j q_j`` for an
+The material derivative of buoyancy obeys [the tracer equation](tracer_equation.md), ``Db/Dt = -\partial_j q_j`` for an
 unforced tracer with the closure's diffusive flux ``q_j``, so ``\Upsilon\,Db/Dt`` splits into a
 transport divergence plus the contraction ``q_j\,\partial_j\Upsilon``. Writing the advective part as a
-divergence as well (incompressibility), the local APE budget is
+divergence as well, the local APE budget is
 
 ```math
 \partial_t e_a = \underbrace{-\partial_j(u_j e_a)}_{\text{advection}}
@@ -67,7 +63,7 @@ divergence as well (incompressibility), the local APE budget is
 \varepsilon_a = -q_j \, \partial_j \Upsilon.
 ```
 
-Similar to the two divergences, ``R`` redistribute ``e_a`` and vanish when integrated over a periodic or closed
+Similar to the two divergences, ``R`` redistributes ``e_a`` and vanishes when integrated over a periodic or closed
 domain ([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X)). See the [Lock release](@ref lock_release_example)
 example for an application of this budget.
 
@@ -100,9 +96,7 @@ w b = w b_r + w \, b^\star,
 ```
 
 is [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion),
-the conversion of the ``e_p`` budget. Both are formed from the same face-centered product, so the split
-holds cell by cell; under a volume integral the distinction goes away entirely, since
-``w \, b^\star(z,\, t)`` is a divergence.
+the conversion of the ``e_p`` budget.
 
 Every diagnostic here is built on the reference state of
 [the background potential energy equation](background_potential_energy_equation.md), whose
