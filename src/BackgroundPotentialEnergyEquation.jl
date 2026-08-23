@@ -627,23 +627,32 @@ the domain up, and the piecewise-constant buoyancy each slot holds. This is the 
 `reference_potential_function` integrates into `Ψ`, so a buoyancy read off it and the `Ψ` the available
 potential energy is built from describe one profile rather than two.
 
-The three sorting methods keep their ranking in `s.permutation`, so the profile is gathered through it
-rather than sorted a second time; a [`ProfileLookup`](@ref) hands back the profile it was given, and
-sorts only in the default case, which has none of its own.
+Every method that ranks the field leaves that ranking in `s.permutation`, so the profile is gathered
+through it rather than sorted a second time. Only a [`ProfileLookup`](@ref) carrying a profile of its
+own was never sorted here, and that one is read back the way `assign_reference_height!` reads it.
 """
 reference_profile(s::SortedReferenceState) = reference_profile(s, s.method)
 
-function reference_profile(s::SortedReferenceState, ::AbstractReferenceHeightMethod)
-    work = s.workspace   # whatever the sort left here is scratch by now
-    reshape(work, size(s.buoyancy)) .= interior(s.buoyancy)
+reference_profile(s::SortedReferenceState, ::AbstractReferenceHeightMethod) = sorted_profile(s)
 
-    return slot_faces(s, s.cell_volume[s.permutation]), work[s.permutation]
-end
+# The profile-less lookup ranks the field itself, exactly as the stacking methods do, so its profile is
+# in `s.permutation` too and rebuilding it through `lookup_profile` would repeat the whole `O(N log N)`
+# sort that `compute!` has just done.
+reference_profile(s::SortedReferenceState, ::ProfileLookup{Nothing}) = sorted_profile(s)
 
 function reference_profile(s::SortedReferenceState, method::ProfileLookup)
     b✶, _, faces = lookup_profile(s, method)
 
     return faces, b✶
+end
+
+# `s.workspace` holds whatever the sort left there, which is scratch by now; every caller that needs it
+# re-fills it first, as this does.
+function sorted_profile(s::SortedReferenceState)
+    work = s.workspace
+    reshape(work, size(s.buoyancy)) .= interior(s.buoyancy)
+
+    return slot_faces(s, s.cell_volume[s.permutation]), work[s.permutation]
 end
 
 """

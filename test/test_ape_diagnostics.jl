@@ -594,6 +594,15 @@ function test_reference_buoyancy_anomaly(grid; method = HeavisideIntegral())
     set!(sorted, b = (x, y, z) -> 3z)
     @test maximum(abs, interior(Field(ReferenceBuoyancyAnomaly(sorted; method)))) == 0
 
+    # A profile-less `ProfileLookup` ranks the field itself, so it describes the same profile the
+    # stacking methods do and has to give the same anomaly. It reaches that profile through the ranking
+    # the sort already left behind rather than repeating the sort, which is what `reference_profile`
+    # specializes on. (`ProfileLookup` stacks cells, so it needs uniform cell volumes.)
+    if !BackgroundPotentialEnergyEquation.stretched_grid(grid)
+        z✶_lookup = AvailablePotentialEnergyEquation.reference_height(model, method = ProfileLookup())
+        @test interior(Field(ReferenceBuoyancyAnomaly(model, z✶_lookup))) ≈ interior(Field(bᵣ))
+    end
+
     return nothing
 end
 
