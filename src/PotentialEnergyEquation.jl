@@ -304,7 +304,7 @@ result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
 is written out of,
 
 ```
-    εₐ = κ (∂z✶/∂b) |∇b|² - Φ ,
+    εₐ = -(∂z✶/∂b) qᵢ ∂ᵢb - Φ ,
 ```
 
 and it is the part that carries no available energy with it: `Φ` enters the `Eₚ` and `E_b` budgets

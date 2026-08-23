@@ -8,7 +8,8 @@ using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialE
 using Oceanostics: AvailablePotentialEnergyCrossScaleFlux, subfilter_covariance
 using Oceanostics: FilteredAvailablePotentialToKineticEnergyConversion
 using Oceanostics.BackgroundPotentialEnergyEquation: reference_buoyancy_at_height
-using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate, BuoyancyDisplacementPotential,
+using Oceanostics.AvailablePotentialEnergyEquation: DisplacementPotential
+using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate,
                    reference_height, reference_buoyancy, VerticalSort, ProfileLookup, HeavisideIntegral,
                    GaussianFilter
 
@@ -94,7 +95,7 @@ function test_filtered_ape_nonnegative(grid, filt_horizontal)
     compute!(col)
     b✶  = Array(vec(interior(reference_buoyancy(col))))
     z✶ˡ = reference_height(b̄; method=ProfileLookup(col))
-    Υˡ  = Field(BuoyancyDisplacementPotential(model, z✶ˡ))
+    Υˡ  = Field(DisplacementPotential(model, z✶ˡ))
     eₐˡ = Field(FilteredAvailablePotentialEnergy(model, z✶ˡ))
     @test minimum(interior(eₐˡ)) ≥ -0.5 * maximum(diff(b✶)) * maximum(abs, interior(Υˡ))
 
@@ -140,7 +141,7 @@ function test_filtered_ape_dissipation_basics(model, filt)
 
     lookup = shared_lookup(model)
     z✶ˡ = reference_height(Field(filt(model.tracers.b)); method=lookup)
-    Υˡ  = Field(BuoyancyDisplacementPotential(model, z✶ˡ))
+    Υˡ  = Field(DisplacementPotential(model, z✶ˡ))
     @test interior(Field(FilteredAvailablePotentialEnergyDissipationRate(model, filt, z✶ˡ; upsilon=Υˡ))) ≈
           interior(Field(FilteredAvailablePotentialEnergyDissipationRate(model, filt; method=lookup)))
     return nothing
@@ -231,7 +232,7 @@ function test_ape_cross_scale_flux_matches_manual(model, filt)
     b = model.tracers.b
     u, v, w = model.velocities
     z✶ˡ = reference_height(Field(filt(b)); method = lookup)
-    Υˡ = Field(BuoyancyDisplacementPotential(model, z✶ˡ))
+    Υˡ = Field(DisplacementPotential(model, z✶ˡ))
 
     ccc = (Center, Center, Center)
     b̄ = Field(filt(b))
@@ -260,7 +261,7 @@ function test_ape_cross_scale_flux_vanishes_without_motion(grid, filt)
     set!(model, b = random_stratified_b)   # velocities left at zero
 
     Πₐ = Field(AvailablePotentialEnergyCrossScaleFlux(model, filt))
-    Υˡ = Field(BuoyancyDisplacementPotential(model, reference_height(Field(filt(model.tracers.b)); method = shared_lookup(model))))
+    Υˡ = Field(DisplacementPotential(model, reference_height(Field(filt(model.tracers.b)); method = shared_lookup(model))))
 
     @test maximum(abs, interior(Υˡ)) > 0   # otherwise the assertion below would hold trivially
     @test maximum(abs, interior(Πₐ)) == 0
@@ -279,7 +280,7 @@ function test_ape_cross_scale_flux_dims(model, filt)
     xz   = Field(AvailablePotentialEnergyCrossScaleFlux(model, filt; dims = (1, 3), method = lookup))
 
     b = model.tracers.b
-    Υˡ = Field(BuoyancyDisplacementPotential(model, reference_height(Field(filt(b)); method = lookup)))
+    Υˡ = Field(DisplacementPotential(model, reference_height(Field(filt(b)); method = lookup)))
     y_term = Field(@at (Center, Center, Center) -subfilter_covariance(b, model.velocities[2], filt) * ∂y(Υˡ))
 
     @test interior(xz) ≈ interior(full) .- interior(y_term)

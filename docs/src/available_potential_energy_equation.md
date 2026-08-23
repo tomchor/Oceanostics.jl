@@ -1,107 +1,122 @@
 # Available potential energy equation
 
 The `AvailablePotentialEnergyEquation` module computes the share of the potential energy
-``e_p = -bz`` of [the potential energy equation](potential_energy_equation.md) that the flow *can*
-release. The other half, the reference state and the background potential energy ``e_b`` it carries,
-lives in [the background potential energy equation](background_potential_energy_equation.md). The
-reference height ``z^\star`` built there is the input to everything below, and this module re-exports
-`reference_height`, `reference_buoyancy` and the reference-height methods so that either module can be
-used on its own.
+``e_p = -bz`` that the flow is capable of releasing. The other part being the
+[background potential energy](background_potential_energy_equation.md) ``e_b``.
 
 Oceanostics computes the available potential energy in its *local* form,
 [Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742):
 
 ```math
-e_a(b, z) = \int_{z^\star}^{z} \left[b^\star(\tilde z) - b\right] \mathrm{d}\tilde z
-          = \frac{g}{\rho_0}\int_{z^\star}^{z} \left[\rho - \rho^\star(\tilde z)\right] \mathrm{d}\tilde z .
+e_a(b, z, t) = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z,\, t) - b\right] \,\mathrm{d}\tilde z
+             = \frac{g}{\rho_0}\int_{z^\star(\rho)}^{z} \left[\rho - \rho^\star(\tilde z,\, t)\right] \,\mathrm{d}\tilde z .
 ```
 
 In this form ``e_a`` is **non-negative everywhere in space** whenever the reference state is sorted from
-the field itself, so it can be mapped as a field. Its volume integral recovers
-``\int e_p - \int e_b`` in the continuum limit, although at finite ``\Delta z`` the two differ at second
-order.
+the field itself. Its volume integral recovers ``\int e_p - \int e_b`` in the continuum limit, although
+at finite ``\Delta z`` the two differ at second order.
 
-## Available potential energy
+## Deriving the local available potential energy equation
+
+The budget follows from the material derivative of ``e_a(b, z, t)`` along the flow
+([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)):
+
+
+```math
+\frac{D e_a}{D t} = \left.\frac{\partial e_a}{\partial b}\right|_{z,t} \frac{D b}{D t}
+                  + \left.\frac{\partial e_a}{\partial z}\right|_{b,t} \frac{D z}{D t}
+                  + \left.\frac{\partial e_a}{\partial t}\right|_{z,b} \frac{D t}{D t},
+```
+which we can simplify to
+
+```math
+\frac{D e_a}{D t} = \left.\frac{\partial e_a}{\partial b}\right|_{z,t} \frac{D b}{D t}
+                  + \left.\frac{\partial e_a}{\partial z}\right|_{b,t} w
+                  + R ,
+\qquad
+R = \int_{z^\star}^{z} \partial_t b^\star(\tilde z, t) \, \mathrm{d}\tilde z .
+```
+
+Both partial derivatives come straight from the definition of ``e_a``. In the first, the boundary term
+from moving the lower limit ``z^\star(b)`` drops out because ``b^\star(z^\star(b)) = b``, which leaves
+the displacement potential ``\Upsilon``. The second is minus the buoyancy anomaly ``b_r`` the parcel
+carries relative to the reference profile at its own height:
+
+```math
+\left.\frac{\partial e_a}{\partial b}\right|_{z} = z^\star - z = \Upsilon ,
+\qquad
+\left.\frac{\partial e_a}{\partial z}\right|_{b} = b^\star(z, t) - b = -b_r .
+```
+
+The material derivative of buoyancy obeys [the tracer equation](tracer_equation.md), ``Db/Dt = -\partial_j q_j`` for an
+unforced tracer with the closure's diffusive flux ``q_j``, so ``\Upsilon\,Db/Dt`` splits into a
+transport divergence plus the contraction ``q_j\,\partial_j\Upsilon``. Writing the advective part as a
+divergence as well, the local APE budget is
+
+```math
+\partial_t e_a = \underbrace{-\partial_j(u_j e_a)}_{\text{advection}}
+                 \underbrace{-\,w b_r}_{\text{APE to KE conversion}}
+                 \underbrace{-\,\partial_j(\Upsilon q_j)}_{\text{diffusive transport}}
+                 \underbrace{-\,\varepsilon_a}_{\text{dissipation}}
+                 + \underbrace{R}_{\text{reference tendency}} ,
+\qquad
+\varepsilon_a = -q_j \, \partial_j \Upsilon.
+```
+
+Similar to the two divergences, ``R`` redistributes ``e_a`` and vanishes when integrated over a periodic or closed
+domain ([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X)). See the [Lock release](@ref lock_release_example)
+example for an application of this budget.
+
+
+## Terms and diagnostics
+
+Five of the quantities above have diagnostics; the two transport terms and ``R`` have none.
+
+| Quantity | Expression | Diagnostic |
+|:---|:---|:---|
+| Available potential energy | ``e_a = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z,\, t) - b\right] \mathrm{d}\tilde z`` | [`AvailablePotentialEnergy`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy) |
+| Displacement potential | ``\Upsilon = z^\star - z`` | [`AvailablePotentialEnergyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential) |
+| Advection | ``\partial_j(u_j e_a)`` | not implemented |
+| Buoyancy anomaly | ``b_r = b - b^\star(z,\, t)`` | [`ReferenceBuoyancyAnomaly`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly) |
+| APE to KE conversion | ``w b_r`` | [`AvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion) |
+| Diffusive transport | ``\partial_j(\Upsilon q_j)`` | not implemented |
+| Dissipation | ``\varepsilon_a = -q_j \, \partial_j \Upsilon`` | [`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate) |
+| Reference tendency | ``R = \int_{z^\star}^{z} \partial_t b^\star(\tilde z,\, t) \, \mathrm{d}\tilde z`` | not implemented |
+
+``\Upsilon`` also answers to `DisplacementPotential`, and ``\varepsilon_a`` to `DissipationRate`. Both
+aliases are scoped to this module: `using Oceanostics.AvailablePotentialEnergyEquation` brings them in,
+`using Oceanostics` does not, since unprefixed neither name says which budget it belongs to.
+
+The available potential energy converts to kinetic energy at a rate set by the buoyancy anomaly
+``b_r``, not by the buoyancy itself. The remainder ``w \, b^\star(z,\, t)`` exchanges kinetic energy
+with the background state. Their sum,
+
+```math
+w b = w b_r + w \, b^\star,
+```
+
+is [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion),
+the conversion of the ``e_p`` budget.
+
+Every diagnostic here is built on the reference state of
+[the background potential energy equation](background_potential_energy_equation.md), whose
+[`reference_height`](@ref Oceanostics.BackgroundPotentialEnergyEquation.reference_height) supplies
+``z^\star``,
+[`reference_buoyancy`](@ref Oceanostics.BackgroundPotentialEnergyEquation.reference_buoyancy) the
+profile ``b^\star`` paired with it, and
+[`reference_buoyancy_at_height`](@ref Oceanostics.BackgroundPotentialEnergyEquation.reference_buoyancy_at_height)
+the ``b^\star(z,\, t)`` that ``b_r`` is measured against; all three are re-exported here, as is
+[`DiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux),
+the flux ``\Phi = -q_3`` that ``\varepsilon_a`` leaves out of the diapycnal mixing rate of
+[Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X).
+
+## Summary of ``e_a`` equation terms
+
 
 ```@docs
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergy
-```
-
-## Buoyancy displacement potential
-
-Differentiating ``e_a`` with respect to buoyancy gives the displacement potential
-
-```math
-\Upsilon = \frac{\partial e_a}{\partial b} = z^\star - z ,
-```
-
-the natural conjugate of ``b``: contracting it with a buoyancy gradient gives an APE dissipation rate,
-and contracting it with a sub-filter buoyancy flux gives a cross-scale APE flux
-([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879), who write it for density as
-``\Upsilon(\rho, z) = g(z - z^\star)/\rho_0``; the two differ by ``-g/\rho_0``, which cancels in either
-contraction).
-
-```@docs
-Oceanostics.AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential
-```
-
-## Available potential energy dissipation
-
-```math
-\varepsilon_a = \kappa \, \partial_i b \, \partial_i \Upsilon
-              = \kappa \left[\frac{\partial z^\star}{\partial b}\left|\nabla b\right|^2
-                             - \frac{\partial b}{\partial z}\right]
-```
-
-is the sink of the local ``e_a`` equation: the diapycnal mixing rate of
-[Winters et al. (1995)](https://doi.org/10.1017/S002211209500125X), less the diffusion the reference
-state undergoes on its own and which carries no available energy with it. The two cancel exactly for a
-statically stable, horizontally uniform stratification, so ``\varepsilon_a`` measures only the APE
-actually lost and is **not** the sign-definite ``\kappa|\nabla b|^2`` the name might suggest.
-
-```@docs
+Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential
+Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly
+Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate
 ```
-
-## Diffusive buoyancy flux
-
-The second of those two parts,
-
-```math
-\Phi = \kappa \frac{\partial b}{\partial z} ,
-```
-
-is the work diffusion does against gravity as it smooths the stratification. It is available separately
-because it is what separates ``\varepsilon_a`` from the diapycnal mixing rate: adding it back gives that
-rate, and hence the growth rate of the total ``E_b = \int e_b \, \mathrm{d}V``,
-
-```math
-\frac{d}{dt}\int e_b\, dV = \int \left(\varepsilon_a + \Phi\right) dV \geq 0 ,
-```
-
-so the three of them close the background potential energy budget the way ``\varepsilon_a`` and the
-buoyancy production close the available one. Neither ``\varepsilon_a`` nor ``\Phi`` is sign-definite on
-its own; their sum is.
-
-``\Phi`` needs no reference state of its own, and it is a term of the ``e_p`` equation before it is
-anything to do with ``e_a``, so it is defined in
-[the potential energy equation](potential_energy_equation.md) and re-exported
-here. See [`PotentialEnergyDiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux).
-
-The [Lock release](@ref lock_release_example) example closes
-
-```math
-\frac{d}{dt}\int e_a\, dV = -\int u_j b_j\, dV - \int \varepsilon_a\, dV
-```
-
-alongside the matching kinetic energy budget, and shows ``\varepsilon_a`` changing sign as the flow
-alternates between stirring and settling.
-
-The ``u_j b_j`` in that budget is the term the two exchange, the same conversion
-[the potential energy equation](potential_energy_equation.md) derives, so this module re-exports
-[`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) from
-[the kinetic energy equation](kinetic_energy_equation.md), under that name and under the shorter alias
-`KineticEnergyConversion`, which is scoped to this module and to
-that page. It computes ``u_j b_j``, the source of kinetic energy, so this budget takes it with a minus
-sign. With the vertical gravity these modules require it reduces to ``wb``, but the diagnostic keeps
-all three components.

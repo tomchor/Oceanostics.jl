@@ -2,7 +2,7 @@ module BackgroundPotentialEnergyEquation
 
 using DocStringExtensions
 
-export BackgroundPotentialEnergy, reference_height, reference_buoyancy
+export BackgroundPotentialEnergy, reference_height, reference_buoyancy, reference_buoyancy_at_height
 export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -621,6 +621,122 @@ function compute!(z✶_field::SortedReferenceHeightField, time=nothing)
     return z✶_field
 end
 
+#+++ Reference buoyancy at a parcel's own height
+"""
+    $(SIGNATURES)
+
+The reference profile the last sort left behind, as `(faces, b✶)`: the slot faces from the bottom of
+the domain up, and the piecewise-constant buoyancy each slot holds. This is the same profile
+`reference_potential_function` integrates into `Ψ`, so a buoyancy read off it and the `Ψ` the available
+potential energy is built from describe one profile rather than two.
+
+Every method that ranks the field leaves that ranking in `s.permutation`, so the profile is gathered
+through it rather than sorted a second time. Only a [`ProfileLookup`](@ref) carrying a profile of its
+own was never sorted here, and that one is read back the way `assign_reference_height!` reads it.
+"""
+reference_profile(s::SortedReferenceState) = reference_profile(s, s.method)
+
+reference_profile(s::SortedReferenceState, ::AbstractReferenceHeightMethod) = sorted_profile(s)
+
+# The profile-less lookup ranks the field itself, exactly as the stacking methods do, so its profile is
+# in `s.permutation` too and rebuilding it through `lookup_profile` would repeat the whole `O(N log N)`
+# sort that `compute!` has just done.
+reference_profile(s::SortedReferenceState, ::ProfileLookup{Nothing}) = sorted_profile(s)
+
+function reference_profile(s::SortedReferenceState, method::ProfileLookup)
+    b✶, _, faces = lookup_profile(s, method)
+
+    return faces, b✶
+end
+
+# `s.workspace` holds whatever the sort left there, which is scratch by now; every caller that needs it
+# re-fills it first, as this does.
+function sorted_profile(s::SortedReferenceState)
+    work = s.workspace
+    reshape(work, size(s.buoyancy)) .= interior(s.buoyancy)
+
+    return slot_faces(s, s.cell_volume[s.permutation]), work[s.permutation]
+end
+
+"""
+    $(SIGNATURES)
+
+Build `b✶(z)`, the buoyancy the reference profile holds at a height `z`, from the profile's slot
+`faces` and the buoyancies `b` it carries, and return it as a callable. `b✶` is piecewise constant on
+the slots, which is exactly the profile `reference_potential_function` integrates, so this is the
+derivative of that `Ψ` rather than an independent reconstruction of the same thing.
+"""
+function reference_buoyancy_function(faces, b)
+    N = length(b)
+
+    return z -> (k = clamp(searchsortedlast(faces, z), 1, N); @inbounds b[k])
+end
+
+"""
+    $(TYPEDEF)
+
+Operand of the `Field` [`reference_buoyancy_at_height`](@ref) returns. It carries the reference height
+the profile is read off, so that `compute!` sorts that first and then samples it, the way
+[`SortedBuoyancyState`](@ref) makes the sorted column's buoyancy depend on its parent.
+"""
+struct ReferenceBuoyancyAtHeightState{Z}
+    reference_height :: Z
+end
+
+Base.summary(s::ReferenceBuoyancyAtHeightState) =
+    string("ReferenceBuoyancyAtHeightState of ", summary(s.reference_height))
+
+const ReferenceBuoyancyAtHeightField = Field{<:Any, <:Any, <:Any, <:ReferenceBuoyancyAtHeightState}
+
+# Where each cell of the output sits: its own height on the model grid, and the height its parcel came
+# from on a `VerticalSort` column, which is the same choice `fill_reference_potential!` makes.
+profile_heights(s::SortedReferenceState, ::Nothing) = s.source_height
+profile_heights(s::SortedReferenceState, sorted_height) = s.source_height[s.permutation]
+
+function compute!(b✶ᶻ::ReferenceBuoyancyAtHeightField, time=nothing)
+    z✶ = b✶ᶻ.operand.reference_height
+
+    # Status-gated, so a `z✶` already sorted at this `time` is not sorted twice, and the profile below
+    # is the one that sort produced.
+    compute_at!(z✶, time)
+    s = z✶.operand
+
+    faces, b✶ = reference_profile(s)
+    interior(b✶ᶻ) .= reshape(reference_buoyancy_function(faces, b✶).(profile_heights(s, sorted_height(s))), size(b✶ᶻ))
+
+    fill_halo_regions!(b✶ᶻ)
+    set_status!(b✶ᶻ.status, time)
+
+    return b✶ᶻ
+end
+
+"""
+    $(SIGNATURES)
+
+Return a `Field` holding `b✶(z)`, the buoyancy the adiabatically sorted reference profile carries at
+each cell's **own** height. It is what a parcel would have to be to sit where it does without any
+available potential energy, so the difference from the buoyancy it actually carries is the anomaly
+[`ReferenceBuoyancyAnomaly`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly)
+returns.
+
+This is a different quantity from [`reference_buoyancy`](@ref), which pairs the profile with the
+reference height `z✶` instead: `b✶(z✶)` is the parcel's own buoyancy, and on the model grid
+`reference_buoyancy` hands back the buoyancy field itself.
+
+The returned field recomputes itself, so it is safe to hand straight to an output writer: computing it
+sorts the parent `z✶` if that has not already happened at this time, and then reads the profile off
+that sort rather than repeating it. It answers on the grid `z✶` lives on, which for
+[`VerticalSort`](@ref) is the sorted column rather than the model grid.
+
+This method reads the profile a reference height already produced. The `(grid, profile)` method below
+takes the profile itself instead, and reads it onto any grid, which is what a diagnostic measuring one
+field against another field's reference state needs.
+"""
+reference_buoyancy_at_height(z✶::SortedReferenceHeightField) =
+    compute!(Field{Center, Center, Center}(z✶.grid; operand = ReferenceBuoyancyAtHeightState(z✶),
+                                           status = FieldStatus()))
+#---
+
 """
     $(SIGNATURES)
 
@@ -901,7 +1017,9 @@ buoyancy into an anomaly against the reference state, `b_r = b - b✶(z)`.
 
 `profile` is the reference profile to read, in any of the forms [`ProfileLookup`](@ref) accepts a
 profile in: a reference height built with [`VerticalSort`](@ref), which is recomputed first so the
-profile tracks the flow, or a `(b✶, z✶)` pair of arrays held fixed. The profile is a stack of slots,
+profile tracks the flow, or a `(b✶, z✶)` pair of arrays held fixed. Handed a reference height on the
+model grid instead, use the single-argument method above, which reads the profile off that sort
+directly and needs no slot geometry rebuilt from it. The profile is a stack of slots,
 each holding one buoyancy class, and a cell reads the slot its own height falls in.
 
 The result lives at `(Center, Center, Center)` on `grid`, in units of buoyancy (`m s⁻²`). Being a

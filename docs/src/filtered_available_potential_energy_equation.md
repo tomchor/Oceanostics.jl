@@ -47,7 +47,7 @@ computed by [`FilteredAvailablePotentialEnergyDissipationRate`](@ref): the full-
 ([`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate))
 evaluated on the filtered state, with ``\tilde q_i`` the closure's diffusive buoyancy flux low-pass
 filtered and ``\Upsilon^l`` the displacement potential
-([`BuoyancyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential))
+([`DisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential))
 of the filtered buoyancy. The flux is filtered, not recomputed from ``\tilde b``: the filtered buoyancy
 equation carries the divergence of the filtered flux, so ``-\tilde q_i \partial_i \Upsilon^l`` is the
 dissipation that appears in the filtered-state budget. The two forms agree for a constant diffusivity
