@@ -579,15 +579,17 @@ nothing #hide
 # ## Two ways of writing the exchange
 #
 # Both budgets above are closed with `∫wbᵣ dV`, and closing the KE one with `∫wb dV` instead would work
-# just as well, since the two integrals agree. The reason is visible in the maps: what separates them is
-# `w b✶(z)`, the work the flow does against the reference stratification, which is a flux divergence and
-# integrates to nothing in a closed box.
+# just as well, since the two integrals agree.
 
 wb_t  = FieldTimeSeries(filepath, "wb")
 wbᵣ_t = FieldTimeSeries(filepath, "wbᵣ")
 
-t_peak = t_e[argmax(abs.(wb_bud[idx1]))]   # the snapshot where the exchange is strongest
+k_peak = argmax(abs.(wb_bud[idx1]))        # the snapshot where the exchange is strongest
+t_peak = t_e[k_peak]
 n_peak = argmin(abs.(times .- t_peak))
+
+∫wb_peak  = wb_bud[idx1][k_peak]           # the same instant's volume integrals, off the budget writer
+∫wbᵣ_peak = wbᵣ_bud[idx1][k_peak]
 
 wb_map  = interior(wb_t[n_peak],  :, 1, :)
 wbᵣ_map = interior(wbᵣ_t[n_peak], :, 1, :)
@@ -600,21 +602,21 @@ wb✶_map = wb_map .- wbᵣ_map                # `wb = wbᵣ + w b✶(z)` holds 
 @test abs(sum(wb✶_map)) < 1e-8 * sum(abs, wb✶_map);                                               #hide
 
 set_theme!(Theme(fontsize = 20)) #hide
-fig5 = Figure(size = (900, 620))
+fig5 = Figure(size = (900, 470))
 
-## one range for all three panels, taken over all three: `wbᵣ` runs about twice as large as `wb` here,
-## and scaling each panel to itself would hide that
-lim = maximum(maximum(abs, conversion) for conversion in (wb_map, wbᵣ_map, wb✶_map))
+## one range for both panels, taken over both: `wbᵣ` runs about twice as large as `wb` here, and
+## scaling each panel to itself would hide that
+lim = maximum(maximum(abs, conversion) for conversion in (wb_map, wbᵣ_map))
 conv_kwargs = (ylabel = "z", height = 150, aspect = DataAspect())
 xs, zs = xnodes(grid, Center()), znodes(grid, Center())
 
-ax_wb  = Axis(fig5[2, 1]; title = "wb,  the KE budget's production",   conv_kwargs...)
-ax_wbᵣ = Axis(fig5[3, 1]; title = "wbᵣ,  the eₐ budget's release",    conv_kwargs...)
-ax_dif = Axis(fig5[4, 1]; title = "wb - wbᵣ = w b✶(z)", xlabel = "x", conv_kwargs...)
+ax_wb  = Axis(fig5[2, 1]; title = "wb,   ∫wb dV = $(round(∫wb_peak, sigdigits = 4))", conv_kwargs...)
+ax_wbᵣ = Axis(fig5[3, 1]; title = "wbᵣ,   ∫wbᵣ dV = $(round(∫wbᵣ_peak, sigdigits = 4))",
+              xlabel = "x", conv_kwargs...)
 
 hms = [heatmap!(ax, xs, zs, conversion; colormap = :balance, colorrange = (-lim, lim))
-       for (ax, conversion) in zip((ax_wb, ax_wbᵣ, ax_dif), (wb_map, wbᵣ_map, wb✶_map))]
-Colorbar(fig5[5, 1], hms[1]; vertical = false, height = 8)
+       for (ax, conversion) in zip((ax_wb, ax_wbᵣ), (wb_map, wbᵣ_map))]
+Colorbar(fig5[4, 1], hms[1]; vertical = false, height = 8)
 
 Label(fig5[1, 1], "Conversion terms,  t = " * string(round(t_peak, digits = 1)),
       fontsize = 22, tellwidth = false)
