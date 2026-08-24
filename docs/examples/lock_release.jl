@@ -579,10 +579,7 @@ nothing #hide
 # ## Two ways of writing the exchange
 #
 # Both budgets above are closed with `∫wbᵣ dV`, and closing the KE one with `∫wb dV` instead would work
-# just as well, since the two integrals agree. The maps below show the two side by side, on one colour
-# scale and with their volume integrals printed: different fields, same integral. What separates them is
-# `w b✶(z)`, the work the flow does against the reference stratification, which is a flux divergence and
-# so integrates to nothing in a closed box.
+# just as well, since the two integrals agree.
 
 wb_t  = FieldTimeSeries(filepath, "wb")
 wbᵣ_t = FieldTimeSeries(filepath, "wbᵣ")
