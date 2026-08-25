@@ -439,7 +439,6 @@ the reference profile read at the parcel's **own height** `z` rather than at the
 its buoyancy would take it to (`reference_buoyancy_at_height`). It is the term the filtered APE budget
 carries as `-w̄b_rˡ` and the filtered kinetic energy budget as `+w̄b_rˡ`, which is what makes it a
 reversible exchange rather than a source or a sink; `w̄b_rˡ > 0` converts filtered APE into filtered KE.
-See the [Filtered available potential energy equation](@ref) docs page for the derivation.
 
 Note the reference profile is **not** filtered: `b_rˡ = b̄ - b✶(z)`, not `filter(b_r) = b̄ - filter(b✶(z))`.
 The two differ once the filter acts in the vertical, and only the first is the conversion the filtered
