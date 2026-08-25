@@ -528,14 +528,23 @@ end
 # on a GPU. This is the same predicate written as a broadcast plus a reduction, so it runs on device.
 @inline is_nondecreasing(v) = all(diff(v) .>= 0)
 
-function lookup_profile(s::SortedReferenceState, method::ProfileLookup)
+"""
+    $(SIGNATURES)
 
-    reshape(s.workspace, size(s.buoyancy)) .= interior(s.buoyancy)   # what `rank_by_buoyancy!` would leave, unsorted
-    b✶, z✶ = profile_arrays(method.profile)
+Check that `(b✶, z✶)` describes a reference profile: a non-empty pairing of buoyancies with the heights
+they sit at, both running from the densest fluid at the bottom to the lightest at the top. Every reader
+of an externally supplied profile validates it here, since a profile that fails any of these is not
+caught downstream: a length mismatch or a height that steps back down leaves the slot faces out of
+order, and `searchsortedlast` then returns whatever slot it likes, silently.
+"""
+function validate_reference_profile(b✶, z✶)
 
     length(b✶) == length(z✶) ||
         throw(ArgumentError("`ProfileLookup` was given a profile whose buoyancy and height have different \
                              lengths ($(length(b✶)) and $(length(z✶)))."))
+    isempty(b✶) &&
+        throw(ArgumentError("`ProfileLookup` was given an empty reference profile; it needs at least one \
+                             buoyancy and the height it sits at."))
     is_nondecreasing(b✶) ||
         throw(ArgumentError("`ProfileLookup` needs a reference profile ordered from the densest fluid up, \
                              but the buoyancy it was given is not non-decreasing."))
@@ -545,6 +554,15 @@ function lookup_profile(s::SortedReferenceState, method::ProfileLookup)
         throw(ArgumentError("`ProfileLookup` needs the heights paired with `b✶` to rise with it, but the \
                              heights it was given are not non-decreasing. A reference profile runs from the \
                              densest fluid at the bottom to the lightest at the top."))
+
+    return nothing
+end
+
+function lookup_profile(s::SortedReferenceState, method::ProfileLookup)
+
+    reshape(s.workspace, size(s.buoyancy)) .= interior(s.buoyancy)   # what `rank_by_buoyancy!` would leave, unsorted
+    b✶, z✶ = profile_arrays(method.profile)
+    validate_reference_profile(b✶, z✶)
 
     return b✶, z✶, profile_slot_faces(s, z✶)
 end
@@ -992,6 +1010,7 @@ function compute!(b✶z::ReferenceProfileAtHeightField, time=nothing)
     refresh_profile_source!(s.profile, time)   # a borrowed column is re-sorted before it is read
 
     b✶, z✶ = profile_arrays(s.profile)
+    validate_reference_profile(b✶, z✶)   # nothing downstream would catch a malformed profile
     faces  = profile_slot_faces(s.bottom_height, s.top_height, z✶)
     M      = length(b✶)
 

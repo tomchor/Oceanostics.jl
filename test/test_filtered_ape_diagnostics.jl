@@ -426,6 +426,20 @@ function test_filtered_ape_ke_conversion_errors(grid, filt)
     @test_throws "ProfileLookup" FilteredAvailablePotentialToKineticEnergyConversion(model, filt; method = HeavisideIntegral())
     @test_throws ArgumentError FilteredAvailablePotentialToKineticEnergyConversion(NonhydrostaticModel(grid), filt)
 
+    # This is the one diagnostic that reads an external profile without sorting against it, so it has to
+    # validate the profile itself: a malformed one would otherwise send `searchsortedlast` to whatever
+    # slot it liked and come back finite but wrong, rather than throwing the way its siblings do.
+    col = reference_height(model, method=VerticalSort())
+    compute!(col)
+    b✶ = Array(vec(interior(reference_buoyancy(col))))
+    z✶ = Array(vec(interior(col)))
+    for (msg, bad) in ("buoyancy and height have different" => ProfileLookup(b✶[1:end-1], z✶),
+                       "empty reference profile"            => ProfileLookup(empty(b✶), empty(z✶)),
+                       "ordered from the densest fluid up"  => ProfileLookup(reverse(b✶), z✶),
+                       "heights paired with"                => ProfileLookup(b✶, reverse(z✶)))
+        @test_throws msg Field(FilteredAvailablePotentialToKineticEnergyConversion(model, filt; method = bad))
+    end
+
     return nothing
 end
 
