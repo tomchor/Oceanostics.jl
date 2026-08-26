@@ -162,7 +162,7 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `filtered_buoyancy_and_lookup`, which is what makes the difference a decomposition). Both are
   `KernelFunctionOperation`s wrapping the underlying `BinaryOperation` (à la
   `SubFilterKineticEnergyDissipationRate`). It also owns `SubFilterAvailablePotentialToKineticEnergyConversion`
-  (τ(w, bᵣ) = filter(wbᵣ) − w̄b_rˡ, the term the sub-filter APE and sub-filter KE budgets exchange): both
+  (τˡ(w, bᵣ) = filter(wbᵣ) − w̄b_rˡ, the term the sub-filter APE and sub-filter KE budgets exchange): both
   halves go through `FilteredAvailablePotentialEnergyEquation`'s conversion kernel on one shared b✶(z), so
   they are one discretization split in two rather than two separately built terms, and the reference stays
   unfiltered in both — which is what makes it *not* `subfilter_covariance(w, bᵣ, filter)`. It is

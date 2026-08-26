@@ -72,7 +72,7 @@ Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentia
 ## The sub-filter conversion to kinetic energy
 
 ```math
-\tau(w, b_r) = \widetilde{w b_r} - \bar w \, b_r^l ,
+\tau^l(w, b_r) = \widetilde{w b_r} - \bar w \, b_r^l ,
 \qquad
 b_r = b - b^\star(z) ,
 \qquad
@@ -83,8 +83,8 @@ is the rate at which the sub-filter scales release their available potential ene
 flow, computed by [`SubFilterAvailablePotentialToKineticEnergyConversion`](@ref). It is the sub-filter
 half of the split whose filtered half is
 [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion),
-the two summing to ``\widetilde{w b_r}``. It enters this budget as ``-\tau(w, b_r)`` and the
-[Sub-filter kinetic energy equation](@ref) as ``+\tau(w, b_r)``, so it is a reversible exchange rather
+the two summing to ``\widetilde{w b_r}``. It enters this budget as ``-\tau^l(w, b_r)`` and the
+[Sub-filter kinetic energy equation](@ref) as ``+\tau^l(w, b_r)``, so it is a reversible exchange rather
 than a source or a sink. The reference profile is not filtered in either half, which is what
 distinguishes it from a plain `subfilter_covariance` of ``w`` and ``b_r``.
 

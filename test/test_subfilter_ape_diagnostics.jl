@@ -188,7 +188,7 @@ function test_subfilter_ape_module_reexports()
     @test :FilteredAvailablePotentialEnergy in names(SubFilterAvailablePotentialEnergyEquation)
     @test :FilteredAvailablePotentialEnergyDissipationRate in names(SubFilterAvailablePotentialEnergyEquation)
     @test :AvailablePotentialEnergyCrossScaleFlux in names(SubFilterAvailablePotentialEnergyEquation)
-    # τ(w, bᵣ) is a source of the sub-filter KE budget too, so that module re-exports it from here
+    # τˡ(w, bᵣ) is a source of the sub-filter KE budget too, so that module re-exports it from here
     @test SubFilterKineticEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion === SubFilterAvailablePotentialToKineticEnergyConversion
     @test :SubFilterAvailablePotentialToKineticEnergyConversion in names(SubFilterKineticEnergyEquation)
     @test SubFilterAvailablePotentialEnergyEquation.DissipationRate === SubFilterAvailablePotentialEnergyDissipationRate
@@ -200,7 +200,7 @@ function test_subfilter_ape_module_reexports()
 end
 #---
 
-# τ(w, bᵣ) is defined as filter(wbᵣ) - w̄b_rˡ, so the two halves have to add back up to the filtered
+# τˡ(w, bᵣ) is defined as filter(wbᵣ) - w̄b_rˡ, so the two halves have to add back up to the filtered
 # full-field conversion. That is the decomposition claim, and it pins the shared b✶(z) and the shared
 # discretization: were either half built against a different reference or collocated differently, the
 # sum would drift from filter(wbᵣ).
@@ -331,7 +331,7 @@ end
     @info "    Validation errors (method, buoyancy, closure)"
     test_subfilter_ape_errors(grid, filt)
 
-    @info "    Sub-filter APE to KE conversion τ(w, bᵣ)"
+    @info "    Sub-filter APE to KE conversion τˡ(w, bᵣ)"
     # The shared model is buoyancy-only, and the conversion is carried by the vertical velocity, so
     # without this every assertion below would hold trivially on a field of zeros.
     set!(model, u=(x, y, z) -> 1e-2 * randn(), w=(x, y, z) -> 1e-2 * randn())

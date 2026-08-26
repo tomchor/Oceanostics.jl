@@ -225,7 +225,7 @@ SubFilterAvailablePotentialEnergyDissipationRate(model; σ, dims = (1, 2, 3), bo
 #---
 
 #+++ Sub-filter available-potential-to-kinetic-energy conversion
-# τ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ, the same wrapper trick as the two diagnostics above.
+# τˡ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ, the same wrapper trick as the two diagnostics above.
 @inline subfilter_ape_to_ke_conversion_ccc(i, j, k, grid, wbᵣˢ) = @inbounds wbᵣˢ[i, j, k]
 
 const SubFilterAvailablePotentialToKineticEnergyConversion = CustomKFO{<:typeof(subfilter_ape_to_ke_conversion_ccc)}
@@ -234,20 +234,20 @@ const SubFilterAvailablePotentialToKineticEnergyConversion = CustomKFO{<:typeof(
     $(SIGNATURES)
 
 Return the sub-filter-scale (SFS) conversion of available potential energy into kinetic energy
-`τ(w, bᵣ)`, the rate at which the scales a low-pass `filter` removes release their APE to the
+`τˡ(w, bᵣ)`, the rate at which the scales a low-pass `filter` removes release their APE to the
 sub-filter flow:
 
 ```
-    τ(w, bᵣ) = filter(w bᵣ) - w̄ b_rˡ ,   bᵣ = b - b✶(z) ,   b_rˡ = b̄ - b✶(z)
+    τˡ(w, bᵣ) = filter(w bᵣ) - w̄ b_rˡ ,   bᵣ = b - b✶(z) ,   b_rˡ = b̄ - b✶(z)
 ```
 
 It is the sub-filter half of the split whose filtered half is
 [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref) `w̄b_rˡ`: the two sum to `filter(w bᵣ)`,
 so the sub-filter and filtered budgets between them exchange exactly what the full field converts
 ([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)). It enters this budget as
-`-τ(w, bᵣ)` and the sub-filter kinetic energy budget
+`-τˡ(w, bᵣ)` and the sub-filter kinetic energy budget
 ([`SubFilterKineticEnergy`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy))
-as `+τ(w, bᵣ)`, so it is a reversible exchange rather than a source or a sink.
+as `+τˡ(w, bᵣ)`, so it is a reversible exchange rather than a source or a sink.
 
 The reference profile is **not** filtered in either half — `b_rˡ` is `b̄ - b✶(z)`, not `filter(bᵣ)`,
 which would filter the reference along with the buoyancy. That is what makes the two halves an exact
@@ -276,7 +276,7 @@ SubFilterAvailablePotentialToKineticEnergyConversion KernelFunctionOperation at 
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ape_to_ke_conversion_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
-└── computes: sub-filter APE to KE conversion  τ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ
+└── computes: sub-filter APE to KE conversion  τˡ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ
 ```
 
 A convenience method `SubFilterAvailablePotentialToKineticEnergyConversion(model; σ, dims, boundary, N)`
@@ -292,7 +292,7 @@ function SubFilterAvailablePotentialToKineticEnergyConversion(model, filter; met
     # Both halves are the same contraction — a vertical velocity against a buoyancy anomaly measured from
     # the *unfiltered* reference profile — so they go through one kernel, the filtered conversion's,
     # differing only in whether they read the full or the filtered fields. Sharing the kernel and the one
-    # `b✶(z)` is what leaves `filter(wbᵣ) = w̄b_rˡ + τ(w, bᵣ)` a decomposition of one discretization
+    # `b✶(z)` is what leaves `filter(wbᵣ) = w̄b_rˡ + τˡ(w, bᵣ)` a decomposition of one discretization
     # rather than a difference of two.
     b✶ᶻ = reference_buoyancy_at_height(model.grid, lookup.profile)
     w_bᵣ(w, b) = KernelFunctionOperation{Center, Center, Center}(filtered_ape_to_ke_conversion_ccc, model.grid, w, b, b✶ᶻ)

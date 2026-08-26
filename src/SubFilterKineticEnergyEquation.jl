@@ -6,7 +6,7 @@ export SubFilterKineticEnergy, SubFilterKineticEnergyDissipationRate, Dissipatio
 # Πₖ is a source term of the sub-filter KE budget (and a sink of the filtered budget), so it is
 # re-exported here from `FilteredKineticEnergyEquation`, where it is defined.
 export KineticEnergyCrossScaleFlux
-# τ(w, bᵣ) is the other source of this budget — the APE the sub-filter scales release to it — and a sink
+# τˡ(w, bᵣ) is the other source of this budget — the APE the sub-filter scales release to it — and a sink
 # of the sub-filter APE one, so it is re-exported here from `SubFilterAvailablePotentialEnergyEquation`.
 export SubFilterAvailablePotentialToKineticEnergyConversion
 

@@ -473,7 +473,7 @@ end
 #+++ SubFilterAvailablePotentialEnergyEquation
 @diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy                "SubFilterAvailablePotentialEnergy"                "sub-filter available potential energy  eₐˢ = filter(eₐ) - eₐˡ"
 @diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate "SubFilterAvailablePotentialEnergyDissipationRate" "sub-filter available potential energy dissipation rate  εₐˢ = filter(εₐ) - εₐˡ"
-@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion "SubFilterAvailablePotentialToKineticEnergyConversion" "sub-filter APE to KE conversion  τ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ"
+@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion "SubFilterAvailablePotentialToKineticEnergyConversion" "sub-filter APE to KE conversion  τˡ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ"
 #---
 
 #+++ FlowDiagnostics
