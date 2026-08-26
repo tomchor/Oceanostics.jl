@@ -6,7 +6,9 @@ using Oceananigans.Fields: location, compute_at!
 using Oceanostics
 using Oceanostics: SubFilterAvailablePotentialEnergy, SubFilterAvailablePotentialEnergyDissipationRate
 using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipationRate,
-                   AvailablePotentialEnergyCrossScaleFlux
+                   AvailablePotentialEnergyCrossScaleFlux, FilteredAvailablePotentialToKineticEnergyConversion
+using Oceanostics: SubFilterAvailablePotentialToKineticEnergyConversion, AvailablePotentialToKineticEnergyConversion,
+                   reference_buoyancy_at_height
 using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate,
                    reference_height, reference_buoyancy, VerticalSort, ProfileLookup, HeavisideIntegral,
                    GaussianFilter
@@ -186,6 +188,9 @@ function test_subfilter_ape_module_reexports()
     @test :FilteredAvailablePotentialEnergy in names(SubFilterAvailablePotentialEnergyEquation)
     @test :FilteredAvailablePotentialEnergyDissipationRate in names(SubFilterAvailablePotentialEnergyEquation)
     @test :AvailablePotentialEnergyCrossScaleFlux in names(SubFilterAvailablePotentialEnergyEquation)
+    # τˡ(w, bᵣ) is a source of the sub-filter KE budget too, so that module re-exports it from here
+    @test SubFilterKineticEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion === SubFilterAvailablePotentialToKineticEnergyConversion
+    @test :SubFilterAvailablePotentialToKineticEnergyConversion in names(SubFilterKineticEnergyEquation)
     @test SubFilterAvailablePotentialEnergyEquation.DissipationRate === SubFilterAvailablePotentialEnergyDissipationRate
     @test SubFilterAvailablePotentialEnergyEquation.ProfileLookup === ProfileLookup
     @test SubFilterAvailablePotentialEnergyEquation.VerticalSort === VerticalSort
@@ -194,6 +199,99 @@ function test_subfilter_ape_module_reexports()
     return nothing
 end
 #---
+
+# τˡ(w, bᵣ) is defined as filter(wbᵣ) - w̄b_rˡ, so the two halves have to add back up to the filtered
+# full-field conversion. That is the decomposition claim, and it pins the shared b✶(z) and the shared
+# discretization: were either half built against a different reference or collocated differently, the
+# sum would drift from filter(wbᵣ).
+function test_subfilter_ape_ke_conversion_decomposition(model, filt)
+    lookup = ProfileLookup(reference_height(model, method=VerticalSort()))
+    z✶ = reference_height(model.tracers.b; method=lookup)
+
+    τ  = Field(SubFilterAvailablePotentialToKineticEnergyConversion(model, filt; method=lookup))
+    wl = Field(FilteredAvailablePotentialToKineticEnergyConversion(model, filt; method=lookup))
+    filtered_full = Field(filt(Field(AvailablePotentialToKineticEnergyConversion(model, z✶))))
+
+    @test location(τ) == (Center, Center, Center)
+    @test maximum(abs, interior(τ)) > 0   # otherwise the sum below would hold trivially
+    @test interior(filtered_full) ≈ interior(wl) .+ interior(τ)
+
+    @test occursin("SubFilterAvailablePotentialToKineticEnergyConversion", sprint(show, τ.operand))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), τ.operand))
+    return nothing
+end
+
+# An identity-scale filter makes both halves the full-field conversion, so their difference vanishes to
+# the bit — the check that the two are the same expression evaluated on different fields, not two
+# separately built ones.
+function test_subfilter_ape_ke_conversion_identity_filter_vanishes(model)
+    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=1e-4, N=3)
+    @test all(interior(Field(SubFilterAvailablePotentialToKineticEnergyConversion(model, identity_filter))) .== 0)
+    return nothing
+end
+
+# The conversion is carried by the vertical velocity, so with no motion it vanishes identically however
+# sharp the buoyancy.
+function test_subfilter_ape_ke_conversion_vanishes_without_motion(grid, filt)
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b=random_stratified_b)   # velocities left at zero
+    @test maximum(abs, interior(Field(SubFilterAvailablePotentialToKineticEnergyConversion(model, filt)))) == 0
+    return nothing
+end
+
+# Both halves measure the buoyancy against the *unfiltered* reference profile, so the filtered half uses
+# b_rˡ = b̄ - b✶(z) rather than filter(bᵣ) = filter(b - b✶(z)), which filters the reference too. The two
+# differ once the filter acts in the vertical and coincide for a purely horizontal one, b✶ being a
+# function of z alone — the convention that makes the two halves an exact decomposition.
+function test_subfilter_ape_ke_conversion_unfiltered_reference(model, filt, filt_horizontal)
+    lookup = ProfileLookup(reference_height(model, method=VerticalSort()))
+    b   = model.tracers.b
+    b✶ᶻ = reference_buoyancy_at_height(model.grid, lookup.profile)
+
+    for (filter, coincide) in ((filt, false), (filt_horizontal, true))
+        b_rˡ        = Field(Field(filter(b)) - b✶ᶻ)   # filtered buoyancy, unfiltered reference
+        filtered_bᵣ = Field(filter(Field(b - b✶ᶻ)))   # filters the reference too
+        @test (interior(b_rˡ) ≈ interior(filtered_bᵣ)) == coincide
+    end
+    return nothing
+end
+
+# The Gaussian convenience method must reproduce the explicit filter-factory call with matching kwargs.
+function test_subfilter_ape_ke_conversion_convenience(model)
+    σ = 0.12
+    filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
+    @test interior(Field(SubFilterAvailablePotentialToKineticEnergyConversion(model; σ))) ≈
+          interior(Field(SubFilterAvailablePotentialToKineticEnergyConversion(model, filt)))
+    return nothing
+end
+
+# Like its siblings, it measures the filtered buoyancy against a profile it did not produce, so anything
+# but a `ProfileLookup` has to be refused.
+function test_subfilter_ape_ke_conversion_errors(grid, filt)
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b=random_stratified_b)
+    @test_throws "ProfileLookup" SubFilterAvailablePotentialToKineticEnergyConversion(model, filt; method=HeavisideIntegral())
+    @test_throws ArgumentError SubFilterAvailablePotentialToKineticEnergyConversion(NonhydrostaticModel(grid), filt)
+    return nothing
+end
+
+# It holds filtered `Field`s and a profile re-sorted on every `compute!`, so it has to track the flow.
+# This mutates the model, so it runs last.
+function test_subfilter_ape_ke_conversion_recomputes(model, filt)
+    cf = Field(SubFilterAvailablePotentialToKineticEnergyConversion(model, filt))
+    compute_at!(cf, 0.0)
+    snapshot = Array(interior(cf))
+
+    set!(model, b=(x, y, z) -> 1e-2 * z + 2e-3 * randn(), w=(x, y, z) -> 2e-2 * randn())
+    compute_at!(cf, 1.0)
+
+    fresh = Field(SubFilterAvailablePotentialToKineticEnergyConversion(model, filt))
+    compute_at!(fresh, 2.0)
+
+    @test !(Array(interior(cf)) ≈ snapshot)   # tracked the change in the flow
+    @test interior(cf) ≈ interior(fresh)      # equals a conversion built fresh on the new state
+    return nothing
+end
 
 @testset "Sub-filter available potential energy equation" begin
     @info "  Testing sub-filter available potential energy diagnostics"
@@ -232,6 +330,18 @@ end
 
     @info "    Validation errors (method, buoyancy, closure)"
     test_subfilter_ape_errors(grid, filt)
+
+    @info "    Sub-filter APE to KE conversion τˡ(w, bᵣ)"
+    # The shared model is buoyancy-only, and the conversion is carried by the vertical velocity, so
+    # without this every assertion below would hold trivially on a field of zeros.
+    set!(model, u=(x, y, z) -> 1e-2 * randn(), w=(x, y, z) -> 1e-2 * randn())
+    test_subfilter_ape_ke_conversion_decomposition(model, filt)
+    test_subfilter_ape_ke_conversion_identity_filter_vanishes(model)
+    test_subfilter_ape_ke_conversion_unfiltered_reference(model, filt, filt_horizontal)
+    test_subfilter_ape_ke_conversion_convenience(model)
+    test_subfilter_ape_ke_conversion_vanishes_without_motion(grid, filt)
+    test_subfilter_ape_ke_conversion_errors(grid, filt)
+    test_subfilter_ape_ke_conversion_recomputes(model, filt)   # mutates model; keep last of the `model` tests
 
     @info "    Module re-exports and aliases"
     test_subfilter_ape_module_reexports()

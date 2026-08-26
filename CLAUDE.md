@@ -161,7 +161,13 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   profile (`subfilter_reference_heights` builds `z✶` and `z✶ˡ` from that module's
   `filtered_buoyancy_and_lookup`, which is what makes the difference a decomposition). Both are
   `KernelFunctionOperation`s wrapping the underlying `BinaryOperation` (à la
-  `SubFilterKineticEnergyDissipationRate`), and the module re-exports `FilteredAvailablePotentialEnergy`,
+  `SubFilterKineticEnergyDissipationRate`). It also owns `SubFilterAvailablePotentialToKineticEnergyConversion`
+  (τˡ(w, bᵣ) = filter(wbᵣ) − w̄b_rˡ, the term the sub-filter APE and sub-filter KE budgets exchange): both
+  halves go through `FilteredAvailablePotentialEnergyEquation`'s conversion kernel on one shared b✶(z), so
+  they are one discretization split in two rather than two separately built terms, and the reference stays
+  unfiltered in both — which is what makes it *not* `subfilter_covariance(w, bᵣ, filter)`. It is
+  re-exported by `SubFilterKineticEnergyEquation` (a source of that budget), which is why that module is
+  now included *after* this one. The module re-exports `FilteredAvailablePotentialEnergy`,
   `FilteredAvailablePotentialEnergyDissipationRate` and `AvailablePotentialEnergyCrossScaleFlux` (a
   source term of this budget; as `SubFilterKineticEnergyEquation` re-exports
   `KineticEnergyCrossScaleFlux`). `method` must be a `ProfileLookup`: the default builds a

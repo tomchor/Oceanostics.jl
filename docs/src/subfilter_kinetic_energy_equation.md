@@ -22,7 +22,7 @@ transport terms vanishing over a closed or periodic domain) reads
 ```math
 \frac{d}{dt} \int K^s\, dV
     = \int \Pi_K\, dV
-    + \int \tau(w, b)\, dV
+    + \int \tau^l(w, b_r)\, dV
     - \int \varepsilon^s\, dV ,
 ```
 
@@ -31,8 +31,12 @@ with two sources and one sink:
   - ``\Pi_K`` ([`KineticEnergyCrossScaleFlux`](@ref)) is the cross-scale kinetic-energy flux, the rate at
     which the filtered scales hand kinetic energy down to the sub-filter scales. It is the sink of the
     filtered-flow budget and the source of this one.
-  - ``\tau(w, b) = \widetilde{wb} - \tilde w\,\tilde b`` is the sub-filter buoyancy flux (a
-    `subfilter_covariance`), which converts sub-filter potential energy into sub-filter kinetic energy.
+  - ``\tau^l(w, b_r) = \widetilde{w b_r} - \bar w\,b_r^l``
+    ([`SubFilterAvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion))
+    is the sub-filter buoyancy flux, which converts sub-filter available potential energy into
+    sub-filter kinetic energy. It is defined in the
+    [Sub-filter available potential energy equation](@ref), whose budget it is the sink of, and is
+    re-exported here.
   - ``\varepsilon^s = \widetilde{\varepsilon} - \varepsilon^l`` is the sub-filter dissipation
     ([`SubFilterKineticEnergyDissipationRate`](@ref)): the filtered total dissipation
     ``\widetilde{\varepsilon}``

@@ -63,12 +63,35 @@ flux; the [Filtered available potential energy equation](@ref) has the details.
 The cross-scale APE flux ``\Pi_a``, which enters this budget as a source (``+\Pi_a``) and the
 filtered one as a sink, is
 [`AvailablePotentialEnergyCrossScaleFlux`](@ref Oceanostics.FilteredAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux),
-defined in the [Filtered available potential energy equation](@ref) and re-exported here. The remaining
-terms of the ``e_a^s`` budget — the sub-filter buoyancy-flux exchange with the kinetic energy, and the
-reference-tendency correction that appears when the reference profile evolves in time — do not have
-named diagnostics yet. With a fixed reference profile the correction vanishes identically, so that is
-the configuration in which the budget can be closed from what is currently available.
+defined in the [Filtered available potential energy equation](@ref) and re-exported here.
 
 ```@docs
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate
 ```
+
+## The sub-filter conversion to kinetic energy
+
+```math
+\tau^l(w, b_r) = \widetilde{w b_r} - \bar w \, b_r^l ,
+\qquad
+b_r = b - b^\star(z) ,
+\qquad
+b_r^l = \bar b - b^\star(z)
+```
+
+is the rate at which the sub-filter scales release their available potential energy to the sub-filter
+flow, computed by [`SubFilterAvailablePotentialToKineticEnergyConversion`](@ref). It is the sub-filter
+half of the split whose filtered half is
+[`FilteredAvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion),
+the two summing to ``\widetilde{w b_r}``. It enters this budget as ``-\tau^l(w, b_r)`` and the
+[Sub-filter kinetic energy equation](@ref) as ``+\tau^l(w, b_r)``, so it is a reversible exchange rather
+than a source or a sink. The reference profile is not filtered in either half, which is what
+distinguishes it from a plain `subfilter_covariance` of ``w`` and ``b_r``.
+
+```@docs
+Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion
+```
+
+The one term of the ``e_a^s`` budget still without a diagnostic is the reference-tendency correction
+that appears when the reference profile evolves in time; with a fixed reference profile it vanishes
+identically.

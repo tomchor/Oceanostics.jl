@@ -6,6 +6,9 @@ export SubFilterKineticEnergy, SubFilterKineticEnergyDissipationRate, Dissipatio
 # Πₖ is a source term of the sub-filter KE budget (and a sink of the filtered budget), so it is
 # re-exported here from `FilteredKineticEnergyEquation`, where it is defined.
 export KineticEnergyCrossScaleFlux
+# τˡ(w, bᵣ) is the other source of this budget — the APE the sub-filter scales release to it — and a sink
+# of the sub-filter APE one, so it is re-exported here from `SubFilterAvailablePotentialEnergyEquation`.
+export SubFilterAvailablePotentialToKineticEnergyConversion
 
 using Oceananigans.Fields: Field
 using Oceananigans.Grids: Center
@@ -19,6 +22,7 @@ using ..FilteredKineticEnergyEquation: subfilter_stress_tensor # re-exported for
 # `GaussianFilter` is used by the convenience methods; `BoxFilter` is imported only so its docstring
 # `@ref` resolves in-module.
 using ..SpatialFilters: GaussianFilter, BoxFilter
+using ..SubFilterAvailablePotentialEnergyEquation: SubFilterAvailablePotentialToKineticEnergyConversion
 
 #+++ Sub-filter kinetic energy
 # Kˢ = filter(K) - Kˡ: the filtered full kinetic energy minus the kinetic energy of the filtered flow.
