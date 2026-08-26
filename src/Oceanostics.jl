@@ -101,6 +101,7 @@ export AvailablePotentialEnergyCrossScaleFlux, FilteredAvailablePotentialToKinet
 
 #+++ SubFilterAvailablePotentialEnergyEquation exports
 export SubFilterAvailablePotentialEnergy, SubFilterAvailablePotentialEnergyDissipationRate
+export SubFilterAvailablePotentialToKineticEnergyConversion
 #---
 
 #+++ ProgressMessengers
@@ -222,9 +223,9 @@ include("AvailablePotentialEnergyEquation.jl")
 include("FlowDiagnostics.jl")
 include("SpatialFilters/SpatialFilters.jl")
 include("FilteredKineticEnergyEquation.jl")
-include("SubFilterKineticEnergyEquation.jl")
 include("FilteredAvailablePotentialEnergyEquation.jl")
 include("SubFilterAvailablePotentialEnergyEquation.jl")
+include("SubFilterKineticEnergyEquation.jl")
 include("ProgressMessengers/ProgressMessengers.jl")
 
 using .TracerEquation, .UMomentumEquation, .VMomentumEquation, .WMomentumEquation, .TracerVarianceEquation, .KineticEnergyEquation, .TurbulentKineticEnergyEquation, .PotentialEnergyEquation
@@ -232,9 +233,9 @@ using .BackgroundPotentialEnergyEquation, .AvailablePotentialEnergyEquation
 using .FlowDiagnostics
 using .SpatialFilters
 using .FilteredKineticEnergyEquation
-using .SubFilterKineticEnergyEquation
 using .FilteredAvailablePotentialEnergyEquation
 using .SubFilterAvailablePotentialEnergyEquation
+using .SubFilterKineticEnergyEquation
 using .ProgressMessengers
 
 #+++ Deprecated bindings
@@ -472,6 +473,7 @@ end
 #+++ SubFilterAvailablePotentialEnergyEquation
 @diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy                "SubFilterAvailablePotentialEnergy"                "sub-filter available potential energy  eₐˢ = filter(eₐ) - eₐˡ"
 @diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate "SubFilterAvailablePotentialEnergyDissipationRate" "sub-filter available potential energy dissipation rate  εₐˢ = filter(εₐ) - εₐˡ"
+@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion "SubFilterAvailablePotentialToKineticEnergyConversion" "sub-filter APE to KE conversion  τ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ"
 #---
 
 #+++ FlowDiagnostics
