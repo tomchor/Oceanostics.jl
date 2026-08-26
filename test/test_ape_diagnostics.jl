@@ -270,6 +270,7 @@ function test_profile_lookup_matches_the_ranked_sort()
     # a well-formed profile has matched lengths, buoyancy running up, and heights rising with it. Each
     # assertion matches its own message, so a profile rejected for the wrong reason still fails.
     for (msg, bad) in ("buoyancy and height have different" => ProfileLookup(b✶[1:end-1], z✶_prof),
+                       "empty reference profile"            => ProfileLookup(empty(b✶), empty(z✶_prof)),
                        "ordered from the densest fluid up"  => ProfileLookup(reverse(b✶), z✶_prof),
                        "heights paired with"                => ProfileLookup(b✶, reverse(z✶_prof)))
         @test_throws msg AvailablePotentialEnergyEquation.reference_height(model; method=bad)

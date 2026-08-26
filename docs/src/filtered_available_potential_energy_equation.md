@@ -77,3 +77,35 @@ than a source or a sink ([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2
 ```@docs
 Oceanostics.FilteredAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux
 ```
+
+## Conversion to filtered kinetic energy
+
+The filtered APE and the [filtered kinetic energy](@ref "Filtered kinetic energy equation") exchange
+energy at a rate
+
+```math
+\bar w \, b_r^l ,
+\qquad
+b_r^l = \bar b - b^\star(z) ,
+```
+
+computed by [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref). Here ``b_r^l`` is the
+buoyancy anomaly of the filtered field against the reference state, with ``b^\star(z)`` the reference
+profile read at the parcel's **own height** ``z`` rather than at the reference height ``z^\star`` its
+buoyancy would take it to — the inverse of the map every other diagnostic on this page uses.
+
+The term appears in the filtered APE budget as ``-\bar w\,b_r^l`` and in the filtered kinetic energy
+budget as ``+\bar w\,b_r^l`` ([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879),
+Eqs. 2.10 and 3.2), so it is a reversible exchange rather than a source or a sink: ``\bar w\,b_r^l > 0``
+converts filtered APE into filtered KE.
+
+!!! note "The reference profile is not filtered"
+    ``b_r^l = \bar b - b^\star(z)`` pairs the *filtered* buoyancy with the *unfiltered* reference
+    profile, consistent with ``e_a^l`` itself being measured against the full field's reference state.
+    It is not ``\overline{b_r} = \bar b - \overline{b^\star(z)}``, which filters the reference too.
+    The two differ once the filter acts in the vertical; for a purely horizontal filter they coincide,
+    since ``b^\star`` is a function of ``z`` alone.
+
+```@docs
+Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion
+```

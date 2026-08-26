@@ -91,11 +91,18 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   Only the last three actually sort: `ProfileLookup` handed an external profile does not.
   `reference_buoyancy(z✶)` returns the buoyancy that pairs with z✶ cell by cell, which is the sorted
   profile b✶ under `VerticalSort` and the model's own buoyancy under the model-grid methods.
-  `reference_buoyancy_at_height(z✶)` is the other sampling of the same profile, b✶(z) at each cell's
-  *own* height, which is what `ReferenceBuoyancyAnomaly` measures b against; its field reads the
-  profile off the sort through `s.permutation` (`reference_profile`) rather than sorting again, and is
+  `reference_buoyancy_at_height` is the other sampling of the same profile, b✶(z) at each cell's *own*
+  height, which is what an anomaly b - b✶(z) is measured against, and it has two methods. Handed a
+  reference height (`ReferenceBuoyancyAtHeightState`, what `ReferenceBuoyancyAnomaly` uses) it reads
+  the profile off that sort through `s.permutation` (`reference_profile`) rather than sorting again,
   piecewise constant on the same slots `Ψ` integrates, so b✶(z) is that `Ψ`'s derivative rather than a
-  second reconstruction. It also owns `Ψ = ∫b✶dz̃` (`reference_potential`), a property of the reference
+  second reconstruction, and it answers on the grid z✶ lives on. Handed `(grid, profile)`
+  (`ReferenceProfileAtHeight`, what `FilteredAvailablePotentialToKineticEnergyConversion` uses) it
+  reads any profile `ProfileLookup` accepts onto that grid by slot lookup, which is what a diagnostic
+  measuring one field against another field's reference state needs. The two build their slot faces
+  differently: the first from the sorted cells' cumulative volumes, exactly, the second from the
+  midpoints between neighbouring z✶, which agrees only for the equal-volume slots `VerticalSort`
+  produces. It also owns `Ψ = ∫b✶dz̃` (`reference_potential`), a property of the reference
   profile that `AvailablePotentialEnergy` consumes. No method runs on an `ImmersedBoundaryGrid` yet. The profile
   arrays live wherever the field does, so this module must stay clear of host-side element access:
   single-element writes go through one-element broadcasts (`@views f[1:1] .= x`) and ordering checks
@@ -133,7 +140,15 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `FilteredAvailablePotentialEnergyDissipationRate(model, filter, z✶ˡ; upsilon)`) so one lookup / one Υˡ
   can be shared. Also owns `AvailablePotentialEnergyCrossScaleFlux` (Πₐ = −τᵢ∂ᵢΥˡ, the sub-filter
   buoyancy flux — `subfilter_covariance` per direction with one shared b̄ — contracted with ∇Υˡ, the APE
-  analogue of `KineticEnergyCrossScaleFlux`), with the same high-level/low-level constructor pair. b̄ is measured against a profile it did not produce (ordinarily the full field's), so
+  analogue of `KineticEnergyCrossScaleFlux`), with the same high-level/low-level constructor pair, and
+  `FilteredAvailablePotentialToKineticEnergyConversion` (w̄b_rˡ, the term the filtered APE and filtered
+  KE budgets exchange). Its `b_rˡ = b̄ − b✶(z)` pairs the filtered buoyancy with the *unfiltered*
+  reference profile, which is what differentiating eₐˡ in z produces and what `eₐˡ` itself is measured
+  against — not `filter(b_r)`, which filters the reference too; the two coincide only for a purely
+  horizontal filter. `b✶(z)` (the reference profile read at a cell's own height, the inverse of the
+  `z✶(b)` map) comes from `BackgroundPotentialEnergyEquation`'s `reference_buoyancy_at_height`, whose
+  `(grid, profile)` method is the one that reads a borrowed column. b̄ is measured against a profile it
+  did not produce (ordinarily the full field's), so
   `method` must be a `ProfileLookup`; `shared_profile_lookup` resolves the default `ProfileLookup()`
   into a `VerticalSort` column of the model's buoyancy (re-sorted every `compute!`), and
   `filtered_buoyancy_and_lookup` returns `(b, b̄, lookup)` for the sub-filter module to build the full
