@@ -144,7 +144,7 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   (`FilteredAvailablePotentialEnergy(model, z✶ˡ)`,
   `FilteredAvailablePotentialEnergyDisplacementPotential(model, z✶ˡ)`,
   `FilteredAvailablePotentialEnergyDissipationRate(model, filter, z✶ˡ; upsilon)`) so one lookup / one Υˡ
-  can be shared. Also owns `AvailablePotentialEnergyCrossScaleFlux` (Πₐ = −τᵢ∂ᵢΥˡ, the subfilter
+  can be shared. Also owns `AvailablePotentialEnergyCrossScaleFlux` (Πₐ = −τ(uᵢ, b)∂ᵢΥˡ, the subfilter
   buoyancy flux — `subfilter_covariance` per direction with one shared b̄ — contracted with ∇Υˡ, the APE
   analogue of `KineticEnergyCrossScaleFlux`), with the same high-level/low-level constructor pair, and
   `FilteredAvailablePotentialToKineticEnergyConversion` (w̄b_rˡ, the term the filtered APE and filtered

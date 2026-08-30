@@ -265,9 +265,9 @@ end
 
 
 """
-Πₐ = -τᵢ ∂ᵢΥˡ rebuilt from raw filter calls (`filter(b uᵢ) - b̄ ūᵢ`, every factor collocated at cell
+Πₐ = -τ(uᵢ, b) ∂ᵢΥˡ rebuilt from raw filter calls (`filter(b uᵢ) - b̄ ūᵢ`, every factor collocated at cell
 centers) contracted with the gradient of the filtered-state displacement potential. The diagnostic
-itself builds τᵢ through `subfilter_covariance`, so the manual construction here deliberately does
+itself builds τ(uᵢ, b) through `subfilter_covariance`, so the manual construction here deliberately does
 not: the comparison pins the covariance, the sign, the directions summed over, and the co-location of
 every factor independently — which no approximate check could separate.
 """
@@ -300,7 +300,7 @@ end
 
 """
 The flux is a *transfer*: with no motion there is no subfilter buoyancy flux to carry APE across the
-filter scale, so τᵢ and hence Πₐ vanish identically however sharp the buoyancy is. This is the check
+filter scale, so τ(uᵢ, b) and hence Πₐ vanish identically however sharp the buoyancy is. This is the check
 that a stray sign or a leftover term would break, since Υˡ itself is nowhere near zero here.
 """
 function test_ape_cross_scale_flux_vanishes_without_motion(grid, filt)

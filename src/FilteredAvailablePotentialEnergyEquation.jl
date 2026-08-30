@@ -202,7 +202,7 @@ filtered APE budget contracts its fluxes against, following the filtered APE fra
 flux it gives the dissipation
 [`FilteredAvailablePotentialEnergyDissipationRate`](@ref) `εₐˡ = -q̄ᵢ∂ᵢΥˡ`, and against the subfilter
 buoyancy flux the cross-scale flux
-[`AvailablePotentialEnergyCrossScaleFlux`](@ref) `Πₐ = -τᵢ∂ᵢΥˡ`.
+[`AvailablePotentialEnergyCrossScaleFlux`](@ref) `Πₐ = -τ(uᵢ, b)∂ᵢΥˡ`.
 
 As with every diagnostic here the filtered buoyancy is measured against the reference profile of the
 **full** field, so `method` has to be a [`ProfileLookup`](@ref), for the reason
@@ -388,15 +388,15 @@ FilteredAvailablePotentialEnergyDissipationRate(model; σ, dims = (1, 2, 3), bou
 #---
 
 #+++ Cross-scale available-potential-energy flux
-# Πₐ = -τᵢ ∂ᵢΥˡ, the APE analogue of `KineticEnergyCrossScaleFlux`'s Πₖ = -τᵢⱼS̄ᵢⱼ. The subfilter
-# buoyancy flux τᵢ = filter(buᵢ) - b̄ūᵢ takes the place of the subfilter stress, and the gradient of
+# Πₐ = -τ(uᵢ, b) ∂ᵢΥˡ, the APE analogue of `KineticEnergyCrossScaleFlux`'s Πₖ = -τᵢⱼS̄ᵢⱼ. The subfilter
+# buoyancy flux τ(uᵢ, b) = filter(buᵢ) - b̄ūᵢ takes the place of the subfilter stress, and the gradient of
 # the filtered-state displacement potential Υˡ takes the place of the resolved strain. Every factor is
 # interpolated to (Center, Center, Center) before multiplying (via `FlowDiagnostics`' shared
 # `to_center`), matching the contraction convention of the kinetic-energy flux.
 """
     $(SIGNATURES)
 
-The subfilter buoyancy flux `τᵢ = filter(b uᵢ) - b̄ ūᵢ` for the directions in `dims`, as a `NamedTuple`
+The subfilter buoyancy flux `τ(uᵢ, b) = filter(b uᵢ) - b̄ ūᵢ` for the directions in `dims`, as a `NamedTuple`
 keyed `τ₁`, `τ₂`, `τ₃`:
 [`subfilter_covariance`](@ref Oceanostics.FlowDiagnostics.subfilter_covariance) applied per direction,
 with the caller's pre-filtered buoyancy `b̄` shared across the components through its `filtered_a`
@@ -425,10 +425,10 @@ low-pass `filter` transfers available potential energy from the filtered to the 
 ([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)):
 
 ```
-    Πₐ = -τᵢ ∂ᵢΥˡ ,   τᵢ = filter(b uᵢ) - b̄ ūᵢ ,   Υˡ = z✶(b̄) - z
+    Πₐ = -τ(uᵢ, b) ∂ᵢΥˡ ,   τ(uᵢ, b) = filter(b uᵢ) - b̄ ūᵢ ,   Υˡ = z✶(b̄) - z
 ```
 
-where `τᵢ` is the subfilter buoyancy flux and `Υˡ` is the
+where `τ(uᵢ, b)` is the subfilter buoyancy flux (the `subfilter_covariance` of `uᵢ` and `b`) and `Υˡ` is the
 [`FilteredAvailablePotentialEnergyDisplacementPotential`](@ref). It is the APE analogue of
 [`KineticEnergyCrossScaleFlux`](@ref Oceanostics.FilteredKineticEnergyEquation.KineticEnergyCrossScaleFlux),
 with the subfilter buoyancy flux in place of the subfilter stress and `∇Υˡ` in place of the resolved
@@ -465,7 +465,7 @@ AvailablePotentialEnergyCrossScaleFlux KernelFunctionOperation at (Center, Cente
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: cross_scale_ape_flux_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.UnaryOperation",)
-└── computes: cross-scale available potential energy flux  -τᵢ∂ᵢΥˡ
+└── computes: cross-scale available potential energy flux  -τ(uᵢ, b)∂ᵢΥˡ
 ```
 
 A second method, `AvailablePotentialEnergyCrossScaleFlux(model, filter, z✶ˡ; upsilon, dims)`, takes a
@@ -502,7 +502,7 @@ function AvailablePotentialEnergyCrossScaleFlux(model, filter, z✶ˡ::SortedRef
     b̄ = reference_buoyancy(z✶ˡ.operand)
     τ = subfilter_buoyancy_flux(filter, b, b̄, model.velocities, dims)
 
-    ∂ᵢ = (∂x, ∂y, ∂z)   # the τᵢ are already at cell centers, so only the gradient needs collocating
+    ∂ᵢ = (∂x, ∂y, ∂z)   # the τ(uᵢ, b) are already at cell centers, so only the gradient needs collocating
     Πᵃ = -sum(τ[Symbol(:τ, ('₁', '₂', '₃')[d])] * to_center(∂ᵢ[d](Υˡ)) for d in dims)
 
     return KernelFunctionOperation{Center, Center, Center}(cross_scale_ape_flux_ccc, model.grid, Πᵃ)
