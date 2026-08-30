@@ -10,7 +10,7 @@ of the filtered flow as
 e_a^l = e_a(\bar b, z, t) = \int_{z^\star(\bar b, t)}^{z} \left[b^\star(\tilde z, t) - \bar b\right] \mathrm{d}\tilde z ,
 ```
 computed by [`FilteredAvailablePotentialEnergy`](@ref). Note that the reference profile ``b^\star(z^\star)``
-is the reference state of the *full buoyancy* ``b``, rather than sorted from ``\bar b`` itself.
+is the reference state of the *full buoyancy* ``b``, rather than sorted from ``\bar b``.
 Because of this, it is necessary to look up the position of a buoyancy parcel in the filtered fields
 in the full reference profile ``b^\star(z^\star)`` in calculating some terms, which makes it necessary
 to use [`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup), since it's
