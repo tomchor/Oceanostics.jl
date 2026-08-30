@@ -18,7 +18,7 @@ the velocity:
              + \underbrace{u_i F_{u_i}}_{\text{forcing}}
 ```
 
-where ``\tau_{ij}`` is the viscous/subgrid momentum flux supplied by the closure, ``p`` is pressure,
+where ``\tau_{ij}`` is the viscous/subgrid stress tensor, ``p`` is pressure,
 ``b_i`` is the buoyancy acceleration component in the ``i``-th direction, and
 ``F_{u_i}`` is the forcing on the ``i``-th momentum equation. As throughout Oceanostics, the
 lower-case ``e_k`` is the pointwise energy density and the upper-case ``E_k = \int e_k \, \mathrm{d}V``

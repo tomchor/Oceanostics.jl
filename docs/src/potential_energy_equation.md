@@ -86,7 +86,7 @@ Each of the two flux terms appears twice, once in each of the forms the derivati
 
 The `Buoyancy*` pair are the ``-z\,\times`` forms, which is the convention
 [the kinetic energy equation](kinetic_energy_equation.md) follows as well (``u_i\partial_j(u_ju_i)``
-rather than ``\partial_j(u_je_k)``). Taken that way they are the model's own buoyancy tendency split
+rather than ``\partial_j(u_j e_k)``). Taken that way they are the model's own buoyancy tendency split
 apart, so
 
 ```math
