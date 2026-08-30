@@ -218,11 +218,6 @@ Reynolds stress tensor.
 \tau_{ij} = u_i u_j
 ```
 
-This is the *advective* momentum flux. The momentum, kinetic energy, and filtered kinetic energy
-budgets also write ``\tau_{ij}``, but there it is the closure's *diffusive* momentum flux; the
-subfilter stress ``\tau^r_{ij} = \overline{u_i u_j} - \bar u_i \bar u_j``
-([`subfilter_stress_tensor`](@ref Oceanostics.FilteredKineticEnergyEquation.subfilter_stress_tensor))
-carries a superscript ``s`` to keep the three apart.
 ```@docs
 Oceanostics.FlowDiagnostics.StressTensor
 ```
