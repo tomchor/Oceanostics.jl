@@ -12,10 +12,10 @@ and forcing terms)
 
 ```math
 \partial_t u_i = - u_j \, \partial_j u_i
-               - \epsilon_{ijk} \, f_j \, u_k
-               - \partial_i p
-               + b \, \hat g_i
-               - \partial_j \tau_{ij} ,
+                 - \epsilon_{ijk} \, f_j \, u_k
+                 - \partial_i p
+                 + b \, \hat g_i
+                 - \partial_j \tau_{ij} ,
 ```
 
 with Coriolis parameter ``f_i``, kinematic pressure ``p``, buoyancy ``b`` along the vertical ``\hat g_i``,
@@ -35,11 +35,11 @@ and re-write the filtered momentum equation as:
 
 ```math
 \partial_t \bar u_i = - \bar u_j \, \partial_j \bar u_i
-                    - \partial_j \tau^r_{ij}
-                    - \epsilon_{ijk} \, f_j \, \bar u_k
-                    - \partial_i \bar p
-                    + \bar b \, \hat g_i
-                    - \partial_j \bar\tau_{ij} .
+                      - \partial_j \tau^r_{ij}
+                      - \epsilon_{ijk} \, f_j \, \bar u_k
+                      - \partial_i \bar p
+                      + \bar b \, \hat g_i
+                      - \partial_j \bar\tau_{ij} .
 ```
 
 Multiplying by the filtered velocity ``\bar u_i`` gives the budget for the kinetic energy
@@ -99,7 +99,7 @@ model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4))
 ℓ = 0.2  # Gaussian filter scale (full width at half maximum) in all three directions
 filter = GaussianFilter(; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
-τ  = subfilter_stress_tensor(model, filter)                 # the subfilter stress tensor components
+τ   = subfilter_stress_tensor(model, filter)                 # the subfilter stress tensor components
 Πₖ  = KineticEnergyCrossScaleFlux(model, filter)             # the cross-scale KE flux, at (Center, Center, Center)
 εₖˡ = FilteredKineticEnergyDissipationRate(model, filter)    # dissipation of the filtered flow
 
