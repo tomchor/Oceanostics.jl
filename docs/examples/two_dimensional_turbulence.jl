@@ -17,7 +17,7 @@
 # We begin by creating a model with an isotropic diffusivity and a fourth-order centered
 # advection scheme on a 256² grid, with one passive tracer `c`. Using a centered scheme
 # avoids numerical dissipation, so the volume-integrated KE and ``c^2`` budgets reduce to purely
-# dissipative balances and we can close them against ``\varepsilon`` and ``\chi`` alone.
+# dissipative balances and we can close them against ``\varepsilon_k`` and ``\chi`` alone.
 
 using Oceananigans
 
@@ -83,18 +83,18 @@ using Oceanostics
 progress = ProgressMessengers.BasicMessenger()
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))
 
-# We define the visualization fields — speed, vorticity, kinetic energy `KE` — and the
-# dissipation rates `ε` and `χ`, which we will use to close KE and tracer variance budgets.
+# We define the visualization fields — speed, vorticity, kinetic energy `eₖ` — and the
+# dissipation rates `εₖ` and `χ`, which we will use to close KE and tracer variance budgets.
 
 using Oceananigans.AbstractOperations: @at
 
 speed     = @at (Center, Center, Center) √(u^2 + v^2)
 vorticity = ∂x(v) - ∂y(u)
-KE        = KineticEnergyEquation.KineticEnergy(model)
-ε         = KineticEnergyEquation.DissipationRate(model)
+eₖ        = KineticEnergyEquation.KineticEnergy(model)
+εₖ        = KineticEnergyEquation.DissipationRate(model)
 χ         = TracerVarianceEquation.TracerVarianceDissipationRate(model, :c)
 
-# Note that `KineticEnergyEquation.DissipationRate` (`ε`) and `TracerVarianceEquation.TracerVarianceDissipationRate`
+# Note that `KineticEnergyEquation.DissipationRate` (`εₖ`) and `TracerVarianceEquation.TracerVarianceDissipationRate`
 # (`χ`) --- which can also be called as `KineticEnergyDissipationRate` and `TracerVarianceDissipationRate` --- are
 # implemented using the same kernels as Oceananigans (and therefore use the same interpolations and
 # discretizations).
@@ -105,21 +105,21 @@ KE        = KineticEnergyEquation.KineticEnergy(model)
 # ``c^2`` evolution equations reduce to
 #
 # ```math
-# \frac{d}{dt} \int \mathrm{KE}\, dV = -\int \varepsilon\, dV,\qquad
-# \frac{d}{dt} \int c^2\, dV = -\int \chi\, dV.
+# \frac{d}{dt} \int e_k\, \mathrm{d}V = -\int \varepsilon_k\, \mathrm{d}V,\qquad
+# \frac{d}{dt} \int c^2\, \mathrm{d}V = -\int \chi\, \mathrm{d}V.
 # ```
 #
 # A caveat: a discretized version of the continuum KE equation (such as the one above) is not guaranteed to exactly conserve energy at
 # the *discrete* level. To get strict discrete conservation of energy one would have to derive a discrete
 # KE equation directly from the discrete momentum equations — using both the current and
-# previous time-step velocities. We are not doing that here: we compute ``\varepsilon``
-# from the current model state and finite-difference snapshots of ``\int \mathrm{KE}\, dV``
+# previous time-step velocities. We are not doing that here: we compute ``\varepsilon_k``
+# from the current model state and finite-difference snapshots of ``\int e_k\, \mathrm{d}V``
 # independently. The two relations are consistent in the continuum limit but only approximately
 # at the discrete level for a well-resolved flow, so we expect the KE budget to close only approximately.
 
-∫KE = Integral(KE)
+∫eₖ = Integral(eₖ)
 ∫c² = Integral(c^2)
-∫ε  = Integral(ε)
+∫εₖ = Integral(εₖ)
 ∫χ  = Integral(χ)
 
 # We use two NetCDF writers. A *visualization* writer outputs the 2D snapshot fields on a plain
@@ -132,12 +132,12 @@ KE        = KineticEnergyEquation.KineticEnergy(model)
 using NCDatasets
 filename = "two_dimensional_turbulence"
 
-simulation.output_writers[:nc] = NetCDFWriter(model, (; speed, vorticity, KE, c),
+simulation.output_writers[:nc] = NetCDFWriter(model, (; speed, vorticity, eₖ, c),
                                               filename = joinpath(@__DIR__, filename),
                                               schedule = TimeInterval(0.6),
                                               overwrite_existing = true)
 
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫KE, ∫c², ∫ε, ∫χ),
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫eₖ, ∫c², ∫εₖ, ∫χ),
                                                   filename = joinpath(@__DIR__, filename * "_budget"),
                                                   schedule = ConsecutiveIterations(TimeInterval(0.6)),
                                                   overwrite_existing = true)
@@ -154,7 +154,7 @@ run!(simulation)
 snap_filepath = simulation.output_writers[:nc].filepath
 speed_t       = FieldTimeSeries(snap_filepath, "speed")
 vorticity_t   = FieldTimeSeries(snap_filepath, "vorticity")
-KE_t          = FieldTimeSeries(snap_filepath, "KE")
+eₖ_t          = FieldTimeSeries(snap_filepath, "eₖ")
 c_t           = FieldTimeSeries(snap_filepath, "c")
 
 ds = NCDataset(snap_filepath)
@@ -168,9 +168,9 @@ close(ds)
 bud_filepath = simulation.output_writers[:budget].filepath
 ds_bud = NCDataset(bud_filepath)
 times_bud = ds_bud["time"][:]
-∫KE_t = ds_bud["∫KE"][:]
+∫eₖ_t = ds_bud["∫eₖ"][:]
 ∫c²_t = ds_bud["∫c²"][:]
-∫ε_t  = ds_bud["∫ε"][:]
+∫εₖ_t = ds_bud["∫εₖ"][:]
 ∫χ_t  = ds_bud["∫χ"][:]
 close(ds_bud)
 
@@ -179,22 +179,22 @@ idx2     = 2:2:length(times_bud)       # consecutive-iteration snapshots
 Δt_pair  = times_bud[idx2] .- times_bud[idx1]
 t_pair   = @. 0.5 * (times_bud[idx1] + times_bud[idx2])
 
-dKEdt    = (∫KE_t[idx2] .- ∫KE_t[idx1]) ./ Δt_pair;
+deₖdt    = (∫eₖ_t[idx2] .- ∫eₖ_t[idx1]) ./ Δt_pair;
 dc²dt    = (∫c²_t[idx2] .- ∫c²_t[idx1]) ./ Δt_pair;
 
 # Source terms at the pair midpoint
-ε_pair   = @. 0.5 * (∫ε_t[idx1] + ∫ε_t[idx2]);
+εₖ_pair  = @. 0.5 * (∫εₖ_t[idx1] + ∫εₖ_t[idx2]);
 χ_pair   = @. 0.5 * (∫χ_t[idx1] + ∫χ_t[idx2]);
 
 # Budget residuals in sum-to-zero form: the negative tendency plus the source term. Plotting every
 # curve with these signs makes them add up to the residual, which stays near zero.
-KE_resid = @. -dKEdt - ε_pair
+eₖ_resid = @. -deₖdt - εₖ_pair
 c²_resid = @. -dc²dt - χ_pair
 
 using Test                                #hide
 rms(x) = √(sum(abs2, x) / length(x))      #hide
-@test rms(KE_resid) < 0.02 * rms(dKEdt);  #hide
-@test rms(KE_resid) < 0.02 * rms(ε_pair); #hide
+@test rms(eₖ_resid) < 0.02 * rms(deₖdt);  #hide
+@test rms(eₖ_resid) < 0.02 * rms(εₖ_pair); #hide
 @test rms(c²_resid) < 0.01 * rms(dc²dt);  #hide
 @test rms(c²_resid) < 0.01 * rms(χ_pair); #hide
 
@@ -215,7 +215,7 @@ axis_kwargs = (aspect = DataAspect(),
 
 ax_speed = Axis(fig[2, 1]; title = "Speed",          axis_kwargs...)
 ax_ω     = Axis(fig[2, 2]; title = "Vorticity",      axis_kwargs...)
-ax_KE    = Axis(fig[2, 3]; title = "Kinetic energy", axis_kwargs...)
+ax_eₖ    = Axis(fig[2, 3]; title = "Kinetic energy", axis_kwargs...)
 ax_c     = Axis(fig[2, 4]; title = "Tracer c",       axis_kwargs...)
 
 # Each frame is one visualization snapshot.
@@ -224,7 +224,7 @@ n = Observable(1)
 
 speedₙ = @lift speed_t[$n]
 ωₙ     = @lift vorticity_t[$n]
-KEₙ    = @lift KE_t[$n]
+eₖₙ    = @lift eₖ_t[$n]
 cₙ     = @lift c_t[$n]
 
 hm_speed = heatmap!(ax_speed, speedₙ, colormap = :magma, colorrange=(0, 1.5))
@@ -233,25 +233,25 @@ Colorbar(fig[3, 1], hm_speed; vertical=false, height=8, ticklabelsize=12)
 hm_ω = heatmap!(ax_ω, ωₙ, colormap = :balance, colorrange=(-10, 10))
 Colorbar(fig[3, 2], hm_ω; vertical=false, height=8, ticklabelsize=12)
 
-hm_KE = heatmap!(ax_KE, KEₙ, colormap = :plasma, colorrange=(0, 0.5))
-Colorbar(fig[3, 3], hm_KE; vertical=false, height=8, ticklabelsize=12)
+hm_eₖ = heatmap!(ax_eₖ, eₖₙ, colormap = :plasma, colorrange=(0, 0.5))
+Colorbar(fig[3, 3], hm_eₖ; vertical=false, height=8, ticklabelsize=12)
 
 hm_c = heatmap!(ax_c, cₙ, colormap = :balance, colorrange=(-1.5, 1.5))
 Colorbar(fig[3, 4], hm_c; vertical=false, height=8, ticklabelsize=12)
 
-# Volume-integrated KE budget: the negative tendency `-d(∫KE)/dt` and `-∫ε dV`, which sum to the residual.
+# Volume-integrated KE budget: the negative tendency `-d(∫eₖ)/dt` and `-∫εₖ dV`, which sum to the residual.
 
 budget_kwargs = (height = 180, width = 1080)
 
-ax_KEbud = Axis(fig[4, 1:4]; title = "Volume-integrated KE budget", budget_kwargs...)
-lines!(ax_KEbud, t_pair, -dKEdt,  label = "-d(∫KE)/dt")
-lines!(ax_KEbud, t_pair, -ε_pair, label = "-∫ε dV")
-lines!(ax_KEbud, t_pair, KE_resid, label = "residual", color = :black, linestyle = :dash)
-axislegend(ax_KEbud; labelsize = 10, position = :rb)
+ax_eₖbud = Axis(fig[4, 1:4]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
+lines!(ax_eₖbud, t_pair, -deₖdt,   label = "-d(∫eₖ)/dt")
+lines!(ax_eₖbud, t_pair, -εₖ_pair, label = "-∫εₖ dV")
+lines!(ax_eₖbud, t_pair, eₖ_resid, label = "residual", color = :black, linestyle = :dash)
+axislegend(ax_eₖbud; labelsize = 10, position = :rb)
 
 # Volume-integrated c² budget: the negative tendency `-d(∫c²)/dt` and `-∫χ dV`, which sum to the residual.
 
-ax_c²bud = Axis(fig[5, 1:4]; title = "Volume-integrated ∫c² budget", xlabel = "Time", budget_kwargs...)
+ax_c²bud = Axis(fig[5, 1:4]; title = "Volume-integrated tracer variance budget", xlabel = "Time", budget_kwargs...)
 lines!(ax_c²bud, t_pair, -dc²dt,  label = "-d(∫c²)/dt")
 lines!(ax_c²bud, t_pair, -χ_pair, label = "-∫χ dV")
 lines!(ax_c²bud, t_pair, c²_resid, label = "residual", color = :black, linestyle = :dash)
@@ -260,7 +260,7 @@ axislegend(ax_c²bud; labelsize = 10, position = :rb)
 # Time marker on both budget panels (using the snapshot time shown in the heatmaps)
 
 tₙ = @lift times[$n]
-vlines!(ax_KEbud, tₙ, color = :black, linestyle = :dot)
+vlines!(ax_eₖbud, tₙ, color = :black, linestyle = :dot)
 vlines!(ax_c²bud, tₙ, color = :black, linestyle = :dot)
 
 title = @lift "Time = " * string(round(times[$n], digits=2))
@@ -278,7 +278,7 @@ nothing #hide
 # ![](two_dimensional_turbulence.mp4)
 #
 # The two bottom panels show the volume-integrated KE and ``c^2`` budgets. Each plots the negative
-# tendency ``-d/dt`` of the integrated quantity alongside ``-\int \varepsilon\, dV`` (respectively
-# ``-\int \chi\, dV``), the only source term that survives volume-integration for a periodic
+# tendency ``-d/dt`` of the integrated quantity alongside ``-\int \varepsilon_k\, \mathrm{d}V`` (respectively
+# ``-\int \chi\, \mathrm{d}V``), the only source term that survives volume-integration for a periodic
 # incompressible flow with a centered advection scheme. With the tendency negated, the two curves add
 # up to the residual, which stays near zero.

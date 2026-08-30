@@ -265,7 +265,7 @@ Calculate the viscous dissipation term (excluding immersed boundaries) as
 
     VISC = ∂ⱼ τ₁ⱼ,
 
-where τ₁ⱼ is the viscous stress tensor for the x-momentum equation.
+where τ₁ⱼ is the viscous momentum flux for the x-momentum equation.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -296,7 +296,7 @@ Calculate the viscous dissipation term due to immersed boundaries as
 
     VISC = ∂ⱼ τ₁ⱼ,
 
-where τ₁ⱼ is the immersed boundary viscous stress tensor for the x-momentum equation.
+where τ₁ⱼ is the immersed boundary viscous momentum flux for the x-momentum equation.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -330,8 +330,8 @@ Calculate the total viscous dissipation term as
 
     VISC = ∂ⱼ τ₁ⱼ + ∂ⱼ τ₁ⱼ_immersed,
 
-where τ₁ⱼ is the interior viscous stress tensor and τ₁ⱼ_immersed is the immersed boundary
-viscous stress tensor for the x-momentum equation.
+where τ₁ⱼ is the interior viscous momentum flux and τ₁ⱼ_immersed is the immersed boundary
+viscous momentum flux for the x-momentum equation.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics

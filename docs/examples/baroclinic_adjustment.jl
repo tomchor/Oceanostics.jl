@@ -147,7 +147,7 @@ add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval
 # conversion, and over this domain every transport integrates away, leaving just the two conversions:
 #
 # ```math
-# \frac{d}{dt}\int e_p\, dV = -\int wb\, dV + \int \Phi\, dV ,
+# \frac{d}{dt}\int e_p\, \mathrm{d}V = -\int wb\, \mathrm{d}V + \int \Phi\, \mathrm{d}V ,
 # ```
 #
 # with ``wb``
@@ -166,7 +166,7 @@ wb = PotentialToKineticEnergyConversion(model)
 # both and carries opposite signs, so it cancels from their sum:
 #
 # ```math
-# \frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon_k\, dV .
+# \frac{d}{dt}\int e_k\, \mathrm{d}V = \int wb\, \mathrm{d}V - \int \varepsilon_k\, \mathrm{d}V .
 # ```
 
 eₖ = KineticEnergy(model)

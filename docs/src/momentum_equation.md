@@ -17,9 +17,10 @@ equation for the ``i``-th velocity component ``u_i`` is
 
 where ``\hat{g}_i`` is the ``i``-th component of the gravitational unit vector, ``b`` is the
 buoyancy, ``f_j`` is the Coriolis frequency, ``p`` is the pressure, ``\tau_{ij}`` is the
-viscous/subgrid stress tensor, ``\mathbf{u}^S`` is the Stokes drift, and ``F_{u_i}`` is the
-forcing. This decomposition lets the user compute each contribution independently, build
-diagnostics like budget closure, or analyse the energetics of individual processes.
+viscous/subgrid momentum flux (minus the stress tensor, so ``\tau_{ij} = -2\nu S_{ij}`` for a constant
+viscosity), ``\mathbf{u}^S`` is the Stokes drift, and ``F_{u_i}`` is the forcing. This
+decomposition lets the user compute each contribution independently, build diagnostics like budget
+closure, or analyze the energetics of individual processes.
 
 Each module wraps the corresponding Oceananigans velocity-tendency kernel and provides
 diagnostics at the natural grid location for that velocity component:

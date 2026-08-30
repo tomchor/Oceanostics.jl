@@ -47,7 +47,7 @@ function test_subfilter_stress_tensor(model, filt)
     return nothing
 end
 
-# Build Πₖ = -τⁱʲ S̄ⁱʲ by hand from the same building blocks and check the module reproduces it. This
+# Build Πₖ = -τᵢⱼ S̄ᵢⱼ by hand from the same building blocks and check the module reproduces it. This
 # guards the wiring of the contraction: the right components, the ×2 on off-diagonals, and the sign.
 function test_cross_scale_ke_flux_matches_manual(model, filt)
     grid = model.grid
@@ -118,20 +118,20 @@ function test_reusable_filter_object(model)
     return nothing
 end
 
-# Kˡ = ½ūᵢūᵢ must equal `KineticEnergy` evaluated on the hand-filtered velocities, and carry its own type.
+# eₖˡ = ½ūᵢūᵢ must equal `KineticEnergy` evaluated on the hand-filtered velocities, and carry its own type.
 function test_filtered_kinetic_energy(model, filt)
     u, v, w = model.velocities
     ū = Field(filt(u)); v̄ = Field(filt(v)); w̄ = Field(filt(w))
     ref = Oceanostics.KineticEnergy(model, ū, v̄, w̄)
 
-    Kˡ = FilteredKineticEnergy(model, filt)
-    @test location(Kˡ) == (Center, Center, Center)
-    @test interior(Field(Kˡ)) ≈ interior(Field(ref))
+    eₖˡ = FilteredKineticEnergy(model, filt)
+    @test location(eₖˡ) == (Center, Center, Center)
+    @test interior(Field(eₖˡ)) ≈ interior(Field(ref))
 
     # its own type/display, distinct from the unfiltered `KineticEnergy`
-    @test Kˡ isa FilteredKineticEnergy
-    @test occursin("FilteredKineticEnergy", sprint(show, Kˡ))
-    @test occursin("computes:", sprint(show, MIME("text/plain"), Kˡ))
+    @test eₖˡ isa FilteredKineticEnergy
+    @test occursin("FilteredKineticEnergy", sprint(show, eₖˡ))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), eₖˡ))
 
     # the Gaussian convenience method reproduces the explicit filter-factory call
     σ = 0.12
@@ -159,8 +159,8 @@ function test_recomputes_on_evolution(model, filt)
     return nothing
 end
 
-# Filtered dissipation εˡ = ∂ⱼūᵢ·filter(τᵢⱼ(u)). On a periodic grid with constant ν the filter
-# commutes with the (linear) viscous flux, so filter(τᵢⱼ(u)) = τᵢⱼ(ū) and εˡ equals the KE dissipation of
+# Filtered dissipation εₖˡ = -∂ⱼūᵢ·filter(τᵢⱼ(u)). On a periodic grid with constant ν the filter
+# commutes with the (linear) viscous flux, so filter(τᵢⱼ(u)) = τᵢⱼ(ū) and εₖˡ equals the KE dissipation of
 # the filtered flow. That reference is built from the existing `KineticEnergyDissipationRate` via its
 # perturbation mechanism, with the mean set to the subfilter part `u - ū` so it dissipates exactly ūᵢ.
 # (This requires the periodic grid; on a bounded grid the two flux orderings differ near the boundary.)
@@ -246,7 +246,7 @@ end
     @info "    Reusable filter object as `filter`"
     test_reusable_filter_object(model)
 
-    @info "    Filtered kinetic energy Kˡ = ½ūᵢūᵢ"
+    @info "    Filtered kinetic energy eₖˡ = ½ūᵢūᵢ"
     test_filtered_kinetic_energy(model, filt)
 
     @info "    Recomputes as the flow evolves"

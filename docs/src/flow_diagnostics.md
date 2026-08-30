@@ -19,8 +19,8 @@ The module includes:
 - **Velocity gradient tensor diagnostics**: the full strain rate tensor ``S_{ij}``
   and its modulus (``\|S_{ij}\|``), the full vorticity tensor ``\Omega_{ij}`` and its
   modulus (``\|\Omega_{ij}\|``), and the ``Q``-criterion for vortex identification.
-- **Stress tensor**: the (kinematic) stress tensor ``\tau_{ij} = u_i u_j``, which gives
-  the kinematic Reynolds stress when built from perturbation velocities.
+- **Stress tensor**: the (kinematic) stress tensor ``\tau_{ij} = u_i u_j``, the advective momentum
+  flux, which gives the kinematic Reynolds stress when built from perturbation velocities.
 - **Mixed layer depth**: computed by scanning downward from the surface to find
   where buoyancy or density departs from the surface value by more than a
   user-specified threshold.
@@ -43,21 +43,21 @@ RichardsonNumber KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: richardson_number_ccf (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Tuple")
-└── computes: Richardson number  Ri = (∂b/∂z) / |∂u⃗ₕ/∂z|²
+└── computes: Richardson number  (∂b/∂z) / |∂u⃗ₕ/∂z|²
 
 julia> Ro = FlowDiagnostics.RossbyNumber(model)
 RossbyNumber KernelFunctionOperation at (Face, Face, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: rossby_number_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
-└── computes: Rossby number  Ro = ωᶻ/f
+└── computes: Rossby number  ωᶻ/f
 
 julia> EPV = FlowDiagnostics.ErtelPotentialVorticity(model)
 ErtelPotentialVorticity KernelFunctionOperation at (Face, Face, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ertel_potential_vorticity_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Int64", "Int64", "Float64")
-└── computes: Ertel potential vorticity  q = ω⃗ₜₒₜ · ∇b
+└── computes: Ertel potential vorticity  ω⃗ₜₒₜ · ∇b
 
 julia> S = FlowDiagnostics.StrainRateTensorModulus(model)
 StrainRateTensorModulus KernelFunctionOperation at (Center, Center, Center)
