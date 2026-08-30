@@ -43,7 +43,7 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
 - **`Oceanostics`** (main module in `src/Oceanostics.jl`): Shared utilities — `validate_location`, `validate_dissipative_closure`, `add_background_fields`, `perturbation_fields`, `get_coriolis_frequency_components`, viscosity helpers for closure tuples (`_νᶜᶜᶜ`)
 - **`TracerEquation`**: Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, Forcing terms
 - **`UMomentumEquation` / `VMomentumEquation` / `WMomentumEquation`**: Per-component momentum-budget terms (advection, stress, pressure gradient, Coriolis, buoyancy, forcing). All three are covered by the single `momentum_diagnostics` group: `test_momentum_diagnostics.jl` drives one set of test functions over a `DIRECTIONS` table holding each component's equation module, field location, prefixed type aliases and supported model types.
-- **`SpatialFilters`** (submodule): Spatial filters (`box_filter.jl`, `gaussian_filter.jl`) for diagnostics that need scale separation. Every 1D kernel sizes its in-range check with `stencil_length(grid, d, ψ)` (the operand's own extent, `N+1` for a `Face` location along a `Bounded` direction) rather than `size(grid, d)`; the recursive (fused) methods reach the operand through `fargs[end]`. Using the cell count there silently mistreats the last face of a `Face`-located operand (`:shrink` drops its own weight, `:edge` clamps to the face below), which surfaced as `NaN`s when filtering the model's `diffusive_flux_z` KFO with a degenerate identity-scale Gaussian. That extent must be measured **on the host** and carried into the kernel by the boundary policy (`SizedBoundary`), never recomputed inside it: on a GPU the kernel's `ψ` is the *adapted* operand, which has no location, so `location(ψ)[d]` is `Nothing` and Oceananigans' `length(::Nothing, topo, N)` collapses it to `1`. That made every filtered direction one cell long, and failed silently in two directions at once — `wrap_periodic_index(i, 1) == i-1` displaced the whole field by a cell per filtered dimension, while `ShrinkBoundary` kept only the tap at index 1. Constant fields are immune to both, which is why the identity-scale checks in the filtered/sub-filter suites never caught it and only real GPU hardware did.
+- **`SpatialFilters`** (submodule): Spatial filters (`box_filter.jl`, `gaussian_filter.jl`) for diagnostics that need scale separation. Every 1D kernel sizes its in-range check with `stencil_length(grid, d, ψ)` (the operand's own extent, `N+1` for a `Face` location along a `Bounded` direction) rather than `size(grid, d)`; the recursive (fused) methods reach the operand through `fargs[end]`. Using the cell count there silently mistreats the last face of a `Face`-located operand (`:shrink` drops its own weight, `:edge` clamps to the face below), which surfaced as `NaN`s when filtering the model's `diffusive_flux_z` KFO with a degenerate identity-scale Gaussian. That extent must be measured **on the host** and carried into the kernel by the boundary policy (`SizedBoundary`), never recomputed inside it: on a GPU the kernel's `ψ` is the *adapted* operand, which has no location, so `location(ψ)[d]` is `Nothing` and Oceananigans' `length(::Nothing, topo, N)` collapses it to `1`. That made every filtered direction one cell long, and failed silently in two directions at once — `wrap_periodic_index(i, 1) == i-1` displaced the whole field by a cell per filtered dimension, while `ShrinkBoundary` kept only the tap at index 1. Constant fields are immune to both, which is why the identity-scale checks in the filtered/subfilter suites never caught it and only real GPU hardware did.
 - **`KineticEnergyEquation`**: KE, its tendency, advection, stress, forcing, pressure redistribution, buoyancy production, dissipation rate (general and isotropic)
 - **`FilteredKineticEnergyEquation`**: Filtered KE budget terms — `FilteredKineticEnergy` (eₖˡ = ½ūᵢūᵢ, KE of the filtered flow; reuses `KineticEnergyEquation`'s `kinetic_energy_ccc` kernel), `subfilter_stress_tensor` (τᵢⱼ = filter(uᵢuⱼ) − ūᵢūⱼ), `KineticEnergyCrossScaleFlux` (Πₖ = −τᵢⱼS̄ᵢⱼ, Aluie et al. 2018), and `FilteredKineticEnergyDissipationRate` (εₖˡ, dissipation of the filtered flow; kernel `filtered_dissipation_rate_ccc`). Built on `FlowDiagnostics`' `StressTensor`/`StrainRateTensor` and the `Filters` submodule, so it is included after both.
 - **`SubFilterKineticEnergyEquation`**: Sub-filter KE budget terms — `SubFilterKineticEnergy` (eₖˢ = ½τᵢᵢ, computed as `filter(eₖ) − eₖˡ` from `KineticEnergy` and `FilteredKineticEnergy`, which share the same interpolate-the-square discretization, so the discrete decomposition `filter(eₖ) = eₖˡ + eₖˢ` holds exactly by construction on any grid) and `SubFilterKineticEnergyDissipationRate` (εₖˢ = filter(εₖ) − εₖˡ). Both are `KernelFunctionOperation`s wrapping the underlying composite op (à la `KineticEnergyCrossScaleFlux`). Also re-exports `KineticEnergyCrossScaleFlux` (a source term of this budget). Built on `FilteredKineticEnergyEquation` and `KineticEnergyEquation`, so it is included after both.
@@ -138,7 +138,7 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   displacement potential Υˡ of b̄). Both take `(model, filter; method, geopotential_height)` and a
   low-level form on a prebuilt `z✶ˡ` (`FilteredAvailablePotentialEnergy(model, z✶ˡ)`,
   `FilteredAvailablePotentialEnergyDissipationRate(model, filter, z✶ˡ; upsilon)`) so one lookup / one Υˡ
-  can be shared. Also owns `AvailablePotentialEnergyCrossScaleFlux` (Πₐ = −τᵢ∂ᵢΥˡ, the sub-filter
+  can be shared. Also owns `AvailablePotentialEnergyCrossScaleFlux` (Πₐ = −τᵢ∂ᵢΥˡ, the subfilter
   buoyancy flux — `subfilter_covariance` per direction with one shared b̄ — contracted with ∇Υˡ, the APE
   analogue of `KineticEnergyCrossScaleFlux`), with the same high-level/low-level constructor pair, and
   `FilteredAvailablePotentialToKineticEnergyConversion` (w̄b_rˡ, the term the filtered APE and filtered
@@ -151,10 +151,10 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   did not produce (ordinarily the full field's), so
   `method` must be a `ProfileLookup`; `shared_profile_lookup` resolves the default `ProfileLookup()`
   into a `VerticalSort` column of the model's buoyancy (re-sorted every `compute!`), and
-  `filtered_buoyancy_and_lookup` returns `(b, b̄, lookup)` for the sub-filter module to build the full
+  `filtered_buoyancy_and_lookup` returns `(b, b̄, lookup)` for the subfilter module to build the full
   field's `z✶` against the same lookup. Built on `AvailablePotentialEnergyEquation` and
   `SpatialFilters`, so it is included after both
-- **`SubFilterAvailablePotentialEnergyEquation`**: sub-filter APE budget terms —
+- **`SubFilterAvailablePotentialEnergyEquation`**: subfilter APE budget terms —
   `SubFilterAvailablePotentialEnergy` (eₐˢ = filter(eₐ) − eₐˡ) and
   `SubFilterAvailablePotentialEnergyDissipationRate` (εₐˢ = filter(εₐ) − εₐˡ), each the filtered
   full-field quantity minus the `FilteredAvailablePotentialEnergyEquation` one on the same shared
@@ -162,7 +162,7 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `filtered_buoyancy_and_lookup`, which is what makes the difference a decomposition). Both are
   `KernelFunctionOperation`s wrapping the underlying `BinaryOperation` (à la
   `SubFilterKineticEnergyDissipationRate`). It also owns `SubFilterAvailablePotentialToKineticEnergyConversion`
-  (τˡ(w, bᵣ) = filter(wbᵣ) − w̄b_rˡ, the term the sub-filter APE and sub-filter KE budgets exchange): both
+  (τˡ(w, bᵣ) = filter(wbᵣ) − w̄b_rˡ, the term the subfilter APE and subfilter KE budgets exchange): both
   halves go through `FilteredAvailablePotentialEnergyEquation`'s conversion kernel on one shared b✶(z), so
   they are one discretization split in two rather than two separately built terms, and the reference stays
   unfiltered in both — which is what makes it *not* `subfilter_covariance(w, bᵣ, filter)`. It is
@@ -176,12 +176,12 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   eₐ is convex in b, so eₐˢ ≥ 0 pointwise for filters with no vertical component (Jensen); vertical
   filtering (and the nearest-class fallback for buoyancies off the profile) can produce locally
   negative values. An identity-scale filter (σ ≪ Δx, N=3) makes the filtered diagnostics equal the
-  full-field ones and the sub-filter ones vanish, all to the bit, which
+  full-field ones and the subfilter ones vanish, all to the bit, which
   `test_filtered_ape_diagnostics.jl` / `test_subfilter_ape_diagnostics.jl` use to check the filtered
   kernels against the full-field ones without reimplementation. Built on
   `FilteredAvailablePotentialEnergyEquation`, so it is included after it (currently last of the
   equation modules)
-- **`FlowDiagnostics`**: Richardson/Rossby numbers, Ertel/ThermalWind potential vorticity, strain rate & vorticity tensor moduli, Q-criterion, `subfilter_covariance` (generalized sub-filter covariance `τ(a,b) = filter(a·b) − filter(a)·filter(b)`, unifying sub-filter tracer flux and momentum stress; a `filtered_a` kwarg takes a pre-filtered factor so several covariances can share one, and the collocation helper `to_center` lives alongside it for the cross-scale fluxes), MixedLayerDepth, BottomCellValue
+- **`FlowDiagnostics`**: Richardson/Rossby numbers, Ertel/ThermalWind potential vorticity, strain rate & vorticity tensor moduli, Q-criterion, `subfilter_covariance` (generalized subfilter covariance `τ(a,b) = filter(a·b) − filter(a)·filter(b)`, unifying subfilter tracer flux and momentum stress; a `filtered_a` kwarg takes a pre-filtered factor so several covariances can share one, and the collocation helper `to_center` lives alongside it for the cross-scale fluxes), MixedLayerDepth, BottomCellValue
 - **`ProgressMessengers`** (submodule): Composable simulation progress reporters using `+` (comma-separated) and `*` (concatenation) operators
 
 ### Key Dependencies

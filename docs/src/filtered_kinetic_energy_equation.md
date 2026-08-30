@@ -2,7 +2,7 @@
 
 The `FilteredKineticEnergyEquation` module provides diagnostics for the kinetic energy budget of the
 filtered flow, in which a low-pass spatial filter ``\overline{(\,\cdot\,)}`` separates a
-filtered from a sub-filter scale. The section below derives that budget.
+filtered from a subfilter scale. The section below derives that budget.
 
 ## Deriving the filtered-flow kinetic energy budget
 
@@ -26,7 +26,7 @@ closure. The velocity components are ``(u_1, u_2, u_3) = (u, v, w)``, and the re
 Incompressibility ``\partial_i u_i = 0`` lets us write advection in flux form,
 ``u_j \, \partial_j u_i = \partial_j (u_i u_j)``.
 
-We can define the sub-filter (residual) stress tensor
+We can define the subfilter (residual) stress tensor
 ```math
 \tau^r_{ij} = \overline{u_i u_j} - \bar u_i\,\bar u_j ,
 ```
@@ -67,10 +67,10 @@ integrated over a closed or periodic domain. The two local exchange terms are
 
 The buoyancy production ``\bar w\,\bar b`` converts between filtered kinetic and potential energy.
 ``\Pi_k`` ([`KineticEnergyCrossScaleFlux`](@ref)) is the cross-scale kinetic energy flux:
-the rate at which the filter transfers kinetic energy from the filtered to the sub-filter scales, following
+the rate at which the filter transfers kinetic energy from the filtered to the subfilter scales, following
 [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1). A positive ``\Pi_k`` denotes a forward
 (downscale) transfer, and ``\bar S_{ij}`` is the strain rate tensor of the filtered velocity. The
-sub-filter stress ``\tau^r_{ij}`` itself is available as [`subfilter_stress_tensor`](@ref).
+subfilter stress ``\tau^r_{ij}`` itself is available as [`subfilter_stress_tensor`](@ref).
 
 ``\varepsilon_k^l`` ([`FilteredKineticEnergyDissipationRate`](@ref)) is the viscous dissipation
 of the filtered flow: the filtered velocity gradient contracted with the *filtered* momentum flux
@@ -98,7 +98,7 @@ model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4))
 ℓ = 0.2  # Gaussian filter scale (full width at half maximum) in all three directions
 filter = GaussianFilter(; dims=(1, 2, 3), σ=ℓ / (2√(2log(2))), boundary=(left=0, right=0))
 
-τ  = subfilter_stress_tensor(model, filter)                 # the sub-filter stress tensor components
+τ  = subfilter_stress_tensor(model, filter)                 # the subfilter stress tensor components
 Πₖ  = KineticEnergyCrossScaleFlux(model, filter)             # the cross-scale KE flux, at (Center, Center, Center)
 εₖˡ = FilteredKineticEnergyDissipationRate(model, filter)    # dissipation of the filtered flow
 

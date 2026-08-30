@@ -428,8 +428,8 @@ end
 #---
 
 #+++ SubFilterKineticEnergyEquation
-@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergy                 "SubFilterKineticEnergy"                 "sub-filter kinetic energy  eₖˢ = ½τᵢᵢ"
-@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate  "SubFilterKineticEnergyDissipationRate"  "sub-filter kinetic energy dissipation rate  εₖˢ = filter(εₖ) - εₖˡ"
+@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergy                 "SubFilterKineticEnergy"                 "subfilter kinetic energy  eₖˢ = ½τᵢᵢ"
+@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate  "SubFilterKineticEnergyDissipationRate"  "subfilter kinetic energy dissipation rate  εₖˢ = filter(εₖ) - εₖˡ"
 #---
 
 #+++ TurbulentKineticEnergyEquation
@@ -471,9 +471,9 @@ end
 #---
 
 #+++ SubFilterAvailablePotentialEnergyEquation
-@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy                "SubFilterAvailablePotentialEnergy"                "sub-filter available potential energy  eₐˢ = filter(eₐ) - eₐˡ"
-@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate "SubFilterAvailablePotentialEnergyDissipationRate" "sub-filter available potential energy dissipation rate  εₐˢ = filter(εₐ) - εₐˡ"
-@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion "SubFilterAvailablePotentialToKineticEnergyConversion" "sub-filter APE to KE conversion  τˡ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ"
+@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy                "SubFilterAvailablePotentialEnergy"                "subfilter available potential energy  eₐˢ = filter(eₐ) - eₐˡ"
+@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate "SubFilterAvailablePotentialEnergyDissipationRate" "subfilter available potential energy dissipation rate  εₐˢ = filter(εₐ) - εₐˡ"
+@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion "SubFilterAvailablePotentialToKineticEnergyConversion" "subfilter APE to KE conversion  τˡ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ"
 #---
 
 #+++ FlowDiagnostics

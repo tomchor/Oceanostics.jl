@@ -146,7 +146,7 @@ how far below its actual height a parcel's reference height sits, and so how far
 travel to reach the adiabatically resorted state. It is the derivative of the local available potential
 energy with respect to buoyancy, `Υ = ∂eₐ/∂b`, which is what makes it the natural conjugate of `b`:
 contracting it with a buoyancy gradient gives an APE dissipation rate
-([`AvailablePotentialEnergyDissipationRate`](@ref)), and contracting it with a sub-filter buoyancy flux
+([`AvailablePotentialEnergyDissipationRate`](@ref)), and contracting it with a subfilter buoyancy flux
 gives a cross-scale APE flux.
 
 This is the buoyancy form of `Υ(ρ, z) = g(z - z✶(ρ))/ρ₀` as

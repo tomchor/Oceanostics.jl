@@ -21,7 +21,7 @@ acceleration, ``\rho`` is density, and ``\rho_0`` is a reference density. The qu
     (``e_a``, ``E_a``) potential energies. A term shared between budgets carries the subscript of the
     budget it belongs to, so ``\varepsilon_k`` is the kinetic energy dissipation rate and
     ``\varepsilon_a`` the available potential energy one. A superscript ``l`` marks a quantity of the
-    low-pass **filtered** field and a superscript ``s`` its **sub-filter** complement, as in
+    low-pass **filtered** field and a superscript ``s`` its **subfilter** complement, as in
     ``e_k = e_k^l + e_k^s`` under a filter.
 
 ## The potential energy equation

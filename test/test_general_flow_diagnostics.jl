@@ -94,22 +94,22 @@ arch = has_cuda_gpu() ? GPU() : CPU()
               interior(Field(subfilter_covariance(c, b, filt; loc)))
 
         # a pre-filtered shared factor passed as `filtered_a` reproduces the default path, which is what
-        # lets e.g. the sub-filter buoyancy flux filter its b̄ once across components
+        # lets e.g. the subfilter buoyancy flux filter its b̄ once across components
         c̄ = Field(filt(Field(@at loc c)))
         @test interior(Field(subfilter_covariance(c, b, filt; loc, filtered_a=c̄))) ≈
               interior(Field(subfilter_covariance(c, b, filt; loc)))
 
-        # sub-filter tracer flux special case reproduces the hand-rolled construction (cf. spatial_filtering.jl)
+        # subfilter tracer flux special case reproduces the hand-rolled construction (cf. spatial_filtering.jl)
         uᶜ = Field(@at loc u); ū = Field(filt(uᶜ)); c̄ = Field(filt(c)); ūc̄ = Field(filt(Field(uᶜ * c)))
         τx_hand = Field(ūc̄ - ū * c̄)
         @test all(interior(Field(subfilter_covariance(u, c, filt; loc))) .≈ interior(τx_hand))
 
-        # sub-filter momentum-stress special case
+        # subfilter momentum-stress special case
         vᶜ = Field(@at loc v)
         τxy_hand = Field(Field(filt(Field(uᶜ * vᶜ))) - Field(filt(uᶜ)) * Field(filt(vᶜ)))
         @test all(interior(Field(subfilter_covariance(u, v, filt; loc))) .≈ interior(τxy_hand))
 
-        # uniform fields ⇒ sub-filter flux ≈ 0 (a normalized filter preserves constants)
+        # uniform fields ⇒ subfilter flux ≈ 0 (a normalized filter preserves constants)
         uniform_model = NonhydrostaticModel(sf_grid; tracers=:c)
         set!(uniform_model, u=(x, y, z) -> 2.0, c=(x, y, z) -> -3.0)
         fill_halo_regions!(uniform_model.velocities); fill_halo_regions!(uniform_model.tracers.c)

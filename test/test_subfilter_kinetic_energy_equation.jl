@@ -40,7 +40,7 @@ function test_subfilter_kinetic_energy_decomposition(grid, filt)
     return nothing
 end
 
-# A uniform flow has τᵢⱼ ≡ 0, so the sub-filter kinetic energy vanishes identically.
+# A uniform flow has τᵢⱼ ≡ 0, so the subfilter kinetic energy vanishes identically.
 function test_subfilter_kinetic_energy_uniform_vanishes(grid, filt; U=2, V=-3)
     model = NonhydrostaticModel(grid)
     set!(model, u=U, v=V) # w ≡ 0; a uniform horizontal flow is divergence-free
@@ -129,7 +129,7 @@ end
 #---
 
 @testset "Sub-filter kinetic energy equation" begin
-    @info "  Testing sub-filter kinetic energy diagnostics"
+    @info "  Testing subfilter kinetic energy diagnostics"
     grid = RectilinearGrid(arch, size=(8, 8, 8), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1, boundary=:edge)
 

@@ -10,10 +10,10 @@ energy across the filter scale, this one splits the *local* available potential 
 the split, the APE of the filtered buoyancy and its dissipation, lives in the
 [Filtered available potential energy equation](@ref) and is re-exported here.
 
-## The sub-filter available potential energy
+## The subfilter available potential energy
 
 Both the full and the filtered buoyancy are measured against **one shared reference profile**
-``(b^\star, z^\star)``, ordinarily the sorted state of the full buoyancy field. The sub-filter
+``(b^\star, z^\star)``, ordinarily the sorted state of the full buoyancy field. The subfilter
 available potential energy is the filtered full APE minus the APE of the filtered buoyancy
 ``\bar b``,
 
@@ -40,9 +40,9 @@ and can produce locally negative values.
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy
 ```
 
-## The sub-filter available potential energy dissipation
+## The subfilter available potential energy dissipation
 
-The diffusive sink of the ``e_a^s`` budget is the sub-filter APE dissipation rate
+The diffusive sink of the ``e_a^s`` budget is the subfilter APE dissipation rate
 
 ```math
 \varepsilon_a^s = \overline{\varepsilon_a} - \varepsilon_a^l ,
@@ -69,7 +69,7 @@ defined in the [Filtered available potential energy equation](@ref) and re-expor
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate
 ```
 
-## The sub-filter conversion to kinetic energy
+## The subfilter conversion to kinetic energy
 
 ```math
 \tau^l(w, b_r) = \overline{w b_r} - \bar w \, b_r^l ,
@@ -79,8 +79,8 @@ b_r = b - b^\star(z) ,
 b_r^l = \bar b - b^\star(z)
 ```
 
-is the rate at which the sub-filter scales release their available potential energy to the sub-filter
-flow, computed by [`SubFilterAvailablePotentialToKineticEnergyConversion`](@ref). It is the sub-filter
+is the rate at which the subfilter scales release their available potential energy to the subfilter
+flow, computed by [`SubFilterAvailablePotentialToKineticEnergyConversion`](@ref). It is the subfilter
 half of the split whose filtered half is
 [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion),
 the two summing to ``\overline{w b_r}``. It enters this budget as ``-\tau^l(w, b_r)`` and the

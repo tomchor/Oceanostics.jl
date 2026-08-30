@@ -866,7 +866,7 @@ to_center(ψ) = @at (Center, Center, Center) ψ
 """
     $(SIGNATURES)
 
-Return a lazy `AbstractOperation` for the generalized sub-filter covariance (second moment) of two
+Return a lazy `AbstractOperation` for the generalized subfilter covariance (second moment) of two
 fields `a` and `b` under a low-pass spatial `filter` (overbar):
 
 ```
@@ -874,7 +874,7 @@ fields `a` and `b` under a low-pass spatial `filter` (overbar):
 ```
 
 co-located at `loc`. Here `filter(ψ)` is a normalized local average (e.g. an Oceanostics
-`GaussianFilter` or `BoxFilter`) that splits a field into a filtered part `ψ̄` and a sub-filter
+`GaussianFilter` or `BoxFilter`) that splits a field into a filtered part `ψ̄` and a subfilter
 fluctuation `ψ′ = ψ - ψ̄`. `τ(a, b)` is the part of the product `ab` that the filtered fields `ā b̄`
 cannot represent on their own — the transport/stress carried by scales smaller than the filter width
 (Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1).
@@ -882,9 +882,9 @@ cannot represent on their own — the transport/stress carried by scales smaller
 Two common special cases are:
 
   - **Sub-filter tracer flux** — `a = uᵢ` (a velocity component), `b = c` (a tracer):
-    `τ(uᵢ, c) = filter(uᵢ c) - ūᵢ c̄`, the flux of `c` carried by sub-filter scales.
+    `τ(uᵢ, c) = filter(uᵢ c) - ūᵢ c̄`, the flux of `c` carried by subfilter scales.
   - **Sub-filter momentum stress** — `a = uᵢ`, `b = uⱼ`: `τ(uᵢ, uⱼ) = filter(uᵢ uⱼ) - ūᵢ ūⱼ`, the
-    sub-filter (subgrid-scale) Reynolds-type stress component.
+    subfilter (subgrid-scale) Reynolds-type stress component.
 
 `a` and `b` (`Field`s or `AbstractOperation`s) are interpolated to the common location `loc` before
 being multiplied and filtered, so they may originally live at different staggered-grid locations
@@ -897,7 +897,7 @@ The filtered pieces are materialized as `Field`s (so the separable filter's fast
 the returned object is a lazy `AbstractOperation` over those computed fields, ready for `Field`,
 `Integral`, and `OutputWriter`s.
 
-When several covariances share a factor — e.g. the sub-filter buoyancy flux `τ(b, uᵢ)`, whose `b̄` is
+When several covariances share a factor — e.g. the subfilter buoyancy flux `τ(b, uᵢ)`, whose `b̄` is
 the same for every component — pass the pre-filtered factor as `filtered_a` (a `filter(a)` already
 co-located at `loc`, typically a materialized `Field`) and it is used in place of filtering `a` here,
 so the shared factor is filtered once rather than once per covariance.

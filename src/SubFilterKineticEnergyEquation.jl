@@ -3,11 +3,11 @@ module SubFilterKineticEnergyEquation
 using DocStringExtensions
 
 export SubFilterKineticEnergy, SubFilterKineticEnergyDissipationRate, DissipationRate
-# Πₖ is a source term of the sub-filter KE budget (and a sink of the filtered budget), so it is
+# Πₖ is a source term of the subfilter KE budget (and a sink of the filtered budget), so it is
 # re-exported here from `FilteredKineticEnergyEquation`, where it is defined.
 export KineticEnergyCrossScaleFlux
-# τˡ(w, bᵣ) is the other source of this budget — the APE the sub-filter scales release to it — and a sink
-# of the sub-filter APE one, so it is re-exported here from `SubFilterAvailablePotentialEnergyEquation`.
+# τˡ(w, bᵣ) is the other source of this budget — the APE the subfilter scales release to it — and a sink
+# of the subfilter APE one, so it is re-exported here from `SubFilterAvailablePotentialEnergyEquation`.
 export SubFilterAvailablePotentialToKineticEnergyConversion
 
 using Oceananigans.Fields: Field
@@ -37,7 +37,7 @@ const SubFilterKineticEnergy = CustomKFO{<:typeof(subfilter_kinetic_energy_ccc)}
 """
     $(SIGNATURES)
 
-Return the sub-filter-scale (SFS) kinetic energy `eₖˢ`, the kinetic energy carried by the scales that a
+Return the subfilter-scale (SFS) kinetic energy `eₖˢ`, the kinetic energy carried by the scales that a
 low-pass `filter` removes from the flow — the filtered full kinetic energy minus the kinetic energy of the
 filtered flow:
 
@@ -45,7 +45,7 @@ filtered flow:
     eₖˢ = filter(eₖ) - eₖˡ ,   eₖ = ½ uᵢuᵢ ,   eₖˡ = ½ ūᵢūᵢ ,   ūᵢ = filter(uᵢ)
 ```
 
-equivalently `eₖˢ = ½ τᵢᵢ` with the sub-filter stress `τᵢⱼ = filter(uᵢuⱼ) - ūᵢūⱼ` (filtering
+equivalently `eₖˢ = ½ τᵢᵢ` with the subfilter stress `τᵢⱼ = filter(uᵢuⱼ) - ūᵢūⱼ` (filtering
 framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). It is assembled from
 the full kinetic energy `eₖ` and [`FilteredKineticEnergy`](@ref) `eₖˡ`, which share the same
 interpolate-the-square (`½⟨uᵢ²⟩`) discretization, so the discrete decomposition `filter(eₖ) = eₖˡ + eₖˢ` holds
@@ -71,7 +71,7 @@ SubFilterKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field")
-└── computes: sub-filter kinetic energy  eₖˢ = ½τᵢᵢ
+└── computes: subfilter kinetic energy  eₖˢ = ½τᵢᵢ
 ```
 
 A convenience method `SubFilterKineticEnergy(model; σ, dims, boundary, N)` builds the Gaussian `filter`
@@ -101,7 +101,7 @@ const DissipationRate = SubFilterKineticEnergyDissipationRate
 """
     $(SIGNATURES)
 
-Return the sub-filter-scale (SFS) kinetic-energy dissipation rate `εₖˢ`, the viscous dissipation carried
+Return the subfilter-scale (SFS) kinetic-energy dissipation rate `εₖˢ`, the viscous dissipation carried
 by the scales that a low-pass `filter` removes:
 
 ```
@@ -111,7 +111,7 @@ by the scales that a low-pass `filter` removes:
 where `εₖ` is the dissipation rate of the full flow
 ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) and `εₖˡ` is the
 dissipation rate of the filtered flow ([`FilteredKineticEnergyDissipationRate`](@ref)). It is the viscous
-sink in the budget of the sub-filter kinetic energy `eₖˢ` ([`SubFilterKineticEnergy`](@ref);
+sink in the budget of the subfilter kinetic energy `eₖˢ` ([`SubFilterKineticEnergy`](@ref);
 filtering framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). For a
 constant viscosity it reduces to `2ν[filter(SᵢⱼSᵢⱼ) - S̄ᵢⱼ S̄ᵢⱼ] ≥ 0`, a strictly positive sink.
 
@@ -138,7 +138,7 @@ SubFilterKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ke_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
-└── computes: sub-filter kinetic energy dissipation rate  εₖˢ = filter(εₖ) - εₖˡ
+└── computes: subfilter kinetic energy dissipation rate  εₖˢ = filter(εₖ) - εₖˡ
 ```
 
 A convenience method `SubFilterKineticEnergyDissipationRate(model; σ, dims, boundary, N)` builds the

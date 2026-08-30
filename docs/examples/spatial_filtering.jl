@@ -1,18 +1,18 @@
-# # [Spatial filtering and sub-filter fluxes](@id spatial_filtering_example)
+# # [Spatial filtering and subfilter fluxes](@id spatial_filtering_example)
 #
 # In this example we use Oceanostics' [`GaussianFilter`](@ref) to filter a two-dimensional
 # turbulent flow. Spatial filtering splits a field into a smooth, large-scale (filtered) part and a
-# small-scale (sub-filter) fluctuation,
+# small-scale (subfilter) fluctuation,
 #
 # ```math
 # \psi = \bar{\psi} + \psi', \qquad \psi' \equiv \psi - \bar{\psi},
 # ```
 #
 # where the overbar denotes a Gaussian-weighted local average.
-# Beyond visualization, filtering lets us build *sub-filter* (sub-filter-scale) diagnostics such as the
-# sub-filter tracer flux ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``, which represents the
+# Beyond visualization, filtering lets us build *subfilter* (subfilter-scale) diagnostics such as the
+# subfilter tracer flux ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``, which represents the
 # transport carried by scales smaller than the filter width. We close the example with the *cross-scale
-# kinetic energy flux*, which measures the energy exchanged between the filtered and sub-filter scales.
+# kinetic energy flux*, which measures the energy exchanged between the filtered and subfilter scales.
 #
 # Before starting, make sure you have the required packages installed for this example, which can
 # be done with
@@ -95,9 +95,9 @@ filter = GaussianFilter(; dims=(1, 2), σ=σ)
 
 ω  = ∂x(v) - ∂y(u)      # vorticity
 ω̄  = Field(filter(ω))   # filtered (large-scale) vorticity, materialized so the filter runs staged
-ω′ = Field(ω - ω̄)       # sub-filter fluctuation
+ω′ = Field(ω - ω̄)       # subfilter fluctuation
 
-# We plot the vorticity, filtered vorticity, and sub-filter fluctuations side by side:
+# We plot the vorticity, filtered vorticity, and subfilter fluctuations side by side:
 
 using CairoMakie
 set_theme!(Theme(fontsize = 18))
@@ -147,7 +147,7 @@ fig_sweep
 
 # ## Sub-filter tracer flux
 #
-# Filtering also lets us quantify transport by sub-filter scales. The sub-filter tracer flux is
+# Filtering also lets us quantify transport by subfilter scales. The subfilter tracer flux is
 # ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``: the difference between the filtered advective
 # flux and the flux carried by the filtered fields. We reuse the same `filter` object on each piece —
 # the two velocities, the tracer, and the two advective products ``u_i c`` — before combining: one
@@ -164,9 +164,9 @@ c̄  = Field(filter(c))
 
 τx = Field(filter(u * c)) - ū * c̄   # overline(u c) - ū c̄
 τy = Field(filter(v * c)) - v̄ * c̄
-τ  = √(τx^2 + τy^2)               # sub-filter flux magnitude
+τ  = √(τx^2 + τy^2)               # subfilter flux magnitude
 
-# Finally we plot the tracer, its filtered version, and the magnitude of the sub-filter flux:
+# Finally we plot the tracer, its filtered version, and the magnitude of the subfilter flux:
 
 fig_τ = Figure()
 ax_c  = Axis(fig_τ[1, 1]; title = "Tracer c",      axis_kwargs...)
@@ -181,7 +181,7 @@ Colorbar(fig_τ[1, 4], hm_τ)
 resize_to_layout!(fig_τ)
 fig_τ
 
-# The magnitude of the sub-filter flux ``\tau`` is largest precisely along the thin tracer filaments —
+# The magnitude of the subfilter flux ``\tau`` is largest precisely along the thin tracer filaments —
 # the small-scale structure that the filtered fields ``\bar{u}_i\,\bar{c}`` cannot represent on their
 # own.
 
@@ -195,9 +195,9 @@ fig_τ
 # \bar{S}_{ij} = \tfrac{1}{2}\left(\partial_j \bar{u}_i + \partial_i \bar{u}_j\right),
 # ```
 #
-# where ``\tau_{ij}`` is the sub-filter (momentum) stress tensor — the tensor analogue of the
-# sub-filter tracer flux above — and ``\bar{S}_{ij}`` is the strain rate of the filtered velocity. ``\Pi_k > 0``
-# is a forward (downscale) transfer from filtered to sub-filter scales, while ``\Pi_k < 0`` is
+# where ``\tau_{ij}`` is the subfilter (momentum) stress tensor — the tensor analogue of the
+# subfilter tracer flux above — and ``\bar{S}_{ij}`` is the strain rate of the filtered velocity. ``\Pi_k > 0``
+# is a forward (downscale) transfer from filtered to subfilter scales, while ``\Pi_k < 0`` is
 # backscatter from small to large scales, which is prominent in two-dimensional turbulence and its
 # inverse energy cascade (see [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1)).
 #
@@ -249,6 +249,6 @@ Colorbar(fig_ε[1, 2], hm_ε)
 resize_to_layout!(fig_ε)
 fig_ε
 
-# Red (``\Pi_k > 0``) marks forward transfer to sub-filter scales and blue (``\Pi_k < 0``) marks
+# Red (``\Pi_k > 0``) marks forward transfer to subfilter scales and blue (``\Pi_k < 0``) marks
 # backscatter to larger scales. Both concentrate in the strained regions between vortices, where the
 # filtered strain ``\bar{S}_{ij}`` — and hence the scale-to-scale energy exchange — is largest.

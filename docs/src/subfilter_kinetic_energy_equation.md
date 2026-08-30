@@ -1,13 +1,13 @@
 # Sub-filter kinetic energy equation
 
 The `SubFilterKineticEnergyEquation` module provides diagnostics for the kinetic energy budget of the
-*sub-filter* scales: the scales that a low-pass spatial filter ``\overline{(\,\cdot\,)}`` removes from
+*subfilter* scales: the scales that a low-pass spatial filter ``\overline{(\,\cdot\,)}`` removes from
 the flow. It is the companion of the [Filtered kinetic energy equation](@ref), which budgets the kinetic
 energy ``e_k^l = \tfrac{1}{2}\,\bar u_i\,\bar u_i`` of the scales the filter *keeps*.
 
-## The sub-filter kinetic energy budget
+## The subfilter kinetic energy budget
 
-The sub-filter kinetic energy is half the trace of the sub-filter stress tensor
+The subfilter kinetic energy is half the trace of the subfilter stress tensor
 ``\tau^r_{ij} = \overline{u_i u_j} - \bar u_i \bar u_j`` ([`subfilter_stress_tensor`](@ref)),
 
 ```math
@@ -29,15 +29,15 @@ transport terms vanishing over a closed or periodic domain) reads
 with two sources and one sink:
 
   - ``\Pi_k`` ([`KineticEnergyCrossScaleFlux`](@ref)) is the cross-scale kinetic-energy flux, the rate at
-    which the filtered scales hand kinetic energy down to the sub-filter scales. It is the sink of the
+    which the filtered scales hand kinetic energy down to the subfilter scales. It is the sink of the
     filtered-flow budget and the source of this one.
   - ``\tau^l(w, b_r) = \overline{w b_r} - \bar w\,b_r^l``
     ([`SubFilterAvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion))
-    is the sub-filter buoyancy flux, which converts sub-filter available potential energy into
-    sub-filter kinetic energy. It is defined in the
+    is the subfilter buoyancy flux, which converts subfilter available potential energy into
+    subfilter kinetic energy. It is defined in the
     [Sub-filter available potential energy equation](@ref), whose budget it is the sink of, and is
     re-exported here.
-  - ``\varepsilon_k^s = \overline{\varepsilon_k} - \varepsilon_k^l`` is the sub-filter dissipation
+  - ``\varepsilon_k^s = \overline{\varepsilon_k} - \varepsilon_k^l`` is the subfilter dissipation
     ([`SubFilterKineticEnergyDissipationRate`](@ref)): the filtered total dissipation
     ``\overline{\varepsilon_k}``
     ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) minus the

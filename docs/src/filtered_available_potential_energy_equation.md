@@ -20,7 +20,7 @@ e_a^l = e_a(\bar b, z) = \int_{z^\star(\bar b)}^{z} \left[b^\star(\tilde z) - \b
 computed by [`FilteredAvailablePotentialEnergy`](@ref). The reference profile ``(b^\star, z^\star)`` it
 is measured against is **shared with the full field**, ordinarily the sorted state of the full buoyancy
 ``b``, rather than sorted from ``\bar b`` itself: only then are ``e_a(\bar b, z)`` and
-``e_a(b, z)`` comparable, and their difference the sub-filter APE. Looking a field up in a profile it
+``e_a(b, z)`` comparable, and their difference the subfilter APE. Looking a field up in a profile it
 did not produce is exactly what
 [`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup) was built for, so
 these diagnostics accept only that reference-height method: the default sorts the model's own buoyancy
@@ -67,11 +67,11 @@ Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialE
 ```
 
 is the rate at which the filter transfers available potential energy from the filtered to the
-sub-filter scales, the APE analogue of the
+subfilter scales, the APE analogue of the
 [cross-scale kinetic energy flux](filtered_kinetic_energy_equation.md) ``\Pi_k = -\tau^r_{ij}\bar S_{ij}``:
-the sub-filter buoyancy flux takes the place of the sub-filter stress, and ``\nabla\Upsilon^l`` takes
+the subfilter buoyancy flux takes the place of the subfilter stress, and ``\nabla\Upsilon^l`` takes
 the place of the resolved strain. ``\Pi_a > 0`` is forward (downscale) transfer. It enters the filtered
-APE budget as ``-\Pi_a`` and the sub-filter one as ``+\Pi_a``, which is what makes it a transfer rather
+APE budget as ``-\Pi_a`` and the subfilter one as ``+\Pi_a``, which is what makes it a transfer rather
 than a source or a sink ([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)).
 
 ```@docs

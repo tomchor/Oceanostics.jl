@@ -66,7 +66,7 @@ scales that a low-pass `filter` keeps:
     eₖˡ = ½ ūᵢ ūᵢ = ½ (ū² + v̄² + w̄²) ,   ūᵢ = filter(uᵢ)
 ```
 
-It is the filtered counterpart of the sub-filter kinetic energy `eₖˢ = ½τᵢᵢ` (`SubFilterKineticEnergy`):
+It is the filtered counterpart of the subfilter kinetic energy `eₖˢ = ½τᵢᵢ` (`SubFilterKineticEnergy`):
 the filter splits the flow's kinetic energy into the part it keeps (`eₖˡ`) and the part it removes (`eₖˢ`).
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
@@ -108,7 +108,7 @@ FilteredKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothi
 """
     $(SIGNATURES)
 
-Return the components of the sub-filter-scale (SFS) stress tensor `τ`, the residual momentum flux that
+Return the components of the subfilter-scale (SFS) stress tensor `τ`, the residual momentum flux that
 a low-pass `filter` removes from the filtered scales:
 
 ```
@@ -142,7 +142,7 @@ keys(τ)
 The result is a `NamedTuple` with the independent components, each living at the same staggered
 location as the corresponding [`StressTensor`](@ref) component; `collocate_diagonals` has the same
 meaning as there and is forwarded to it (use `collocate_diagonals = true` to put the diagonals at
-`ccc`, e.g. to form the sub-filter kinetic energy `½(τ₁₁ + τ₂₂ + τ₃₃)`). The filtered velocities `ūᵢ`
+`ccc`, e.g. to form the subfilter kinetic energy `½(τ₁₁ + τ₂₂ + τ₃₃)`). The filtered velocities `ūᵢ`
 and the filtered momentum fluxes `filter(uᵢuⱼ)` are materialized as `Field`s internally (the filter's
 fast staged path only fires when wrapped directly in a `Field`), so each returned component is a lazy
 operation over those computed fields and recomputes correctly when written by an `OutputWriter`.
@@ -194,18 +194,18 @@ const CrossScaleFlux = KineticEnergyCrossScaleFlux
     $(SIGNATURES)
 
 Return the cross-scale (scale-to-scale) kinetic-energy flux `Πₖ`, the rate at which a low-pass
-`filter` transfers kinetic energy from the filtered to the sub-filter scales (Aluie et al., 2018,
+`filter` transfers kinetic energy from the filtered to the subfilter scales (Aluie et al., 2018,
 *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1):
 
 ```
     Πₖ = -τᵢⱼ S̄ᵢⱼ
 ```
 
-where `τᵢⱼ = filter(uᵢuⱼ) - ūᵢūⱼ` is the sub-filter-scale stress tensor ([`subfilter_stress_tensor`](@ref))
+where `τᵢⱼ = filter(uᵢuⱼ) - ūᵢūⱼ` is the subfilter-scale stress tensor ([`subfilter_stress_tensor`](@ref))
 and `S̄ᵢⱼ = ½(∂ūᵢ/∂xⱼ + ∂ūⱼ/∂xᵢ)` is the strain rate tensor of the filtered velocity
 ([`StrainRateTensor`](@ref) applied to `ūᵢ`). The contraction is evaluated at `(Center, Center,
 Center)`, with off-diagonal components counted twice by symmetry. `Πₖ > 0` is forward (downscale,
-filtered → sub-filter) transfer. The result is per unit mass (units `m² s⁻³`); multiply by a reference
+filtered → subfilter) transfer. The result is per unit mass (units `m² s⁻³`); multiply by a reference
 density `ρ₀` for a volumetric power.
 
 `filter` is any callable mapping a field to its filtered counterpart, e.g. a reusable
@@ -249,7 +249,7 @@ function KineticEnergyCrossScaleFlux(model, filter; dims = (1, 2, 3))
     u, v, w = model.velocities
     ū, v̄, w̄ = filtered_velocities(filter, dims, u, v, w)
 
-    # Strain S̄ᵢⱼ of the filtered velocities, and the sub-filter stress τᵢⱼ. The
+    # Strain S̄ᵢⱼ of the filtered velocities, and the subfilter stress τᵢⱼ. The
     # contraction interpolates every component to cell centers, so the components can stay at their
     # natural staggered locations here; the result is wrapped in a `KernelFunctionOperation`.
     S̄ = StrainRateTensor(grid, ū, v̄, w̄; dims)

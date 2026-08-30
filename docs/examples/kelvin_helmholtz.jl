@@ -120,11 +120,11 @@ Q = QVelocityGradientTensorInvariant(model)
 # ```
 #
 # with a buoyancy production ``\overline{w}\,\overline{b}`` (the conversion between filtered kinetic and
-# potential energy), the cross-scale kinetic-energy flux ``\Pi_k`` to sub-filter scales
+# potential energy), the cross-scale kinetic-energy flux ``\Pi_k`` to subfilter scales
 # ([`KineticEnergyCrossScaleFlux`](@ref)), and the viscous dissipation of the filtered
 # flow ``\varepsilon_k^l`` ([`FilteredKineticEnergyDissipationRate`](@ref)). Note that
-# ``\varepsilon_k^l`` is *not* ``\overline{\varepsilon_k}``: their difference is the sub-filter
-# dissipation of the [sub-filter kinetic energy budget](@ref "Sub-filter kinetic energy equation").
+# ``\varepsilon_k^l`` is *not* ``\overline{\varepsilon_k}``: their difference is the subfilter
+# dissipation of the [subfilter kinetic energy budget](@ref "Sub-filter kinetic energy equation").
 
 using Oceananigans.AbstractOperations: @at
 
@@ -314,7 +314,7 @@ end
 #
 # The bottom panel shows the volume-integrated filtered kinetic-energy budget. As the billows
 # grow and overturn, the filtered flow mostly loses kinetic energy to potential energy (`∫w̄b̄ dV < 0`) and
-# feeds the sub-filter scales through the cross-scale flux (`−∫Πₖ dV`), while the filtered viscous
+# feeds the subfilter scales through the cross-scale flux (`−∫Πₖ dV`), while the filtered viscous
 # dissipation `∫εₖˡ dV` stays comparatively small at this Reynolds number. The residual (dashed), the
 # sum of the negative tendency `−d(∫eₖˡ)/dt` and the three source terms, stays small. As in the
 # [Two-dimensional turbulence example](@ref two_d_turbulence_example), the centered scheme contributes no

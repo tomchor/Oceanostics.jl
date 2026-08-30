@@ -37,7 +37,7 @@ using ..FlowDiagnostics: validate_dims, subfilter_covariance, to_center
 #+++ Shared reference profile
 # The filtered-flow diagnostics measure the filtered buoyancy `b̄` against a reference profile that
 # did not come from sorting `b̄` itself: ordinarily the sorted state of the *full* buoyancy, so that
-# `eₐ(b̄, z)` and `eₐ(b, z)` are comparable and their difference (the sub-filter APE) means something.
+# `eₐ(b̄, z)` and `eₐ(b, z)` are comparable and their difference (the subfilter APE) means something.
 # `ProfileLookup` is the one method built to match a field into a profile it did not produce, so it is
 # the only method these diagnostics accept. The default `ProfileLookup()`, which would sort each
 # field's own buoyancy, is resolved here into a lookup of the model's own (full) buoyancy: a
@@ -63,7 +63,7 @@ shared_profile_lookup(diagnostic, b, method) =
 # flow. `SubFilterAvailablePotentialEnergyEquation` builds its full-field reference height from the same
 # three pieces, which is what guarantees the two states share one profile, and
 # `AvailablePotentialEnergyCrossScaleFlux` shares the one `b̄` between its reference height and its
-# sub-filter buoyancy flux.
+# subfilter buoyancy flux.
 function filtered_buoyancy_and_lookup(diagnostic, model, filter, method, geopotential_height)
     b = buoyancy_field(model, model.buoyancy, geopotential_height)
     b̄ = Field(filter(b))
@@ -102,7 +102,7 @@ where `eₐ` is the local available potential energy density ([`AvailablePotenti
 framework of [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879). It is the
 potential-energy counterpart of the kinetic energy of the filtered flow `eₖˡ`
 ([`FilteredKineticEnergy`](@ref Oceanostics.FilteredKineticEnergyEquation.FilteredKineticEnergy)),
-and the filter splits the APE into it and the sub-filter remainder `eₐˢ = filter(eₐ) - eₐˡ`
+and the filter splits the APE into it and the subfilter remainder `eₐˢ = filter(eₐ) - eₐˡ`
 ([`SubFilterAvailablePotentialEnergy`](@ref Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy)).
 
 For that split to mean anything the filtered buoyancy has to be measured against the **same reference
@@ -203,7 +203,7 @@ the displacement potential `Υˡ` ([`AvailablePotentialEnergyDisplacementPotenti
 It is the diffusive sink of the budget of [`FilteredAvailablePotentialEnergy`](@ref)
 ([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)), and it mirrors what
 [`FilteredKineticEnergyDissipationRate`](@ref Oceanostics.FilteredKineticEnergyEquation.FilteredKineticEnergyDissipationRate)
-is to the filtered kinetic energy. The sub-filter remainder `εₐˢ = filter(εₐ) - εₐˡ` is
+is to the filtered kinetic energy. The subfilter remainder `εₐˢ = filter(εₐ) - εₐˡ` is
 [`SubFilterAvailablePotentialEnergyDissipationRate`](@ref Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate).
 
 The flux is filtered, `q̄ᵢ = filter(qᵢ(b))`, not recomputed from the filtered buoyancy: the filtered
@@ -285,15 +285,15 @@ FilteredAvailablePotentialEnergyDissipationRate(model; σ, dims = (1, 2, 3), bou
 #---
 
 #+++ Cross-scale available-potential-energy flux
-# Πₐ = -τᵢ ∂ᵢΥˡ, the APE analogue of `KineticEnergyCrossScaleFlux`'s Πₖ = -τᵢⱼS̄ᵢⱼ. The sub-filter
-# buoyancy flux τᵢ = filter(buᵢ) - b̄ūᵢ takes the place of the sub-filter stress, and the gradient of
+# Πₐ = -τᵢ ∂ᵢΥˡ, the APE analogue of `KineticEnergyCrossScaleFlux`'s Πₖ = -τᵢⱼS̄ᵢⱼ. The subfilter
+# buoyancy flux τᵢ = filter(buᵢ) - b̄ūᵢ takes the place of the subfilter stress, and the gradient of
 # the filtered-state displacement potential Υˡ takes the place of the resolved strain. Every factor is
 # interpolated to (Center, Center, Center) before multiplying (via `FlowDiagnostics`' shared
 # `to_center`), matching the contraction convention of the kinetic-energy flux.
 """
     $(SIGNATURES)
 
-The sub-filter buoyancy flux `τᵢ = filter(b uᵢ) - b̄ ūᵢ` for the directions in `dims`, as a `NamedTuple`
+The subfilter buoyancy flux `τᵢ = filter(b uᵢ) - b̄ ūᵢ` for the directions in `dims`, as a `NamedTuple`
 keyed `τ₁`, `τ₂`, `τ₃`:
 [`subfilter_covariance`](@ref Oceanostics.FlowDiagnostics.subfilter_covariance) applied per direction,
 with the caller's pre-filtered buoyancy `b̄` shared across the components through its `filtered_a`
@@ -318,20 +318,20 @@ const CrossScaleFlux = AvailablePotentialEnergyCrossScaleFlux
     $(SIGNATURES)
 
 Return the cross-scale (scale-to-scale) available-potential-energy flux `Πₐ`, the rate at which a
-low-pass `filter` transfers available potential energy from the filtered to the sub-filter scales
+low-pass `filter` transfers available potential energy from the filtered to the subfilter scales
 ([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)):
 
 ```
     Πₐ = -τᵢ ∂ᵢΥˡ ,   τᵢ = filter(b uᵢ) - b̄ ūᵢ ,   Υˡ = z✶(b̄) - z
 ```
 
-where `τᵢ` is the sub-filter buoyancy flux and `Υˡ` is the
+where `τᵢ` is the subfilter buoyancy flux and `Υˡ` is the
 [`AvailablePotentialEnergyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential)
 of the filtered buoyancy. It is the APE analogue of
 [`KineticEnergyCrossScaleFlux`](@ref Oceanostics.FilteredKineticEnergyEquation.KineticEnergyCrossScaleFlux),
-with the sub-filter buoyancy flux in place of the sub-filter stress and `∇Υˡ` in place of the resolved
-strain; `Πₐ > 0` is forward (downscale, filtered → sub-filter) transfer. It appears as `-Πₐ` in the
-filtered APE budget and as `+Πₐ` in the sub-filter one, which is what makes it a transfer rather than a
+with the subfilter buoyancy flux in place of the subfilter stress and `∇Υˡ` in place of the resolved
+strain; `Πₐ > 0` is forward (downscale, filtered → subfilter) transfer. It appears as `-Πₐ` in the
+filtered APE budget and as `+Πₐ` in the subfilter one, which is what makes it a transfer rather than a
 source or a sink. The result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
 
 `method` has to be a [`ProfileLookup`](@ref), for the reason
@@ -370,7 +370,7 @@ A second method, `AvailablePotentialEnergyCrossScaleFlux(model, filter, z✶ˡ; 
 reference height you built from the filtered buoyancy (see [`FilteredAvailablePotentialEnergy`](@ref)),
 so one lookup — and, through `upsilon`, one `Υˡ` — can serve this flux and the other filtered-state
 diagnostics. The filtered buoyancy is read off `z✶ˡ` itself; `filter` is still needed there, to build
-the sub-filter buoyancy flux.
+the subfilter buoyancy flux.
 
 A convenience method `AvailablePotentialEnergyCrossScaleFlux(model; σ, dims, boundary, N)` builds the
 Gaussian `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
@@ -393,7 +393,7 @@ function AvailablePotentialEnergyCrossScaleFlux(model, filter, z✶ˡ::SortedRef
     Υˡ = isnothing(upsilon) ? Field(AvailablePotentialEnergyDisplacementPotential(model, z✶ˡ)) : upsilon
 
     # The filtered buoyancy is `z✶ˡ`'s own (the field the caller filtered and looked up), so the one `b̄`
-    # serves both the reference height — and so `Υˡ` — and the sub-filter buoyancy flux: the buoyancy is
+    # serves both the reference height — and so `Υˡ` — and the subfilter buoyancy flux: the buoyancy is
     # filtered once per compute rather than once for the lookup and again for the flux.
     b = buoyancy_field(model, model.buoyancy, geopotential_height)
     b̄ = reference_buoyancy(z✶ˡ.operand)

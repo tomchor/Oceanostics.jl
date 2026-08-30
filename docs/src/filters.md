@@ -109,7 +109,7 @@ dim, or a tuple of odd integers sets one count per dim.
 `dims` and `boundary` work identically to `BoxFilter`.
 
 For a worked end-to-end example — filtering a turbulent flow, a filter-width sweep, and a
-sub-filter tracer flux — see the [Spatial filtering example](@ref spatial_filtering_example).
+subfilter tracer flux — see the [Spatial filtering example](@ref spatial_filtering_example).
 
 ### Variably spaced (stretched) grids
 
@@ -188,7 +188,7 @@ Second, filtering a stored `Field` is comparatively cheap either way, because re
 an array element is cheap. Filtering an expensive `KernelFunctionOperation` is not, because the
 operation is recomputed from scratch at every stencil point.
 
-A quick calculation of the sub-filter scale dissipation `εₖˢ = filter(εₖ) - εₖˡ` illustrates this, since
+A quick calculation of the subfilter scale dissipation `εₖˢ = filter(εₖ) - εₖˡ` illustrates this, since
 [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) is a nine-term
 viscous-flux contraction rather than a stored array. We build a small LES and filter it horizontally
 with a width of `ℓ = 8Δx`, which is a 15-point stencil along each filtered direction:

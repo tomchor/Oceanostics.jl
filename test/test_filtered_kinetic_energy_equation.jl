@@ -93,7 +93,7 @@ function test_convenience_method(model)
     return nothing
 end
 
-# A uniform flow uⁱ = const has filter(uⁱuʲ) = ūⁱūʲ and ∂ūⁱ = 0, so both the sub-filter stress and the
+# A uniform flow uⁱ = const has filter(uⁱuʲ) = ūⁱūʲ and ∂ūⁱ = 0, so both the subfilter stress and the
 # cross-scale flux vanish identically.
 function test_uniform_flow_vanishes(grid, filt; U=2, V=-3)
     model = NonhydrostaticModel(grid)
@@ -162,7 +162,7 @@ end
 # Filtered dissipation εₖˡ = -∂ⱼūᵢ·filter(τᵢⱼ(u)). On a periodic grid with constant ν the filter
 # commutes with the (linear) viscous flux, so filter(τᵢⱼ(u)) = τᵢⱼ(ū) and εₖˡ equals the KE dissipation of
 # the filtered flow. That reference is built from the existing `KineticEnergyDissipationRate` via its
-# perturbation mechanism, with the mean set to the sub-filter part `u - ū` so it dissipates exactly ūᵢ.
+# perturbation mechanism, with the mean set to the subfilter part `u - ū` so it dissipates exactly ūᵢ.
 # (This requires the periodic grid; on a bounded grid the two flux orderings differ near the boundary.)
 function test_filtered_dissipation_matches_filtered_flow(model, filt)
     u, v, w = model.velocities
