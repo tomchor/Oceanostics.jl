@@ -18,7 +18,7 @@ the velocity:
              + \underbrace{u_i F_{u_i}}_{\text{forcing}}
 ```
 
-where ``\tau_{ij}`` is the viscous/subgrid momentum flux (minus the stress tensor), ``p`` is pressure,
+where ``\tau_{ij}`` is the viscous/subgrid momentum flux (negative of the stress tensor), ``p`` is pressure,
 ``b_i`` is the buoyancy acceleration component in the ``i``-th direction, and
 ``F_{u_i}`` is the forcing on the ``i``-th momentum equation. As throughout Oceanostics, the
 lower-case ``e_k`` is the pointwise energy density and the upper-case ``E_k = \int e_k \, \mathrm{d}V``
@@ -33,8 +33,7 @@ dissipation rate: a general one based on the full momentum flux
 (``\varepsilon_k = 2\nu S_{ij} S_{ij}``) valid when the turbulence closure uses a single scalar
 viscosity. The two agree for a constant viscosity, and both are non-negative for a down-gradient
 closure. As in [the momentum equation](momentum_equation.md), ``\tau_{ij}`` is the momentum flux
-Oceananigans' kernels carry, ``-2\nu S_{ij}`` for a constant viscosity, which is minus the stress
-tensor; that is what puts the minus sign on ``\varepsilon_k``.
+Oceananigans' kernels carry (i.e. , the negative of the stress tensor; ``-2\nu S_{ij}`` for a constant viscosity).
 
 All diagnostics are computed at `(Center, Center, Center)`.
 
