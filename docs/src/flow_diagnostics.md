@@ -223,7 +223,6 @@ budgets also write ``\tau_{ij}``, but there it is the closure's *diffusive* mome
 subfilter stress ``\tau^r_{ij} = \overline{u_i u_j} - \bar u_i \bar u_j``
 ([`subfilter_stress_tensor`](@ref Oceanostics.FilteredKineticEnergyEquation.subfilter_stress_tensor))
 carries a superscript ``s`` to keep the three apart.
-
 ```@docs
 Oceanostics.FlowDiagnostics.StressTensor
 ```
