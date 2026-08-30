@@ -5,6 +5,7 @@ using Oceananigans.Fields: location, compute_at!
 
 using Oceanostics
 using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipationRate
+using Oceanostics: FilteredAvailablePotentialEnergyDisplacementPotential
 using Oceanostics: AvailablePotentialEnergyCrossScaleFlux, subfilter_covariance
 using Oceanostics: FilteredAvailablePotentialToKineticEnergyConversion
 using Oceanostics.BackgroundPotentialEnergyEquation: reference_buoyancy_at_height
@@ -130,6 +131,52 @@ function test_filtered_ape_fixed_profile(model, filt)
     return nothing
 end
 
+# Υˡ = z✶(b̄) - z: display/type checks, plus the identity that it is the full-field `Υ` kernel evaluated
+# on the reference height of the filtered buoyancy — which is how the tests here have always built the
+# `Υˡ` they hand the other diagnostics through `upsilon`, so the wrapper has to agree with it to the bit.
+function test_filtered_displacement_potential(model, filt)
+    Υˡ = FilteredAvailablePotentialEnergyDisplacementPotential(model, filt)
+    @test location(Υˡ) == (Center, Center, Center)
+    @test Υˡ isa FilteredAvailablePotentialEnergyDisplacementPotential
+    @test occursin("FilteredAvailablePotentialEnergyDisplacementPotential", sprint(show, Υˡ))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), Υˡ))
+    @test all(isfinite, interior(Field(Υˡ)))
+    @test maximum(abs, interior(Field(Υˡ))) > 0   # otherwise the checks below would hold trivially
+
+    lookup = shared_lookup(model)
+    z✶ˡ = reference_height(Field(filt(model.tracers.b)); method=lookup)
+    @test interior(Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, z✶ˡ))) ==
+          interior(Field(DisplacementPotential(model, z✶ˡ)))
+    @test interior(Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, filt; method=lookup))) ==
+          interior(Field(DisplacementPotential(model, z✶ˡ)))
+
+    # Υˡ is what the dissipation and the cross-scale flux contract their fluxes against, so passing this
+    # diagnostic through `upsilon` has to reproduce what they build internally.
+    Υˡ_field = Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, z✶ˡ))
+    @test interior(Field(FilteredAvailablePotentialEnergyDissipationRate(model, filt, z✶ˡ; upsilon=Υˡ_field))) ≈
+          interior(Field(FilteredAvailablePotentialEnergyDissipationRate(model, filt, z✶ˡ)))
+    @test interior(Field(AvailablePotentialEnergyCrossScaleFlux(model, filt, z✶ˡ; upsilon=Υˡ_field))) ≈
+          interior(Field(AvailablePotentialEnergyCrossScaleFlux(model, filt, z✶ˡ)))
+
+    σ = 0.12
+    conv = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
+    @test interior(Field(FilteredAvailablePotentialEnergyDisplacementPotential(model; σ))) ≈
+          interior(Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, conv)))
+
+    @test_throws ArgumentError FilteredAvailablePotentialEnergyDisplacementPotential(model, filt; method=HeavisideIntegral())
+    return nothing
+end
+
+# An identity-scale filter leaves the buoyancy alone, so Υˡ collapses onto the full field's Υ measured
+# against the same shared profile — the same bit-for-bit check the other filtered diagnostics get.
+function test_filtered_displacement_potential_identity_filter(model)
+    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=1e-6, N=3, boundary=:edge)
+    lookup = shared_lookup(model)
+    @test interior(Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, identity_filter; method=lookup))) ≈
+          interior(Field(DisplacementPotential(model, reference_height(model; method=lookup))))
+    return nothing
+end
+
 # εₐˡ display/type checks, and the low-level `(model, filter, z✶ˡ; upsilon)` form sharing a Υˡ.
 function test_filtered_ape_dissipation_basics(model, filt)
     εₐˡ = FilteredAvailablePotentialEnergyDissipationRate(model, filt)
@@ -207,6 +254,7 @@ end
 # machinery so it can be used on its own.
 function test_filtered_ape_module_reexports()
     @test FilteredAvailablePotentialEnergyEquation.DissipationRate === FilteredAvailablePotentialEnergyDissipationRate
+    @test FilteredAvailablePotentialEnergyEquation.DisplacementPotential === FilteredAvailablePotentialEnergyDisplacementPotential
     @test FilteredAvailablePotentialEnergyEquation.ProfileLookup === ProfileLookup
     @test FilteredAvailablePotentialEnergyEquation.VerticalSort === VerticalSort
     @test FilteredAvailablePotentialEnergyEquation.reference_height === reference_height
@@ -469,6 +517,10 @@ end
 
     @info "    Fixed profile (arrays) agrees with borrowing the live column"
     test_filtered_ape_fixed_profile(model, filt)
+
+    @info "    Filtered displacement potential Υˡ = z✶(b̄) - z"
+    test_filtered_displacement_potential(model, filt)
+    test_filtered_displacement_potential_identity_filter(model)
 
     @info "    Filtered APE dissipation εₐˡ = -q̄ᵢ∂ᵢΥˡ basics and shared Υˡ"
     test_filtered_ape_dissipation_basics(model, filt)

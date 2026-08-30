@@ -135,8 +135,14 @@ All kernel functions use Oceananigans' staggered grid conventions with location 
   `kinetic_energy_ccc`) and `FilteredAvailablePotentialEnergyDissipationRate` (εₐˡ = −q̄ᵢ∂ᵢΥˡ, the
   closure's diffusive flux *low-pass filtered* — the same filtered-flux choice
   `FilteredKineticEnergyDissipationRate` makes for the viscous flux, exact for constant κ — against the
-  displacement potential Υˡ of b̄). Both take `(model, filter; method, geopotential_height)` and a
-  low-level form on a prebuilt `z✶ˡ` (`FilteredAvailablePotentialEnergy(model, z✶ˡ)`,
+  displacement potential Υˡ of b̄) — plus that Υˡ itself, `FilteredAvailablePotentialEnergyDisplacementPotential`
+  (Υˡ = z✶(b̄) − z, aliased `DisplacementPotential` inside the module the way the dissipation rate is
+  aliased `DissipationRate`; its kernel `filtered_upsilon_ccc` forwards to `upsilon_ccc` for the same
+  type-alias/display reason `filtered_ape_ccc` forwards to `local_ape_ccc`, and it is what the
+  dissipation rate and the cross-scale flux build internally when handed no `upsilon`). All three take
+  `(model, filter; method, geopotential_height)` and a low-level form on a prebuilt `z✶ˡ`
+  (`FilteredAvailablePotentialEnergy(model, z✶ˡ)`,
+  `FilteredAvailablePotentialEnergyDisplacementPotential(model, z✶ˡ)`,
   `FilteredAvailablePotentialEnergyDissipationRate(model, filter, z✶ˡ; upsilon)`) so one lookup / one Υˡ
   can be shared. Also owns `AvailablePotentialEnergyCrossScaleFlux` (Πₐ = −τᵢ∂ᵢΥˡ, the sub-filter
   buoyancy flux — `subfilter_covariance` per direction with one shared b̄ — contracted with ∇Υˡ, the APE

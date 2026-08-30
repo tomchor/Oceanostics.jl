@@ -116,7 +116,7 @@ Five of the quantities above have diagnostics; the two transport divergences, th
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
 | Filtered available potential energy | ``e_a^l = e_a(\bar b, z)`` | [`FilteredAvailablePotentialEnergy`](@ref) |
-| Displacement potential | ``\Upsilon^l = z^\star(\bar b) - z`` | [`AvailablePotentialEnergyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential) on a reference height built from ``\bar b`` |
+| Displacement potential | ``\Upsilon^l = z^\star(\bar b) - z`` | [`FilteredAvailablePotentialEnergyDisplacementPotential`](@ref) |
 | Advection | ``\partial_i(\bar u_i e_a^l)`` | not implemented |
 | Buoyancy anomaly | ``b_r^l = \bar b - b^\star(z, t)`` | not implemented |
 | APE to KE conversion | ``\bar w \, b_r^l`` | [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref) |
@@ -125,12 +125,17 @@ Five of the quantities above have diagnostics; the two transport divergences, th
 | Dissipation | ``\varepsilon_a^l = -\bar q_i \, \partial_i \Upsilon^l`` | [`FilteredAvailablePotentialEnergyDissipationRate`](@ref) |
 | Reference tendency | ``R^l = \int_{z^\star(\bar b)}^{z} \partial_t b^\star(\tilde z, t) \, \mathrm{d}\tilde z`` | not implemented |
 
-## Summary of ``e_a^l`` equation terms
+``\Upsilon^l`` also answers to `DisplacementPotential`, and ``\varepsilon_a^l`` to `DissipationRate`.
+Both aliases are scoped to this module, as their full-field namesakes are to
+[the available potential energy equation](available_potential_energy_equation.md): `using
+Oceanostics.FilteredAvailablePotentialEnergyEquation` brings them in, `using Oceanostics` does not,
+since unprefixed neither name says which budget it belongs to nor at which scale.
 
-<!--TODO: Add Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyDisplacementPotential-->
+## Summary of ``e_a^l`` equation terms
 
 ```@docs
 Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergy
+Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyDisplacementPotential
 Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion
 Oceanostics.FilteredAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux
 Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyDissipationRate
