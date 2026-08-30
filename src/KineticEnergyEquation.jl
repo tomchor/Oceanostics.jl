@@ -461,10 +461,13 @@ const DissipationRate = KineticEnergyDissipationRate
 
 Calculate the kinetic energy dissipation rate, defined as
 
-    εₖ = -∂ⱼuᵢ ⋅ τᵢⱼ = 2νSᵢⱼSᵢⱼ ≥ 0
+    εₖ = -∂ⱼuᵢ ⋅ τᵢⱼ
 
-where ∂ⱼuᵢ is the velocity gradient tensor and τᵢⱼ is the closure's viscous momentum flux (`-2νSᵢⱼ`
-for a constant viscosity, i.e. minus the stress tensor), in the same convention Oceananigans uses.
+where ∂ⱼuᵢ is the velocity gradient tensor and τᵢⱼ is the closure's viscous momentum flux (minus the
+stress tensor), in the same convention Oceananigans uses. That definition holds for any closure. For
+a Newtonian flux with a scalar viscosity, `τᵢⱼ = -2νSᵢⱼ`, it reduces to `εₖ = 2νSᵢⱼSᵢⱼ ≥ 0`, which
+[`KineticEnergyIsotropicDissipationRate`](@ref) computes directly; neither that reduction nor, for a
+flux that is not down-gradient, the sign carries over to other closures.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
