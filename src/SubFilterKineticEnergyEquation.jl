@@ -71,7 +71,7 @@ SubFilterKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field")
-└── computes: subfilter kinetic energy  eₖˢ = ½τᵢᵢ
+└── computes: subfilter kinetic energy  ½τᵢᵢ
 ```
 
 A convenience method `SubFilterKineticEnergy(model; σ, dims, boundary, N)` builds the Gaussian `filter`
@@ -138,7 +138,7 @@ SubFilterKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ke_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
-└── computes: subfilter kinetic energy dissipation rate  εₖˢ = filter(εₖ) - εₖˡ
+└── computes: subfilter kinetic energy dissipation rate  filter(εₖ) - εₖˡ
 ```
 
 A convenience method `SubFilterKineticEnergyDissipationRate(model; σ, dims, boundary, N)` builds the

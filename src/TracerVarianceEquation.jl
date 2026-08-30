@@ -193,7 +193,7 @@ TracerVarianceDissipationRate KernelFunctionOperation at (Center, Center, Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
-└── computes: tracer variance dissipation rate  χ = -2 ∂ⱼc·qᶜⱼ
+└── computes: tracer variance dissipation rate  -2 ∂ⱼc·qᶜⱼ
 
 julia> b̄ = Field(Average(model.tracers.b, dims=(1,2)));
 
@@ -204,7 +204,7 @@ TracerVarianceDissipationRate KernelFunctionOperation at (Center, Center, Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky", "NamedTuple", "Val", "Oceananigans.AbstractOperations.BinaryOperation", "Clock", "NamedTuple", "Nothing")
-└── computes: tracer variance dissipation rate  χ = -2 ∂ⱼc·qᶜⱼ
+└── computes: tracer variance dissipation rate  -2 ∂ⱼc·qᶜⱼ
 ```
 """
 function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))

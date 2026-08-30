@@ -144,7 +144,7 @@ FilteredAvailablePotentialEnergy KernelFunctionOperation at (Center, Center, Cen
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: filtered_ape_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
-└── computes: available potential energy of the filtered buoyancy  eₐˡ = eₐ(b̄, z)
+└── computes: available potential energy of the filtered buoyancy  eₐ(b̄, z)
 ```
 
 A convenience method `FilteredAvailablePotentialEnergy(model; σ, dims, boundary, N)` builds the
@@ -245,7 +245,7 @@ FilteredAvailablePotentialEnergyDissipationRate KernelFunctionOperation at (Cent
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: filtered_ape_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field")
-└── computes: available potential energy dissipation rate of the filtered buoyancy  εₐˡ = -q̄ᵢ∂ᵢΥˡ
+└── computes: available potential energy dissipation rate of the filtered buoyancy  -q̄ᵢ∂ᵢΥˡ
 ```
 
 A convenience method `FilteredAvailablePotentialEnergyDissipationRate(model; σ, dims, boundary, N)`
@@ -363,7 +363,7 @@ AvailablePotentialEnergyCrossScaleFlux KernelFunctionOperation at (Center, Cente
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: cross_scale_ape_flux_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.UnaryOperation",)
-└── computes: cross-scale available potential energy flux  Πₐ = -τᵢ∂ᵢΥˡ
+└── computes: cross-scale available potential energy flux  -τᵢ∂ᵢΥˡ
 ```
 
 A second method, `AvailablePotentialEnergyCrossScaleFlux(model, filter, z✶ˡ; upsilon, dims)`, takes a
@@ -472,7 +472,7 @@ FilteredAvailablePotentialToKineticEnergyConversion KernelFunctionOperation at (
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: filtered_ape_to_ke_conversion_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
-└── computes: filtered APE to filtered KE conversion  w̄b_rˡ = w̄(b̄ - b✶(z))
+└── computes: filtered APE to filtered KE conversion  w̄(b̄ - b✶(z))
 ```
 
 A convenience method `FilteredAvailablePotentialToKineticEnergyConversion(model; σ, dims, boundary, N)`

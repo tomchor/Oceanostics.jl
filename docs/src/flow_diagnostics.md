@@ -43,21 +43,21 @@ RichardsonNumber KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: richardson_number_ccf (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Tuple")
-└── computes: Richardson number  Ri = (∂b/∂z) / |∂u⃗ₕ/∂z|²
+└── computes: Richardson number  (∂b/∂z) / |∂u⃗ₕ/∂z|²
 
 julia> Ro = FlowDiagnostics.RossbyNumber(model)
 RossbyNumber KernelFunctionOperation at (Face, Face, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: rossby_number_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
-└── computes: Rossby number  Ro = ωᶻ/f
+└── computes: Rossby number  ωᶻ/f
 
 julia> EPV = FlowDiagnostics.ErtelPotentialVorticity(model)
 ErtelPotentialVorticity KernelFunctionOperation at (Face, Face, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ertel_potential_vorticity_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Int64", "Int64", "Float64")
-└── computes: Ertel potential vorticity  q = ω⃗ₜₒₜ · ∇b
+└── computes: Ertel potential vorticity  ω⃗ₜₒₜ · ∇b
 
 julia> S = FlowDiagnostics.StrainRateTensorModulus(model)
 StrainRateTensorModulus KernelFunctionOperation at (Center, Center, Center)

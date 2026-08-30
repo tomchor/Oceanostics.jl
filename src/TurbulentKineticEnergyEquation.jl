@@ -48,7 +48,7 @@ TurbulentKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
-└── computes: turbulent kinetic energy  eₖ′ = ½uᵢ′uᵢ′
+└── computes: turbulent kinetic energy  ½uᵢ′uᵢ′
 ```
 """
 function TurbulentKineticEnergy(model, u, v, w; U=ZeroField(), V=ZeroField(), W=ZeroField(), location = (Center, Center, Center))
@@ -83,7 +83,7 @@ KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
-└── computes: isotropic kinetic energy dissipation rate  εₖ = 2νSᵢⱼSᵢⱼ
+└── computes: isotropic kinetic energy dissipation rate  2νSᵢⱼSᵢⱼ
 ```
 """
 @inline TurbulentKineticEnergyIsotropicDissipationRate(u, v, w, args...; U=ZeroField(), V=ZeroField(), W=ZeroField(), location = (Center, Center, Center)) =

@@ -95,7 +95,7 @@ AvailablePotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: local_ape_ccc (generic function with 2 methods)
 └── arguments: ("Field", "Field", "Field")
-└── computes: local available potential energy density  eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0
+└── computes: local available potential energy density  ∫[b✶(z̃) - b]dz̃ ≥ 0
 ```
 """
 function AvailablePotentialEnergy(model; method = ThreeDimensionalSort(), geopotential_height = model_geopotential_height(model), location = (Center, Center, Center))
@@ -185,7 +185,7 @@ AvailablePotentialEnergyDisplacementPotential KernelFunctionOperation at (Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: upsilon_ccc (generic function with 1 method)
 └── arguments: ("Field",)
-└── computes: displacement potential  Υ = z✶ - z
+└── computes: displacement potential  z✶ - z
 ```
 """
 function AvailablePotentialEnergyDisplacementPotential(model; method = HeavisideIntegral(),
@@ -248,7 +248,7 @@ ReferenceBuoyancyAnomaly KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: reference_buoyancy_anomaly_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field")
-└── computes: reference buoyancy anomaly  bᵣ = b - b✶(z)
+└── computes: reference buoyancy anomaly  b - b✶(z)
 ```
 """
 function ReferenceBuoyancyAnomaly(model; method = HeavisideIntegral(),
@@ -438,7 +438,7 @@ AvailablePotentialEnergyDissipationRate KernelFunctionOperation at (Center, Cent
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ape_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "BuoyancyForce")
-└── computes: available potential energy dissipation rate  εₐ = -qᵢ∂ᵢΥ
+└── computes: available potential energy dissipation rate  -qᵢ∂ᵢΥ
 ```
 """
 function AvailablePotentialEnergyDissipationRate(model; method = HeavisideIntegral(),

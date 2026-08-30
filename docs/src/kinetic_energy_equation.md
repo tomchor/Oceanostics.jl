@@ -52,14 +52,14 @@ KineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
-└── computes: kinetic energy  eₖ = ½uᵢuᵢ
+└── computes: kinetic energy  ½uᵢuᵢ
 
 julia> εₖ = KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(model)
 KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
-└── computes: isotropic kinetic energy dissipation rate  εₖ = 2νSᵢⱼSᵢⱼ
+└── computes: isotropic kinetic energy dissipation rate  2νSᵢⱼSᵢⱼ
 
 julia> wb = KineticEnergyEquation.PotentialEnergyConversion(model)
 PotentialToKineticEnergyConversion KernelFunctionOperation at (Center, Center, Center)

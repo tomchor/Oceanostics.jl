@@ -118,7 +118,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("Field",)
-└── computes: potential energy per unit mass  eₚ = -bz
+└── computes: potential energy per unit mass  -bz
 ```
 
 The default behaviour of `PotentialEnergy` uses the *in-situ density* in the calculation
@@ -160,7 +160,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation", "NamedTuple")
-└── computes: potential energy per unit mass  eₚ = -bz
+└── computes: potential energy per unit mass  -bz
 ```
 
 To use a reference density set a constant value for the keyword argument `geopotential_height`
@@ -185,7 +185,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation", "NamedTuple")
-└── computes: potential energy per unit mass  eₚ = -bz
+└── computes: potential energy per unit mass  -bz
 ```
 """
 @inline function PotentialEnergy(model; location = (Center, Center, Center),
@@ -368,7 +368,7 @@ PotentialEnergyDiffusiveVerticalBuoyancyFlux KernelFunctionOperation at (Center,
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: diffusive_buoyancy_flux_ccc (generic function with 1 method)
 └── arguments: ("ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "BuoyancyForce")
-└── computes: diffusive vertical buoyancy flux  Φ = κ ∂b/∂z = -q₃
+└── computes: diffusive vertical buoyancy flux  κ ∂b/∂z = -q₃
 ```
 """
 function DiffusiveVerticalBuoyancyFlux(model; location = (Center, Center, Center))
@@ -485,7 +485,7 @@ PotentialEnergyTendency KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: minus_z_∂ₜb_ccc (generic function with 1 method)
 └── arguments: ("Val", "Val", "Centered", "ScalarDiffusivity", "Nothing", "BuoyancyForce", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Clock", "Returns")
-└── computes: potential energy tendency  ∂ₜeₚ = -z ∂ₜb
+└── computes: potential energy tendency  -z ∂ₜb
 ```
 """
 function PotentialEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))

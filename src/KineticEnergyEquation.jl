@@ -62,7 +62,7 @@ KineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
-└── computes: kinetic energy  eₖ = ½uᵢuᵢ
+└── computes: kinetic energy  ½uᵢuᵢ
 ```
 """
 KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwargs...)
@@ -118,7 +118,7 @@ KineticEnergyTendency KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢGᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "NamedTuple")
-└── computes: kinetic energy tendency  ∂ₜeₖ = uᵢGᵢ (excl. nonhydrostatic pressure)
+└── computes: kinetic energy tendency  uᵢGᵢ (excl. nonhydrostatic pressure)
 ```
 """
 function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
@@ -478,7 +478,7 @@ KineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Nothing", "NamedTuple", "NamedTuple")
-└── computes: kinetic energy dissipation rate  εₖ = -∂ⱼuᵢ·τᵢⱼ
+└── computes: kinetic energy dissipation rate  -∂ⱼuᵢ·τᵢⱼ
 ```
 """
 function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
@@ -536,7 +536,7 @@ KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
-└── computes: isotropic kinetic energy dissipation rate  εₖ = 2νSᵢⱼSᵢⱼ
+└── computes: isotropic kinetic energy dissipation rate  2νSᵢⱼSᵢⱼ
 ```
 """
 function KineticEnergyIsotropicDissipationRate(u, v, w, closure, closure_fields, model_fields, clock; location = (Center, Center, Center))

@@ -89,7 +89,7 @@ FilteredKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: filtered_kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
-└── computes: kinetic energy of the filtered flow  eₖˡ = ½ūᵢūᵢ
+└── computes: kinetic energy of the filtered flow  ½ūᵢūᵢ
 ```
 
 A convenience method `FilteredKineticEnergy(model; σ, dims, boundary, N)` builds the Gaussian `filter`
@@ -228,7 +228,7 @@ KineticEnergyCrossScaleFlux KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: cross_scale_ke_flux_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.UnaryOperation",)
-└── computes: cross-scale kinetic energy flux  Πₖ = -τᵢⱼS̄ᵢⱼ
+└── computes: cross-scale kinetic energy flux  -τᵢⱼS̄ᵢⱼ
 ```
 
 The returned object is a lazy operation over internally materialized filtered `Field`s, so it is
@@ -346,7 +346,7 @@ FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center,
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: filtered_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
-└── computes: filtered kinetic energy dissipation rate  εₖˡ = -∂ⱼūᵢ·τ̄ᵢⱼ
+└── computes: filtered kinetic energy dissipation rate  -∂ⱼūᵢ·τ̄ᵢⱼ
 ```
 
 The viscosity and fluxes come from `model.closure`/`model.closure_fields`, exactly as in
