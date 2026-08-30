@@ -108,21 +108,23 @@ Q = QVelocityGradientTensorInvariant(model)
 # scales, so this is a natural flow in which to look at a *filtered* kinetic-energy
 # budget in the spirit of [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1). We define a
 # box filter whose width is comparable to the shear-layer half-width `h` and use it to build every
-# term in the budget of the filtered kinetic energy ``\overline{K} = \tfrac{1}{2}\overline{u}_i\overline{u}_i``.
+# term in the budget of the filtered kinetic energy ``e_k^l = \tfrac{1}{2}\overline{u}_i\overline{u}_i``.
 # Volume-integrated — advection and pressure work integrate to zero, since the flow is periodic in `x`
 # and `w = 0` with free slip at the `z` walls — that budget reads
 #
 # ```math
-# \frac{d}{dt} \int \overline{K}\, dV
-#   = \int \overline{w}\,\overline{b}\, dV
-#   - \int \Pi_K\, dV
-#   - \int \overline{\varepsilon}\, dV ,
+# \frac{d}{dt} \int e_k^l\, \mathrm{d}V
+#   = \int \overline{w}\,\overline{b}\, \mathrm{d}V
+#   - \int \Pi_k\, \mathrm{d}V
+#   - \int \varepsilon_k^l\, \mathrm{d}V ,
 # ```
 #
 # with a buoyancy production ``\overline{w}\,\overline{b}`` (the conversion between filtered kinetic and
-# potential energy), the cross-scale kinetic-energy flux ``\Pi_K`` to subfilter scales
-# ([`KineticEnergyCrossScaleFlux`](@ref)), and viscous dissipation due to the filtered
-# flow ``\overline{\varepsilon}`` ([`FilteredKineticEnergyDissipationRate`](@ref)).
+# potential energy), the cross-scale kinetic-energy flux ``\Pi_k`` to sub-filter scales
+# ([`KineticEnergyCrossScaleFlux`](@ref)), and the viscous dissipation of the filtered
+# flow ``\varepsilon_k^l`` ([`FilteredKineticEnergyDissipationRate`](@ref)). Note that
+# ``\varepsilon_k^l`` is *not* ``\overline{\varepsilon_k}``: their difference is the sub-filter
+# dissipation of the [sub-filter kinetic energy budget](@ref "Sub-filter kinetic energy equation").
 
 using Oceananigans.AbstractOperations: @at
 
@@ -140,34 +142,34 @@ b = model.tracers.b
 ## filter performance notes and `check_filter_staging`).
 ū, w̄, b̄ = Field(bfilter(u)), Field(bfilter(w)), Field(bfilter(b))
 
-Kˡ = @at (Center, Center, Center) (ū^2 + w̄^2) / 2   # filtered kinetic energy ½ūᵢūᵢ
-w̄b̄ = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy production of the filtered flow
-Πₖ = KineticEnergyCrossScaleFlux(model, bfilter; dims=(1, 3))
-εˡ = FilteredKineticEnergyDissipationRate(model, bfilter)
+eₖˡ = @at (Center, Center, Center) (ū^2 + w̄^2) / 2   # filtered kinetic energy ½ūᵢūᵢ
+w̄b̄  = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy production of the filtered flow
+Πₖ  = KineticEnergyCrossScaleFlux(model, bfilter; dims=(1, 3))
+εₖˡ = FilteredKineticEnergyDissipationRate(model, bfilter)
 
 # The budget only needs the (cheap) volume integrals of these terms:
 
-∫Kˡ = Integral(Kˡ)
-∫w̄b̄ = Integral(w̄b̄)
-∫Πₖ = Integral(Πₖ)
-∫εˡ = Integral(εˡ)
+∫eₖˡ = Integral(eₖˡ)
+∫w̄b̄  = Integral(w̄b̄)
+∫Πₖ  = Integral(Πₖ)
+∫εₖˡ = Integral(εₖˡ)
 
 
 # We use two NetCDF writers. A *snapshot* writer stores the 2D fields on a plain `TimeInterval(1)`,
 # while a *budget* writer stores only the integrated scalars on `ConsecutiveIterations(TimeInterval(1))`
-# — a second sample one model step after each output time — which lets us finite-difference `∫Kˡ` across
+# — a second sample one model step after each output time — which lets us finite-difference `∫eₖˡ` across
 # that single step to estimate `d/dt`, exactly as in the
 # [Two-dimensional turbulence example](@ref two_d_turbulence_example).
 
 using NCDatasets
 filename = "kelvin_helmholtz"
 
-simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b, w̄b̄, Πₖ, εˡ),
+simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b, w̄b̄, Πₖ, εₖˡ),
                                               filename=joinpath(@__DIR__, filename),
                                               schedule=TimeInterval(1),
                                               overwrite_existing=true)
 
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫Kˡ, ∫w̄b̄, ∫Πₖ, ∫εˡ),
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫eₖˡ, ∫w̄b̄, ∫Πₖ, ∫εₖˡ),
                                                   filename=joinpath(@__DIR__, filename * "_budget"),
                                                   schedule=ConsecutiveIterations(TimeInterval(1)),
                                                   overwrite_existing=true)
@@ -185,24 +187,24 @@ filepath = simulation.output_writers[:nc].filepath
 Ri_t = FieldTimeSeries(filepath, "Ri")
 Q_t  = FieldTimeSeries(filepath, "Q")
 b_t  = FieldTimeSeries(filepath, "b")
-w̄b̄_t = FieldTimeSeries(filepath, "w̄b̄")
-Πₖ_t = FieldTimeSeries(filepath, "Πₖ")
-εˡ_t = FieldTimeSeries(filepath, "εˡ")
+w̄b̄_t  = FieldTimeSeries(filepath, "w̄b̄")
+Πₖ_t  = FieldTimeSeries(filepath, "Πₖ")
+εₖˡ_t = FieldTimeSeries(filepath, "εₖˡ")
 
 ds = NCDataset(filepath)
 times = ds["time"][:]
 close(ds)
 
 # The integrated budget scalars come in consecutive-iteration pairs `(2k-1, 2k)`; a one-step finite
-# difference inside each pair gives `d(∫Kˡ)/dt`, and each source term is evaluated at the pair midpoint.
+# difference inside each pair gives `d(∫eₖˡ)/dt`, and each source term is evaluated at the pair midpoint.
 
 bud_filepath = simulation.output_writers[:budget].filepath
 ds_bud = NCDataset(bud_filepath)
 times_bud = ds_bud["time"][:]
-∫Kˡ_t     = ds_bud["∫Kˡ"][:]
+∫eₖˡ_t    = ds_bud["∫eₖˡ"][:]
 ∫w̄b̄_t     = ds_bud["∫w̄b̄"][:]
 ∫Πₖ_t     = ds_bud["∫Πₖ"][:]
-∫εˡ_t     = ds_bud["∫εˡ"][:]
+∫εₖˡ_t    = ds_bud["∫εₖˡ"][:]
 close(ds_bud)
 
 i1 = 1:2:length(times_bud)-1   # primary snapshots
@@ -210,17 +212,17 @@ i2 = 2:2:length(times_bud)       # consecutive-iteration snapshots
 Δt_pair = times_bud[i2] .- times_bud[i1]
 t_pair = @. 0.5 * (times_bud[i1] + times_bud[i2])
 
-dKˡdt   = (∫Kˡ_t[i2] .- ∫Kˡ_t[i1]) ./ Δt_pair
-w̄b̄_pair = @. 0.5 * (∫w̄b̄_t[i1] + ∫w̄b̄_t[i2]);
-Πₖ_pair = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2]);
-εˡ_pair = @. 0.5 * (∫εˡ_t[i1] + ∫εˡ_t[i2]);
+deₖˡdt   = (∫eₖˡ_t[i2] .- ∫eₖˡ_t[i1]) ./ Δt_pair
+w̄b̄_pair  = @. 0.5 * (∫w̄b̄_t[i1] + ∫w̄b̄_t[i2]);
+Πₖ_pair  = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2]);
+εₖˡ_pair = @. 0.5 * (∫εₖˡ_t[i1] + ∫εₖˡ_t[i2]);
 
 # Residual in sum-to-zero form: the negative tendency plus the three sources, so the plotted curves add to it
-resid = @. -dKˡdt + w̄b̄_pair - Πₖ_pair - εˡ_pair
+resid = @. -deₖˡdt + w̄b̄_pair - Πₖ_pair - εₖˡ_pair
 
 using Test                              #hide
 rms(x) = √(sum(abs2, x) / length(x))    #hide
-@test rms(resid) < 0.06 * rms(dKˡdt);   #hide
+@test rms(resid) < 0.06 * rms(deₖˡdt);   #hide
 
 
 # ## Plotting
@@ -254,17 +256,17 @@ hm3 = heatmap!(ax3, bₙ; colormap=:balance, colorrange=(-B₀, +B₀))
 Colorbar(fig[3, 3], hm3, vertical=false, height=8);
 
 # The second row shows the (local) budget terms as 2D fields: the buoyancy production `w̄b̄`, the
-# cross-scale kinetic-energy flux `Πₖ`, and the filtered dissipation `εˡ`. Each gets a symmetric
-# (or, for the sign-definite `εˡ`, one-sided) color range set from its own peak magnitude over the run.
+# cross-scale kinetic-energy flux `Πₖ`, and the filtered dissipation `εₖˡ`. Each gets a symmetric
+# (or, for the sign-definite `εₖˡ`, one-sided) color range set from its own peak magnitude over the run.
 
 maxabs(fts) = maximum(maximum(abs, interior(fts[k])) for k in 1:length(times))
 wb_lim = maxabs(w̄b̄_t)
 Π_lim  = maxabs(Πₖ_t)
-ε_lim  = maxabs(εˡ_t)
+ε_lim  = maxabs(εₖˡ_t)
 
 ax4 = Axis(fig[4, 1]; title="w̄b̄", kwargs...)
 ax5 = Axis(fig[4, 2]; title="Πₖ", kwargs...)
-ax6 = Axis(fig[4, 3]; title="εˡ", kwargs...)
+ax6 = Axis(fig[4, 3]; title="εₖˡ", kwargs...)
 
 w̄b̄ₙ = @lift w̄b̄_t[$n]
 hm4 = heatmap!(ax4, w̄b̄ₙ; colormap=:balance, colorrange=(-wb_lim, wb_lim))
@@ -274,20 +276,20 @@ Colorbar(fig[5, 1], hm4, vertical=false, height=8)
 hm5 = heatmap!(ax5, Πₖₙ; colormap=:balance, colorrange=(-Π_lim, Π_lim))
 Colorbar(fig[5, 2], hm5, vertical=false, height=8)
 
-εˡₙ = @lift εˡ_t[$n]
-hm6 = heatmap!(ax6, εˡₙ; colormap=:magma, colorrange=(0, ε_lim))
+εₖˡₙ = @lift εₖˡ_t[$n]
+hm6 = heatmap!(ax6, εₖˡₙ; colormap=:magma, colorrange=(0, ε_lim))
 Colorbar(fig[5, 3], hm6, vertical=false, height=8);
 
 # The bottom panel shows the volume-integrated filtered kinetic-energy budget. We plot the negative
-# tendency `−d(∫Kˡ)/dt` together with its three sources: buoyancy production `∫w̄b̄ dV`, the cross-scale
-# flux `−∫Πₖ dV`, and the filtered dissipation `−∫εˡ dV`. With the tendency negated, the four curves
+# tendency `−d(∫eₖˡ)/dt` together with its three sources: buoyancy production `∫w̄b̄ dV`, the cross-scale
+# flux `−∫Πₖ dV`, and the filtered dissipation `−∫εₖˡ dV`. With the tendency negated, the four curves
 # sum to the residual.
 
-ax_bud = Axis(fig[6, 1:3]; xlabel="Time", title="Filtered KE budget", height=140)
-lines!(ax_bud, t_pair, -dKˡdt, label="−d(∫Kˡ)/dt")
+ax_bud = Axis(fig[6, 1:3]; xlabel="Time", title="Filtered kinetic energy budget", height=140)
+lines!(ax_bud, t_pair, -deₖˡdt, label="−d(∫eₖˡ)/dt")
 lines!(ax_bud, t_pair, w̄b̄_pair, label="∫w̄b̄ dV")
 lines!(ax_bud, t_pair, -Πₖ_pair, label="−∫Πₖ dV")
-lines!(ax_bud, t_pair, -εˡ_pair, label="−∫εˡ dV")
+lines!(ax_bud, t_pair, -εₖˡ_pair, label="−∫εₖˡ dV")
 lines!(ax_bud, t_pair, resid, label="residual", color=:black, linestyle=:dash)
 axislegend(ax_bud; position=:lb, labelsize=10)
 
@@ -312,8 +314,8 @@ end
 #
 # The bottom panel shows the volume-integrated filtered kinetic-energy budget. As the billows
 # grow and overturn, the filtered flow mostly loses kinetic energy to potential energy (`∫w̄b̄ dV < 0`) and
-# feeds the subfilter scales through the cross-scale flux (`−∫Πₖ dV`), while the filtered viscous
-# dissipation `∫εˡ dV` stays comparatively small at this Reynolds number. The residual (dashed), the
-# sum of the negative tendency `−d(∫Kˡ)/dt` and the three source terms, stays small. As in the
+# feeds the sub-filter scales through the cross-scale flux (`−∫Πₖ dV`), while the filtered viscous
+# dissipation `∫εₖˡ dV` stays comparatively small at this Reynolds number. The residual (dashed), the
+# sum of the negative tendency `−d(∫eₖˡ)/dt` and the three source terms, stays small. As in the
 # [Two-dimensional turbulence example](@ref two_d_turbulence_example), the centered scheme contributes no
-# numerical dissipation of its own, so the budget closes against the explicit `∫εˡ dV` alone with a negligible residual.
+# numerical dissipation of its own, so the budget closes against the explicit `∫εₖˡ dV` alone with a negligible residual.

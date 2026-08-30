@@ -35,21 +35,21 @@ end
 
 # Low-level method of `subfilter_stress_tensor` taking already-filtered velocities `ū, v̄, w̄`, so the
 # (expensive) velocity filtering can be done once and shared — `KineticEnergyCrossScaleFlux` reuses
-# `ū, v̄, w̄` for both the strain rate and this stress. Computes τⁱʲ = filter(uⁱuʲ) - ūⁱūʲ component by
-# component, reusing `StressTensor` to build the momentum-flux tensor uⁱuʲ of both the full and the
+# `ū, v̄, w̄` for both the strain rate and this stress. Computes τᵢⱼ = filter(uᵢuⱼ) - ūᵢūⱼ component by
+# component, reusing `StressTensor` to build the momentum-flux tensor uᵢuⱼ of both the full and the
 # filtered velocity; `filter` is applied to the (materialized) full flux and the filtered flux is
 # subtracted. The result is a `NamedTuple` with the same keys/locations as `StressTensor`.
 function subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, collocate_diagonals=false)
-    flux_full = StressTensor(grid, u, v, w; dims, collocate_diagonals)   # uⁱuʲ
-    flux_filt = StressTensor(grid, ū, v̄, w̄; dims, collocate_diagonals)   # ūⁱūʲ
-    subfilter(full, filt) = Field(filter(Field(full))) - filt            # filter(uⁱuʲ) - ūⁱūʲ
+    flux_full = StressTensor(grid, u, v, w; dims, collocate_diagonals)   # uᵢuⱼ
+    flux_filt = StressTensor(grid, ū, v̄, w̄; dims, collocate_diagonals)   # ūᵢūⱼ
+    subfilter(full, filt) = Field(filter(Field(full))) - filt            # filter(uᵢuⱼ) - ūᵢūⱼ
     ks = keys(flux_full)
     return NamedTuple{ks}(map(subfilter, values(flux_full), values(flux_filt)))
 end
 #---
 
 #+++ Filtered kinetic energy
-# Kˡ = ½ ūᵢūᵢ, the kinetic energy of the filtered velocity field ūᵢ = filter(uᵢ). It reuses
+# eₖˡ = ½ ūᵢūᵢ, the kinetic energy of the filtered velocity field ūᵢ = filter(uᵢ). It reuses
 # `KineticEnergyEquation`'s `kinetic_energy_ccc` kernel (½uᵢuᵢ interpolated to ccc); wrapping it under a
 # distinct kernel name gives `FilteredKineticEnergy` its own type alias and `@diagnostic_show` display.
 @inline filtered_kinetic_energy_ccc(i, j, k, grid, ū, v̄, w̄) = kinetic_energy_ccc(i, j, k, grid, ū, v̄, w̄)
@@ -59,15 +59,15 @@ const FilteredKineticEnergy = CustomKFO{<:typeof(filtered_kinetic_energy_ccc)}
 """
     $(SIGNATURES)
 
-Return the kinetic energy of the filtered flow `Kˡ`, the kinetic energy carried by the
+Return the kinetic energy of the filtered flow `eₖˡ`, the kinetic energy carried by the
 scales that a low-pass `filter` keeps:
 
 ```
-    Kˡ = ½ ūⁱ ūⁱ = ½ (ū² + v̄² + w̄²) ,   ūⁱ = filter(uⁱ)
+    eₖˡ = ½ ūᵢ ūᵢ = ½ (ū² + v̄² + w̄²) ,   ūᵢ = filter(uᵢ)
 ```
 
-It is the filtered counterpart of the sub-filter kinetic energy `Kˢ = ½τⁱⁱ` (`SubFilterKineticEnergy`):
-the filter splits the flow's kinetic energy into the part it keeps (`Kˡ`) and the part it removes (`Kˢ`).
+It is the filtered counterpart of the sub-filter kinetic energy `eₖˢ = ½τᵢᵢ` (`SubFilterKineticEnergy`):
+the filter splits the flow's kinetic energy into the part it keeps (`eₖˡ`) and the part it removes (`eₖˢ`).
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The filtered velocities are materialized as `Field`s (so
@@ -89,7 +89,7 @@ FilteredKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: filtered_kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
-└── computes: kinetic energy of the filtered flow  Kˡ = ½ūᵢūᵢ
+└── computes: kinetic energy of the filtered flow  eₖˡ = ½ūᵢūᵢ
 ```
 
 A convenience method `FilteredKineticEnergy(model; σ, dims, boundary, N)` builds the Gaussian `filter`
@@ -104,15 +104,15 @@ end
 FilteredKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) = FilteredKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N))
 #---
 
-#+++ Subfilter stress tensor
+#+++ Sub-filter stress tensor
 """
     $(SIGNATURES)
 
-Return the components of the subfilter-scale (SFS) stress tensor `τ`, the residual momentum flux that
+Return the components of the sub-filter-scale (SFS) stress tensor `τ`, the residual momentum flux that
 a low-pass `filter` removes from the filtered scales:
 
 ```
-    τⁱʲ = filter(uⁱuʲ) - ūⁱ ūʲ ,   ūⁱ = filter(uⁱ)
+    τᵢⱼ = filter(uᵢuⱼ) - ūᵢ ūⱼ ,   ūᵢ = filter(uᵢ)
 ```
 
 (also called the sub-grid stress in LES, or the generalized central moment in the filtering
@@ -142,13 +142,13 @@ keys(τ)
 The result is a `NamedTuple` with the independent components, each living at the same staggered
 location as the corresponding [`StressTensor`](@ref) component; `collocate_diagonals` has the same
 meaning as there and is forwarded to it (use `collocate_diagonals = true` to put the diagonals at
-`ccc`, e.g. to form the subfilter kinetic energy `½(τ₁₁ + τ₂₂ + τ₃₃)`). The filtered velocities `ūⁱ`
-and the filtered momentum fluxes `filter(uⁱuʲ)` are materialized as `Field`s internally (the filter's
+`ccc`, e.g. to form the sub-filter kinetic energy `½(τ₁₁ + τ₂₂ + τ₃₃)`). The filtered velocities `ūᵢ`
+and the filtered momentum fluxes `filter(uᵢuⱼ)` are materialized as `Field`s internally (the filter's
 fast staged path only fires when wrapped directly in a `Field`), so each returned component is a lazy
 operation over those computed fields and recomputes correctly when written by an `OutputWriter`.
 
 `dims` selects which spatial directions enter the tensor, exactly as in [`StressTensor`](@ref):
-component `τⁱʲ` is kept only when both `i` and `j` are in `dims`, and only the velocities used by the
+component `τᵢⱼ` is kept only when both `i` and `j` are in `dims`, and only the velocities used by the
 kept components are filtered. The default `dims = (1, 2, 3)` returns the full tensor; `dims = (1, 3)`
 returns the `x`–`z` subset (`τ₁₁`, `τ₃₃`, `τ₁₃`).
 
@@ -169,7 +169,7 @@ subfilter_stress_tensor(model; σ, dims = (1, 2, 3), boundary = :shrink, N = not
 #---
 
 #+++ Cross-scale kinetic-energy flux
-# Πₖ = -τⁱʲ S̄ⁱʲ contracted at cell centers. τ and S̄ share keys/ordering (both built with the same
+# Πₖ = -τᵢⱼ S̄ᵢⱼ contracted at cell centers. τ and S̄ share keys/ordering (both built with the same
 # `dims`), so we pair them component-by-component and weight the off-diagonals by 2 (tensor symmetry).
 # Each component is interpolated to (Center, Center, Center) before multiplying (via `FlowDiagnostics`'
 # shared `to_center`), matching the offline postprocessing convention.
@@ -194,18 +194,18 @@ const CrossScaleFlux = KineticEnergyCrossScaleFlux
     $(SIGNATURES)
 
 Return the cross-scale (scale-to-scale) kinetic-energy flux `Πₖ`, the rate at which a low-pass
-`filter` transfers kinetic energy from the filtered to the subfilter scales (Aluie et al., 2018,
+`filter` transfers kinetic energy from the filtered to the sub-filter scales (Aluie et al., 2018,
 *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1):
 
 ```
-    Πₖ = -τⁱʲ S̄ⁱʲ
+    Πₖ = -τᵢⱼ S̄ᵢⱼ
 ```
 
-where `τⁱʲ = filter(uⁱuʲ) - ūⁱūʲ` is the subfilter-scale stress tensor ([`subfilter_stress_tensor`](@ref))
-and `S̄ⁱʲ = ½(∂ūⁱ/∂xʲ + ∂ūʲ/∂xⁱ)` is the strain rate tensor of the filtered velocity
-([`StrainRateTensor`](@ref) applied to `ūⁱ`). The contraction is evaluated at `(Center, Center,
+where `τᵢⱼ = filter(uᵢuⱼ) - ūᵢūⱼ` is the sub-filter-scale stress tensor ([`subfilter_stress_tensor`](@ref))
+and `S̄ᵢⱼ = ½(∂ūᵢ/∂xⱼ + ∂ūⱼ/∂xᵢ)` is the strain rate tensor of the filtered velocity
+([`StrainRateTensor`](@ref) applied to `ūᵢ`). The contraction is evaluated at `(Center, Center,
 Center)`, with off-diagonal components counted twice by symmetry. `Πₖ > 0` is forward (downscale,
-filtered → subfilter) transfer. The result is per unit mass (units `m² s⁻³`); multiply by a reference
+filtered → sub-filter) transfer. The result is per unit mass (units `m² s⁻³`); multiply by a reference
 density `ρ₀` for a volumetric power.
 
 `filter` is any callable mapping a field to its filtered counterpart, e.g. a reusable
@@ -228,7 +228,7 @@ KineticEnergyCrossScaleFlux KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: cross_scale_ke_flux_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.UnaryOperation",)
-└── computes: cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ
+└── computes: cross-scale kinetic energy flux  Πₖ = -τᵢⱼS̄ᵢⱼ
 ```
 
 The returned object is a lazy operation over internally materialized filtered `Field`s, so it is
@@ -249,7 +249,7 @@ function KineticEnergyCrossScaleFlux(model, filter; dims = (1, 2, 3))
     u, v, w = model.velocities
     ū, v̄, w̄ = filtered_velocities(filter, dims, u, v, w)
 
-    # Strain S̄ⁱʲ of the filtered velocities, and the subfilter stress τⁱʲ. The
+    # Strain S̄ᵢⱼ of the filtered velocities, and the sub-filter stress τᵢⱼ. The
     # contraction interpolates every component to cell centers, so the components can stay at their
     # natural staggered locations here; the result is wrapped in a `KernelFunctionOperation`.
     S̄ = StrainRateTensor(grid, ū, v̄, w̄; dims)
@@ -262,7 +262,7 @@ KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N =
 #---
 
 #+++ Filtered-flow kinetic-energy dissipation
-# εˡ = ∂ⱼūᵢ·τ̄ᵢⱼ, the dissipation of the filtered flow: the filtered velocity gradient ∂ⱼūᵢ contracted with
+# εₖˡ = -∂ⱼūᵢ·τ̄ᵢⱼ, the dissipation of the filtered flow: the filtered velocity gradient ∂ⱼūᵢ contracted with
 # the *filtered* viscous flux τ̄ᵢⱼ = filter(τᵢⱼ(u)). τᵢⱼ(u) is the model's viscous momentum flux built from
 # the FULL velocities and closure (the same `viscous_flux_uᵢxⱼ` that `KineticEnergyDissipationRate`
 # contracts), and it is low-pass filtered. Filtering the flux — rather than recomputing it from ūᵢ — is
@@ -304,18 +304,18 @@ const DissipationRate = FilteredKineticEnergyDissipationRate
 """
     $(SIGNATURES)
 
-Return the filtered-flow kinetic-energy dissipation rate `εˡ`, the rate at which
+Return the filtered-flow kinetic-energy dissipation rate `εₖˡ`, the rate at which
 viscosity removes kinetic energy from the *filtered* velocity field `ūᵢ = filter(uᵢ)`:
 
 ```
-    εˡ = ∂ⱼūᵢ · τ̄ᵢⱼ ,   τ̄ᵢⱼ = filter(τᵢⱼ(u))
+    εₖˡ = -∂ⱼūᵢ · τ̄ᵢⱼ ,   τ̄ᵢⱼ = filter(τᵢⱼ(u))
 ```
 
 Here `τᵢⱼ(u)` is the model's viscous momentum-flux tensor built from the **full** velocities and closure
 (the same fluxes [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)
 contracts), and `τ̄ᵢⱼ = filter(τᵢⱼ(u))` is that flux low-pass filtered. Contracting the filtered flux with
 the filtered velocity gradient gives the viscous sink in the budget of the filtered kinetic energy
-`Kˡ = ½ūᵢūᵢ` (filtering framework of Aluie et al., 2018, *J. Phys. Oceanogr.*,
+`eₖˡ = ½ūᵢūᵢ` (filtering framework of Aluie et al., 2018, *J. Phys. Oceanogr.*,
 doi:10.1175/JPO-D-17-0100.1).
 
 Note the flux is filtered, `filter(τᵢⱼ(u))`, not recomputed from the filtered velocity, `τᵢⱼ(ū)`. The two
@@ -345,7 +345,7 @@ FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center,
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: filtered_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
-└── computes: filtered kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·τ̄ᵢⱼ
+└── computes: filtered kinetic energy dissipation rate  εₖˡ = -∂ⱼūᵢ·τ̄ᵢⱼ
 ```
 
 The viscosity and fluxes come from `model.closure`/`model.closure_fields`, exactly as in

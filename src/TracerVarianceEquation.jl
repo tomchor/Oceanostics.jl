@@ -107,9 +107,9 @@ Return a `KernelFunctionOperation` that computes the diffusive term of the trace
 prognostic equation using Oceananigans' diffusive tracer flux divergence kernel:
 
 ```
-    DIFF = 2 c ∂ⱼFⱼ
+    DIFF = 2 c ∂ⱼqᶜⱼ
 ```
-where `c` is the tracer, and `Fⱼ` is the tracer's diffusive flux in the `j`-th direction.
+where `c` is the tracer, and `qᶜⱼ` is the tracer's diffusive flux in the `j`-th direction.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -123,7 +123,7 @@ TracerVarianceDiffusion KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: c∇_dot_qᶜ (generic function with 1 method)
 └── arguments: ("Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
-└── computes: tracer variance diffusion  2c ∂ⱼFⱼ
+└── computes: tracer variance diffusion  2c ∂ⱼqᶜⱼ
 ```
 """
 function TracerVarianceDiffusion(model, tracer_name; location = (Center, Center, Center))
@@ -170,9 +170,9 @@ Return a `KernelFunctionOperation` that computes the isotropic variance dissipat
 for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is defined as
 
 ```
-    χ = 2 ∂ⱼc ⋅ Fⱼ
+    χ = -2 ∂ⱼc ⋅ qᶜⱼ
 ```
-where `Fⱼ` is the diffusive flux of `c` in the `j`-th direction and `∂ⱼ` is the gradient operator.
+where `qᶜⱼ` is the diffusive flux of `c` in the `j`-th direction and `∂ⱼ` is the gradient operator.
 `χ` is implemented in its conservative formulation based on the equation above.
 
 Note that often `χ` is written as `χ = 2κ (∇c ⋅ ∇c)`, which is the special case for Fickian diffusion
@@ -193,7 +193,7 @@ TracerVarianceDissipationRate KernelFunctionOperation at (Center, Center, Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
-└── computes: tracer variance dissipation rate  χ = 2 ∂ⱼc·Fⱼ
+└── computes: tracer variance dissipation rate  χ = -2 ∂ⱼc·qᶜⱼ
 
 julia> b̄ = Field(Average(model.tracers.b, dims=(1,2)));
 
@@ -204,7 +204,7 @@ TracerVarianceDissipationRate KernelFunctionOperation at (Center, Center, Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky", "NamedTuple", "Val", "Oceananigans.AbstractOperations.BinaryOperation", "Clock", "NamedTuple", "Nothing")
-└── computes: tracer variance dissipation rate  χ = 2 ∂ⱼc·Fⱼ
+└── computes: tracer variance dissipation rate  χ = -2 ∂ⱼc·qᶜⱼ
 ```
 """
 function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))

@@ -100,7 +100,7 @@ scales a low-pass `filter` keeps would carry on their own:
 where `eₐ` is the local available potential energy density ([`AvailablePotentialEnergy`](@ref)) and
 `b✶(z̃)` is a reference profile the filtered buoyancy is looked up in, following the filtered APE
 framework of [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879). It is the
-potential-energy counterpart of the kinetic energy of the filtered flow `Kˡ`
+potential-energy counterpart of the kinetic energy of the filtered flow `eₖˡ`
 ([`FilteredKineticEnergy`](@ref Oceanostics.FilteredKineticEnergyEquation.FilteredKineticEnergy)),
 and the filter splits the APE into it and the sub-filter remainder `eₐˢ = filter(eₐ) - eₐˡ`
 ([`SubFilterAvailablePotentialEnergy`](@ref Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy)).
@@ -285,7 +285,7 @@ FilteredAvailablePotentialEnergyDissipationRate(model; σ, dims = (1, 2, 3), bou
 #---
 
 #+++ Cross-scale available-potential-energy flux
-# Πₐ = -τᵢ ∂ᵢΥˡ, the APE analogue of `KineticEnergyCrossScaleFlux`'s Πₖ = -τⁱʲS̄ⁱʲ. The sub-filter
+# Πₐ = -τᵢ ∂ᵢΥˡ, the APE analogue of `KineticEnergyCrossScaleFlux`'s Πₖ = -τᵢⱼS̄ᵢⱼ. The sub-filter
 # buoyancy flux τᵢ = filter(buᵢ) - b̄ūᵢ takes the place of the sub-filter stress, and the gradient of
 # the filtered-state displacement potential Υˡ takes the place of the resolved strain. Every factor is
 # interpolated to (Center, Center, Center) before multiplying (via `FlowDiagnostics`' shared

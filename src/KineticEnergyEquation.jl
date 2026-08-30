@@ -48,7 +48,7 @@ end
 """
     $(SIGNATURES)
 
-Calculate the kinetic energy of `model`.
+Calculate the kinetic energy per unit mass `eₖ = ½uᵢuᵢ` of `model`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -62,7 +62,7 @@ KineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
-└── computes: kinetic energy  ½uᵢuᵢ
+└── computes: kinetic energy  eₖ = ½uᵢuᵢ
 ```
 """
 KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwargs...)
@@ -99,10 +99,10 @@ const KineticEnergyTendency = CustomKFO{<:typeof(uᵢGᵢᶜᶜᶜ)}
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` that computes the tendency uᵢGᵢ of the KE, excluding the nonhydrostatic
-pressure contribution:
+Return a `KernelFunctionOperation` that computes the tendency uᵢGᵢ of the kinetic energy `eₖ`,
+excluding the nonhydrostatic pressure contribution:
 
-    KET = ½∂ₜuᵢ² = uᵢGᵢ - uᵢ∂ᵢpₙₕₛ
+    ∂ₜeₖ = ½∂ₜuᵢ² = uᵢGᵢ - uᵢ∂ᵢpₙₕₛ
 
 ```jldoctest
 julia> using Oceananigans
@@ -118,7 +118,7 @@ KineticEnergyTendency KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: uᵢGᵢᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "NamedTuple")
-└── computes: kinetic energy tendency  uᵢGᵢ (excl. nonhydrostatic pressure)
+└── computes: kinetic energy tendency  ∂ₜeₖ = uᵢGᵢ (excl. nonhydrostatic pressure)
 ```
 """
 function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
@@ -207,14 +207,16 @@ const Stress = KineticEnergyStress
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` that computes the diffusive term of the KE prognostic equation:
+Return a `KernelFunctionOperation` that computes the diffusive term of the `eₖ` prognostic equation:
 
 ```
     DIFF = uᵢ∂ⱼτᵢⱼ
 ```
 
 where `uᵢ` are the velocity components and `τᵢⱼ` is the diffusive flux of `i` momentum in the
-`j`-th direction.
+`j`-th direction. As for the momentum-equation diagnostics, this returns the bare term: it enters the
+kinetic energy budget as `-DIFF`, and splits into a transport divergence minus the dissipation rate
+`εₖ` ([`DissipationRate`](@ref)).
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -458,11 +460,12 @@ const DissipationRate = KineticEnergyDissipationRate
 """
     $(SIGNATURES)
 
-Calculate the Kinetic Energy Dissipation Rate, defined as
+Calculate the kinetic energy dissipation rate, defined as
 
-    ε = ∂ⱼuᵢ ⋅ τᵢⱼ
+    εₖ = -∂ⱼuᵢ ⋅ τᵢⱼ
 
-where ∂ⱼuᵢ is the velocity gradient tensor and τᵢⱼ is the stress tensor.
+where ∂ⱼuᵢ is the velocity gradient tensor and τᵢⱼ is the closure's diffusive momentum flux (the
+sign convention Oceananigans uses, so that `εₖ ≥ 0` for a down-gradient closure).
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -476,7 +479,7 @@ KineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Nothing", "NamedTuple", "NamedTuple")
-└── computes: kinetic energy dissipation rate  ε = ∂ⱼuᵢ·τᵢⱼ
+└── computes: kinetic energy dissipation rate  εₖ = -∂ⱼuᵢ·τᵢⱼ
 ```
 """
 function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
@@ -515,9 +518,9 @@ const IsotropicDissipationRate = KineticEnergyIsotropicDissipationRate
 """
     $(SIGNATURES)
 
-Calculate the Viscous Dissipation Rate as
+Calculate the isotropic kinetic energy dissipation rate as
 
-    ε = 2 ν SᵢⱼSᵢⱼ,
+    εₖ = 2 ν SᵢⱼSᵢⱼ,
 
 where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a
 turbulence closure where ν (eddy or not) is the same for all directions).
@@ -534,7 +537,7 @@ KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
-└── computes: isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ
+└── computes: isotropic kinetic energy dissipation rate  εₖ = 2νSᵢⱼSᵢⱼ
 ```
 """
 function KineticEnergyIsotropicDissipationRate(u, v, w, closure, closure_fields, model_fields, clock; location = (Center, Center, Center))

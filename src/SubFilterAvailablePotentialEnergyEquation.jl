@@ -78,8 +78,8 @@ terms are measured against **one shared reference profile** `(b✶, z✶)`, foll
 framework of [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879): the filtered buoyancy
 is looked up in the same profile the full field is measured against, which is exactly what
 [`ProfileLookup`](@ref) was built for. It is the potential-energy counterpart of the sub-filter
-kinetic energy `Kˢ` ([`SubFilterKineticEnergy`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy)),
-just as [`FilteredAvailablePotentialEnergy`](@ref) is that of the filtered kinetic energy `Kˡ`.
+kinetic energy `eₖˢ` ([`SubFilterKineticEnergy`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy)),
+just as [`FilteredAvailablePotentialEnergy`](@ref) is that of the filtered kinetic energy `eₖˡ`.
 
 Because the two states have to share one profile, `method` must be a [`ProfileLookup`](@ref):
 

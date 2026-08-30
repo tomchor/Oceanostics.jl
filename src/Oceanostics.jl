@@ -403,37 +403,37 @@ end
 
 #+++ TracerVarianceEquation
 @diagnostic_show TracerVarianceEquation.TracerVarianceTendency        "TracerVarianceTendency"        "tracer variance tendency  2c ∂ₜc"
-@diagnostic_show TracerVarianceEquation.TracerVarianceDiffusion       "TracerVarianceDiffusion"       "tracer variance diffusion  2c ∂ⱼFⱼ"
-@diagnostic_show TracerVarianceEquation.TracerVarianceDissipationRate "TracerVarianceDissipationRate" "tracer variance dissipation rate  χ = 2 ∂ⱼc·Fⱼ"
+@diagnostic_show TracerVarianceEquation.TracerVarianceDiffusion       "TracerVarianceDiffusion"       "tracer variance diffusion  2c ∂ⱼqᶜⱼ"
+@diagnostic_show TracerVarianceEquation.TracerVarianceDissipationRate "TracerVarianceDissipationRate" "tracer variance dissipation rate  χ = -2 ∂ⱼc·qᶜⱼ"
 #---
 
 #+++ KineticEnergyEquation
-@diagnostic_show KineticEnergyEquation.KineticEnergy                         "KineticEnergy"                         "kinetic energy  ½uᵢuᵢ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyTendency                 "KineticEnergyTendency"                 "kinetic energy tendency  uᵢGᵢ (excl. nonhydrostatic pressure)"
+@diagnostic_show KineticEnergyEquation.KineticEnergy                         "KineticEnergy"                         "kinetic energy  eₖ = ½uᵢuᵢ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyTendency                 "KineticEnergyTendency"                 "kinetic energy tendency  ∂ₜeₖ = uᵢGᵢ (excl. nonhydrostatic pressure)"
 @diagnostic_show KineticEnergyEquation.KineticEnergyAdvection                "KineticEnergyAdvection"                "kinetic energy advection  uᵢ∂ⱼ(uᵢuⱼ)"
 @diagnostic_show KineticEnergyEquation.KineticEnergyStress                   "KineticEnergyStress"                   "kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyForcing                  "KineticEnergyForcing"                  "kinetic energy forcing  uᵢFᵤᵢ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyPressureRedistribution   "KineticEnergyPressureRedistribution"   "kinetic energy pressure redistribution  uᵢ∂ᵢp"
 @diagnostic_show KineticEnergyEquation.PotentialToKineticEnergyConversion    "PotentialToKineticEnergyConversion"    "potential to kinetic energy conversion  uᵢbᵢ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"          "kinetic energy dissipation rate  ε = ∂ⱼuᵢ·τᵢⱼ"
-@diagnostic_show KineticEnergyEquation.KineticEnergyIsotropicDissipationRate "KineticEnergyIsotropicDissipationRate" "isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"          "kinetic energy dissipation rate  εₖ = -∂ⱼuᵢ·τᵢⱼ"
+@diagnostic_show KineticEnergyEquation.KineticEnergyIsotropicDissipationRate "KineticEnergyIsotropicDissipationRate" "isotropic kinetic energy dissipation rate  εₖ = 2νSᵢⱼSᵢⱼ"
 #---
 
 #+++ FilteredKineticEnergyEquation
 # The single-`KernelFunctionOperation` diagnostics get a custom display; `subfilter_stress_tensor`
 # returns a `NamedTuple` of components, like `StressTensor`/`StrainRateTensor`, so it has none.
-@diagnostic_show FilteredKineticEnergyEquation.FilteredKineticEnergy                "FilteredKineticEnergy"                "kinetic energy of the filtered flow  Kˡ = ½ūᵢūᵢ"
-@diagnostic_show FilteredKineticEnergyEquation.KineticEnergyCrossScaleFlux          "KineticEnergyCrossScaleFlux"          "cross-scale kinetic energy flux  Πₖ = -τⁱʲS̄ⁱʲ"
-@diagnostic_show FilteredKineticEnergyEquation.FilteredKineticEnergyDissipationRate "FilteredKineticEnergyDissipationRate" "filtered kinetic energy dissipation rate  εˡ = ∂ⱼūᵢ·τ̄ᵢⱼ"
+@diagnostic_show FilteredKineticEnergyEquation.FilteredKineticEnergy                "FilteredKineticEnergy"                "kinetic energy of the filtered flow  eₖˡ = ½ūᵢūᵢ"
+@diagnostic_show FilteredKineticEnergyEquation.KineticEnergyCrossScaleFlux          "KineticEnergyCrossScaleFlux"          "cross-scale kinetic energy flux  Πₖ = -τᵢⱼS̄ᵢⱼ"
+@diagnostic_show FilteredKineticEnergyEquation.FilteredKineticEnergyDissipationRate "FilteredKineticEnergyDissipationRate" "filtered kinetic energy dissipation rate  εₖˡ = -∂ⱼūᵢ·τ̄ᵢⱼ"
 #---
 
 #+++ SubFilterKineticEnergyEquation
-@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergy                 "SubFilterKineticEnergy"                 "sub-filter kinetic energy  Kˢ = ½τⁱⁱ"
-@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate  "SubFilterKineticEnergyDissipationRate"  "sub-filter kinetic energy dissipation rate  εˢ = filter(ε) - εˡ"
+@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergy                 "SubFilterKineticEnergy"                 "sub-filter kinetic energy  eₖˢ = ½τᵢᵢ"
+@diagnostic_show SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate  "SubFilterKineticEnergyDissipationRate"  "sub-filter kinetic energy dissipation rate  εₖˢ = filter(εₖ) - εₖˡ"
 #---
 
 #+++ TurbulentKineticEnergyEquation
-@diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergy                     "TurbulentKineticEnergy"                     "turbulent kinetic energy  ½uᵢ′uᵢ′"
+@diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergy                     "TurbulentKineticEnergy"                     "turbulent kinetic energy  eₖ′ = ½uᵢ′uᵢ′"
 @diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate "TurbulentKineticEnergyXShearProductionRate" "TKE shear production (x)  -uᵢ′u′ ∂ₓUᵢ"
 @diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate "TurbulentKineticEnergyYShearProductionRate" "TKE shear production (y)  -uᵢ′v′ ∂_yUᵢ"
 @diagnostic_show TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate "TurbulentKineticEnergyZShearProductionRate" "TKE shear production (z)  -uᵢ′w′ ∂_zUᵢ"
@@ -441,7 +441,7 @@ end
 #---
 
 #+++ PotentialEnergyEquation
-@diagnostic_show PotentialEnergyEquation.PotentialEnergy               "PotentialEnergy"                     "potential energy per unit volume  eₚ = -bz"
+@diagnostic_show PotentialEnergyEquation.PotentialEnergy               "PotentialEnergy"                     "potential energy per unit mass  eₚ = -bz"
 @diagnostic_show PotentialEnergyEquation.Tendency                      "PotentialEnergyTendency"             "potential energy tendency  ∂ₜeₚ = -z ∂ₜb"
 @diagnostic_show PotentialEnergyEquation.Advection                     "PotentialEnergyAdvection"            "potential energy advection  ∂ⱼ(uⱼeₚ)"
 @diagnostic_show PotentialEnergyEquation.BuoyancyAdvection             "PotentialEnergyBuoyancyAdvection"    "potential energy buoyancy advection  z ∂ⱼ(uⱼb)"
@@ -452,7 +452,7 @@ end
 #---
 
 #+++ BackgroundPotentialEnergyEquation
-@diagnostic_show BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit volume  e_b = -bz✶"
+@diagnostic_show BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy "BackgroundPotentialEnergy" "background potential energy per unit mass  e_b = -bz✶"
 #---
 
 #+++ AvailablePotentialEnergyEquation

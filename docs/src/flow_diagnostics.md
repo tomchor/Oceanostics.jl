@@ -19,8 +19,8 @@ The module includes:
 - **Velocity gradient tensor diagnostics**: the full strain rate tensor ``S_{ij}``
   and its modulus (``\|S_{ij}\|``), the full vorticity tensor ``\Omega_{ij}`` and its
   modulus (``\|\Omega_{ij}\|``), and the ``Q``-criterion for vortex identification.
-- **Stress tensor**: the (kinematic) stress tensor ``\tau_{ij} = u_i u_j``, which gives
-  the kinematic Reynolds stress when built from perturbation velocities.
+- **Stress tensor**: the (kinematic) stress tensor ``\tau_{ij} = u_i u_j``, the advective momentum
+  flux, which gives the kinematic Reynolds stress when built from perturbation velocities.
 - **Mixed layer depth**: computed by scanning downward from the surface to find
   where buoyancy or density departs from the surface value by more than a
   user-specified threshold.
@@ -217,6 +217,12 @@ Reynolds stress tensor.
 ```math
 \tau_{ij} = u_i u_j
 ```
+
+This is the *advective* momentum flux. The momentum, kinetic energy, and filtered kinetic energy
+budgets also write ``\tau_{ij}``, but there it is the closure's *diffusive* momentum flux; the
+sub-filter stress ``\tau^r_{ij} = \overline{u_i u_j} - \bar u_i \bar u_j``
+([`subfilter_stress_tensor`](@ref Oceanostics.FilteredKineticEnergyEquation.subfilter_stress_tensor))
+carries a superscript ``s`` to keep the three apart.
 
 ```@docs
 Oceanostics.FlowDiagnostics.StressTensor

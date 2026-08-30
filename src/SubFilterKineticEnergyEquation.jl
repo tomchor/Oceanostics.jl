@@ -25,10 +25,10 @@ using ..SpatialFilters: GaussianFilter, BoxFilter
 using ..SubFilterAvailablePotentialEnergyEquation: SubFilterAvailablePotentialToKineticEnergyConversion
 
 #+++ Sub-filter kinetic energy
-# Kˢ = filter(K) - Kˡ: the filtered full kinetic energy minus the kinetic energy of the filtered flow.
+# eₖˢ = filter(eₖ) - eₖˡ: the filtered full kinetic energy minus the kinetic energy of the filtered flow.
 # Because `KineticEnergy` and `FilteredKineticEnergy` use the same interpolate-the-square (½⟨uᵢ²⟩)
-# discretization, the discrete decomposition filter(K) = Kˡ + Kˢ then holds exactly, by construction, on
-# any grid. The kernel reads the materialized filtered full KE `k̄ = filter(K)` and recomputes Kˡ in place
+# discretization, the discrete decomposition filter(eₖ) = eₖˡ + eₖˢ then holds exactly, by construction, on
+# any grid. The kernel reads the materialized filtered full KE `k̄ = filter(eₖ)` and recomputes eₖˡ in place
 # via `filtered_kinetic_energy_ccc` on the materialized filtered velocities `ūᵢ = filter(uᵢ)`.
 @inline subfilter_kinetic_energy_ccc(i, j, k, grid, k̄, ū, v̄, w̄) = @inbounds k̄[i, j, k] - filtered_kinetic_energy_ccc(i, j, k, grid, ū, v̄, w̄)
 
@@ -37,18 +37,18 @@ const SubFilterKineticEnergy = CustomKFO{<:typeof(subfilter_kinetic_energy_ccc)}
 """
     $(SIGNATURES)
 
-Return the sub-filter-scale (SFS) kinetic energy `Kˢ`, the kinetic energy carried by the scales that a
+Return the sub-filter-scale (SFS) kinetic energy `eₖˢ`, the kinetic energy carried by the scales that a
 low-pass `filter` removes from the flow — the filtered full kinetic energy minus the kinetic energy of the
 filtered flow:
 
 ```
-    Kˢ = filter(K) - Kˡ ,   K = ½ uᵢuᵢ ,   Kˡ = ½ ūᵢūᵢ ,   ūᵢ = filter(uᵢ)
+    eₖˢ = filter(eₖ) - eₖˡ ,   eₖ = ½ uᵢuᵢ ,   eₖˡ = ½ ūᵢūᵢ ,   ūᵢ = filter(uᵢ)
 ```
 
-equivalently `Kˢ = ½ τⁱⁱ` with the sub-filter stress `τⁱʲ = filter(uⁱuʲ) - ūⁱūʲ` (filtering
+equivalently `eₖˢ = ½ τᵢᵢ` with the sub-filter stress `τᵢⱼ = filter(uᵢuⱼ) - ūᵢūⱼ` (filtering
 framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). It is assembled from
-the full kinetic energy `K` and [`FilteredKineticEnergy`](@ref) `Kˡ`, which share the same
-interpolate-the-square (`½⟨uᵢ²⟩`) discretization, so the discrete decomposition `filter(K) = Kˡ + Kˢ` holds
+the full kinetic energy `eₖ` and [`FilteredKineticEnergy`](@ref) `eₖˡ`, which share the same
+interpolate-the-square (`½⟨uᵢ²⟩`) discretization, so the discrete decomposition `filter(eₖ) = eₖˡ + eₖˢ` holds
 exactly by construction (on any grid, not just where the filter and interpolation commute).
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
@@ -71,7 +71,7 @@ SubFilterKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field")
-└── computes: sub-filter kinetic energy  Kˢ = ½τⁱⁱ
+└── computes: sub-filter kinetic energy  eₖˢ = ½τᵢᵢ
 ```
 
 A convenience method `SubFilterKineticEnergy(model; σ, dims, boundary, N)` builds the Gaussian `filter`
@@ -79,8 +79,8 @@ for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a F
 """
 function SubFilterKineticEnergy(model, filter)
     u, v, w = model.velocities
-    k  = KineticEnergy(model, u, v, w)           # full kinetic energy ½uᵢuᵢ (kinetic_energy_ccc)
-    k̄ = Field(filter(Field(k)))                  # filter(K) materialized so the filter takes its staged path
+    k  = KineticEnergy(model, u, v, w)           # full kinetic energy eₖ = ½uᵢuᵢ (kinetic_energy_ccc)
+    k̄ = Field(filter(Field(k)))                  # filter(eₖ) materialized so the filter takes its staged path
     ū, v̄, w̄ = filtered_velocities(filter, (1, 2, 3), u, v, w) # ūᵢ = filter(uᵢ), materialized as `Field`s
     return KernelFunctionOperation{Center, Center, Center}(subfilter_kinetic_energy_ccc, model.grid, k̄, ū, v̄, w̄)
 end
@@ -91,9 +91,9 @@ SubFilterKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = noth
 
 #+++ Sub-filter kinetic energy dissipation
 # Exposed as a single `KernelFunctionOperation` using the same wrapper trick as `KineticEnergyCrossScaleFlux`:
-# the kernel just indexes the pre-assembled operation εˢ = filter(ε) - εˡ, whose leaves are the materialized
+# the kernel just indexes the pre-assembled operation εₖˢ = filter(εₖ) - εₖˡ, whose leaves are the materialized
 # filtered `Field`s, so per-cell evaluation only reads those fields and subtracts (it never re-filters).
-@inline subfilter_ke_dissipation_rate_ccc(i, j, k, grid, εˢ) = @inbounds εˢ[i, j, k]
+@inline subfilter_ke_dissipation_rate_ccc(i, j, k, grid, εₖˢ) = @inbounds εₖˢ[i, j, k]
 
 const SubFilterKineticEnergyDissipationRate = CustomKFO{<:typeof(subfilter_ke_dissipation_rate_ccc)}
 const DissipationRate = SubFilterKineticEnergyDissipationRate
@@ -101,24 +101,24 @@ const DissipationRate = SubFilterKineticEnergyDissipationRate
 """
     $(SIGNATURES)
 
-Return the sub-filter-scale (SFS) kinetic-energy dissipation rate `εˢ`, the viscous dissipation carried
+Return the sub-filter-scale (SFS) kinetic-energy dissipation rate `εₖˢ`, the viscous dissipation carried
 by the scales that a low-pass `filter` removes:
 
 ```
-    εˢ = filter(ε) - εˡ
+    εₖˢ = filter(εₖ) - εₖˡ
 ```
 
-where `ε` is the dissipation rate of the full flow
-([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) and `εˡ` is the
+where `εₖ` is the dissipation rate of the full flow
+([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) and `εₖˡ` is the
 dissipation rate of the filtered flow ([`FilteredKineticEnergyDissipationRate`](@ref)). It is the viscous
-sink in the budget of the sub-filter kinetic energy `Kˢ` ([`SubFilterKineticEnergy`](@ref);
+sink in the budget of the sub-filter kinetic energy `eₖˢ` ([`SubFilterKineticEnergy`](@ref);
 filtering framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). For a
-constant viscosity it reduces to `2ν[filter(SⁱʲSⁱʲ) - S̄ⁱʲ S̄ⁱʲ] ≥ 0`, a strictly positive sink.
+constant viscosity it reduces to `2ν[filter(SᵢⱼSᵢⱼ) - S̄ᵢⱼ S̄ᵢⱼ] ≥ 0`, a strictly positive sink.
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). Following the `KineticEnergyCrossScaleFlux` pattern, the
 result is a single `KernelFunctionOperation` whose kernel indexes a pre-assembled operation with
-materialized filtered `Field` leaves (the full-flow dissipation `ε` is materialized before it is filtered,
+materialized filtered `Field` leaves (the full-flow dissipation `εₖ` is materialized before it is filtered,
 and the filtered result is wrapped in a `Field` so the separable filter takes its fast staged path). It
 lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`). The model needs a closure whose
 viscous fluxes are defined, exactly as [`FilteredKineticEnergyDissipationRate`](@ref) requires:
@@ -138,17 +138,17 @@ SubFilterKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ke_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
-└── computes: sub-filter kinetic energy dissipation rate  εˢ = filter(ε) - εˡ
+└── computes: sub-filter kinetic energy dissipation rate  εₖˢ = filter(εₖ) - εₖˡ
 ```
 
 A convenience method `SubFilterKineticEnergyDissipationRate(model; σ, dims, boundary, N)` builds the
 Gaussian `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
 """
 function SubFilterKineticEnergyDissipationRate(model, filter)
-    ε  = KineticEnergyDissipationRate(model)                 # dissipation of the full flow
-    εˡ = FilteredKineticEnergyDissipationRate(model, filter) # dissipation of the filtered flow
-    εˢ = Field(filter(Field(ε))) - εˡ                        # εˢ = filter(ε) - εˡ; leaves are materialized Fields
-    return KernelFunctionOperation{Center, Center, Center}(subfilter_ke_dissipation_rate_ccc, model.grid, εˢ)
+    εₖ  = KineticEnergyDissipationRate(model)                 # dissipation of the full flow
+    εₖˡ = FilteredKineticEnergyDissipationRate(model, filter)  # dissipation of the filtered flow
+    εₖˢ = Field(filter(Field(εₖ))) - εₖˡ                       # εₖˢ = filter(εₖ) - εₖˡ; leaves are materialized Fields
+    return KernelFunctionOperation{Center, Center, Center}(subfilter_ke_dissipation_rate_ccc, model.grid, εₖˢ)
 end
 
 SubFilterKineticEnergyDissipationRate(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =

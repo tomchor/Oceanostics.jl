@@ -34,7 +34,7 @@ const TurbulentKineticEnergy = CustomKFO{<:typeof(turbulent_kinetic_energy_ccc)}
 """
     $(SIGNATURES)
 
-Calculate the turbulent kinetic energy of `model`.
+Calculate the turbulent kinetic energy per unit mass `eₖ′ = ½uᵢ′uᵢ′` of `model`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -48,7 +48,7 @@ TurbulentKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
-└── computes: turbulent kinetic energy  ½uᵢ′uᵢ′
+└── computes: turbulent kinetic energy  eₖ′ = ½uᵢ′uᵢ′
 ```
 """
 function TurbulentKineticEnergy(model, u, v, w; U=ZeroField(), V=ZeroField(), W=ZeroField(), location = (Center, Center, Center))
@@ -64,12 +64,12 @@ TurbulentKineticEnergy(model; kwargs...) = TurbulentKineticEnergy(model, model.v
 """
     $(SIGNATURES)
 
-Calculate the Turbulent Kinetic Energy Isotropic Dissipation Rate, defined as
+Calculate the turbulent kinetic energy isotropic dissipation rate, defined as
 
-    ε = 2 ν S'ᵢⱼS'ᵢⱼ,
+    εₖ′ = 2 ν S′ᵢⱼS′ᵢⱼ,
 
-where S'ᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a
-turbulence closure where ν (eddy or not) is the same for all directions.
+where S′ᵢⱼ is the strain rate tensor of the velocity perturbations, for a fluid with an isotropic
+turbulence closure (i.e., a turbulence closure where ν (eddy or not) is the same for all directions).
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -83,7 +83,7 @@ KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
-└── computes: isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ
+└── computes: isotropic kinetic energy dissipation rate  εₖ = 2νSᵢⱼSᵢⱼ
 ```
 """
 @inline TurbulentKineticEnergyIsotropicDissipationRate(u, v, w, args...; U=ZeroField(), V=ZeroField(), W=ZeroField(), location = (Center, Center, Center)) =

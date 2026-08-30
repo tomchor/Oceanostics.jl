@@ -12,35 +12,35 @@ using Oceanostics: KineticEnergyDissipationRate,
 arch = has_cuda_gpu() ? GPU() : CPU()
 
 #+++ Test functions
-# Kˢ = filter(K) - Kˡ: the filtered full kinetic energy minus the filtered-flow kinetic energy.
+# eₖˢ = filter(eₖ) - eₖˡ: the filtered full kinetic energy minus the filtered-flow kinetic energy.
 function test_subfilter_kinetic_energy_matches_manual(model, filt)
     u, v, w = model.velocities
-    Kˢ_manual = Field(filt(Field(Oceanostics.KineticEnergy(model, u, v, w)))) - FilteredKineticEnergy(model, filt)
+    eₖˢ_manual = Field(filt(Field(Oceanostics.KineticEnergy(model, u, v, w)))) - FilteredKineticEnergy(model, filt)
 
-    Kˢ = SubFilterKineticEnergy(model, filt)
-    @test location(Kˢ) == (Center, Center, Center)
-    @test interior(Field(Kˢ)) ≈ interior(Field(Kˢ_manual))
+    eₖˢ = SubFilterKineticEnergy(model, filt)
+    @test location(eₖˢ) == (Center, Center, Center)
+    @test interior(Field(eₖˢ)) ≈ interior(Field(eₖˢ_manual))
 
     # it is a single KernelFunctionOperation with its own type/display
-    @test Kˢ isa SubFilterKineticEnergy
-    @test occursin("SubFilterKineticEnergy", sprint(show, Kˢ))
-    @test occursin("computes:", sprint(show, MIME("text/plain"), Kˢ))
+    @test eₖˢ isa SubFilterKineticEnergy
+    @test occursin("SubFilterKineticEnergy", sprint(show, eₖˢ))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), eₖˢ))
     return nothing
 end
 
-# The discrete energy decomposition filter(½uᵢuᵢ) = Kˡ + Kˢ holds exactly by construction — Kˢ is defined
-# as filter(K) - Kˡ — on any grid (here a bounded one), not just where the filter and interpolation commute.
+# The discrete energy decomposition filter(½uᵢuᵢ) = eₖˡ + eₖˢ holds exactly by construction — eₖˢ is defined
+# as filter(eₖ) - eₖˡ — on any grid (here a bounded one), not just where the filter and interpolation commute.
 function test_subfilter_kinetic_energy_decomposition(grid, filt)
     model = NonhydrostaticModel(grid)
     set!(model, u=(x, y, z) -> randn(), v=(x, y, z) -> randn(), w=(x, y, z) -> randn())
     filtered_K = Field(filt(Oceanostics.KineticEnergy(model)))
-    Kˡ = Field(FilteredKineticEnergy(model, filt))
-    Kˢ = Field(SubFilterKineticEnergy(model, filt))
-    @test interior(filtered_K) ≈ interior(Kˡ) .+ interior(Kˢ)
+    eₖˡ = Field(FilteredKineticEnergy(model, filt))
+    eₖˢ = Field(SubFilterKineticEnergy(model, filt))
+    @test interior(filtered_K) ≈ interior(eₖˡ) .+ interior(eₖˢ)
     return nothing
 end
 
-# A uniform flow has τⁱʲ ≡ 0, so the sub-filter kinetic energy vanishes identically.
+# A uniform flow has τᵢⱼ ≡ 0, so the sub-filter kinetic energy vanishes identically.
 function test_subfilter_kinetic_energy_uniform_vanishes(grid, filt; U=2, V=-3)
     model = NonhydrostaticModel(grid)
     set!(model, u=U, v=V) # w ≡ 0; a uniform horizontal flow is divergence-free
@@ -57,20 +57,20 @@ function test_subfilter_kinetic_energy_convenience(model)
     return nothing
 end
 
-# εˢ = filter(ε) - εˡ must equal the hand-built difference of the full-flow and filtered-flow dissipations.
+# εₖˢ = filter(εₖ) - εₖˡ must equal the hand-built difference of the full-flow and filtered-flow dissipations.
 function test_subfilter_dissipation_matches_manual(model, filt)
-    ε  = KineticEnergyDissipationRate(model)
-    εˡ = FilteredKineticEnergyDissipationRate(model, filt)
-    εˢ_manual = Field(filt(ε)) - εˡ
+    εₖ  = KineticEnergyDissipationRate(model)
+    εₖˡ = FilteredKineticEnergyDissipationRate(model, filt)
+    εₖˢ_manual = Field(filt(εₖ)) - εₖˡ
 
-    εˢ = SubFilterKineticEnergyDissipationRate(model, filt)
-    @test location(εˢ) == (Center, Center, Center)
-    @test interior(Field(εˢ)) ≈ interior(Field(εˢ_manual))
+    εₖˢ = SubFilterKineticEnergyDissipationRate(model, filt)
+    @test location(εₖˢ) == (Center, Center, Center)
+    @test interior(Field(εₖˢ)) ≈ interior(Field(εₖˢ_manual))
 
     # it is a single KernelFunctionOperation with its own type/display
-    @test εˢ isa SubFilterKineticEnergyDissipationRate
-    @test occursin("SubFilterKineticEnergyDissipationRate", sprint(show, εˢ))
-    @test occursin("computes:", sprint(show, MIME("text/plain"), εˢ))
+    @test εₖˢ isa SubFilterKineticEnergyDissipationRate
+    @test occursin("SubFilterKineticEnergyDissipationRate", sprint(show, εₖˢ))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), εₖˢ))
     return nothing
 end
 
@@ -83,7 +83,7 @@ function test_subfilter_dissipation_convenience(model)
     return nothing
 end
 
-# Both diagnostics hold internally materialized filtered `Field`s (Kˢ via `subfilter_stress_tensor`, εˢ via
+# Both diagnostics hold internally materialized filtered `Field`s (eₖˢ via `subfilter_stress_tensor`, εₖˢ via
 # the nested `Field(filter(Field(ε)))`); recomputing at a new time — as an `OutputWriter` does each output —
 # must reflect the updated flow through those nested fields, not stay frozen at construction. This mutates
 # the model, so both are called last for their model.
@@ -99,7 +99,7 @@ function test_subfilter_kinetic_energy_recomputes(model, filt)
     compute_at!(fresh, 2.0)
 
     @test !(Array(interior(Kf)) ≈ snapshot)   # tracked the change in the flow
-    @test interior(Kf) ≈ interior(fresh)      # equals a Kˢ built fresh on the new state
+    @test interior(Kf) ≈ interior(fresh)      # equals an eₖˢ built fresh on the new state
     return nothing
 end
 
@@ -115,7 +115,7 @@ function test_subfilter_dissipation_recomputes(model, filt)
     compute_at!(fresh, 2.0)
 
     @test !(Array(interior(εf)) ≈ snapshot)   # tracked the change in the flow
-    @test interior(εf) ≈ interior(fresh)      # equals an εˢ built fresh on the new state
+    @test interior(εf) ≈ interior(fresh)      # equals an εₖˢ built fresh on the new state
     return nothing
 end
 
@@ -136,29 +136,29 @@ end
     model = NonhydrostaticModel(grid)
     set!(model, u=(x, y, z) -> randn(), v=(x, y, z) -> randn(), w=(x, y, z) -> randn())
 
-    @info "    Sub-filter kinetic energy Kˢ = ½τⁱⁱ matches manual"
+    @info "    Sub-filter kinetic energy eₖˢ = ½τᵢᵢ matches manual"
     test_subfilter_kinetic_energy_matches_manual(model, filt)
 
-    @info "    Gaussian convenience method (Kˢ)"
+    @info "    Gaussian convenience method (eₖˢ)"
     test_subfilter_kinetic_energy_convenience(model)
 
-    @info "    Uniform flow vanishes (Kˢ)"
+    @info "    Uniform flow vanishes (eₖˢ)"
     test_subfilter_kinetic_energy_uniform_vanishes(grid, ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1))
 
-    @info "    Kˢ recomputes as the flow evolves"
+    @info "    eₖˢ recomputes as the flow evolves"
     test_subfilter_kinetic_energy_recomputes(model, filt) # mutates model; keep after the other `model` tests
 
-    @info "    Discrete decomposition filter(K) = Kˡ + Kˢ (bounded grid)"
+    @info "    Discrete decomposition filter(eₖ) = eₖˡ + eₖˢ (bounded grid)"
     test_subfilter_kinetic_energy_decomposition(grid, filt)
 
-    # εˢ needs a dissipative closure so the full- and filtered-flow dissipations are defined.
-    @info "    Sub-filter KE dissipation εˢ = filter(ε) - εˡ matches manual"
+    # εₖˢ needs a dissipative closure so the full- and filtered-flow dissipations are defined.
+    @info "    Sub-filter KE dissipation εₖˢ = filter(εₖ) - εₖˡ matches manual"
     model_ν = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-3))
     set!(model_ν, u=(x, y, z) -> randn(), v=(x, y, z) -> randn(), w=(x, y, z) -> randn())
     test_subfilter_dissipation_matches_manual(model_ν, filt)
     test_subfilter_dissipation_convenience(model_ν)
 
-    @info "    εˢ recomputes as the flow evolves"
+    @info "    εₖˢ recomputes as the flow evolves"
     test_subfilter_dissipation_recomputes(model_ν, filt) # mutates model_ν; keep last
 
     @info "    Module re-exports (Πₖ) and aliases (DissipationRate)"

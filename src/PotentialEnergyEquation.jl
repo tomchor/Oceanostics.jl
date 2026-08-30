@@ -77,7 +77,7 @@ validate_gravity_is_z_aligned(diagnostic, model) =
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` to compute the `PotentialEnergy` per unit volume,
+Return a `KernelFunctionOperation` to compute the `PotentialEnergy` per unit mass,
 ```math
 eₚ = \\frac{gρ}{ρ₀}z = -bz
 ```
@@ -118,7 +118,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("Field",)
-└── computes: potential energy per unit volume  eₚ = -bz
+└── computes: potential energy per unit mass  eₚ = -bz
 ```
 
 The default behaviour of `PotentialEnergy` uses the *in-situ density* in the calculation
@@ -160,7 +160,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation", "NamedTuple")
-└── computes: potential energy per unit volume  eₚ = -bz
+└── computes: potential energy per unit mass  eₚ = -bz
 ```
 
 To use a reference density set a constant value for the keyword argument `geopotential_height`
@@ -185,7 +185,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation", "NamedTuple")
-└── computes: potential energy per unit volume  eₚ = -bz
+└── computes: potential energy per unit mass  eₚ = -bz
 ```
 """
 @inline function PotentialEnergy(model; location = (Center, Center, Center),

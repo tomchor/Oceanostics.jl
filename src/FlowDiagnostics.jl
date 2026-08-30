@@ -744,6 +744,10 @@ velocity field with itself:
     τᵢⱼ = uᵢ uⱼ
 ```
 
+This is the *advective* momentum flux (the Reynolds stress when built from perturbation velocities),
+not the closure's diffusive momentum flux, which the momentum and kinetic energy budgets also write
+`τᵢⱼ`.
+
 The result is a `NamedTuple` of the independent components, each a `KernelFunctionOperation` living
 at a location on the staggered grid.
 
@@ -858,11 +862,11 @@ end
 to_center(ψ) = @at (Center, Center, Center) ψ
 #---
 
-#+++ Subfilter covariance (generalized second moment)
+#+++ Sub-filter covariance (generalized second moment)
 """
     $(SIGNATURES)
 
-Return a lazy `AbstractOperation` for the generalized subfilter covariance (second moment) of two
+Return a lazy `AbstractOperation` for the generalized sub-filter covariance (second moment) of two
 fields `a` and `b` under a low-pass spatial `filter` (overbar):
 
 ```
@@ -870,17 +874,17 @@ fields `a` and `b` under a low-pass spatial `filter` (overbar):
 ```
 
 co-located at `loc`. Here `filter(ψ)` is a normalized local average (e.g. an Oceanostics
-`GaussianFilter` or `BoxFilter`) that splits a field into a filtered part `ψ̄` and a subfilter
+`GaussianFilter` or `BoxFilter`) that splits a field into a filtered part `ψ̄` and a sub-filter
 fluctuation `ψ′ = ψ - ψ̄`. `τ(a, b)` is the part of the product `ab` that the filtered fields `ā b̄`
 cannot represent on their own — the transport/stress carried by scales smaller than the filter width
 (Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1).
 
 Two common special cases are:
 
-  - **Subfilter tracer flux** — `a = uᵢ` (a velocity component), `b = c` (a tracer):
-    `τ(uᵢ, c) = filter(uᵢ c) - ūᵢ c̄`, the flux of `c` carried by subfilter scales.
-  - **Subfilter momentum stress** — `a = uᵢ`, `b = uⱼ`: `τ(uᵢ, uⱼ) = filter(uᵢ uⱼ) - ūᵢ ūⱼ`, the
-    subfilter (subgrid-scale) Reynolds-type stress component.
+  - **Sub-filter tracer flux** — `a = uᵢ` (a velocity component), `b = c` (a tracer):
+    `τ(uᵢ, c) = filter(uᵢ c) - ūᵢ c̄`, the flux of `c` carried by sub-filter scales.
+  - **Sub-filter momentum stress** — `a = uᵢ`, `b = uⱼ`: `τ(uᵢ, uⱼ) = filter(uᵢ uⱼ) - ūᵢ ūⱼ`, the
+    sub-filter (subgrid-scale) Reynolds-type stress component.
 
 `a` and `b` (`Field`s or `AbstractOperation`s) are interpolated to the common location `loc` before
 being multiplied and filtered, so they may originally live at different staggered-grid locations

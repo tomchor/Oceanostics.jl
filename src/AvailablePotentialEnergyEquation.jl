@@ -356,7 +356,7 @@ end
 # from the closure's own `diffusive_flux_*` rather than from a diffusivity of our own makes this follow
 # whatever closure the model runs with, and keeps the dissipation consistent with the diffusion the
 # model actually applied — the same conservative formulation `TracerVarianceDissipationRate` uses for
-# `χ = 2 ∂ⱼc·Fⱼ`. Each product is formed on the face where both factors live and only then interpolated
+# `χ = -2 ∂ⱼc·qᶜⱼ`. Each product is formed on the face where both factors live and only then interpolated
 # to the cell center, so a no-flux boundary (where the tracer halo is mirrored, making `δb` there
 # exactly zero) contributes nothing.
 @inline Axᶠᶜᶜ_δΥᶠᶜᶜ_q₁ᶠᶜᶜ(i, j, k, grid, Υ, closure, closure_fields, id, c, args...) =
