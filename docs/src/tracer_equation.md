@@ -5,12 +5,12 @@ in the tracer conservation equation. In Oceananigans, the prognostic equation fo
 tracer ``c`` (e.g. temperature, salinity, or a passive scalar) is
 
 ```math
-\partial_t c = -\partial_j (u_j c) + \partial_j q^c_j + F^c
+\partial_t c = -\partial_j (u_j c) - \partial_j q^c_j + F^c
 ```
 
 where ``u_j`` is the resolved velocity field, ``q^c_j`` is the subgrid diffusive flux
-of ``c`` in the ``j``-th direction (parameterized by the turbulence closure), and ``F^c``
-represents any external forcing applied to the tracer.
+of ``c`` in the ``j``-th direction (parameterized by the turbulence closure, ``q^c_j = -\kappa\,\partial_j c``
+for Fickian diffusion), and ``F^c`` represents any external forcing applied to the tracer.
 
 This module decomposes the right-hand side into its constituent terms so that each
 can be computed, output, and analyzed independently. This is useful for constructing

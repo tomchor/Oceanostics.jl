@@ -94,7 +94,7 @@ arch = has_cuda_gpu() ? GPU() : CPU()
               interior(Field(subfilter_covariance(c, b, filt; loc)))
 
         # a pre-filtered shared factor passed as `filtered_a` reproduces the default path, which is what
-        # lets e.g. the sub-filter buoyancy flux filter its b̄ once across components
+        # lets e.g. the subfilter buoyancy flux filter its b̄ once across components
         c̄ = Field(filt(Field(@at loc c)))
         @test interior(Field(subfilter_covariance(c, b, filt; loc, filtered_a=c̄))) ≈
               interior(Field(subfilter_covariance(c, b, filt; loc)))

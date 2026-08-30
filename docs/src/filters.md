@@ -188,7 +188,7 @@ Second, filtering a stored `Field` is comparatively cheap either way, because re
 an array element is cheap. Filtering an expensive `KernelFunctionOperation` is not, because the
 operation is recomputed from scratch at every stencil point.
 
-A quick calculation of the sub-filter scale dissipation `filter(ε) - ε̄` illustrates this, since
+A quick calculation of the subfilter scale dissipation `εₖˢ = filter(εₖ) - εₖˡ` illustrates this, since
 [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) is a nine-term
 viscous-flux contraction rather than a stored array. We build a small LES and filter it horizontally
 with a width of `ℓ = 8Δx`, which is a 15-point stencil along each filtered direction:
@@ -202,8 +202,8 @@ model = NonhydrostaticModel(grid; closure = SmagorinskyLilly())
 Δx = minimum_xspacing(grid)
 gf = GaussianFilter(; dims=(1, 2), σ = 8Δx / (2 * sqrt(2 * log(2))))
 
-ε  = KineticEnergyDissipationRate(model)                   # an expensive KernelFunctionOperation
-εˡ = FilteredKineticEnergyDissipationRate(model, gf)  # dissipation of the filtered flow
+εₖ  = KineticEnergyDissipationRate(model)                  # an expensive KernelFunctionOperation
+εₖˡ = FilteredKineticEnergyDissipationRate(model, gf)      # dissipation of the filtered flow
 nothing # hide
 ```
 
@@ -211,11 +211,11 @@ nothing # hide
 Timing both, after a warm-up call so that compilation is not counted:
 
 ```@repl filters_perf
-∫εˢ_fused  = ∫dV(      gf(ε)  - εˡ);
-∫εˢ_staged = ∫dV(Field(gf(ε)) - εˡ);
-compute!(∫εˢ_fused); compute!(∫εˢ_staged);   # warm up so compilation is not timed
-t_fused  = @elapsed compute!(∫εˢ_fused)
-t_staged = @elapsed compute!(∫εˢ_staged)
+∫εₖˢ_fused  = ∫dV(      gf(εₖ)  - εₖˡ);
+∫εₖˢ_staged = ∫dV(Field(gf(εₖ)) - εₖˡ);
+compute!(∫εₖˢ_fused); compute!(∫εₖˢ_staged);   # warm up so compilation is not timed
+t_fused  = @elapsed compute!(∫εₖˢ_fused)
+t_staged = @elapsed compute!(∫εₖˢ_staged)
 ```
 
 Absolute timings depend on the machine, and the ratio grows with the stencil width; the point is
@@ -230,8 +230,8 @@ operation tree and warns (returning `false`) if any multi-direction filter is po
 so the fused path does not go unnoticed:
 
 ```@repl filters_perf
-check_filter_staging(Field(gf(ε)) - εˡ)         # staged: filtered field materialized first
-check_filter_staging(gf(ε) - εˡ; warn=false)    # fused: filter nested in the subtraction
+check_filter_staging(Field(gf(εₖ)) - εₖˡ)         # staged: filtered field materialized first
+check_filter_staging(gf(εₖ) - εₖˡ; warn=false)    # fused: filter nested in the subtraction
 ```
 
 ### API reference

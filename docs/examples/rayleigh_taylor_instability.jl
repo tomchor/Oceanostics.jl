@@ -5,7 +5,7 @@
 # initially resting above a light one, which is unstable under gravity. All of the kinetic energy is
 # released from the potential energy stored in the unstable stratification, with no fluxes through the
 # boundaries. We run it as a large-eddy simulation (LES) and use Oceanostics to close the volume-integrated
-# sub-filter-scale kinetic-energy budget, that is, the budget of the kinetic energy carried by the scales
+# subfilter-scale kinetic-energy budget, that is, the budget of the kinetic energy carried by the scales
 # that a low-pass filter removes from the flow.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
@@ -89,21 +89,21 @@ using Oceanostics
 progress = ProgressMessengers.TimedMessenger()
 add_callback!(simulation, progress, IterationInterval(100))
 
-# ### Sub-filter-scale kinetic-energy budget
+# ### Subfilter-scale kinetic-energy budget
 #
 # Rayleigh-Taylor turbulence converts potential energy into kinetic energy (KE) across a wide range of
 # scales, so we follow it with a filtering analysis in the spirit of [Aluie et
 # al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1). A low-pass filter (overbar) splits each field
-# into a filtered part and a sub-filter remainder. Here we budget the kinetic energy carried by the
+# into a filtered part and a subfilter remainder. Here we budget the kinetic energy carried by the
 # scales the filter removes,
 #
 # ```math
-# K^s = \tfrac{1}{2}\,\tau^{ii} , \qquad
-# \tau^{ij} = \overline{u^i u^j} - \overline{u}^i\,\overline{u}^j ,
+# e_k^s = \tfrac{1}{2}\,\tau_{ii} , \qquad
+# \tau_{ij} = \overline{u_i u_j} - \overline{u}_i\,\overline{u}_j ,
 # ```
 #
-# where ``\tau^{ij}`` is the sub-filter stress ([`subfilter_stress_tensor`](@ref)), so ``K^s`` itself is
-# computed by [`SubFilterKineticEnergy`](@ref). We apply a Gaussian
+# where ``\tau_{ij}`` is the subfilter stress ([`subfilter_stress_tensor`](@ref)), so ``e_k^s`` itself
+# is computed by [`SubFilterKineticEnergy`](@ref). We apply a Gaussian
 # filter of width `ℓ` in the two horizontal directions, which are statistically
 # homogeneous; the vertical direction is left unfiltered.
 #
@@ -111,29 +111,32 @@ add_callback!(simulation, progress, IterationInterval(100))
 # `w = 0` with free slip at the top and bottom), the budget reads
 #
 # ```math
-# \frac{d}{dt} \int K^s\, dV
-#   = \int \Pi_K\, dV
-#   + \int \tau(w, b)\, dV
-#   - \int \varepsilon_K^s\, dV ,
+# \frac{d}{dt} \int e_k^s\, \mathrm{d}V
+#   = \int \Pi_k\, \mathrm{d}V
+#   + \int \tau(w, b)\, \mathrm{d}V
+#   - \int \varepsilon_k^s\, \mathrm{d}V ,
 # ```
 #
 # with two sources and one sink:
 #
-# - ``\Pi_K = -\tau^{ij}\overline{S}^{ij}`` is the cross-scale kinetic-energy flux
+# - ``\Pi_k = -\tau_{ij}\overline{S}_{ij}`` is the cross-scale kinetic-energy flux
 #   ([`KineticEnergyCrossScaleFlux`](@ref)), the rate at which the filtered scales hand kinetic energy
-#   down to the sub-filter scales.
-# - ``\tau(w, b) = \overline{wb} - \overline{w}\,\overline{b}`` is the sub-filter buoyancy flux (a
-#   `subfilter_covariance`), which converts sub-filter potential energy into sub-filter kinetic energy.
-# - ``\varepsilon_K^s = \overline{\varepsilon} - \varepsilon^{\ell}`` is the sub-filter dissipation
-#   ([`SubFilterKineticEnergyDissipationRate`](@ref)): the filtered total dissipation ``\varepsilon``
+#   down to the subfilter scales.
+# - ``\tau(w, b) = \overline{wb} - \overline{w}\,\overline{b}`` is the subfilter buoyancy flux (a
+#   `subfilter_covariance`), which converts subfilter potential energy into subfilter kinetic energy.
+#   The filter here is purely horizontal, so this equals the ``\tau^l(w, b_r)`` of the
+#   [subfilter kinetic energy budget](@ref "Subfilter kinetic energy equation"): the reference
+#   profile ``b^\star(z)`` is constant along the filtered directions and drops out of the covariance.
+# - ``\varepsilon_k^s = \overline{\varepsilon_k} - \varepsilon_k^l`` is the subfilter dissipation
+#   ([`SubFilterKineticEnergyDissipationRate`](@ref)): the filtered total dissipation ``\varepsilon_k``
 #   ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) minus the
-#   dissipation ``\varepsilon^{\ell}`` of the filtered flow
+#   dissipation ``\varepsilon_k^l`` of the filtered flow
 #   ([`FilteredKineticEnergyDissipationRate`](@ref)). For a constant viscosity it reduces to
-#   ``2\nu[\overline{S^{ij}S^{ij}} - \overline{S}^{ij}\overline{S}^{ij}] \ge 0``, a strictly positive
-#   sink; with an LES closure it is the dissipation that the modeled stress carries out on the sub-filter scales.
+#   ``2\nu[\overline{S_{ij}S_{ij}} - \overline{S}_{ij}\overline{S}_{ij}] \ge 0``, a strictly positive
+#   sink; with an LES closure it is the dissipation that the modeled stress carries out on the subfilter scales.
 #
-# In the code below, ``K^s``, ``\Pi_K``, ``\tau(w,b)`` and ``\varepsilon_K^s`` are written `Kˢ`, `Πₖ`,
-# `wbˢ` and `εˢ`.
+# In the code below, ``e_k^s``, ``\Pi_k``, ``\tau(w,b)`` and ``\varepsilon_k^s`` are written `eₖˢ`,
+# `Πₖ`, `wbˢ` and `εₖˢ`.
 
 using Oceananigans.AbstractOperations: @at
 
@@ -144,47 +147,47 @@ gfilter = GaussianFilter(dims=(1, 2), σ=σℓ)
 u, v, w = model.velocities
 b = model.tracers.b
 
-Kˢ  = SubFilterKineticEnergy(model, gfilter)     # sub-filter kinetic energy ½τⁱⁱ
+eₖˢ = SubFilterKineticEnergy(model, gfilter)       # subfilter kinetic energy ½τᵢᵢ
 Πₖ  = KineticEnergyCrossScaleFlux(model, gfilter)  # cross-scale flux from filtered scales
-wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux τ(w, b)
-εˢ  = SubFilterKineticEnergyDissipationRate(model, gfilter)  # sub-filter dissipation ε̄ − εˡ
+wbˢ = subfilter_covariance(w, b, gfilter)          # subfilter buoyancy flux τ(w, b)
+εₖˢ = SubFilterKineticEnergyDissipationRate(model, gfilter)  # subfilter dissipation ε̄ₖ − εₖˡ
 
 # The budget needs only the (cheap) volume integrals of these terms:
 
-∫Kˢ  = Integral(Kˢ)
+∫eₖˢ = Integral(eₖˢ)
 ∫Πₖ  = Integral(Πₖ)
 ∫wbˢ = Integral(wbˢ)
-∫εˢ  = Integral(εˢ)
+∫εₖˢ = Integral(εₖˢ)
 
 # For the movie we also keep the filtered kinetic energy
-# ``\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i`` ([`FilteredKineticEnergy`](@ref)), the
-# filtered counterpart of ``K^s``. Together the two show how the filter splits the flow's kinetic energy
+# ``e_k^l = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i`` ([`FilteredKineticEnergy`](@ref)), the
+# filtered counterpart of ``e_k^s``. Together the two show how the filter splits the flow's kinetic energy
 # between the scales it keeps and the scales it removes:
 
 ## `FilteredKineticEnergy` materializes the filtered velocities internally, so the multi-direction filter
 ## runs on its fast staged path (see the filter performance notes and `check_filter_staging`).
-Kˡ = FilteredKineticEnergy(model, gfilter)  # kinetic energy of the filtered flow
+eₖˡ = FilteredKineticEnergy(model, gfilter)  # kinetic energy of the filtered flow
 
 # ## Output
 #
 # We use two NetCDF writers. A snapshot writer stores vertical (`x`–`z`) slices of the buoyancy `b`,
-# the cross-scale flux `Πₖ` and the two kinetic energies `Kˡ` and `Kˢ`, at a fixed `y` index (the flow is
+# the cross-scale flux `Πₖ` and the two kinetic energies `eₖˡ` and `eₖˢ`, at a fixed `y` index (the flow is
 # periodic and statistically homogeneous in `y`, so the particular plane makes no difference), while a
 # budget writer stores only the integrated scalars on `ConsecutiveIterations(TimeInterval(τ/5))`, which
-# takes a second sample one model step after each output time. That lets us finite-difference `∫Kˢ` across
+# takes a second sample one model step after each output time. That lets us finite-difference `∫eₖˢ` across
 # that single step to estimate `d/dt`, exactly as in the
 # [Kelvin-Helmholtz example](@ref kelvin_helmholtz_example).
 
 using NCDatasets
 filename = joinpath(@__DIR__, "rayleigh_taylor_instability")
 
-simulation.output_writers[:fields] = NetCDFWriter(model, (; b, Πₖ, Kˡ, Kˢ),
+simulation.output_writers[:fields] = NetCDFWriter(model, (; b, Πₖ, eₖˡ, eₖˢ),
                                                   filename = filename,
                                                   schedule = TimeInterval(τ / 5),
                                                   indices = (:, 1, :),
                                                   overwrite_existing = true)
 
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫Kˢ, ∫Πₖ, ∫wbˢ, ∫εˢ),
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫eₖˢ, ∫Πₖ, ∫wbˢ, ∫εₖˢ),
                                                   filename = filename * "_budget",
                                                   schedule = ConsecutiveIterations(TimeInterval(τ / 5)),
                                                   overwrite_existing = true)
@@ -207,21 +210,21 @@ x_caa = ds["x_caa"][:]
 z_aac = ds["z_aac"][:]
 b_arr = ds["b"][:, 1, :, :]
 Π_arr = ds["Πₖ"][:, 1, :, :]
-Kˡ_arr = ds["Kˡ"][:, 1, :, :]
-Kˢ_arr = ds["Kˢ"][:, 1, :, :]
+eₖˡ_arr = ds["eₖˡ"][:, 1, :, :]
+eₖˢ_arr = ds["eₖˢ"][:, 1, :, :]
 close(ds)
 
 # The integrated budget scalars come in consecutive-iteration pairs `(2k-1, 2k)`; a one-step finite
-# difference inside each pair gives `d(∫Kˢ)/dt`, and each budget term is evaluated at the pair
-# midpoint. The residual measures how well the sub-filter-scale budget closes.
+# difference inside each pair gives `d(∫eₖˢ)/dt`, and each budget term is evaluated at the pair
+# midpoint. The residual measures how well the subfilter-scale budget closes.
 
 bud_filepath = simulation.output_writers[:budget].filepath
 ds_bud = NCDataset(bud_filepath)
 times_bud = ds_bud["time"][:]
-∫Kˢ_t = ds_bud["∫Kˢ"][:]
+∫eₖˢ_t = ds_bud["∫eₖˢ"][:]
 ∫Πₖ_t = ds_bud["∫Πₖ"][:]
 ∫wbˢ_t = ds_bud["∫wbˢ"][:]
-∫εˢ_t = ds_bud["∫εˢ"][:]
+∫εₖˢ_t = ds_bud["∫εₖˢ"][:]
 close(ds_bud)
 
 i1 = 1:2:length(times_bud)-1   # primary snapshots
@@ -229,24 +232,24 @@ i2 = 2:2:length(times_bud)     # consecutive-iteration snapshots
 Δt_pair = times_bud[i2] .- times_bud[i1]
 t_pair = @. 0.5 * (times_bud[i1] + times_bud[i2])
 
-dKˢdt    = (∫Kˢ_t[i2] .- ∫Kˢ_t[i1]) ./ Δt_pair
+deₖˢdt   = (∫eₖˢ_t[i2] .- ∫eₖˢ_t[i1]) ./ Δt_pair
 Πₖ_pair  = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2]);
 wbˢ_pair = @. 0.5 * (∫wbˢ_t[i1] + ∫wbˢ_t[i2]);
-εˢ_pair  = @. 0.5 * (∫εˢ_t[i1] + ∫εˢ_t[i2]);
+εₖˢ_pair = @. 0.5 * (∫εₖˢ_t[i1] + ∫εₖˢ_t[i2]);
 
 # Residual in sum-to-zero form: the negative tendency plus the sources, so the plotted curves add to it
-resid = @. -dKˢdt + Πₖ_pair + wbˢ_pair - εˢ_pair
+resid = @. -deₖˢdt + Πₖ_pair + wbˢ_pair - εₖˢ_pair
 
 using Test                                                          #hide
 rms(x) = √(sum(abs2, x) / length(x))                                #hide
-budget_scale = rms(@. abs(Πₖ_pair) + abs(wbˢ_pair) + abs(εˢ_pair))  #hide
+budget_scale = rms(@. abs(Πₖ_pair) + abs(wbˢ_pair) + abs(εₖˢ_pair)) #hide
 @test rms(resid) < 0.02 * budget_scale;                             #hide
 
 # ## Plotting
 #
 # We build the figure in three rows: the vertical slices of the buoyancy `b` (the spikes and bubbles) and
-# of the cross-scale flux `Πₖ` on top; the two kinetic energies that the filter separates, `Kˡ` and `Kˢ`,
-# in the middle; and the volume-integrated sub-filter-scale kinetic-energy budget at the bottom.
+# of the cross-scale flux `Πₖ` on top; the two kinetic energies that the filter separates, `eₖˡ` and `eₖˢ`,
+# in the middle; and the volume-integrated subfilter-scale kinetic-energy budget at the bottom.
 
 set_theme!(Theme(fontsize=18))
 fig = Figure(size=(1000, 1200))
@@ -254,7 +257,7 @@ fig = Figure(size=(1000, 1200))
 n = Observable(1)
 
 axb = Axis(fig[2, 1]; title="buoyancy, b", xlabel="x", ylabel="z", aspect=1)
-axΠ = Axis(fig[2, 3]; title="cross-scale KE flux, Πₖ", xlabel="x", ylabel="z", aspect=1)
+axΠ = Axis(fig[2, 3]; title="cross-scale kinetic energy flux, Πₖ", xlabel="x", ylabel="z", aspect=1)
 
 blim = 0.8 * maximum(abs, b_arr[:, :, 1])
 Πlim = 0.5 * maximum(abs, Π_arr)
@@ -269,36 +272,36 @@ hmΠ = heatmap!(axΠ, x_caa, z_aac, Πₙ; colormap=:balance, colorrange=(-Πlim
 Colorbar(fig[2, 4], hmΠ)
 
 # The middle row splits the kinetic energy across the filter scale: on the left the filtered
-# energy `Kˡ`, on the right the sub-filter energy `Kˢ` whose budget the bottom panel closes.
+# energy `eₖˡ`, on the right the subfilter energy `eₖˢ` whose budget the bottom panel closes.
 # Both are non-negative, so they get a sequential colormap, and each gets its own colour scale because
 # the two differ by orders of magnitude.
 
-axKˡ = Axis(fig[3, 1]; title="filtered KE, Kˡ", xlabel="x", ylabel="z", aspect=1)
-axKˢ = Axis(fig[3, 3]; title="sub-filter-scale KE, Kˢ", xlabel="x", ylabel="z", aspect=1)
+axeₖˡ = Axis(fig[3, 1]; title="filtered kinetic energy, eₖˡ", xlabel="x", ylabel="z", aspect=1)
+axeₖˢ = Axis(fig[3, 3]; title="subfilter kinetic energy, eₖˢ", xlabel="x", ylabel="z", aspect=1)
 
-Kˡlim = maximum(Kˡ_arr)
-Kˢlim = maximum(Kˢ_arr)
+eₖˡlim = maximum(eₖˡ_arr)
+eₖˢlim = maximum(eₖˢ_arr)
 
-Kˡₙ = @lift Kˡ_arr[:, :, $n]
-Kˢₙ = @lift Kˢ_arr[:, :, $n]
+eₖˡₙ = @lift eₖˡ_arr[:, :, $n]
+eₖˢₙ = @lift eₖˢ_arr[:, :, $n]
 
-hmKˡ = heatmap!(axKˡ, x_caa, z_aac, Kˡₙ; colormap=:magma, colorrange=(0, Kˡlim))
-Colorbar(fig[3, 2], hmKˡ)
+hmeₖˡ = heatmap!(axeₖˡ, x_caa, z_aac, eₖˡₙ; colormap=:magma, colorrange=(0, eₖˡlim))
+Colorbar(fig[3, 2], hmeₖˡ)
 
-hmKˢ = heatmap!(axKˢ, x_caa, z_aac, Kˢₙ; colormap=:magma, colorrange=(0, Kˢlim))
-Colorbar(fig[3, 4], hmKˢ)
+hmeₖˢ = heatmap!(axeₖˢ, x_caa, z_aac, eₖˢₙ; colormap=:magma, colorrange=(0, eₖˢlim))
+Colorbar(fig[3, 4], hmeₖˢ)
 
-# The bottom panel shows the volume-integrated sub-filter-scale kinetic-energy budget. We plot the
-# negative tendency `−d(∫Kˢ)/dt` together with the two sources that feed it, the cross-scale flux
-# `∫Πₖ dV` handed down from the filtered scales and the sub-filter buoyancy flux `∫τ(w,b) dV`, and the
-# single sink that drains it, the sub-filter dissipation `−∫εˢ dV`. With the tendency negated, the four
+# The bottom panel shows the volume-integrated subfilter-scale kinetic-energy budget. We plot the
+# negative tendency `−d(∫eₖˢ)/dt` together with the two sources that feed it, the cross-scale flux
+# `∫Πₖ dV` handed down from the filtered scales and the subfilter buoyancy flux `∫τ(w,b) dV`, and the
+# single sink that drains it, the subfilter dissipation `−∫εₖˢ dV`. With the tendency negated, the four
 # curves sum to the residual.
 
-ax_bud = Axis(fig[4, 1:4]; xlabel="time [free-fall units]", title="Sub-filter-scale KE budget")
-lines!(ax_bud, t_pair ./ τ, -dKˢdt,   label="−d(∫Kˢ)/dt")
-lines!(ax_bud, t_pair ./ τ, Πₖ_pair,  label="∫Πₖ dV  (flux from filtered scales)")
-lines!(ax_bud, t_pair ./ τ, wbˢ_pair, label="∫τ(w,b) dV  (sub-filter buoyancy flux)")
-lines!(ax_bud, t_pair ./ τ, -εˢ_pair, label="−∫εˢ dV  (sub-filter dissipation)")
+ax_bud = Axis(fig[4, 1:4]; xlabel="time [free-fall units]", title="Subfilter kinetic energy budget")
+lines!(ax_bud, t_pair ./ τ, -deₖˢdt,   label="−d(∫eₖˢ)/dt")
+lines!(ax_bud, t_pair ./ τ, Πₖ_pair,   label="∫Πₖ dV  (flux from filtered scales)")
+lines!(ax_bud, t_pair ./ τ, wbˢ_pair,  label="∫τ(w,b) dV  (subfilter buoyancy flux)")
+lines!(ax_bud, t_pair ./ τ, -εₖˢ_pair, label="−∫εₖˢ dV  (subfilter dissipation)")
 lines!(ax_bud, t_pair ./ τ, resid,    label="residual", color=:black, linestyle=:dash)
 axislegend(ax_bud; position=:lt, labelsize=10)
 
@@ -316,6 +319,6 @@ end
 #
 # As the heavy fluid falls in spikes and the light fluid rises in bubbles, the flow rolls up and
 # breaks into a turbulent mixing layer. The bottom panel shows the volume-integrated SFS KE budget.
-# The sub-filter buoyancy flux `∫τ(w,b) dV` and dissipation `∫εˢ dV` are the dominant terms, with the
-# tendency `−d(∫Kˢ)/dt` in third place. The residual is small, which shows that the budget closes well
+# The subfilter buoyancy flux `∫τ(w,b) dV` and dissipation `∫εₖˢ dV` are the dominant terms, with the
+# tendency `−d(∫eₖˢ)/dt` in third place. The residual is small, which shows that the budget closes well
 # and that the filtering analysis is consistent with the simulation.

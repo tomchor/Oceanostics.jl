@@ -92,7 +92,7 @@ RichardsonNumber KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: richardson_number_ccf (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Tuple")
-└── computes: Richardson number  Ri = (∂b/∂z) / |∂u⃗ₕ/∂z|²
+└── computes: Richardson number  (∂b/∂z) / |∂u⃗ₕ/∂z|²
 ```
 """
 function RichardsonNumber(model; loc = (Center, Center, Face))
@@ -162,7 +162,7 @@ RossbyNumber KernelFunctionOperation at (Face, Face, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: rossby_number_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
-└── computes: Rossby number  Ro = ωᶻ/f
+└── computes: Rossby number  ωᶻ/f
 ```
 """
 function RossbyNumber(model; loc = (Face, Face, Face), add_background = true,
@@ -306,7 +306,7 @@ ErtelPotentialVorticity KernelFunctionOperation at (Face, Face, Face)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: ertel_potential_vorticity_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Int64", "Int64", "Float64")
-└── computes: Ertel potential vorticity  q = ω⃗ₜₒₜ · ∇b
+└── computes: Ertel potential vorticity  ω⃗ₜₒₜ · ∇b
 
 julia> interior(Field(EPV))
 1×1×5 view(::Array{Float64, 3}, 1:1, 1:1, 4:8) with eltype Float64:
@@ -549,7 +549,7 @@ StrainRateTensor KernelFunctionOperation at (Face, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: Oceanostics.FlowDiagnostics.StrainRateTensorKernel{1, 3}
 └── arguments: ("Field", "Field")
-└── computes: strain-rate tensor component  Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)
+└── computes: strain-rate tensor component  ½(∂ⱼuᵢ + ∂ᵢuⱼ)
 ```
 """
 StrainRateTensor(model; dims = (1, 2, 3)) = StrainRateTensor(model.grid, model.velocities...; dims)
@@ -686,7 +686,7 @@ VorticityTensor KernelFunctionOperation at (Face, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: Oceanostics.FlowDiagnostics.VorticityTensorKernel{1, 3}
 └── arguments: ("Field", "Field")
-└── computes: vorticity tensor component  Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)
+└── computes: vorticity tensor component  ½(∂ⱼuᵢ - ∂ᵢuⱼ)
 ```
 """
 VorticityTensor(model; dims = (1, 2, 3)) = VorticityTensor(model.grid, model.velocities...; dims)
@@ -820,7 +820,7 @@ StressTensor KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: Oceanostics.FlowDiagnostics.StressTensorKernel{1, 1, false}
 └── arguments: ("Field",)
-└── computes: stress tensor component  τᵢⱼ = uᵢuⱼ
+└── computes: stress tensor component  uᵢuⱼ
 ```
 """
 StressTensor(model; dims = (1, 2, 3), collocate_diagonals = false) =
@@ -893,7 +893,7 @@ The filtered pieces are materialized as `Field`s (so the separable filter's fast
 the returned object is a lazy `AbstractOperation` over those computed fields, ready for `Field`,
 `Integral`, and `OutputWriter`s.
 
-When several covariances share a factor — e.g. the sub-filter buoyancy flux `τ(b, uᵢ)`, whose `b̄` is
+When several covariances share a factor — e.g. the subfilter buoyancy flux `τ(b, uᵢ)`, whose `b̄` is
 the same for every component — pass the pre-filtered factor as `filtered_a` (a `filter(a)` already
 co-located at `loc`, typically a materialized `Field`) and it is used in place of filtering `a` here,
 so the shared factor is filtered once rather than once per covariance.
@@ -943,7 +943,7 @@ QVelocityGradientTensorInvariant KernelFunctionOperation at (Center, Center, Cen
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: Q_velocity_gradient_tensor_invariant_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
-└── computes: Q velocity-gradient invariant  Q = ½(ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)
+└── computes: Q velocity-gradient invariant  ½(ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)
 ```
 """
 function QVelocityGradientTensorInvariant(model; loc = (Center, Center, Center))

@@ -17,7 +17,8 @@ acceleration, ``\rho`` is density, and ``\rho_0`` is a reference density. The qu
     ```math
     E_p = \int e_p \, \mathrm{d}V ,
     ```
-    and likewise for the kinetic, background, and available potential energies.
+    and likewise for the kinetic (``e_k``, ``E_k``), background (``e_b``, ``E_b``) and available
+    (``e_a``, ``E_a``) potential energies.
 
 ## The potential energy equation
 
@@ -81,7 +82,7 @@ Each of the two flux terms appears twice, once in each of the forms the derivati
 
 The `Buoyancy*` pair are the ``-z\,\times`` forms, which is the convention
 [the kinetic energy equation](kinetic_energy_equation.md) follows as well (``u_i\partial_j(u_ju_i)``
-rather than ``\partial_j(u_jK)``). Taken that way they are the model's own buoyancy tendency split
+rather than ``\partial_j(u_j e_k)``). Taken that way they are the model's own buoyancy tendency split
 apart, so
 
 ```math

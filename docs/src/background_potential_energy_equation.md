@@ -110,8 +110,8 @@ of them.
 
 ## The reference state
 
-height ``z^\star`` is the height a parcel would occupy in a state of minimum potential energy
-that can be reached by adiabatic rearrangement flow parcels, and it
+The reference height ``z^\star`` is the height a parcel would occupy in the state of minimum potential
+energy reachable by adiabatically rearranging the parcels of the flow, and it
 is computed by [`reference_height`](@ref). Rearrangement is a nonlocal
 operation, so, unlike most other diagnostics in Oceanostics, this one is not a pointwise kernel.
 It is rearranged on each `compute!`, so writing it (or anything built on it) out during a simulation

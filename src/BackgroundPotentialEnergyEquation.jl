@@ -1106,7 +1106,7 @@ BackgroundPotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: minus_bz✶_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field")
-└── computes: background potential energy per unit volume  e_b = -bz✶
+└── computes: background potential energy per unit mass  -bz✶
 ```
 """
 function BackgroundPotentialEnergy(model; method = ThreeDimensionalSort(), geopotential_height = model_geopotential_height(model), location = (Center, Center, Center))

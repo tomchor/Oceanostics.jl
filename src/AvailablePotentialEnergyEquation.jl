@@ -95,7 +95,7 @@ AvailablePotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: local_ape_ccc (generic function with 2 methods)
 └── arguments: ("Field", "Field", "Field")
-└── computes: local available potential energy density  eₐ = ∫[b✶(z̃) - b]dz̃ ≥ 0
+└── computes: local available potential energy density  ∫[b✶(z̃) - b]dz̃ ≥ 0
 ```
 """
 function AvailablePotentialEnergy(model; method = ThreeDimensionalSort(), geopotential_height = model_geopotential_height(model), location = (Center, Center, Center))
@@ -146,7 +146,7 @@ how far below its actual height a parcel's reference height sits, and so how far
 travel to reach the adiabatically resorted state. It is the derivative of the local available potential
 energy with respect to buoyancy, `Υ = ∂eₐ/∂b`, which is what makes it the natural conjugate of `b`:
 contracting it with a buoyancy gradient gives an APE dissipation rate
-([`AvailablePotentialEnergyDissipationRate`](@ref)), and contracting it with a sub-filter buoyancy flux
+([`AvailablePotentialEnergyDissipationRate`](@ref)), and contracting it with a subfilter buoyancy flux
 gives a cross-scale APE flux.
 
 This is the buoyancy form of `Υ(ρ, z) = g(z - z✶(ρ))/ρ₀` as
@@ -185,7 +185,7 @@ AvailablePotentialEnergyDisplacementPotential KernelFunctionOperation at (Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: upsilon_ccc (generic function with 1 method)
 └── arguments: ("Field",)
-└── computes: displacement potential  Υ = z✶ - z
+└── computes: displacement potential  z✶ - z
 ```
 """
 function AvailablePotentialEnergyDisplacementPotential(model; method = HeavisideIntegral(),
@@ -248,7 +248,7 @@ ReferenceBuoyancyAnomaly KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: reference_buoyancy_anomaly_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field")
-└── computes: reference buoyancy anomaly  bᵣ = b - b✶(z)
+└── computes: reference buoyancy anomaly  b - b✶(z)
 ```
 """
 function ReferenceBuoyancyAnomaly(model; method = HeavisideIntegral(),
@@ -356,7 +356,7 @@ end
 # from the closure's own `diffusive_flux_*` rather than from a diffusivity of our own makes this follow
 # whatever closure the model runs with, and keeps the dissipation consistent with the diffusion the
 # model actually applied — the same conservative formulation `TracerVarianceDissipationRate` uses for
-# `χ = 2 ∂ⱼc·Fⱼ`. Each product is formed on the face where both factors live and only then interpolated
+# `χ = -2 ∂ⱼc·qᶜⱼ`. Each product is formed on the face where both factors live and only then interpolated
 # to the cell center, so a no-flux boundary (where the tracer halo is mirrored, making `δb` there
 # exactly zero) contributes nothing.
 @inline Axᶠᶜᶜ_δΥᶠᶜᶜ_q₁ᶠᶜᶜ(i, j, k, grid, Υ, closure, closure_fields, id, c, args...) =
@@ -438,7 +438,7 @@ AvailablePotentialEnergyDissipationRate KernelFunctionOperation at (Center, Cent
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ape_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "BuoyancyForce")
-└── computes: available potential energy dissipation rate  εₐ = -qᵢ∂ᵢΥ
+└── computes: available potential energy dissipation rate  -qᵢ∂ᵢΥ
 ```
 """
 function AvailablePotentialEnergyDissipationRate(model; method = HeavisideIntegral(),

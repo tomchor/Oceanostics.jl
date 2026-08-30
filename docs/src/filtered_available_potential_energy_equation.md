@@ -60,7 +60,7 @@ buoyancy ``b^\star(z, t)`` -- the reference profile of the _filtered_ buoyancy d
 
 The material derivative of the filtered buoyancy comes from filtering
 [the tracer equation](tracer_equation.md) of ``b`` (the filter commutes with derivatives) and
-splitting the filtered advective flux into a resolved and a sub-filter part,
+splitting the filtered advective flux into a resolved and a subfilter part,
 ``\overline{u_i b} = \bar u_i \, \bar b + \tau(u_i, b)``:
 
 ```math
@@ -69,7 +69,7 @@ splitting the filtered advective flux into a resolved and a sub-filter part,
 \tau(u_i, b) = \overline{b u_i} - \bar b \, \bar u_i ,
 ```
 
-where ``\tau(u_i, b)`` is the sub-filter buoyancy flux and ``\bar q_i`` is the filtered closure's diffusive flux
+where ``\tau(u_i, b)`` is the subfilter buoyancy flux and ``\bar q_i`` is the filtered closure's diffusive flux
 low-pass filtered. The term ``\Upsilon^l \, D^l \bar b / D t`` splits into two transport divergences
 plus the contractions ``\tau(u_i, b) \, \partial_i \Upsilon^l`` and ``\bar q_i \, \partial_i \Upsilon^l``.
 Writing the advective part as a divergence as well (``\partial_i \bar u_i = 0``, since filtering
@@ -79,7 +79,7 @@ preserves incompressibility), the filtered APE budget is
 \partial_t e_a^l = \underbrace{-\partial_i(\bar u_i e_a^l)}_{\text{advection}}
                    \underbrace{-\,\bar w \, b_r^l}_{\text{APE to KE conversion}}
                    \underbrace{-\,\Pi_a}_{\text{cross-scale flux}}
-                   \underbrace{-\,\partial_i\!\left[\Upsilon^l \left(\tau(u_i, b) + \bar q_i\right)\right]}_{\text{sub-filter and diffusive transport}}
+                   \underbrace{-\,\partial_i\!\left[\Upsilon^l \left(\tau(u_i, b) + \bar q_i\right)\right]}_{\text{subfilter and diffusive transport}}
                    \underbrace{-\,\varepsilon_a^l}_{\text{dissipation}}
                    + \underbrace{R^l}_{\text{reference tendency}} ,
 ```
@@ -94,14 +94,14 @@ with
 
 Term by term this is the full-field budget evaluated on the filtered state plus extra terms
 related to the filter (``\Pi_a`` and ``-\partial_j\Upsilon^l \tau(u_i, b)``). ``\Pi_a`` reappears
-with the opposite sign in the [Sub-filter available potential energy equation](@ref), which makes
+with the opposite sign in the [Subfilter available potential energy equation](@ref), which makes
 it a transfer across the filter scale rather than a source or a sink, and the conversion
 ``\bar w \, b_r^l`` likewise reappears with the opposite sign in the
 [filtered kinetic energy](@ref "Filtered kinetic energy equation") budget.
 
 Importantly, while ``R`` integrates to zero in a closed domain ([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X)),
 ``R^l`` does not inherit that property. Given its subfilter counterpart ``R^s = \overline{R} - R^l``
-appears in the [Sub-filter available potential energy equation](@ref), we get that
+appears in the [Subfilter available potential energy equation](@ref), we get that
 ``\int R^l \, \mathrm{d}V = -\int R^s \, \mathrm{d}V``. Thus, interestingly, an evolving reference profile
 redistributes APE across the filter scale as well as in space
 ([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)). With a reference profile held
@@ -121,7 +121,7 @@ Five of the quantities above have diagnostics; the two transport divergences, th
 | Buoyancy anomaly | ``b_r^l = \bar b - b^\star(z, t)`` | not implemented |
 | APE to KE conversion | ``\bar w \, b_r^l`` | [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref) |
 | Cross-scale flux | ``\Pi_a = -\tau(u_i, b) \, \partial_i \Upsilon^l`` | [`AvailablePotentialEnergyCrossScaleFlux`](@ref) |
-| Sub-filter and diffusive transport | ``\partial_i\left[\Upsilon^l (\tau(u_i, b) + \bar q_i)\right]`` | not implemented |
+| Subfilter and diffusive transport | ``\partial_i\left[\Upsilon^l (\tau(u_i, b) + \bar q_i)\right]`` | not implemented |
 | Dissipation | ``\varepsilon_a^l = -\bar q_i \, \partial_i \Upsilon^l`` | [`FilteredAvailablePotentialEnergyDissipationRate`](@ref) |
 | Reference tendency | ``R^l = \int_{z^\star(\bar b)}^{z} \partial_t b^\star(\tilde z, t) \, \mathrm{d}\tilde z`` | not implemented |
 

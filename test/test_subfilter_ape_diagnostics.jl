@@ -158,7 +158,7 @@ function test_subfilter_ape_dissipation_recomputes(model, filt)
     return nothing
 end
 
-# The sub-filter split needs one shared profile, so any method that is not a `ProfileLookup` is
+# The subfilter split needs one shared profile, so any method that is not a `ProfileLookup` is
 # rejected; the dissipation additionally needs the buoyancy to be a diffused tracer and a closure that
 # supplies a flux, exactly like `AvailablePotentialEnergyDissipationRate`.
 function test_subfilter_ape_errors(grid, filt)
@@ -188,7 +188,7 @@ function test_subfilter_ape_module_reexports()
     @test :FilteredAvailablePotentialEnergy in names(SubFilterAvailablePotentialEnergyEquation)
     @test :FilteredAvailablePotentialEnergyDissipationRate in names(SubFilterAvailablePotentialEnergyEquation)
     @test :AvailablePotentialEnergyCrossScaleFlux in names(SubFilterAvailablePotentialEnergyEquation)
-    # τˡ(w, bᵣ) is a source of the sub-filter KE budget too, so that module re-exports it from here
+    # τˡ(w, bᵣ) is a source of the subfilter KE budget too, so that module re-exports it from here
     @test SubFilterKineticEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion === SubFilterAvailablePotentialToKineticEnergyConversion
     @test :SubFilterAvailablePotentialToKineticEnergyConversion in names(SubFilterKineticEnergyEquation)
     @test SubFilterAvailablePotentialEnergyEquation.DissipationRate === SubFilterAvailablePotentialEnergyDissipationRate
@@ -293,8 +293,8 @@ function test_subfilter_ape_ke_conversion_recomputes(model, filt)
     return nothing
 end
 
-@testset "Sub-filter available potential energy equation" begin
-    @info "  Testing sub-filter available potential energy diagnostics"
+@testset "Subfilter available potential energy equation" begin
+    @info "  Testing subfilter available potential energy diagnostics"
     grid = RectilinearGrid(arch, size=(8, 8, 8), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1, boundary=:edge)
     filt_horizontal = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1)
@@ -302,7 +302,7 @@ end
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
     set!(model, b=random_stratified_b)
 
-    @info "    Sub-filter APE eₐˢ = filter(eₐ) - eₐˡ matches manual"
+    @info "    Subfilter APE eₐˢ = filter(eₐ) - eₐˡ matches manual"
     test_subfilter_ape_matches_manual(model, filt)
 
     @info "    Identity filter makes eₐˢ and εₐˢ vanish identically"
@@ -321,7 +321,7 @@ end
     @info "    Fixed profile (arrays) agrees with borrowing the live column"
     test_subfilter_ape_fixed_profile(model, filt)
 
-    @info "    Sub-filter APE dissipation εₐˢ = filter(εₐ) - εₐˡ basics"
+    @info "    Subfilter APE dissipation εₐˢ = filter(εₐ) - εₐˡ basics"
     test_subfilter_ape_dissipation_basics(model, filt)
 
     @info "    eₐˢ and εₐˢ recompute as the flow evolves"
@@ -331,7 +331,7 @@ end
     @info "    Validation errors (method, buoyancy, closure)"
     test_subfilter_ape_errors(grid, filt)
 
-    @info "    Sub-filter APE to KE conversion τˡ(w, bᵣ)"
+    @info "    Subfilter APE to KE conversion τˡ(w, bᵣ)"
     # The shared model is buoyancy-only, and the conversion is carried by the vertical velocity, so
     # without this every assertion below would hold trivially on a field of zeros.
     set!(model, u=(x, y, z) -> 1e-2 * randn(), w=(x, y, z) -> 1e-2 * randn())

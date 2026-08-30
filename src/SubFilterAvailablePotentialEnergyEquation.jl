@@ -8,7 +8,7 @@ export SubFilterAvailablePotentialEnergyDissipationRate, DissipationRate
 # the filtered budget), so they are re-exported here from `FilteredAvailablePotentialEnergyEquation`,
 # where they are defined — as `SubFilterKineticEnergyEquation` re-exports `KineticEnergyCrossScaleFlux`.
 export FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipationRate
-# Πₐ is a source term of the sub-filter APE budget (and a sink of the filtered one), so it is
+# Πₐ is a source term of the subfilter APE budget (and a sink of the filtered one), so it is
 # re-exported from the same module.
 export AvailablePotentialEnergyCrossScaleFlux
 export SubFilterAvailablePotentialToKineticEnergyConversion
@@ -40,7 +40,7 @@ using ..FilteredAvailablePotentialEnergyEquation: FilteredAvailablePotentialEner
 using ..SpatialFilters: GaussianFilter, BoxFilter
 
 #+++ Shared reference heights
-# The two reference heights every sub-filter APE diagnostic needs: the full buoyancy `b` and the
+# The two reference heights every subfilter APE diagnostic needs: the full buoyancy `b` and the
 # filtered buoyancy `b̄ = filter(b)`, each looked up in the same shared profile. The buoyancies and the
 # lookup come from `FilteredAvailablePotentialEnergyEquation`, so the filtered-flow diagnostics built on
 # `z✶ˡ` here measure against exactly the profile the full-field ones on `z✶` do — that shared profile is
@@ -53,7 +53,7 @@ function subfilter_reference_heights(diagnostic, model, filter, method, geopoten
 end
 #---
 
-#+++ Sub-filter available potential energy
+#+++ Subfilter available potential energy
 # eₐˢ = filter(eₐ) - eₐˡ, exposed with the same wrapper trick as `SubFilterKineticEnergyDissipationRate`:
 # the kernel just indexes the pre-assembled operation, whose leaves are materialized `Field`s, so per-cell
 # evaluation only reads those fields and subtracts — it never re-sorts or re-filters.
@@ -64,7 +64,7 @@ const SubFilterAvailablePotentialEnergy = CustomKFO{<:typeof(subfilter_ape_ccc)}
 """
     $(SIGNATURES)
 
-Return the sub-filter-scale (SFS) available potential energy `eₐˢ`, the available potential energy
+Return the subfilter-scale (SFS) available potential energy `eₐˢ`, the available potential energy
 carried by the scales that a low-pass `filter` removes from the buoyancy field — the filtered full APE
 minus the APE of the filtered buoyancy `b̄ = filter(b)`:
 
@@ -77,9 +77,9 @@ where `eₐ` is the local available potential energy density ([`AvailablePotenti
 terms are measured against **one shared reference profile** `(b✶, z✶)`, following the filtered APE
 framework of [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879): the filtered buoyancy
 is looked up in the same profile the full field is measured against, which is exactly what
-[`ProfileLookup`](@ref) was built for. It is the potential-energy counterpart of the sub-filter
-kinetic energy `Kˢ` ([`SubFilterKineticEnergy`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy)),
-just as [`FilteredAvailablePotentialEnergy`](@ref) is that of the filtered kinetic energy `Kˡ`.
+[`ProfileLookup`](@ref) was built for. It is the potential-energy counterpart of the subfilter
+kinetic energy `eₖˢ` ([`SubFilterKineticEnergy`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy)),
+just as [`FilteredAvailablePotentialEnergy`](@ref) is that of the filtered kinetic energy `eₖˡ`.
 
 Because the two states have to share one profile, `method` must be a [`ProfileLookup`](@ref):
 
@@ -117,7 +117,7 @@ SubFilterAvailablePotentialEnergy KernelFunctionOperation at (Center, Center, Ce
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ape_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
-└── computes: sub-filter available potential energy  eₐˢ = filter(eₐ) - eₐˡ
+└── computes: subfilter available potential energy  filter(eₐ) - eₐˡ
 ```
 
 A convenience method `SubFilterAvailablePotentialEnergy(model; σ, dims, boundary, N)` builds the
@@ -140,7 +140,7 @@ SubFilterAvailablePotentialEnergy(model; σ, dims = (1, 2, 3), boundary = :shrin
     SubFilterAvailablePotentialEnergy(model, GaussianFilter(; dims, σ, boundary, N); kwargs...)
 #---
 
-#+++ Sub-filter available potential energy dissipation rate
+#+++ Subfilter available potential energy dissipation rate
 # εₐˢ = filter(εₐ) - εₐˡ, the same wrapper trick as `SubFilterKineticEnergyDissipationRate`.
 @inline subfilter_ape_dissipation_rate_ccc(i, j, k, grid, εₐˢ) = @inbounds εₐˢ[i, j, k]
 
@@ -150,7 +150,7 @@ const DissipationRate = SubFilterAvailablePotentialEnergyDissipationRate
 """
     $(SIGNATURES)
 
-Return the sub-filter-scale (SFS) available potential energy dissipation rate `εₐˢ`, the APE
+Return the subfilter-scale (SFS) available potential energy dissipation rate `εₐˢ`, the APE
 destruction by diffusion carried by the scales that a low-pass `filter` removes:
 
 ```
@@ -167,7 +167,7 @@ space; that docstring has the details. Both states are measured against one shar
 exactly as in [`SubFilterAvailablePotentialEnergy`](@ref), whose budget this is the diffusive sink of
 ([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)); it mirrors what
 [`SubFilterKineticEnergyDissipationRate`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate)
-is to the sub-filter kinetic energy.
+is to the subfilter kinetic energy.
 
 `method` has to be a [`ProfileLookup`](@ref), for the reason
 [`SubFilterAvailablePotentialEnergy`](@ref) gives, and the lookup also makes each `z✶` a function of
@@ -197,7 +197,7 @@ SubFilterAvailablePotentialEnergyDissipationRate KernelFunctionOperation at (Cen
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ape_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
-└── computes: sub-filter available potential energy dissipation rate  εₐˢ = filter(εₐ) - εₐˡ
+└── computes: subfilter available potential energy dissipation rate  filter(εₐ) - εₐˡ
 ```
 
 A convenience method `SubFilterAvailablePotentialEnergyDissipationRate(model; σ, dims, boundary, N)`
@@ -224,7 +224,7 @@ SubFilterAvailablePotentialEnergyDissipationRate(model; σ, dims = (1, 2, 3), bo
     SubFilterAvailablePotentialEnergyDissipationRate(model, GaussianFilter(; dims, σ, boundary, N); kwargs...)
 #---
 
-#+++ Sub-filter available-potential-to-kinetic-energy conversion
+#+++ Subfilter available-potential-to-kinetic-energy conversion
 # τˡ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ, the same wrapper trick as the two diagnostics above.
 @inline subfilter_ape_to_ke_conversion_ccc(i, j, k, grid, wbᵣˢ) = @inbounds wbᵣˢ[i, j, k]
 
@@ -233,19 +233,19 @@ const SubFilterAvailablePotentialToKineticEnergyConversion = CustomKFO{<:typeof(
 """
     $(SIGNATURES)
 
-Return the sub-filter-scale (SFS) conversion of available potential energy into kinetic energy
+Return the subfilter-scale (SFS) conversion of available potential energy into kinetic energy
 `τˡ(w, bᵣ)`, the rate at which the scales a low-pass `filter` removes release their APE to the
-sub-filter flow:
+subfilter flow:
 
 ```
     τˡ(w, bᵣ) = filter(w bᵣ) - w̄ b_rˡ ,   bᵣ = b - b✶(z) ,   b_rˡ = b̄ - b✶(z)
 ```
 
-It is the sub-filter half of the split whose filtered half is
+It is the subfilter half of the split whose filtered half is
 [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref) `w̄b_rˡ`: the two sum to `filter(w bᵣ)`,
-so the sub-filter and filtered budgets between them exchange exactly what the full field converts
+so the subfilter and filtered budgets between them exchange exactly what the full field converts
 ([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)). It enters this budget as
-`-τˡ(w, bᵣ)` and the sub-filter kinetic energy budget
+`-τˡ(w, bᵣ)` and the subfilter kinetic energy budget
 ([`SubFilterKineticEnergy`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy))
 as `+τˡ(w, bᵣ)`, so it is a reversible exchange rather than a source or a sink.
 
@@ -276,7 +276,7 @@ SubFilterAvailablePotentialToKineticEnergyConversion KernelFunctionOperation at 
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ape_to_ke_conversion_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
-└── computes: sub-filter APE to KE conversion  τˡ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ
+└── computes: subfilter APE to KE conversion  filter(wbᵣ) - w̄b_rˡ
 ```
 
 A convenience method `SubFilterAvailablePotentialToKineticEnergyConversion(model; σ, dims, boundary, N)`
