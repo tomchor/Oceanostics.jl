@@ -378,9 +378,9 @@ eₐ3ₙ = @lift eₐ3_t[$n]
 eₐHₙ = @lift eₐH_t[$n]
 eₐLₙ = @lift eₐL_t[$n]
 
-## `eₐ` and the kinetic energy are both sign-definite, so they get one-sided ranges set from their own
-## peak over the run; the buoyancy keeps the symmetric range used above.
-eₖ_lim = maximum(maximum(interior(eₖ_t[k]))  for k in 1:length(times))
+## `eₐ` and the kinetic energy are both sign-definite, so they share one one-sided range, taken from
+## the `eₐ` peak over the run so that the two can be compared panel to panel; the buoyancy keeps the
+## symmetric range used above.
 eₐ_lim = maximum(maximum(interior(eₐ3_t[k])) for k in 1:length(times))
 
 hm_b  = heatmap!(ax_b,  bₙ;  colormap = :balance, colorrange = (-Δb/2, Δb/2))
