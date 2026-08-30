@@ -262,8 +262,8 @@ KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N =
 #---
 
 #+++ Filtered-flow kinetic-energy dissipation
-# εₖˡ = -∂ⱼūᵢ·τ̄ᵢⱼ, the dissipation of the filtered flow: the filtered velocity gradient ∂ⱼūᵢ contracted with
-# the *filtered* viscous flux τ̄ᵢⱼ = filter(τᵢⱼ(u)). τᵢⱼ(u) is the model's viscous momentum flux built from
+# εₖˡ = ∂ⱼūᵢ·τ̄ᵢⱼ, the dissipation of the filtered flow: the filtered velocity gradient ∂ⱼūᵢ contracted with
+# the *filtered* viscous stress τ̄ᵢⱼ = filter(τᵢⱼ(u)). τᵢⱼ(u) is the model's viscous stress built from
 # the FULL velocities and closure (the same `viscous_flux_uᵢxⱼ` that `KineticEnergyDissipationRate`
 # contracts), and it is low-pass filtered. Filtering the flux — rather than recomputing it from ūᵢ — is
 # what makes this correct when the viscosity is non-uniform; the two coincide only for a constant
@@ -308,18 +308,18 @@ Return the filtered-flow kinetic-energy dissipation rate `εₖˡ`, the rate at 
 viscosity removes kinetic energy from the *filtered* velocity field `ūᵢ = filter(uᵢ)`:
 
 ```
-    εₖˡ = -∂ⱼūᵢ · τ̄ᵢⱼ ,   τ̄ᵢⱼ = filter(τᵢⱼ(u))
+    εₖˡ = ∂ⱼūᵢ · τ̄ᵢⱼ ,   τ̄ᵢⱼ = filter(τᵢⱼ(u))
 ```
 
-Here `τᵢⱼ(u)` is the model's viscous momentum-flux tensor built from the **full** velocities and closure
+Here `τᵢⱼ(u)` is the model's viscous stress tensor built from the **full** velocities and closure
 (the same fluxes [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)
 contracts), and `τ̄ᵢⱼ = filter(τᵢⱼ(u))` is that flux low-pass filtered. Contracting the filtered flux with
 the filtered velocity gradient gives the viscous sink in the budget of the filtered kinetic energy
 `eₖˡ = ½ūᵢūᵢ` (filtering framework of Aluie et al., 2018, *J. Phys. Oceanogr.*,
 doi:10.1175/JPO-D-17-0100.1).
 
-Note the flux is filtered, `filter(τᵢⱼ(u))`, not recomputed from the filtered velocity, `τᵢⱼ(ū)`. The two
-agree only for a constant, uniform viscosity, where the filter commutes with the flux; they differ once
+Note the stress is filtered, `filter(τᵢⱼ(u))`, not recomputed from the filtered velocity, `τᵢⱼ(ū)`. The
+two agree only for a constant, uniform viscosity, where the filter commutes with the stress; they differ once
 the viscosity varies in space (e.g. an eddy viscosity), and only the filtered-flux form is the
 dissipation that appears in the filtered KE budget. For a constant-viscosity `ScalarDiffusivity` it
 reduces to `2ν S̄ᵢⱼS̄ᵢⱼ`, the dissipation of the resolved strain. It is evaluated at `(Center, Center,
@@ -345,7 +345,7 @@ FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center,
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: filtered_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
-└── computes: filtered kinetic energy dissipation rate  εₖˡ = -∂ⱼūᵢ·τ̄ᵢⱼ
+└── computes: filtered kinetic energy dissipation rate  εₖˡ = ∂ⱼūᵢ·τ̄ᵢⱼ
 ```
 
 The viscosity and fluxes come from `model.closure`/`model.closure_fields`, exactly as in

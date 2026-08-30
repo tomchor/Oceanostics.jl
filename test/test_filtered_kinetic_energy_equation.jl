@@ -159,7 +159,7 @@ function test_recomputes_on_evolution(model, filt)
     return nothing
 end
 
-# Filtered dissipation εₖˡ = -∂ⱼūᵢ·filter(τᵢⱼ(u)). On a periodic grid with constant ν the filter
+# Filtered dissipation εₖˡ = ∂ⱼūᵢ·filter(τᵢⱼ(u)). On a periodic grid with constant ν the filter
 # commutes with the (linear) viscous flux, so filter(τᵢⱼ(u)) = τᵢⱼ(ū) and εₖˡ equals the KE dissipation of
 # the filtered flow. That reference is built from the existing `KineticEnergyDissipationRate` via its
 # perturbation mechanism, with the mean set to the subfilter part `u - ū` so it dissipates exactly ūᵢ.

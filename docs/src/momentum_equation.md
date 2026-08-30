@@ -9,7 +9,7 @@ equation for the ``i``-th velocity component ``u_i`` is
                + \underbrace{\hat{g}_i \, b}_{\text{buoyancy}}
                + \underbrace{-\epsilon_{ijk} f_j u_k}_{\text{Coriolis}}
                + \underbrace{-\partial_i p}_{\text{pressure}}
-               + \underbrace{-\partial_j \tau_{ij}}_{\text{viscous}}
+               + \underbrace{\partial_j \tau_{ij}}_{\text{viscous}}
                + \underbrace{(\nabla \times \mathbf{u}^S) \times \mathbf{u}}_{\text{Stokes shear}}
                + \underbrace{\partial_t u_i^S}_{\text{Stokes tendency}}
                + \underbrace{F_{u_i}}_{\text{forcing}}
@@ -17,9 +17,9 @@ equation for the ``i``-th velocity component ``u_i`` is
 
 where ``\hat{g}_i`` is the ``i``-th component of the gravitational unit vector, ``b`` is the
 buoyancy, ``f_j`` is the Coriolis frequency, ``p`` is the pressure, ``\tau_{ij}`` is the
-viscous/subgrid momentum flux supplied by the closure (the same sign convention
-[the kinetic energy equation](kinetic_energy_equation.md) uses, so ``\tau_{ij} = -2\nu S_{ij}`` for a
-constant viscosity), ``\mathbf{u}^S`` is the Stokes drift, and ``F_{u_i}`` is the forcing. This
+viscous/subgrid stress tensor (``\tau_{ij} = 2\nu S_{ij}`` for a constant viscosity, the same
+convention [the kinetic energy equation](kinetic_energy_equation.md) uses), ``\mathbf{u}^S`` is the
+Stokes drift, and ``F_{u_i}`` is the forcing. This
 decomposition lets the user compute each contribution independently, build diagnostics like budget
 closure, or analyse the energetics of individual processes.
 
@@ -71,7 +71,9 @@ VCoriolisAcceleration KernelFunctionOperation at (Center, Face, Center)
 
 The combined RHS — `Tendency(model)` — wraps Oceananigans' internal `*_velocity_tendency`
 kernel directly. The sum of the individual term diagnostics, taken with the correct
-signs from Oceananigans' source, equals `Tendency` to machine precision.
+signs from Oceananigans' source, equals `Tendency` to machine precision. Note that the
+`ViscousDissipation` diagnostics wrap Oceananigans' flux-divergence kernel and so return
+``-\partial_j \tau_{ij}``, which is why they enter the sums below with a minus sign.
 
 ### `NonhydrostaticModel` u/v budget
 

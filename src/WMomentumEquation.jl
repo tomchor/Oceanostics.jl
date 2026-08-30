@@ -164,7 +164,7 @@ CoriolisAcceleration(model; kwargs...) = CoriolisAcceleration(model, model.corio
 
 Calculate the viscous dissipation term (excluding immersed boundaries) as
 
-    VISC = ∂ⱼ τ₃ⱼ,
+    VISC = -∂ⱼ τ₃ⱼ,
 
 where τ₃ⱼ is the viscous stress tensor for the z-momentum equation.
 
@@ -180,7 +180,7 @@ WViscousDissipation KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ∂ⱼ_τ₃ⱼ (generic function with 8 methods)
 └── arguments: ("Nothing", "Nothing", "Clock", "NamedTuple", "Nothing")
-└── computes: viscous term (interior, z)  ∂ⱼτ₃ⱼ
+└── computes: viscous term (interior, z)  -∂ⱼτ₃ⱼ
 ```
 """
 function ViscousDissipation(model, closure, diffusivities, clock, model_fields, buoyancy; location = (Center, Center, Face))
@@ -195,7 +195,7 @@ ViscousDissipation(model; kwargs...) = ViscousDissipation(model, model.closure, 
 
 Calculate the viscous dissipation term due to immersed boundaries as
 
-    VISC = ∂ⱼ τ₃ⱼ,
+    VISC = -∂ⱼ τ₃ⱼ,
 
 where τ₃ⱼ is the immersed boundary viscous stress tensor for the z-momentum equation.
 
@@ -211,7 +211,7 @@ WImmersedViscousDissipation KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: immersed_∂ⱼ_τ₃ⱼ (generic function with 2 methods)
 └── arguments: ("NamedTuple", "Nothing", "Nothing", "Nothing", "Clock", "NamedTuple")
-└── computes: viscous term through immersed boundaries (z)  ∂ⱼτ₃ⱼ
+└── computes: viscous term through immersed boundaries (z)  -∂ⱼτ₃ⱼ
 ```
 """
 function ImmersedViscousDissipation(model, velocities, w_immersed_bc, closure, diffusivities, clock, model_fields; location = (Center, Center, Face))
@@ -229,7 +229,7 @@ end
 
 Calculate the total viscous dissipation term as
 
-    VISC = ∂ⱼ τ₃ⱼ + ∂ⱼ τ₃ⱼ_immersed,
+    VISC = -∂ⱼ τ₃ⱼ - ∂ⱼ τ₃ⱼ_immersed,
 
 where τ₃ⱼ is the interior viscous stress tensor and τ₃ⱼ_immersed is the immersed boundary
 viscous stress tensor for the z-momentum equation.
@@ -246,7 +246,7 @@ WTotalViscousDissipation KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: total_∂ⱼ_τ₃ⱼ (generic function with 1 method)
 └── arguments: ("NamedTuple", "Nothing", "Nothing", "Nothing", "Clock", "NamedTuple", "Nothing")
-└── computes: total viscous term (interior + immersed, z)  ∂ⱼτ₃ⱼ
+└── computes: total viscous term (interior + immersed, z)  -∂ⱼτ₃ⱼ
 ```
 """
 function TotalViscousDissipation(model, velocities, w_immersed_bc, closure, diffusivities, clock, model_fields, buoyancy; location = (Center, Center, Face))

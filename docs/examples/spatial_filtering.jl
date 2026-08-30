@@ -231,11 +231,11 @@ fig_Π
 # We can also calculate the dissipation acting on the *filtered* flow using [`FilteredKineticEnergyDissipationRate`](@ref):
 #
 # ```math
-# \varepsilon_k^l = -\frac{\partial \overline{u}_i}{\partial x_j}\,\overline{\tau}_{ij},
+# \varepsilon_k^l = \frac{\partial \overline{u}_i}{\partial x_j}\,\overline{\tau}_{ij},
 # ```
 #
 # where ``\varepsilon_k^l`` is the dissipation of the filtered flow and ``\overline{\tau}_{ij}`` is
-# the filtered viscous momentum flux — filtered from the full flow, rather than rebuilt from
+# the filtered viscous stress — filtered from the full flow, rather than rebuilt from
 # ``\bar{u}_i``. For the constant viscosity used here the two coincide, and ``\varepsilon_k^l`` reduces
 # to ``2\nu\,\bar{S}_{ij}\bar{S}_{ij}``, the dissipation of the resolved strain:
 
