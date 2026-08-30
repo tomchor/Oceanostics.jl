@@ -744,9 +744,6 @@ velocity field with itself:
     τᵢⱼ = uᵢ uⱼ
 ```
 
-This is the *advective* momentum flux (the Reynolds stress when built from perturbation velocities),
-not the closure's viscous stress, which the momentum and kinetic energy budgets also write `τᵢⱼ`.
-
 The result is a `NamedTuple` of the independent components, each a `KernelFunctionOperation` living
 at a location on the staggered grid.
 
