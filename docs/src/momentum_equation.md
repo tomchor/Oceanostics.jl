@@ -17,7 +17,7 @@ equation for the ``i``-th velocity component ``u_i`` is
 
 where ``\hat{g}_i`` is the ``i``-th component of the gravitational unit vector, ``b`` is the
 buoyancy, ``f_j`` is the Coriolis frequency, ``p`` is the pressure, ``\tau_{ij}`` is the
-viscous/subgrid momentum flux supplied by the closure, ``\mathbf{u}^S`` is the Stokes drift, and ``F_{u_i}`` is the forcing. This
+viscous/subgrid stress tensor, ``\mathbf{u}^S`` is the Stokes drift, and ``F_{u_i}`` is the forcing. This
 decomposition lets the user compute each contribution independently, build diagnostics like budget
 closure, or analyze the energetics of individual processes.
 
