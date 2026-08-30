@@ -1,36 +1,21 @@
 # Filtered available potential energy equation
 
 The `FilteredAvailablePotentialEnergyEquation` module provides diagnostics for the available potential
-energy of the *filtered* buoyancy field: the share of the local APE ``e_a`` of
-[the available potential energy equation](available_potential_energy_equation.md) that the scales a
-low-pass spatial filter ``\overline{(\,\cdot\,)}`` keeps would carry on their own, following the
-filtered APE framework of [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879). It is
-the potential-energy counterpart of the [Filtered kinetic energy equation](@ref), and the
-[Sub-filter available potential energy equation](@ref) budgets what the filter removes.
-
-## The available potential energy of the filtered buoyancy
-
-With ``\bar b`` the filtered buoyancy, the APE of the filtered field is the local APE functional
-evaluated on ``\bar b`` rather than on ``b``,
+energy of the *filtered* buoyancy field. It is the potential-energy counterpart of the
+[Filtered kinetic energy equation](@ref). Following the filtered APE framework of
+[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879), we define the APE
+of the filtered flow as
 
 ```math
-e_a^l = e_a(\bar b, z) = \int_{z^\star(\bar b)}^{z} \left[b^\star(\tilde z) - \bar b\right] \mathrm{d}\tilde z ,
+e_a^l = e_a(\bar b, z, t) = \int_{z^\star(\bar b, t)}^{z} \left[b^\star(\tilde z, t) - \bar b\right] \mathrm{d}\tilde z ,
 ```
+computed by [`FilteredAvailablePotentialEnergy`](@ref). Note that the reference profile ``b^\star(z^\star)``
+is the reference state of the *full buoyancy* ``b``, rather than sorted from ``\bar b`` itself.
+Because of this, it is necessary to look up the position of a buoyancy parcel in the filtered fields
+in the full reference profile ``b^\star(z^\star)`` in calculating some terms, which makes it necessary
+to use [`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup), since it's
+the only method of obtaining the reference height that has this capability.
 
-computed by [`FilteredAvailablePotentialEnergy`](@ref). The reference profile ``(b^\star, z^\star)`` it
-is measured against is **shared with the full field**, ordinarily the sorted state of the full buoyancy
-``b``, rather than sorted from ``\bar b`` itself: only then are ``e_a(\bar b, z)`` and
-``e_a(b, z)`` comparable, and their difference the sub-filter APE. Looking a field up in a profile it
-did not produce is exactly what
-[`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup) was built for, so
-these diagnostics accept only that reference-height method: the default sorts the model's own buoyancy
-into a [`VerticalSort`](@ref Oceanostics.BackgroundPotentialEnergyEquation.VerticalSort) column on
-every `compute!`, a column you built yourself can be shared across diagnostics, and a profile given as
-plain arrays holds the reference state fixed in time (which also makes the diagnostics sort-free).
-
-```@docs
-Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergy
-```
 
 ## Deriving the filtered available potential energy equation
 
