@@ -263,9 +263,9 @@ BarotropicPressureGradient(model; kwargs...) =
 
 Calculate the viscous dissipation term (excluding immersed boundaries) as
 
-    VISC = -∂ⱼ τ₁ⱼ,
+    VISC = ∂ⱼ τ₁ⱼ,
 
-where τ₁ⱼ is the viscous stress tensor for the x-momentum equation.
+where τ₁ⱼ is the viscous momentum flux for the x-momentum equation.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -279,7 +279,7 @@ UViscousDissipation KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: ∂ⱼ_τ₁ⱼ (generic function with 10 methods)
 └── arguments: ("Nothing", "Nothing", "Clock", "NamedTuple", "Nothing")
-└── computes: viscous term (interior, x)  -∂ⱼτ₁ⱼ
+└── computes: viscous term (interior, x)  ∂ⱼτ₁ⱼ
 ```
 """
 function ViscousDissipation(model, closure, diffusivities, clock, model_fields, buoyancy; location = (Face, Center, Center))
@@ -294,9 +294,9 @@ ViscousDissipation(model; kwargs...) = ViscousDissipation(model, model.closure, 
 
 Calculate the viscous dissipation term due to immersed boundaries as
 
-    VISC = -∂ⱼ τ₁ⱼ,
+    VISC = ∂ⱼ τ₁ⱼ,
 
-where τ₁ⱼ is the immersed boundary viscous stress tensor for the x-momentum equation.
+where τ₁ⱼ is the immersed boundary viscous momentum flux for the x-momentum equation.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -310,7 +310,7 @@ UImmersedViscousDissipation KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: immersed_∂ⱼ_τ₁ⱼ (generic function with 2 methods)
 └── arguments: ("NamedTuple", "Nothing", "Nothing", "Nothing", "Clock", "NamedTuple")
-└── computes: viscous term through immersed boundaries (x)  -∂ⱼτ₁ⱼ
+└── computes: viscous term through immersed boundaries (x)  ∂ⱼτ₁ⱼ
 ```
 """
 function ImmersedViscousDissipation(model, velocities, u_immersed_bc, closure, diffusivities, clock, model_fields; location = (Face, Center, Center))
@@ -328,10 +328,10 @@ end
 
 Calculate the total viscous dissipation term as
 
-    VISC = -∂ⱼ τ₁ⱼ - ∂ⱼ τ₁ⱼ_immersed,
+    VISC = ∂ⱼ τ₁ⱼ + ∂ⱼ τ₁ⱼ_immersed,
 
-where τ₁ⱼ is the interior viscous stress tensor and τ₁ⱼ_immersed is the immersed boundary
-viscous stress tensor for the x-momentum equation.
+where τ₁ⱼ is the interior viscous momentum flux and τ₁ⱼ_immersed is the immersed boundary
+viscous momentum flux for the x-momentum equation.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -345,7 +345,7 @@ UTotalViscousDissipation KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: total_∂ⱼ_τ₁ⱼ (generic function with 1 method)
 └── arguments: ("NamedTuple", "Nothing", "Nothing", "Nothing", "Clock", "NamedTuple", "Nothing")
-└── computes: total viscous term (interior + immersed, x)  -∂ⱼτ₁ⱼ
+└── computes: total viscous term (interior + immersed, x)  ∂ⱼτ₁ⱼ
 ```
 """
 function TotalViscousDissipation(model, velocities, u_immersed_bc, closure, diffusivities, clock, model_fields, buoyancy; location = (Face, Center, Center))

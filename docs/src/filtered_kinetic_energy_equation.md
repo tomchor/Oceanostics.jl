@@ -15,13 +15,14 @@ and forcing terms)
                - \epsilon_{ijk} \, f_j \, u_k
                - \partial_i p
                + b \, \hat g_i
-               + \partial_j \tau_{ij} ,
+               - \partial_j \tau_{ij} ,
 ```
 
 with Coriolis parameter ``f_i``, kinematic pressure ``p``, buoyancy ``b`` along the vertical ``\hat g_i``,
-the permutation symbol ``\epsilon_{ijk}``, and the viscous stress tensor ``\tau_{ij}`` supplied by the
-closure. The velocity components are ``(u_1, u_2, u_3) = (u, v, w)``, and the resolved viscous dissipation
-``\varepsilon_k = \partial_j u_i \, \tau_{ij}`` is what
+the permutation symbol ``\epsilon_{ijk}``, and the viscous momentum flux ``\tau_{ij}`` supplied by the
+closure (minus the stress tensor, so ``\tau_{ij} = -2\nu S_{ij}`` for a constant viscosity). The velocity
+components are ``(u_1, u_2, u_3) = (u, v, w)``, and the resolved viscous dissipation
+``\varepsilon_k = -\partial_j u_i \, \tau_{ij}`` is what
 [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) computes.
 Incompressibility ``\partial_i u_i = 0`` lets us write advection in flux form,
 ``u_j \, \partial_j u_i = \partial_j (u_i u_j)``.
@@ -38,7 +39,7 @@ and re-write the filtered momentum equation as:
                     - \epsilon_{ijk} \, f_j \, \bar u_k
                     - \partial_i \bar p
                     + \bar b \, \hat g_i
-                    + \partial_j \bar\tau_{ij} .
+                    - \partial_j \bar\tau_{ij} .
 ```
 
 Multiplying by the filtered velocity ``\bar u_i`` gives the budget for the kinetic energy
@@ -60,7 +61,7 @@ integrated over a closed or periodic domain. The two local exchange terms are
 ```math
 \Pi_k = -\tau^r_{ij}\,\bar S_{ij} ,
 \qquad
-\varepsilon_k^l = \partial_j \bar u_i \, \bar\tau_{ij} ,
+\varepsilon_k^l = -\partial_j \bar u_i \, \bar\tau_{ij} ,
 \qquad
 \bar S_{ij} = \tfrac{1}{2}\left(\partial_j \bar u_i + \partial_i \bar u_j\right) .
 ```
@@ -73,11 +74,11 @@ the rate at which the filter transfers kinetic energy from the filtered to the s
 subfilter stress ``\tau^r_{ij}`` itself is available as [`subfilter_stress_tensor`](@ref).
 
 ``\varepsilon_k^l`` ([`FilteredKineticEnergyDissipationRate`](@ref)) is the viscous dissipation
-of the filtered flow: the filtered velocity gradient contracted with the *filtered* stress
-``\bar\tau_{ij}``. The stress is filtered, not recomputed from ``\bar u_i``:
+of the filtered flow: the filtered velocity gradient contracted with the *filtered* momentum flux
+``\bar\tau_{ij}``. The flux is filtered, not recomputed from ``\bar u_i``:
 ``\overline{\tau_{ij}(u_i)}`` and ``\tau_{ij}(\bar u_i)`` agree only for a constant, uniform
 viscosity. When ``\tau_{ij}`` is symmetric (as for an isotropic closure) the antisymmetric part of the gradient drops out
-and the dissipation can be written with the strain rate, ``\varepsilon_k^l = \bar\tau_{ij}\,\bar S_{ij}``,
+and the dissipation can be written with the strain rate, ``\varepsilon_k^l = -\bar\tau_{ij}\,\bar S_{ij}``,
 reducing further to ``2\nu\,\bar S_{ij}\bar S_{ij}`` for a constant-viscosity closure.
 
 These diagnostics take a `filter` argument: any callable mapping a field to its low-pass-filtered
@@ -111,7 +112,7 @@ FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center,
 ├── grid: 16×16×16 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: filtered_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple")
-└── computes: filtered kinetic energy dissipation rate  εₖˡ = ∂ⱼūᵢ·τ̄ᵢⱼ
+└── computes: filtered kinetic energy dissipation rate  εₖˡ = -∂ⱼūᵢ·τ̄ᵢⱼ
 ```
 
 ## Filtered kinetic energy

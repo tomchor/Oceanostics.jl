@@ -12,13 +12,13 @@ the velocity:
 
 ```math
 \partial_t e_k = \underbrace{-u_i \partial_j(u_i u_j)}_{\text{advection}}
-             + \underbrace{u_i \partial_j \tau_{ij}}_{\text{stress}}
+             - \underbrace{u_i \partial_j \tau_{ij}}_{\text{stress}}
              - \underbrace{u_i \partial_i p}_{\text{pressure}}
              + \underbrace{u_i b_i}_{\text{buoyancy}}
              + \underbrace{u_i F_{u_i}}_{\text{forcing}}
 ```
 
-where ``\tau_{ij}`` is the viscous/subgrid stress tensor, ``p`` is pressure,
+where ``\tau_{ij}`` is the viscous/subgrid momentum flux (minus the stress tensor), ``p`` is pressure,
 ``b_i`` is the buoyancy acceleration component in the ``i``-th direction, and
 ``F_{u_i}`` is the forcing on the ``i``-th momentum equation. As throughout Oceanostics, the
 lower-case ``e_k`` is the pointwise energy density and the upper-case ``E_k = \int e_k \, \mathrm{d}V``
@@ -28,14 +28,13 @@ in full.
 This decomposition is essential for understanding how kinetic energy is generated
 (e.g. by buoyancy production or forcing), redistributed (by advection or pressure work),
 and removed (by viscous dissipation). The module also provides two formulations of the
-dissipation rate: a general one based on the full stress tensor
-(``\varepsilon_k = \partial_j u_i \, \tau_{ij}``), and an isotropic version
+dissipation rate: a general one based on the full momentum flux
+(``\varepsilon_k = -\partial_j u_i \, \tau_{ij}``), and an isotropic version
 (``\varepsilon_k = 2\nu S_{ij} S_{ij}``) valid when the turbulence closure uses a single scalar
 viscosity. The two agree for a constant viscosity, and both are non-negative for a down-gradient
-closure. ``\tau_{ij}`` is the stress, ``2\nu S_{ij}``, in the same convention
-[the momentum equation](momentum_equation.md) uses; Oceananigans' kernels carry the momentum *flux*,
-which is its negative, so the `KineticEnergyStress` and `ViscousDissipation` diagnostics return minus
-the term that appears in the budget above.
+closure. As in [the momentum equation](momentum_equation.md), ``\tau_{ij}`` is the momentum flux
+Oceananigans' kernels carry, ``-2\nu S_{ij}`` for a constant viscosity, which is minus the stress
+tensor; that is what puts the minus sign on ``\varepsilon_k``.
 
 All diagnostics are computed at `(Center, Center, Center)`.
 

@@ -210,13 +210,12 @@ const Stress = KineticEnergyStress
 Return a `KernelFunctionOperation` that computes the diffusive term of the `eₖ` prognostic equation:
 
 ```
-    DIFF = -uᵢ∂ⱼτᵢⱼ
+    DIFF = uᵢ∂ⱼτᵢⱼ
 ```
 
-where `uᵢ` are the velocity components and `τᵢⱼ` is the viscous stress tensor. As for the
-momentum-equation diagnostics, this wraps Oceananigans' flux-divergence kernel, so it returns minus
-the term that enters the kinetic energy budget: that term, `uᵢ∂ⱼτᵢⱼ`, splits into a transport
-divergence minus the dissipation rate `εₖ` ([`DissipationRate`](@ref)).
+where `uᵢ` are the velocity components and `τᵢⱼ` is the viscous momentum flux (minus the stress
+tensor). It enters the kinetic energy budget as `-DIFF`, and splits into a transport divergence plus
+the dissipation rate `εₖ` ([`DissipationRate`](@ref)).
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -230,7 +229,7 @@ KineticEnergyStress KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ (generic function with 1 method)
 └── arguments: ("ScalarDiffusivity", "Nothing", "Clock", "NamedTuple", "Nothing")
-└── computes: kinetic energy stress/diffusion  -uᵢ∂ⱼτᵢⱼ
+└── computes: kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ
 ```
 """
 function KineticEnergyStress(model; location = (Center, Center, Center))
@@ -462,10 +461,10 @@ const DissipationRate = KineticEnergyDissipationRate
 
 Calculate the kinetic energy dissipation rate, defined as
 
-    εₖ = ∂ⱼuᵢ ⋅ τᵢⱼ = 2νSᵢⱼSᵢⱼ ≥ 0
+    εₖ = -∂ⱼuᵢ ⋅ τᵢⱼ = 2νSᵢⱼSᵢⱼ ≥ 0
 
-where ∂ⱼuᵢ is the velocity gradient tensor and τᵢⱼ is the viscous stress tensor (`2νSᵢⱼ` for a
-constant viscosity).
+where ∂ⱼuᵢ is the velocity gradient tensor and τᵢⱼ is the closure's viscous momentum flux (`-2νSᵢⱼ`
+for a constant viscosity, i.e. minus the stress tensor), in the same convention Oceananigans uses.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -479,7 +478,7 @@ KineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Nothing", "NamedTuple", "NamedTuple")
-└── computes: kinetic energy dissipation rate  εₖ = ∂ⱼuᵢ·τᵢⱼ
+└── computes: kinetic energy dissipation rate  εₖ = -∂ⱼuᵢ·τᵢⱼ
 ```
 """
 function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),

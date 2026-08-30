@@ -33,7 +33,7 @@ KineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×5×6 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("NamedTuple", "NamedTuple", "NamedTuple")
-└── computes: kinetic energy dissipation rate  εₖ = ∂ⱼuᵢ·τᵢⱼ
+└── computes: kinetic energy dissipation rate  εₖ = -∂ⱼuᵢ·τᵢⱼ
 
 julia> run!(simulation)
 [ Info: Initializing simulation...
