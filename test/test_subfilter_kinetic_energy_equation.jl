@@ -128,7 +128,7 @@ function test_subfilter_module_reexports()
 end
 #---
 
-@testset "Sub-filter kinetic energy equation" begin
+@testset "Subfilter kinetic energy equation" begin
     @info "  Testing subfilter kinetic energy diagnostics"
     grid = RectilinearGrid(arch, size=(8, 8, 8), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1, boundary=:edge)
@@ -136,7 +136,7 @@ end
     model = NonhydrostaticModel(grid)
     set!(model, u=(x, y, z) -> randn(), v=(x, y, z) -> randn(), w=(x, y, z) -> randn())
 
-    @info "    Sub-filter kinetic energy eₖˢ = ½τᵢᵢ matches manual"
+    @info "    Subfilter kinetic energy eₖˢ = ½τᵢᵢ matches manual"
     test_subfilter_kinetic_energy_matches_manual(model, filt)
 
     @info "    Gaussian convenience method (eₖˢ)"
@@ -152,7 +152,7 @@ end
     test_subfilter_kinetic_energy_decomposition(grid, filt)
 
     # εₖˢ needs a dissipative closure so the full- and filtered-flow dissipations are defined.
-    @info "    Sub-filter KE dissipation εₖˢ = filter(εₖ) - εₖˡ matches manual"
+    @info "    Subfilter KE dissipation εₖˢ = filter(εₖ) - εₖˡ matches manual"
     model_ν = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-3))
     set!(model_ν, u=(x, y, z) -> randn(), v=(x, y, z) -> randn(), w=(x, y, z) -> randn())
     test_subfilter_dissipation_matches_manual(model_ν, filt)

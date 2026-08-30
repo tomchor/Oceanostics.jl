@@ -89,7 +89,7 @@ using Oceanostics
 progress = ProgressMessengers.TimedMessenger()
 add_callback!(simulation, progress, IterationInterval(100))
 
-# ### Sub-filter-scale kinetic-energy budget
+# ### Subfilter-scale kinetic-energy budget
 #
 # Rayleigh-Taylor turbulence converts potential energy into kinetic energy (KE) across a wide range of
 # scales, so we follow it with a filtering analysis in the spirit of [Aluie et
@@ -125,7 +125,7 @@ add_callback!(simulation, progress, IterationInterval(100))
 # - ``\tau(w, b) = \overline{wb} - \overline{w}\,\overline{b}`` is the subfilter buoyancy flux (a
 #   `subfilter_covariance`), which converts subfilter potential energy into subfilter kinetic energy.
 #   The filter here is purely horizontal, so this equals the ``\tau^l(w, b_r)`` of the
-#   [subfilter kinetic energy budget](@ref "Sub-filter kinetic energy equation"): the reference
+#   [subfilter kinetic energy budget](@ref "Subfilter kinetic energy equation"): the reference
 #   profile ``b^\star(z)`` is constant along the filtered directions and drops out of the covariance.
 # - ``\varepsilon_k^s = \overline{\varepsilon_k} - \varepsilon_k^l`` is the subfilter dissipation
 #   ([`SubFilterKineticEnergyDissipationRate`](@ref)): the filtered total dissipation ``\varepsilon_k``
@@ -297,7 +297,7 @@ Colorbar(fig[3, 4], hmeₖˢ)
 # single sink that drains it, the subfilter dissipation `−∫εₖˢ dV`. With the tendency negated, the four
 # curves sum to the residual.
 
-ax_bud = Axis(fig[4, 1:4]; xlabel="time [free-fall units]", title="Sub-filter kinetic energy budget")
+ax_bud = Axis(fig[4, 1:4]; xlabel="time [free-fall units]", title="Subfilter kinetic energy budget")
 lines!(ax_bud, t_pair ./ τ, -deₖˢdt,   label="−d(∫eₖˢ)/dt")
 lines!(ax_bud, t_pair ./ τ, Πₖ_pair,   label="∫Πₖ dV  (flux from filtered scales)")
 lines!(ax_bud, t_pair ./ τ, wbˢ_pair,  label="∫τ(w,b) dV  (subfilter buoyancy flux)")

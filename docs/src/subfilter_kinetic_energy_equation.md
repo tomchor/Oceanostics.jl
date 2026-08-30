@@ -1,4 +1,4 @@
-# Sub-filter kinetic energy equation
+# Subfilter kinetic energy equation
 
 The `SubFilterKineticEnergyEquation` module provides diagnostics for the kinetic energy budget of the
 *subfilter* scales: the scales that a low-pass spatial filter ``\overline{(\,\cdot\,)}`` removes from
@@ -35,7 +35,7 @@ with two sources and one sink:
     ([`SubFilterAvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion))
     is the subfilter buoyancy flux, which converts subfilter available potential energy into
     subfilter kinetic energy. It is defined in the
-    [Sub-filter available potential energy equation](@ref), whose budget it is the sink of, and is
+    [Subfilter available potential energy equation](@ref), whose budget it is the sink of, and is
     re-exported here.
   - ``\varepsilon_k^s = \overline{\varepsilon_k} - \varepsilon_k^l`` is the subfilter dissipation
     ([`SubFilterKineticEnergyDissipationRate`](@ref)): the filtered total dissipation
@@ -47,13 +47,13 @@ with two sources and one sink:
 The [Rayleigh-Taylor instability](@ref rayleigh_taylor_example) example closes this budget for a
 large-eddy simulation.
 
-## Sub-filter kinetic energy
+## Subfilter kinetic energy
 
 ```@docs
 Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy
 ```
 
-## Sub-filter kinetic energy dissipation
+## Subfilter kinetic energy dissipation
 
 ```@docs
 Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate

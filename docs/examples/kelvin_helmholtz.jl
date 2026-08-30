@@ -124,7 +124,7 @@ Q = QVelocityGradientTensorInvariant(model)
 # ([`KineticEnergyCrossScaleFlux`](@ref)), and the viscous dissipation of the filtered
 # flow ``\varepsilon_k^l`` ([`FilteredKineticEnergyDissipationRate`](@ref)). Note that
 # ``\varepsilon_k^l`` is *not* ``\overline{\varepsilon_k}``: their difference is the subfilter
-# dissipation of the [subfilter kinetic energy budget](@ref "Sub-filter kinetic energy equation").
+# dissipation of the [subfilter kinetic energy budget](@ref "Subfilter kinetic energy equation").
 
 using Oceananigans.AbstractOperations: @at
 

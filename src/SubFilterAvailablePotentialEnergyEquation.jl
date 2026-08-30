@@ -53,7 +53,7 @@ function subfilter_reference_heights(diagnostic, model, filter, method, geopoten
 end
 #---
 
-#+++ Sub-filter available potential energy
+#+++ Subfilter available potential energy
 # eₐˢ = filter(eₐ) - eₐˡ, exposed with the same wrapper trick as `SubFilterKineticEnergyDissipationRate`:
 # the kernel just indexes the pre-assembled operation, whose leaves are materialized `Field`s, so per-cell
 # evaluation only reads those fields and subtracts — it never re-sorts or re-filters.
@@ -140,7 +140,7 @@ SubFilterAvailablePotentialEnergy(model; σ, dims = (1, 2, 3), boundary = :shrin
     SubFilterAvailablePotentialEnergy(model, GaussianFilter(; dims, σ, boundary, N); kwargs...)
 #---
 
-#+++ Sub-filter available potential energy dissipation rate
+#+++ Subfilter available potential energy dissipation rate
 # εₐˢ = filter(εₐ) - εₐˡ, the same wrapper trick as `SubFilterKineticEnergyDissipationRate`.
 @inline subfilter_ape_dissipation_rate_ccc(i, j, k, grid, εₐˢ) = @inbounds εₐˢ[i, j, k]
 
@@ -224,7 +224,7 @@ SubFilterAvailablePotentialEnergyDissipationRate(model; σ, dims = (1, 2, 3), bo
     SubFilterAvailablePotentialEnergyDissipationRate(model, GaussianFilter(; dims, σ, boundary, N); kwargs...)
 #---
 
-#+++ Sub-filter available-potential-to-kinetic-energy conversion
+#+++ Subfilter available-potential-to-kinetic-energy conversion
 # τˡ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ, the same wrapper trick as the two diagnostics above.
 @inline subfilter_ape_to_ke_conversion_ccc(i, j, k, grid, wbᵣˢ) = @inbounds wbᵣˢ[i, j, k]
 

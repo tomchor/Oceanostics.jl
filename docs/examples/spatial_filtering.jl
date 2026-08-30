@@ -145,7 +145,7 @@ fig_sweep
 
 # Wider kernels (``\sigma = 4\Delta \to 16\Delta``) progressively erase smaller scales.
 
-# ## Sub-filter tracer flux
+# ## Subfilter tracer flux
 #
 # Filtering also lets us quantify transport by subfilter scales. The subfilter tracer flux is
 # ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``: the difference between the filtered advective
@@ -171,7 +171,7 @@ c̄  = Field(filter(c))
 fig_τ = Figure()
 ax_c  = Axis(fig_τ[1, 1]; title = "Tracer c",      axis_kwargs...)
 ax_c̄  = Axis(fig_τ[1, 2]; title = "Filtered c̄",    axis_kwargs...)
-ax_τ  = Axis(fig_τ[1, 3]; title = "Sub-filter |τ|", axis_kwargs...)
+ax_τ  = Axis(fig_τ[1, 3]; title = "Subfilter |τ|", axis_kwargs...)
 
 heatmap!(ax_c, c;  colormap = :balance, colorrange = (-1, 1))
 heatmap!(ax_c̄, c̄;  colormap = :balance, colorrange = (-1, 1))

@@ -1,10 +1,10 @@
-# Sub-filter available potential energy equation
+# Subfilter available potential energy equation
 
 The `SubFilterAvailablePotentialEnergyEquation` module provides diagnostics for the available potential
 energy carried by the scales that a low-pass spatial filter ``\overline{(\,\cdot\,)}`` removes from the
 buoyancy field, following the filtered APE framework of
 [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879). It is the potential-energy
-counterpart of the [Sub-filter kinetic energy equation](@ref): where that module splits the kinetic
+counterpart of the [Subfilter kinetic energy equation](@ref): where that module splits the kinetic
 energy across the filter scale, this one splits the *local* available potential energy ``e_a`` of
 [the available potential energy equation](available_potential_energy_equation.md). The other half of
 the split, the APE of the filtered buoyancy and its dissipation, lives in the
@@ -84,7 +84,7 @@ flow, computed by [`SubFilterAvailablePotentialToKineticEnergyConversion`](@ref)
 half of the split whose filtered half is
 [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion),
 the two summing to ``\overline{w b_r}``. It enters this budget as ``-\tau^l(w, b_r)`` and the
-[Sub-filter kinetic energy equation](@ref) as ``+\tau^l(w, b_r)``, so it is a reversible exchange rather
+[Subfilter kinetic energy equation](@ref) as ``+\tau^l(w, b_r)``, so it is a reversible exchange rather
 than a source or a sink. The reference profile is not filtered in either half, which is what
 distinguishes it from a plain `subfilter_covariance` of ``w`` and ``b_r``.
 

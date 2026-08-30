@@ -24,7 +24,7 @@ using ..FilteredKineticEnergyEquation: subfilter_stress_tensor # re-exported for
 using ..SpatialFilters: GaussianFilter, BoxFilter
 using ..SubFilterAvailablePotentialEnergyEquation: SubFilterAvailablePotentialToKineticEnergyConversion
 
-#+++ Sub-filter kinetic energy
+#+++ Subfilter kinetic energy
 # eₖˢ = filter(eₖ) - eₖˡ: the filtered full kinetic energy minus the kinetic energy of the filtered flow.
 # Because `KineticEnergy` and `FilteredKineticEnergy` use the same interpolate-the-square (½⟨uᵢ²⟩)
 # discretization, the discrete decomposition filter(eₖ) = eₖˡ + eₖˢ then holds exactly, by construction, on
@@ -89,7 +89,7 @@ SubFilterKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = noth
     SubFilterKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N))
 #---
 
-#+++ Sub-filter kinetic energy dissipation
+#+++ Subfilter kinetic energy dissipation
 # Exposed as a single `KernelFunctionOperation` using the same wrapper trick as `KineticEnergyCrossScaleFlux`:
 # the kernel just indexes the pre-assembled operation εₖˢ = filter(εₖ) - εₖˡ, whose leaves are the materialized
 # filtered `Field`s, so per-cell evaluation only reads those fields and subtracts (it never re-filters).

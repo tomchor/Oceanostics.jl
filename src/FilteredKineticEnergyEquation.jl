@@ -104,7 +104,7 @@ end
 FilteredKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) = FilteredKineticEnergy(model, GaussianFilter(; dims, σ, boundary, N))
 #---
 
-#+++ Sub-filter stress tensor
+#+++ Subfilter stress tensor
 """
     $(SIGNATURES)
 

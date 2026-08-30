@@ -120,7 +120,7 @@ FilteredKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center,
 Oceanostics.FilteredKineticEnergyEquation.FilteredKineticEnergy
 ```
 
-## Sub-filter-scale stress tensor
+## Subfilter-scale stress tensor
 
 ```@docs
 Oceanostics.FilteredKineticEnergyEquation.subfilter_stress_tensor

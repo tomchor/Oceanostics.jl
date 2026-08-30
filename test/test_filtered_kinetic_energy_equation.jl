@@ -231,7 +231,7 @@ end
 
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1, boundary=:edge)
 
-    @info "    Sub-filter stress tensor"
+    @info "    Subfilter stress tensor"
     test_subfilter_stress_tensor(model, filt)
 
     @info "    Cross-scale KE flux matches manual contraction"

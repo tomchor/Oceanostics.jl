@@ -6,7 +6,7 @@ energy of the *filtered* buoyancy field: the share of the local APE ``e_a`` of
 low-pass spatial filter ``\overline{(\,\cdot\,)}`` keeps would carry on their own, following the
 filtered APE framework of [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879). It is
 the potential-energy counterpart of the [Filtered kinetic energy equation](@ref), and the
-[Sub-filter available potential energy equation](@ref) budgets what the filter removes.
+[Subfilter available potential energy equation](@ref) budgets what the filter removes.
 
 ## The available potential energy of the filtered buoyancy
 

@@ -862,7 +862,7 @@ end
 to_center(ψ) = @at (Center, Center, Center) ψ
 #---
 
-#+++ Sub-filter covariance (generalized second moment)
+#+++ Subfilter covariance (generalized second moment)
 """
     $(SIGNATURES)
 
@@ -881,9 +881,9 @@ cannot represent on their own — the transport/stress carried by scales smaller
 
 Two common special cases are:
 
-  - **Sub-filter tracer flux** — `a = uᵢ` (a velocity component), `b = c` (a tracer):
+  - **Subfilter tracer flux** — `a = uᵢ` (a velocity component), `b = c` (a tracer):
     `τ(uᵢ, c) = filter(uᵢ c) - ūᵢ c̄`, the flux of `c` carried by subfilter scales.
-  - **Sub-filter momentum stress** — `a = uᵢ`, `b = uⱼ`: `τ(uᵢ, uⱼ) = filter(uᵢ uⱼ) - ūᵢ ūⱼ`, the
+  - **Subfilter momentum stress** — `a = uᵢ`, `b = uⱼ`: `τ(uᵢ, uⱼ) = filter(uᵢ uⱼ) - ūᵢ ūⱼ`, the
     subfilter (subgrid-scale) Reynolds-type stress component.
 
 `a` and `b` (`Field`s or `AbstractOperation`s) are interpolated to the common location `loc` before
