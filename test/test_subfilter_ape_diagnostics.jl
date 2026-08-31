@@ -67,7 +67,8 @@ end
 
 # eₐ is convex in buoyancy, so for a filter with no vertical component Jensen's inequality makes
 # eₐˢ ≥ 0 pointwise (exactly, up to roundoff, since the full field's buoyancies are the profile's own
-# entries). A constant buoyancy is the degenerate case: no available energy at any scale.
+# entries). A constant buoyancy is the degenerate case: no available energy at any scale. The bound is
+# not universal, and `test_subfilter_ape_resting_fluid` below is the case that breaks it.
 function test_subfilter_ape_signs(grid, filt_horizontal)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b=random_stratified_b)
@@ -77,6 +78,70 @@ function test_subfilter_ape_signs(grid, filt_horizontal)
     set!(model, b=1e-2)   # constant buoyancy: eₐ ≡ 0 and eₐˡ is roundoff-sized
     eₐˢ_const = Field(SubFilterAvailablePotentialEnergy(model, filt_horizontal))
     @test maximum(abs, interior(eₐˢ_const)) < 1e-12
+    return nothing
+end
+
+# The Jensen argument above bounds an average taken at *fixed z*: eₐ(·, z) is convex in b, so averaging
+# buoyancies that all sit at one height cannot lower it. A filter with vertical extent averages across
+# heights instead, and then there is no bound at all. The sharpest case is a fluid at rest in its own
+# reference state, b = b✶(z). Every parcel already sits at its reference height, so eₐ ≡ 0 everywhere
+# and any split of it has to give zero for both parts.
+#
+# It does not. Writing z + r for the heights the filter reaches, b̄(z) = filter(b✶(z + r)) ≠ b✶(z)
+# wherever b✶ is curved (to leading order b̄ - b✶ ≈ ½ b✶'' ⟨r²⟩), so the filtered field is no longer a
+# reference state and carries a spurious eₐˡ > 0. With filter(eₐ) = 0 the subfilter part is its mirror
+# image, eₐˢ = -eₐˡ < 0: two reservoirs that are equal, opposite, and both fictitious.
+#
+# Unlike the random-field tests above this one is deterministic and exact. eₐ vanishes to the bit, so a
+# negative eₐˢ cannot be read as roundoff or as the nearest-class fallback for buoyancies off the
+# profile; it is the whole of what the split reports.
+resting_tanh_b(x, y, z) = tanh((z - 1) / 0.25)   # stable and curved, flattening towards both walls
+resting_linear_b(x, y, z) = 0.5 * z              # stable and straight: no curvature for the filter to find
+
+# eₐ, eₐˡ and eₐˢ against one shared profile, the way `SubFilterAvailablePotentialEnergy` builds them,
+# brought back to the host so the checks below can pick out a single level without tripping the GPU's
+# scalar indexing guard.
+function resting_energies(grid, setter, filt)
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b=setter)
+    lookup = ProfileLookup(reference_height(model, method=VerticalSort()))
+    eₐ  = AvailablePotentialEnergy(model, reference_height(model.tracers.b; method=lookup))
+    eₐˡ = FilteredAvailablePotentialEnergy(model, reference_height(Field(filt(model.tracers.b)); method=lookup))
+    eₐˢ = SubFilterAvailablePotentialEnergy(model, filt; method=lookup)
+    return map(op -> Array(interior(Field(op))), (eₐ, eₐˡ, eₐˢ))
+end
+
+function test_subfilter_ape_resting_fluid(grid, filt_vertical)
+    eₐ, eₐˡ, eₐˢ = resting_energies(grid, resting_tanh_b, filt_vertical)
+
+    @test maximum(abs, eₐ) < 1e-14                  # the premise: a resting fluid has no available energy
+    @test maximum(eₐˡ) > 1e-4                       # yet the split reports a large-scale reservoir
+    @test minimum(eₐˢ) < -1e-4                      # and pays for it with a negative subfilter one
+    @test maximum(abs, eₐˢ .+ eₐˡ) < 1e-14          # mirror images, since filter(eₐ) = 0 leaves eₐˢ = -eₐˡ
+    @test sum(eₐˢ) < 0                              # and it does not cancel in the integral (uniform cells)
+
+    # the size of the effect is set by the curvature of b✶, so it pinches out at the inflection point
+    k_inflection = argmin(abs.(vec(Array(znodes(grid, Center()))) .- 1))
+    @test maximum(eₐˡ[:, :, k_inflection]) < 1e-3 * maximum(eₐˡ)
+    return nothing
+end
+
+# Vertical extent and curvature are both necessary, and removing either restores the bound. A filter
+# with no vertical component reaches only along z = const, where b✶(z) is a single value, so b̄ = b✶(z)
+# and both reservoirs vanish identically. A straight profile is returned unchanged by any symmetric
+# stencil, so it vanishes too, except within 2σ of a wall: there the stencil is truncated and
+# renormalized, which tilts it and leaves a boundary-sized remainder. That 2σ is the reach `infer_width`
+# gives the Gaussian, so the rows to skip follow from σ and the grid spacing.
+function test_subfilter_ape_resting_fluid_ingredients(grid, filt_vertical, filt_horizontal, σ)
+    _, eₐˡ_h, eₐˢ_h = resting_energies(grid, resting_tanh_b, filt_horizontal)
+    @test maximum(abs, eₐˡ_h) < 1e-14
+    @test maximum(abs, eₐˢ_h) < 1e-14
+
+    _, eₐˡ_lin, eₐˢ_lin = resting_energies(grid, resting_linear_b, filt_vertical)
+    n_wall = ceil(Int, 2σ / minimum(zspacings(grid)))
+    inside = (n_wall + 1):(size(eₐˡ_lin, 3) - n_wall)
+    @test maximum(abs, eₐˡ_lin[:, :, inside]) < 1e-14
+    @test maximum(abs, eₐˢ_lin[:, :, inside]) < 1e-14
     return nothing
 end
 
@@ -313,6 +378,17 @@ end
 
     @info "    Horizontal filter keeps eₐˢ ≥ 0 (Jensen); constant buoyancy vanishes"
     test_subfilter_ape_signs(grid, filt_horizontal)
+
+    # A curved profile has to be curved *on the grid*, and the filter has to be wide enough that the
+    # displacement it creates clears the reference profile's own class spacing, so these two carry their
+    # own tall grid and their own filter rather than the shared 8×8×8 box.
+    @info "    A fluid at rest: a vertical filter splits a zero eₐ into ±eₐ (Jensen does not apply)"
+    resting_grid = RectilinearGrid(arch, size=(4, 4, 64), x=(0, 1), y=(0, 1), z=(0, 2),
+                                   topology=(Periodic, Periodic, Bounded))
+    σ_resting = 0.2
+    filt_resting = ψ -> GaussianFilter(ψ; dims=(3,), σ=σ_resting, boundary=:edge)
+    test_subfilter_ape_resting_fluid(resting_grid, filt_resting)
+    test_subfilter_ape_resting_fluid_ingredients(resting_grid, filt_resting, filt_horizontal, σ_resting)
 
     @info "    Gaussian convenience methods"
     test_subfilter_ape_convenience(model)
