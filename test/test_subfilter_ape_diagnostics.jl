@@ -82,10 +82,14 @@ function test_subfilter_ape_signs(grid, filt_horizontal)
 end
 
 # The Jensen argument above bounds an average taken at *fixed z*: eₐ(·, z) is convex in b, so averaging
-# buoyancies that all sit at one height cannot lower it. A filter with vertical extent averages across
-# heights instead, and then there is no bound at all. The sharpest case is a fluid at rest in its own
-# reference state, b = b✶(z). Every parcel already sits at its reference height, so eₐ ≡ 0 everywhere
-# and any split of it has to give zero for both parts.
+# buoyancies that all sit at one height cannot lower it. A filter with vertical extent averages (b, z)
+# jointly, and what it would need is joint convexity. The Hessian of eₐ is [[1/N²(z✶), -1], [-1, N²(z)]],
+# so its determinant is N²(z)/N²(z✶) - 1 and eₐ is jointly convex only where the stratification at the
+# parcel's own height is at least as strong as at its reference height. Outside that region a symmetric
+# stencil no longer gives filter(eₐ) ≥ eₐ(b̄, z), and eₐˢ is free to go negative.
+#
+# The sharpest case is a fluid at rest in its own reference state, b = b✶(z). Every parcel already sits
+# at its reference height, so eₐ ≡ 0 everywhere and any split of it has to give zero for both parts.
 #
 # It does not. Writing z + r for the heights the filter reaches, b̄(z) = filter(b✶(z + r)) ≠ b✶(z)
 # wherever b✶ is curved (to leading order b̄ - b✶ ≈ ½ b✶'' ⟨r²⟩), so the filtered field is no longer a
@@ -129,9 +133,14 @@ end
 # Vertical extent and curvature are both necessary, and removing either restores the bound. A filter
 # with no vertical component reaches only along z = const, where b✶(z) is a single value, so b̄ = b✶(z)
 # and both reservoirs vanish identically. A straight profile is returned unchanged by any symmetric
-# stencil, so it vanishes too, except within 2σ of a wall: there the stencil is truncated and
-# renormalized, which tilts it and leaves a boundary-sized remainder. That 2σ is the reach `infer_width`
-# gives the Gaussian, so the rows to skip follow from σ and the grid spacing.
+# stencil, so it vanishes too. In the language above, a uniform N² sits exactly on the joint-convexity
+# boundary: the Hessian is singular there, eₐ = bᵣ²/2N² is a degenerate quadratic in (b, z), and the
+# inequality holds with equality rather than being violated, which is the exact zero checked below.
+#
+# The exception is within 2σ of a wall, where the stencil is truncated and renormalized. That tilts it,
+# leaving ⟨r⟩ ≠ 0, so it no longer averages to the target height and a boundary-sized remainder
+# survives. That 2σ is the reach `infer_width` gives the Gaussian, so the rows to skip below follow
+# from σ and the grid spacing.
 function test_subfilter_ape_resting_fluid_ingredients(grid, filt_vertical, filt_horizontal, σ)
     _, eₐˡ_h, eₐˢ_h = resting_energies(grid, resting_tanh_b, filt_horizontal)
     @test maximum(abs, eₐˡ_h) < 1e-14
