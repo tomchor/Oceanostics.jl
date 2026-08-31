@@ -211,6 +211,7 @@ Z3 = ds["z✶_ranked"][:, :, :]
 ZH = ds["z✶_heaviside"][:, :, :]
 Z1 = ds["z✶_column"][:, :, :]            # (1, N, time): the column keeps the model's Flat y, dropped here
 B1 = ds["b✶_column"][:, :, :]
+E1 = ds["eₐ_column"][:, :, :]           # the column's own eₐ, checked for sign below   #hide
 close(ds)
 
 ## pair a reference-height map with the buoyancy map and order by z✶
@@ -352,6 +353,8 @@ eₐL_t = FieldTimeSeries(filepath, "eₐ_lookup")
 for A in (eₐ3_t, eₐH_t, eₐL_t)                                                                  #hide
     @test minimum(minimum(interior(A[n])) for n in 1:length(times)) ≥ -1e-6 * maximum(interior(A[end]))  #hide
 end                                                                                                #hide
+## and on the sorted column too, where eₐ is ordered by rank rather than by position             #hide
+@test minimum(E1) ≥ -1e-6 * maximum(E1)                                                           #hide
 ## the three model-grid methods agree cell by cell, not merely in the integral                     #hide
 for n in 1:length(times)                                                                           #hide
     @test interior(eₐH_t[n]) ≈ interior(eₐ3_t[n]) atol=1e-12                                     #hide
