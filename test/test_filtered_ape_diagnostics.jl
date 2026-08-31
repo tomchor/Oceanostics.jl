@@ -85,10 +85,15 @@ end
 # term can dip below zero by at most half a class gap times the displacement — a discretization-sized
 # amount, not roundoff. Looking b̄ up in a profile sorted from b̄ itself puts it on the profile, and
 # there eₐˡ ≥ 0 to roundoff, which is the sharp check that the kernel's sign is right.
-function test_filtered_ape_nonnegative(grid, filt_horizontal)
+#
+# Neither bound depends on which way the filter cuts: b̄ is a convex combination of the field's own
+# buoyancies whatever `dims` is, so it lands between the same profile entries. That makes this test the
+# one place the vertical direction can be exercised, unlike `eₐˢ ≥ 0` in the subfilter suite, which
+# rests on Jensen at fixed z and genuinely fails once the filter averages across heights.
+function test_filtered_ape_nonnegative(grid, filt)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b=random_stratified_b)
-    b̄ = Field(filt_horizontal(model.tracers.b))
+    b̄ = Field(filt(model.tracers.b))
 
     # against the full field's profile: bounded by the profile's resolution
     col = reference_height(model, method=VerticalSort())
@@ -448,6 +453,7 @@ end
     grid = RectilinearGrid(arch, size=(8, 8, 8), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1, boundary=:edge)
     filt_horizontal = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1)
+    filt_vertical = ψ -> GaussianFilter(ψ; dims=(3,), σ=0.1, boundary=:edge)
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
     set!(model, b=random_stratified_b)
@@ -463,6 +469,8 @@ end
 
     @info "    eₐˡ ≥ 0 (to the profile's resolution against the full field's profile; to roundoff against its own)"
     test_filtered_ape_nonnegative(grid, filt_horizontal)
+    test_filtered_ape_nonnegative(grid, filt_vertical)
+    test_filtered_ape_nonnegative(grid, filt)
 
     @info "    Gaussian convenience methods"
     test_filtered_ape_convenience(model)
