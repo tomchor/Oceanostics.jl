@@ -18,6 +18,12 @@ arch = has_cuda_gpu() ? GPU() : CPU()
 # A random stably stratified buoyancy, shared by most tests below.
 random_stratified_b(x, y, z) = 1e-2 * z + 1e-3 * randn()
 
+# A deterministic stand-in for it, for the checks whose verdict depends on the particular field rather
+# than on an identity: the same stratification with a smooth three-dimensional disturbance, so that a
+# failure is reproducible rather than a property of one random draw. It uses no RNG, so `set!` can
+# evaluate it inside a GPU kernel.
+wavy_stratified_b(x, y, z) = 1e-2 * z + 1e-3 * sinpi(2x) * cospi(2y) * sinpi(4z)
+
 #+++ Test functions
 # eₐˢ = filter(eₐ) - eₐˡ must equal the hand-built difference, with both terms measured against one
 # shared reference profile: the full and the filtered buoyancy each looked up in the same VerticalSort
@@ -54,57 +60,73 @@ function test_subfilter_ape_identity_filter_vanishes(model)
     return nothing
 end
 
-# A horizontally uniform, stable stratification filtered horizontally: b̄ = b up to roundoff, and both
-# eₐ and eₐˡ vanish (z✶ = z cell by cell), so eₐˢ ≈ 0. eₐ is blind to where in a tied run the lookup
-# lands, so the roundoff in b̄ cannot leak an O(Δz) error into this test.
-function test_subfilter_ape_uniform_stratification_vanishes(grid, filt_horizontal)
+# A horizontally uniform, stable stratification is its own reference state, so it carries no available
+# energy at any scale and eₐˢ has to vanish whichever way the filter cuts. Filtered horizontally, b̄ = b
+# up to roundoff and both eₐ and eₐˡ vanish cell by cell (z✶ = z); eₐ is blind to where in a tied run
+# the lookup lands, so the roundoff in b̄ cannot leak an O(Δz) error into this test. A filter with
+# vertical extent returns the straight profile unchanged only where its stencil fits inside the domain.
+# Within 2σ of a wall the stencil is truncated and renormalized and b̄ leaves the profile. On this coarse
+# grid that shift stays below half a class gap of the reference profile, so the lookup does not move and
+# the test passes for every filter; the resting straight profile on the tall grid below resolves the
+# same shift and fails there.
+function test_subfilter_ape_uniform_stratification_vanishes(grid, filt)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b=(x, y, z) -> 1e-2 * z)
-    eₐˢ = Field(SubFilterAvailablePotentialEnergy(model, filt_horizontal))
+    eₐˢ = Field(SubFilterAvailablePotentialEnergy(model, filt))
     @test maximum(abs, interior(eₐˢ)) < 1e-12
     return nothing
 end
 
-# eₐ is convex in buoyancy, so for a filter with no vertical component Jensen's inequality makes
-# eₐˢ ≥ 0 pointwise (exactly, up to roundoff, since the full field's buoyancies are the profile's own
-# entries). A constant buoyancy is the degenerate case: no available energy at any scale. The bound is
-# not universal, and `test_subfilter_ape_resting_fluid` below is the case that breaks it.
-function test_subfilter_ape_signs(grid, filt_horizontal)
+# eₐ is convex in buoyancy, so Jensen's inequality makes eₐˢ ≥ 0 pointwise for a filter that averages at
+# fixed z (exactly, up to roundoff, since the full field's buoyancies are the profile's own entries). This
+# asserts the bound for every filter. The horizontal one satisfies it. A filter with vertical extent
+# averages (b, z) jointly, and there the bound needs joint convexity of eₐ, which fails wherever the
+# stratification at the parcel's own height is weaker than at its reference height (the resting-fluid
+# tests below carry the derivation); the vertical and 3D calls fail at present. A constant buoyancy is
+# the degenerate case: no available energy at any scale.
+function test_subfilter_ape_signs(grid, filt)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
-    set!(model, b=random_stratified_b)
-    eₐˢ = Field(SubFilterAvailablePotentialEnergy(model, filt_horizontal))
+    set!(model, b=wavy_stratified_b)
+    eₐˢ = Field(SubFilterAvailablePotentialEnergy(model, filt))
     @test minimum(interior(eₐˢ)) ≥ -1e-12
 
     set!(model, b=1e-2)   # constant buoyancy: eₐ ≡ 0 and eₐˡ is roundoff-sized
-    eₐˢ_const = Field(SubFilterAvailablePotentialEnergy(model, filt_horizontal))
+    eₐˢ_const = Field(SubFilterAvailablePotentialEnergy(model, filt))
     @test maximum(abs, interior(eₐˢ_const)) < 1e-12
     return nothing
 end
 
-# The Jensen argument above bounds an average taken at *fixed z*: eₐ(·, z) is convex in b, so averaging
-# buoyancies that all sit at one height cannot lower it. A filter with vertical extent averages (b, z)
-# jointly, and what it would need is joint convexity. The Hessian of eₐ is [[1/N²(z✶), -1], [-1, N²(z)]],
-# so its determinant is N²(z)/N²(z✶) - 1 and eₐ is jointly convex only where the stratification at the
-# parcel's own height is at least as strong as at its reference height. Outside that region a symmetric
-# stencil no longer gives filter(eₐ) ≥ eₐ(b̄, z), and eₐˢ is free to go negative.
+# The sharpest test of that bound is a fluid at rest in its own reference state, b = b✶(z). Every parcel
+# already sits at its reference height, so eₐ ≡ 0 everywhere and any split of it has to give zero for
+# both parts, whichever filter makes the split. These tests assert exactly that, for a curved and for a
+# straight resting profile under a horizontal, a vertical and a 3D filter.
 #
-# The sharpest case is a fluid at rest in its own reference state, b = b✶(z). Every parcel already sits
-# at its reference height, so eₐ ≡ 0 everywhere and any split of it has to give zero for both parts.
+# The horizontal filter passes: it reaches only along z = const, where b✶(z) is a single value, so
+# b̄ = b✶(z) and both parts vanish identically. The two with vertical extent fail at present, and the
+# mechanism is worth having on record. Writing z + r for the heights the filter reaches,
+# b̄(z) = filter(b✶(z + r)) ≠ b✶(z) wherever b✶ is curved (to leading order b̄ - b✶ ≈ ½ b✶'' ⟨r²⟩), so
+# the filtered field is no longer a reference state and the split reports a spurious eₐˡ > 0. With
+# filter(eₐ) = 0 the subfilter part is its mirror image, eₐˢ = -eₐˡ < 0: two reservoirs that are equal,
+# opposite, and both fictitious. On the grid below with σ = 0.2 they come out at ±5e-3, against a true
+# value of exactly zero.
 #
-# It does not. Writing z + r for the heights the filter reaches, b̄(z) = filter(b✶(z + r)) ≠ b✶(z)
-# wherever b✶ is curved (to leading order b̄ - b✶ ≈ ½ b✶'' ⟨r²⟩), so the filtered field is no longer a
-# reference state and carries a spurious eₐˡ > 0. With filter(eₐ) = 0 the subfilter part is its mirror
-# image, eₐˢ = -eₐˡ < 0: two reservoirs that are equal, opposite, and both fictitious.
+# Jensen does not rescue it. The argument in `test_subfilter_ape_signs` bounds an average taken at
+# *fixed z*, where eₐ(·, z) is convex in b. A filter with vertical extent averages (b, z) jointly, and
+# what that needs is joint convexity: the Hessian of eₐ is [[1/N²(z✶), -1], [-1, N²(z)]], so its
+# determinant is N²(z)/N²(z✶) - 1 and eₐ is jointly convex only where the stratification at the parcel's
+# own height is at least as strong as at its reference height. A uniform N² sits exactly on that
+# boundary, the Hessian singular and eₐ = bᵣ²/2N² a degenerate quadratic in (b, z), which is why the
+# straight profile fails only within 2σ of a wall, where the truncated stencil has ⟨r⟩ ≠ 0 and no longer
+# averages to the target height. Curvature moves off the boundary, and in a resting fluid always to the
+# wrong side: filter(eₐ) = 0 is the floor of a non-negative quantity, so any eₐˡ > 0 forces eₐˢ < 0.
 #
-# Unlike the random-field tests above this one is deterministic and exact. eₐ vanishes to the bit, so a
-# negative eₐˢ cannot be read as roundoff or as the nearest-class fallback for buoyancies off the
-# profile; it is the whole of what the split reports.
+# Unlike the tests above these are deterministic and exact. eₐ vanishes to the bit, so a negative eₐˢ
+# cannot be read as roundoff or as the nearest-class fallback for buoyancies off the profile.
 resting_tanh_b(x, y, z) = tanh((z - 1) / 0.25)   # stable and curved, flattening towards both walls
 resting_linear_b(x, y, z) = 0.5 * z              # stable and straight: no curvature for the filter to find
 
 # eₐ, eₐˡ and eₐˢ against one shared profile, the way `SubFilterAvailablePotentialEnergy` builds them,
-# brought back to the host so the checks below can pick out a single level without tripping the GPU's
-# scalar indexing guard.
+# brought back to the host, where the checks below are plain array reductions.
 function resting_energies(grid, setter, filt)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b=setter)
@@ -115,42 +137,13 @@ function resting_energies(grid, setter, filt)
     return map(op -> Array(interior(Field(op))), (eₐ, eₐˡ, eₐˢ))
 end
 
-function test_subfilter_ape_resting_fluid(grid, filt_vertical)
-    eₐ, eₐˡ, eₐˢ = resting_energies(grid, resting_tanh_b, filt_vertical)
-
-    @test maximum(abs, eₐ) < 1e-14                  # the premise: a resting fluid has no available energy
-    @test maximum(eₐˡ) > 1e-4                       # yet the split reports a large-scale reservoir
-    @test minimum(eₐˢ) < -1e-4                      # and pays for it with a negative subfilter one
-    @test maximum(abs, eₐˢ .+ eₐˡ) < 1e-14          # mirror images, since filter(eₐ) = 0 leaves eₐˢ = -eₐˡ
-    @test sum(eₐˢ) < 0                              # and it does not cancel in the integral (uniform cells)
-
-    # the size of the effect is set by the curvature of b✶, so it pinches out at the inflection point
-    k_inflection = argmin(abs.(vec(Array(znodes(grid, Center()))) .- 1))
-    @test maximum(eₐˡ[:, :, k_inflection]) < 1e-3 * maximum(eₐˡ)
-    return nothing
-end
-
-# Vertical extent and curvature are both necessary, and removing either restores the bound. A filter
-# with no vertical component reaches only along z = const, where b✶(z) is a single value, so b̄ = b✶(z)
-# and both reservoirs vanish identically. A straight profile is returned unchanged by any symmetric
-# stencil, so it vanishes too. In the language above, a uniform N² sits exactly on the joint-convexity
-# boundary: the Hessian is singular there, eₐ = bᵣ²/2N² is a degenerate quadratic in (b, z), and the
-# inequality holds with equality rather than being violated, which is the exact zero checked below.
-#
-# The exception is within 2σ of a wall, where the stencil is truncated and renormalized. That tilts it,
-# leaving ⟨r⟩ ≠ 0, so it no longer averages to the target height and a boundary-sized remainder
-# survives. That 2σ is the reach `infer_width` gives the Gaussian, so the rows to skip below follow
-# from σ and the grid spacing.
-function test_subfilter_ape_resting_fluid_ingredients(grid, filt_vertical, filt_horizontal, σ)
-    _, eₐˡ_h, eₐˢ_h = resting_energies(grid, resting_tanh_b, filt_horizontal)
-    @test maximum(abs, eₐˡ_h) < 1e-14
-    @test maximum(abs, eₐˢ_h) < 1e-14
-
-    _, eₐˡ_lin, eₐˢ_lin = resting_energies(grid, resting_linear_b, filt_vertical)
-    n_wall = ceil(Int, 2σ / minimum(zspacings(grid)))
-    inside = (n_wall + 1):(size(eₐˡ_lin, 3) - n_wall)
-    @test maximum(abs, eₐˡ_lin[:, :, inside]) < 1e-14
-    @test maximum(abs, eₐˢ_lin[:, :, inside]) < 1e-14
+function test_subfilter_ape_resting_fluid(grid, setter, filt)
+    eₐ, eₐˡ, eₐˢ = resting_energies(grid, setter, filt)
+    @test maximum(abs, eₐ) < 1e-14          # the premise: a resting fluid has no available energy
+    @test maximum(abs, eₐˢ .+ eₐˡ) < 1e-14  # and the split is exact, eₐˢ = -eₐˡ, whatever their signs
+    @test minimum(eₐˢ) ≥ -1e-12             # the bound: no negative subfilter reservoir ...
+    @test sum(eₐˢ) ≥ 0                      # ... and none in the volume integral either (uniform cells)
+    @test maximum(abs, eₐˡ) < 1e-12         # equivalently, no large-scale reservoir to pay for it
     return nothing
 end
 
@@ -372,6 +365,7 @@ end
     grid = RectilinearGrid(arch, size=(8, 8, 8), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1, boundary=:edge)
     filt_horizontal = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1)
+    filt_vertical = ψ -> GaussianFilter(ψ; dims=(3,), σ=0.1, boundary=:edge)
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
     set!(model, b=random_stratified_b)
@@ -382,22 +376,40 @@ end
     @info "    Identity filter makes eₐˢ and εₐˢ vanish identically"
     test_subfilter_ape_identity_filter_vanishes(model)
 
-    @info "    Horizontally uniform stratification vanishes (eₐˢ)"
-    test_subfilter_ape_uniform_stratification_vanishes(grid, filt_horizontal)
+    # The sign checks run over all three ways a filter can cut, each in its own labelled testset so the
+    # summary says which one failed. The bound they assert is guaranteed only for the horizontal filter;
+    # the vertical and 3D cases fail at present wherever the grid resolves the displacement the filter
+    # creates (see the comments on the test functions).
+    cuts = ("horizontal" => filt_horizontal, "vertical" => filt_vertical, "3D" => filt)
 
-    @info "    Horizontal filter keeps eₐˢ ≥ 0 (Jensen); constant buoyancy vanishes"
-    test_subfilter_ape_signs(grid, filt_horizontal)
+    @info "    Horizontally uniform stratification vanishes (eₐˢ), whichever way the filter cuts"
+    for (cut, f) in cuts
+        @testset "uniform stratification, $cut filter" begin
+            test_subfilter_ape_uniform_stratification_vanishes(grid, f)
+        end
+    end
+
+    @info "    eₐˢ ≥ 0 (Jensen) for every filter; constant buoyancy vanishes"
+    for (cut, f) in cuts
+        @testset "eₐˢ ≥ 0, $cut filter" begin
+            test_subfilter_ape_signs(grid, f)
+        end
+    end
 
     # A curved profile has to be curved *on the grid*, and the filter has to be wide enough that the
-    # displacement it creates clears the reference profile's own class spacing, so these two carry their
-    # own tall grid and their own filter rather than the shared 8×8×8 box.
-    @info "    A fluid at rest: a vertical filter splits a zero eₐ into ±eₐ (Jensen does not apply)"
+    # displacement it creates clears the reference profile's own class spacing, so these carry their own
+    # tall grid and their own filters rather than the shared 8×8×8 box.
+    @info "    A fluid at rest carries no available energy at any scale, whichever way the filter cuts"
     resting_grid = RectilinearGrid(arch, size=(4, 4, 64), x=(0, 1), y=(0, 1), z=(0, 2),
                                    topology=(Periodic, Periodic, Bounded))
-    σ_resting = 0.2
-    filt_resting = ψ -> GaussianFilter(ψ; dims=(3,), σ=σ_resting, boundary=:edge)
-    test_subfilter_ape_resting_fluid(resting_grid, filt_resting)
-    test_subfilter_ape_resting_fluid_ingredients(resting_grid, filt_resting, filt_horizontal, σ_resting)
+    resting_cuts = ("horizontal" => (ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.2)),
+                    "vertical"   => (ψ -> GaussianFilter(ψ; dims=(3,), σ=0.2, boundary=:edge)),
+                    "3D"         => (ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.2, boundary=:edge)))
+    for (profile, setter) in ("curved" => resting_tanh_b, "straight" => resting_linear_b), (cut, f) in resting_cuts
+        @testset "resting $profile profile, $cut filter" begin
+            test_subfilter_ape_resting_fluid(resting_grid, setter, f)
+        end
+    end
 
     @info "    Gaussian convenience methods"
     test_subfilter_ape_convenience(model)
