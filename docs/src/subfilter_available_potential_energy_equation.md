@@ -34,7 +34,7 @@ plain arrays holds the reference state fixed in time (which also makes the diagn
 
 Because ``e_a`` is convex in buoyancy, a filter with no vertical component keeps ``e_a^s \geq 0``
 pointwise, by Jensen's inequality; a filter that acts vertically mixes heights as well as buoyancies
-and can produce locally negative values.
+and can produce locally negative values in the current formulation.
 
 ```@docs
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy

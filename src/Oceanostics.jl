@@ -60,7 +60,7 @@ export TurbulentKineticEnergy,
 #---
 
 #+++ FlowDiagnostics exports
-export RichardsonNumber, RossbyNumber
+export GradientRichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity
 export DirectionalErtelPotentialVorticity
 export StrainRateTensor, StrainRateTensorModulus
@@ -477,7 +477,7 @@ end
 #---
 
 #+++ FlowDiagnostics
-@diagnostic_show FlowDiagnostics.RichardsonNumber                   "RichardsonNumber"                   "Richardson number  (∂b/∂z) / |∂u⃗ₕ/∂z|²"
+@diagnostic_show FlowDiagnostics.GradientRichardsonNumber                   "GradientRichardsonNumber"                   "Richardson number  (∂b/∂z) / |∂u⃗ₕ/∂z|²"
 @diagnostic_show FlowDiagnostics.RossbyNumber                       "RossbyNumber"                       "Rossby number  ωᶻ/f"
 @diagnostic_show FlowDiagnostics.ErtelPotentialVorticity            "ErtelPotentialVorticity"            "Ertel potential vorticity  ω⃗ₜₒₜ · ∇b"
 @diagnostic_show FlowDiagnostics.ThermalWindPotentialVorticity      "ThermalWindPotentialVorticity"      "Ertel PV, thermal-wind form  (f + ωᶻ)∂b/∂z - f((∂U/∂z)² + (∂V/∂z)²)"

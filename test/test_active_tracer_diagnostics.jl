@@ -41,15 +41,15 @@ function test_buoyancy_diagnostics(model)
     fx, fy, fz = get_coriolis_frequency_components(model)
     if model.buoyancy != nothing && model.buoyancy.formulation isa LinearBuoyancyForce
 
-        Ri = RichardsonNumber(model)
-        @test Ri isa RichardsonNumber
+        Ri = GradientRichardsonNumber(model)
+        @test Ri isa GradientRichardsonNumber
         Ri_field = Field(Ri)
         @test Ri_field isa Field
         @test Array(interior(Ri_field))[3, 3, 3] ≈ N² / S^2
 
         b = buoyancy_operation(model)
-        Ri = RichardsonNumber(model, u, v, w, b)
-        @test Ri isa RichardsonNumber
+        Ri = GradientRichardsonNumber(model, u, v, w, b)
+        @test Ri isa GradientRichardsonNumber
         Ri_field = Field(Ri)
         @test Ri_field isa Field
         @test Array(interior(Ri_field))[3, 3, 3] ≈ N² / S^2

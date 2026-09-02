@@ -89,9 +89,9 @@ progress = ProgressMessengers.TimedMessenger()
 simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))
 
 
-# We can also define some useful diagnostics of the flow, starting with the `RichardsonNumber`
+# We can also define some useful diagnostics of the flow, starting with the `GradientRichardsonNumber`
 
-Ri = RichardsonNumber(model)
+Ri = GradientRichardsonNumber(model)
 
 # We also set-up the `QVelocityGradientTensorInvariant`, which is usually used for visualizing
 # vortices in the flow:

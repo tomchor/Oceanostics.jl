@@ -1,7 +1,7 @@
 module FlowDiagnostics
 using DocStringExtensions
 
-export RichardsonNumber, RossbyNumber
+export GradientRichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
 export StrainRateTensor, StrainRateTensorModulus, VorticityTensor, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export StressTensor
@@ -67,7 +67,7 @@ end
     return dbdz / duₕdz^2
 end
 
-const RichardsonNumber = CustomKFO{<:typeof(richardson_number_ccf)}
+const GradientRichardsonNumber = CustomKFO{<:typeof(richardson_number_ccf)}
 
 """
     $(SIGNATURES)
@@ -87,21 +87,21 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
 
-julia> Ri = RichardsonNumber(model)
-RichardsonNumber KernelFunctionOperation at (Center, Center, Face)
+julia> Ri = GradientRichardsonNumber(model)
+GradientRichardsonNumber KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: richardson_number_ccf (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Tuple")
 └── computes: Richardson number  (∂b/∂z) / |∂u⃗ₕ/∂z|²
 ```
 """
-function RichardsonNumber(model; loc = (Center, Center, Face))
-    validate_location(loc, "RichardsonNumber", (Center, Center, Face))
-    return RichardsonNumber(model, model.velocities..., buoyancy_operation(model); loc)
+function GradientRichardsonNumber(model; loc = (Center, Center, Face))
+    validate_location(loc, "GradientRichardsonNumber", (Center, Center, Face))
+    return GradientRichardsonNumber(model, model.velocities..., buoyancy_operation(model); loc)
 end
 
-function RichardsonNumber(model, u, v, w, b; loc = (Center, Center, Face))
-    validate_location(loc, "RichardsonNumber", (Center, Center, Face))
+function GradientRichardsonNumber(model, u, v, w, b; loc = (Center, Center, Face))
+    validate_location(loc, "GradientRichardsonNumber", (Center, Center, Face))
 
     if model.buoyancy.gravity_unit_vector isa NegativeZDirection
         true_vertical_direction = (0, 0, 1)
@@ -110,11 +110,11 @@ function RichardsonNumber(model, u, v, w, b; loc = (Center, Center, Face))
     else
         true_vertical_direction = .-model.buoyancy.gravity_unit_vector
     end
-    return RichardsonNumber(model, u, v, w, b, true_vertical_direction; loc = (Center, Center, Face))
+    return GradientRichardsonNumber(model, u, v, w, b, true_vertical_direction; loc = (Center, Center, Face))
 end
 
-function RichardsonNumber(model, u, v, w, b, true_vertical_direction; loc = (Center, Center, Face))
-    validate_location(loc, "RichardsonNumber", (Center, Center, Face))
+function GradientRichardsonNumber(model, u, v, w, b, true_vertical_direction; loc = (Center, Center, Face))
+    validate_location(loc, "GradientRichardsonNumber", (Center, Center, Face))
     return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid,
                                                          u, v, w, b, true_vertical_direction)
 end

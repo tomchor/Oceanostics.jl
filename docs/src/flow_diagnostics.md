@@ -38,8 +38,8 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, coriolis=FPlane(f=1e-4));
 
-julia> Ri = FlowDiagnostics.RichardsonNumber(model)
-RichardsonNumber KernelFunctionOperation at (Center, Center, Face)
+julia> Ri = FlowDiagnostics.GradientRichardsonNumber(model)
+GradientRichardsonNumber KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: richardson_number_ccf (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Tuple")
@@ -78,7 +78,7 @@ Ri = \frac{\partial b / \partial z}{|\partial \mathbf{u}_h / \partial z|^2}
 where ``z`` is the true vertical (anti-parallel to gravity). Computed at `(Center, Center, Face)`.
 
 ```@docs
-Oceanostics.FlowDiagnostics.RichardsonNumber
+Oceanostics.FlowDiagnostics.GradientRichardsonNumber
 ```
 
 ## Rossby number
