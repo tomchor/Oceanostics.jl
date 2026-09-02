@@ -82,13 +82,13 @@ end
 # asserts the bound for every filter. The horizontal one satisfies it. A filter with vertical extent
 # averages (b, z) jointly, and there the bound needs joint convexity of eₐ, which fails wherever the
 # stratification at the parcel's own height is weaker than at its reference height (the resting-fluid
-# tests below carry the derivation); the vertical and 3D calls fail at present. A constant buoyancy is
-# the degenerate case: no available energy at any scale.
-function test_subfilter_ape_signs(grid, filt)
+# tests below carry the derivation); the bound is `broken` for the vertical and 3D calls. A constant
+# buoyancy is the degenerate case: no available energy at any scale, and that holds for every filter.
+function test_subfilter_ape_signs(grid, filt; vertical_filter=false)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b=wavy_stratified_b)
     eₐˢ = Field(SubFilterAvailablePotentialEnergy(model, filt))
-    @test minimum(interior(eₐˢ)) ≥ -1e-12
+    @test minimum(interior(eₐˢ)) ≥ -1e-12 broken=vertical_filter
 
     set!(model, b=1e-2)   # constant buoyancy: eₐ ≡ 0 and eₐˡ is roundoff-sized
     eₐˢ_const = Field(SubFilterAvailablePotentialEnergy(model, filt))
@@ -102,7 +102,7 @@ end
 # straight resting profile under a horizontal, a vertical and a 3D filter.
 #
 # The horizontal filter passes: it reaches only along z = const, where b✶(z) is a single value, so
-# b̄ = b✶(z) and both parts vanish identically. The two with vertical extent fail at present, and the
+# b̄ = b✶(z) and both parts vanish identically. The two with vertical extent are `broken`, and the
 # mechanism is worth having on record. Writing z + r for the heights the filter reaches,
 # b̄(z) = filter(b✶(z + r)) ≠ b✶(z) wherever b✶ is curved (to leading order b̄ - b✶ ≈ ½ b✶'' ⟨r²⟩), so
 # the filtered field is no longer a reference state and the split reports a spurious eₐˡ > 0. With
@@ -137,13 +137,13 @@ function resting_energies(grid, setter, filt)
     return map(op -> Array(interior(Field(op))), (eₐ, eₐˡ, eₐˢ))
 end
 
-function test_subfilter_ape_resting_fluid(grid, setter, filt)
+function test_subfilter_ape_resting_fluid(grid, setter, filt; vertical_filter=false)
     eₐ, eₐˡ, eₐˢ = resting_energies(grid, setter, filt)
     @test maximum(abs, eₐ) < 1e-14          # the premise: a resting fluid has no available energy
     @test maximum(abs, eₐˢ .+ eₐˡ) < 1e-14  # and the split is exact, eₐˢ = -eₐˡ, whatever their signs
-    @test minimum(eₐˢ) ≥ -1e-12             # the bound: no negative subfilter reservoir ...
-    @test sum(eₐˢ) ≥ 0                      # ... and none in the volume integral either (uniform cells)
-    @test maximum(abs, eₐˡ) < 1e-12         # equivalently, no large-scale reservoir to pay for it
+    @test minimum(eₐˢ) ≥ -1e-12     broken=vertical_filter # the bound: no negative subfilter reservoir ...
+    @test sum(eₐˢ) ≥ 0              broken=vertical_filter # ... and none in the volume integral either (uniform cells)
+    @test maximum(abs, eₐˡ) < 1e-12 broken=vertical_filter # equivalently, no large-scale reservoir to pay for it
     return nothing
 end
 
@@ -377,22 +377,28 @@ end
     test_subfilter_ape_identity_filter_vanishes(model)
 
     # The sign checks run over all three ways a filter can cut, each in its own labelled testset so the
-    # summary says which one failed. The bound they assert is guaranteed only for the horizontal filter;
-    # the vertical and 3D cases fail at present wherever the grid resolves the displacement the filter
-    # creates (see the comments on the test functions).
-    cuts = ("horizontal" => filt_horizontal, "vertical" => filt_vertical, "3D" => filt)
+    # summary names the case. The bound they assert is guaranteed only for the horizontal filter, so the
+    # two cuts that reach in z carry `vertical_filter=true` (the third element of each entry) and their
+    # bound assertions are `broken` wherever the grid resolves the displacement the filter creates. The
+    # comments on the test functions carry the mechanism.
+    cuts = (("horizontal", filt_horizontal, false),
+            ("vertical",   filt_vertical,   true),
+            ("3D",         filt,            true))
 
+    # This one holds for every cut: on this coarse grid the wall shift stays inside a class gap of the
+    # reference profile, so nothing here is broken. The tall-grid resting profiles below resolve the
+    # same shift and do break.
     @info "    Horizontally uniform stratification vanishes (eₐˢ), whichever way the filter cuts"
-    for (cut, f) in cuts
+    for (cut, f, _) in cuts
         @testset "uniform stratification, $cut filter" begin
             test_subfilter_ape_uniform_stratification_vanishes(grid, f)
         end
     end
 
     @info "    eₐˢ ≥ 0 (Jensen) for every filter; constant buoyancy vanishes"
-    for (cut, f) in cuts
+    for (cut, f, vertical_filter) in cuts
         @testset "eₐˢ ≥ 0, $cut filter" begin
-            test_subfilter_ape_signs(grid, f)
+            test_subfilter_ape_signs(grid, f; vertical_filter)
         end
     end
 
@@ -402,12 +408,13 @@ end
     @info "    A fluid at rest carries no available energy at any scale, whichever way the filter cuts"
     resting_grid = RectilinearGrid(arch, size=(4, 4, 64), x=(0, 1), y=(0, 1), z=(0, 2),
                                    topology=(Periodic, Periodic, Bounded))
-    resting_cuts = ("horizontal" => (ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.2)),
-                    "vertical"   => (ψ -> GaussianFilter(ψ; dims=(3,), σ=0.2, boundary=:edge)),
-                    "3D"         => (ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.2, boundary=:edge)))
-    for (profile, setter) in ("curved" => resting_tanh_b, "straight" => resting_linear_b), (cut, f) in resting_cuts
+    resting_cuts = (("horizontal", ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.2), false),
+                    ("vertical",   ψ -> GaussianFilter(ψ; dims=(3,), σ=0.2, boundary=:edge), true),
+                    ("3D",         ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.2, boundary=:edge), true))
+    resting_profiles = ("curved" => resting_tanh_b, "straight" => resting_linear_b)
+    for (profile, setter) in resting_profiles, (cut, f, vertical_filter) in resting_cuts
         @testset "resting $profile profile, $cut filter" begin
-            test_subfilter_ape_resting_fluid(resting_grid, setter, f)
+            test_subfilter_ape_resting_fluid(resting_grid, setter, f; vertical_filter)
         end
     end
 
