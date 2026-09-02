@@ -29,59 +29,53 @@ using SeawaterPolynomials.SecondOrderSeawaterPolynomials: SecondOrderSeawaterPol
 
 #+++ Richardson number
 """
-Vertical shear of each velocity component, ``∂uᵢ/∂ẑ``, at `(Center, Center, Face)`, where `ẑ` is
-the true vertical given by the unit vector `vertical_dir`.
+Derivative of a velocity component along the true vertical given by `vertical_dir`, at
+`(Center, Center, Face)`.
 """
-@inline function ∂ẑ_û_ccf(i, j, k, grid, û, vertical_dir)
-    ∂xû = ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶜᶜᶜ, û)   # F, C, C  → C, C, C → C, C, F
-    ∂yû = ℑxyzᶜᶜᶠ(i, j, k, grid, ∂yᶠᶠᶜ, û) # F, C, C  → F, F, C → C, C, F
-    ∂zû = ℑxᶜᵃᵃ(i, j, k, grid, ∂zᶠᶜᶠ, û)   # F, C, C  → F, C, F → C, C, F
-    return ∂xû * vertical_dir[1] + ∂yû * vertical_dir[2] + ∂zû * vertical_dir[3]
+@inline function ∂ẑ_û_ccf(i, j, k, grid, û, vertical_dir)
+    ∂xû = ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶜᶜᶜ, û)   # F, C, C  → C, C, C → C, C, F
+    ∂yû = ℑxyzᶜᶜᶠ(i, j, k, grid, ∂yᶠᶠᶜ, û) # F, C, C  → F, F, C → C, C, F
+    ∂zû = ℑxᶜᵃᵃ(i, j, k, grid, ∂zᶠᶜᶠ, û)   # F, C, C  → F, C, F → C, C, F
+    return ∂xû * vertical_dir[1] + ∂yû * vertical_dir[2] + ∂zû * vertical_dir[3]
 end
 
-@inline function ∂ẑ_v̂_ccf(i, j, k, grid, v̂, vertical_dir)
+@inline function ∂ẑ_v̂_ccf(i, j, k, grid, v̂, vertical_dir)
     ∂xv̂ = ℑxyzᶜᶜᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v̂) # C, F, C  → F, F, C → C, C, F
     ∂yv̂ = ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶜᶜᶜ, v̂)   # C, F, C  → C, C, C → C, C, F
     ∂zv̂ = ℑyᵃᶜᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v̂)   # C, F, C  → C, F, F → C, C, F
     return ∂xv̂ * vertical_dir[1] + ∂yv̂ * vertical_dir[2] + ∂zv̂ * vertical_dir[3]
 end
 
-@inline function ∂ẑ_ŵ_ccf(i, j, k, grid, ŵ, vertical_dir)
-    ∂xŵ = ℑxᶜᵃᵃ(i, j, k, grid, ∂xᶠᶜᶠ, ŵ) # C, C, F  → F, C, F → C, C, F
-    ∂yŵ = ℑyᵃᶜᵃ(i, j, k, grid, ∂yᶜᶠᶠ, ŵ) # C, C, F  → C, F, F → C, C, F
-    ∂zŵ = ℑzᵃᵃᶠ(i, j, k, grid, ∂zᶜᶜᶜ, ŵ) # C, C, F  → C, C, C → C, C, F
-    return ∂xŵ * vertical_dir[1] + ∂yŵ * vertical_dir[2] + ∂zŵ * vertical_dir[3]
+@inline function ∂ẑ_ŵ_ccf(i, j, k, grid, ŵ, vertical_dir)
+    ∂xŵ = ℑxᶜᵃᵃ(i, j, k, grid, ∂xᶠᶜᶠ, ŵ) # C, C, F  → F, C, F → C, C, F
+    ∂yŵ = ℑyᵃᶜᵃ(i, j, k, grid, ∂yᶜᶠᶠ, ŵ) # C, C, F  → C, F, F → C, C, F
+    ∂zŵ = ℑzᵃᵃᶠ(i, j, k, grid, ∂zᶜᶜᶜ, ŵ) # C, C, F  → C, C, C → C, C, F
+    return ∂xŵ * vertical_dir[1] + ∂yŵ * vertical_dir[2] + ∂zŵ * vertical_dir[3]
 end
 
 """
     $(SIGNATURES)
 
-Return the squared vertical shear of the (true) horizontal velocity, ``|∂u⃗ₕ/∂ẑ|²``, at
-`(Center, Center, Face)`.
-
-Each velocity component is differentiated along the true vertical first, and the part of the
-resulting shear vector that lies along that vertical is then removed, which leaves the shear of
-the true-horizontal velocity. Differentiating before taking the norm is what makes this the
-shear that enters the gradient Richardson number: the norm of the derivative and the derivative
-of the norm differ whenever the shear vector turns with height, and coincide only for
-unidirectional shear.
+Return the squared vertical shear of the (true) horizontal velocity, ``|∂u⃗ₕ/∂ẑ|²``, at
+`(Center, Center, Face)`. The shear vector is formed before the norm is taken: ``∂|u⃗ₕ|/∂ẑ`` is a
+different quantity whenever the shear turns with height.
 """
-@inline function shear_squared_ccf(i, j, k, grid, û, v̂, ŵ, vertical_dir)
-    sˣ = ∂ẑ_û_ccf(i, j, k, grid, û, vertical_dir)
-    sʸ = ∂ẑ_v̂_ccf(i, j, k, grid, v̂, vertical_dir)
-    sᶻ = ∂ẑ_ŵ_ccf(i, j, k, grid, ŵ, vertical_dir)
-    sᵛ = sˣ * vertical_dir[1] + sʸ * vertical_dir[2] + sᶻ * vertical_dir[3] # shear along the true vertical
+@inline function shear_squared_ccf(i, j, k, grid, û, v̂, ŵ, vertical_dir)
+    sˣ = ∂ẑ_û_ccf(i, j, k, grid, û, vertical_dir)
+    sʸ = ∂ẑ_v̂_ccf(i, j, k, grid, v̂, vertical_dir)
+    sᶻ = ∂ẑ_ŵ_ccf(i, j, k, grid, ŵ, vertical_dir)
+    sᵛ = sˣ * vertical_dir[1] + sʸ * vertical_dir[2] + sᶻ * vertical_dir[3]
     return max(zero(grid), sˣ^2 + sʸ^2 + sᶻ^2 - sᵛ^2) # clamp at 0: roundoff can make the difference slightly negative
 end
 
-@inline function richardson_number_ccf(i, j, k, grid, û, v̂, ŵ, b, vertical_dir)
+@inline function richardson_number_ccf(i, j, k, grid, û, v̂, ŵ, b, vertical_dir)
 
     dbdx̂ = ℑxzᶜᵃᶠ(i, j, k, grid, ∂xᶠᶜᶜ, b) # C, C, C  → F, C, C → C, C, F
-    dbdŷ = ℑyzᵃᶜᶠ(i, j, k, grid, ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C → C, C, F
-    dbdẑ = ∂zᶜᶜᶠ(i, j, k, grid, b) # C, C, C  → C, C, F
-    dbdz = dbdx̂ * vertical_dir[1] + dbdŷ * vertical_dir[2] + dbdẑ * vertical_dir[3]
+    dbdŷ = ℑyzᵃᶜᶠ(i, j, k, grid, ∂yᶜᶠᶜ, b) # C, C, C  → C, F, C → C, C, F
+    dbdẑ = ∂zᶜᶜᶠ(i, j, k, grid, b) # C, C, C  → C, C, F
+    dbdz = dbdx̂ * vertical_dir[1] + dbdŷ * vertical_dir[2] + dbdẑ * vertical_dir[3]
 
-    return dbdz / shear_squared_ccf(i, j, k, grid, û, v̂, ŵ, vertical_dir)
+    return dbdz / shear_squared_ccf(i, j, k, grid, û, v̂, ŵ, vertical_dir)
 end
 
 const GradientRichardsonNumber = CustomKFO{<:typeof(richardson_number_ccf)}
@@ -96,13 +90,8 @@ Calculate the gradient Richardson number as
 ```
 
 where `z` is the true vertical direction (ie anti-parallel to gravity) and the denominator is the
-squared norm of the vertical shear *vector* of the horizontal velocity, which for a
-`NegativeZDirection` gravity is `(∂u/∂z)² + (∂v/∂z)²`. Note that this differs from the squared
-shear of the *speed*, `(∂|u⃗ₕ|/∂z)²`, whenever the shear vector turns with height.
-
-The `Ri < 1/4` instability criterion of Miles (1961) and Howard (1961) is derived for a parallel
-(unidirectional) flow, so in a flow with directional shear the number is still well defined but
-its stability interpretation is weaker.
+squared norm of the shear *vector*, which for a `NegativeZDirection` gravity is
+`(∂u/∂z)² + (∂v/∂z)²`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
