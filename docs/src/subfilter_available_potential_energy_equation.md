@@ -24,18 +24,21 @@ e_a(b, z) = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z) - b\right] \mathrm{d}\
 ```
 
 computed by [`SubFilterAvailablePotentialEnergy`](@ref); ``e_a(\bar b, z)`` is
-[`FilteredAvailablePotentialEnergy`](@ref). Looking the filtered buoyancy up in a profile
-it did not itself produce is exactly what
+[`FilteredAvailablePotentialEnergy`](@ref).
+
+``e_a^s`` is guaranteed to be non-negative only when the filter acts in the horizontal directions.
+
+Looking the filtered buoyancy up in a profile it did not itself produce is exactly what
 [`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup) was built for, so
 these diagnostics accept only that reference-height method: the default sorts the model's own buoyancy
 into a [`VerticalSort`](@ref Oceanostics.BackgroundPotentialEnergyEquation.VerticalSort) column on
 every `compute!`, a column you built yourself can be shared across diagnostics, and a profile given as
 plain arrays holds the reference state fixed in time (which also makes the diagnostics sort-free).
 
+<<<<<<< HEAD
 Because ``e_a`` is convex in buoyancy, a filter with no vertical component keeps ``e_a^s \geq 0``
 pointwise, by Jensen's inequality; a filter that acts vertically mixes heights as well as buoyancies
 and can produce locally negative values in the current formulation.
-
 ```@docs
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy
 ```
