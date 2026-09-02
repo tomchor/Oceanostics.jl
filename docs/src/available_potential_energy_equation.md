@@ -37,10 +37,9 @@ which we can simplify to
 R = \int_{z^\star}^{z} \partial_t b^\star(\tilde z, t) \, \mathrm{d}\tilde z .
 ```
 
-Both partial derivatives come straight from the definition of ``e_a``. In the first, the boundary term
-from moving the lower limit ``z^\star(b)`` drops out because ``b^\star(z^\star(b)) = b``, which leaves
-the displacement potential ``\Upsilon``. The second is minus the buoyancy anomaly ``b_r`` the parcel
-carries relative to the reference profile at its own height:
+Both partial derivatives come straight from the definition of ``e_a``. In the first we get an "empty"
+integral from ``z^\star`` to ``z``, which leaves the displacement potential ``\Upsilon``. The second
+is just the integrand of ``e_a``, leaving the buoyancy anomaly ``b_r``:
 
 ```math
 \left.\frac{\partial e_a}{\partial b}\right|_{z} = z^\star - z = \Upsilon ,
