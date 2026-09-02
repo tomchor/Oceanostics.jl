@@ -99,6 +99,32 @@ function test_buoyancy_diagnostics(model)
     @test DEPV isa DirectionalErtelPotentialVorticity
     @test Field(DEPV) isa Field
 
+    #+++ Veering shear (issue #304)
+    # These change the velocities, so they must come after every test above. With `u` constant and
+    # `v` linear in z the shear *vector* turns with height, so its squared norm is exactly S² on any
+    # grid, while the squared shear of the *speed* is S⁴z²/(U₀² + S²z²) instead: zero at z = 0 and
+    # below S² everywhere. Only the former gives the gradient Richardson number.
+    if model.buoyancy != nothing && model.buoyancy.formulation isa LinearBuoyancyForce
+        U₀ = 1e-2
+        set!(model, u = (x, y, z) -> U₀, v = (x, y, z) -> S * z)
+
+        Ri_field = Field(GradientRichardsonNumber(model))
+        @test Array(interior(Ri_field))[3, 3, 3] ≈ N² / S^2
+
+        # Same check with gravity along -x, which exercises the tilted branch. `x` is then the true
+        # vertical, so `u` is the vertical velocity component and its shear must cancel out of the
+        # result, leaving only `v`'s. A zero `w` is passed explicitly so the horizontal shear comes
+        # from `v` alone regardless of what continuity leaves in the model's own `w`.
+        if model.buoyancy.formulation isa BuoyancyTracer
+            A = 3S
+            set!(model, u = (x, y, z) -> A * x, v = (x, y, z) -> S * x, b = (x, y, z) -> N² * x)
+
+            Ri_tilted = GradientRichardsonNumber(model, u, v, ZFaceField(model.grid), model.tracers.b, (1, 0, 0))
+            @test Array(interior(Field(Ri_tilted)))[3, 3, 3] ≈ N² / S^2 # not N² / (A² + S²)
+        end
+    end
+    #---
+
     return nothing
 end
 

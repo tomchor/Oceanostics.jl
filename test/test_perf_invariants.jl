@@ -219,6 +219,10 @@ end
     @testset "FlowDiagnostics" begin
         test_kfo_invariants("RossbyNumber",            RossbyNumber(model))
         test_kfo_invariants("ErtelPotentialVorticity", ErtelPotentialVorticity(model))
+
+        # The shear in the denominator is built from all nine velocity-gradient components so it can
+        # follow a tilted gravity, which makes it the widest per-cell kernel in this module.
+        test_kfo_invariants("GradientRichardsonNumber", GradientRichardsonNumber(model))
         test_kfo_invariants("StrainRateTensorModulus", StrainRateTensorModulus(model))
 
         # Off-diagonal strain components live at edge locations (ffc/fcf/cff) and exercise the
