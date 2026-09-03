@@ -101,27 +101,8 @@ end
 # both parts, whichever filter makes the split. These tests assert exactly that, for a curved and for a
 # straight resting profile under a horizontal, a vertical and a 3D filter.
 #
-# The horizontal filter passes: it reaches only along z = const, where b✶(z) is a single value, so
-# b̄ = b✶(z) and both parts vanish identically. The two with vertical extent are `broken`, and the
-# mechanism is worth having on record. Writing z + r for the heights the filter reaches,
-# b̄(z) = filter(b✶(z + r)) ≠ b✶(z) wherever b✶ is curved (to leading order b̄ - b✶ ≈ ½ b✶'' ⟨r²⟩), so
-# the filtered field is no longer a reference state and the split reports a spurious eₐˡ > 0. With
-# filter(eₐ) = 0 the subfilter part is its mirror image, eₐˢ = -eₐˡ < 0: two reservoirs that are equal,
-# opposite, and both fictitious. On the grid below with σ = 0.2 they come out at ±5e-3, against a true
-# value of exactly zero.
-#
-# Jensen does not rescue it. The argument in `test_subfilter_ape_signs` bounds an average taken at
-# *fixed z*, where eₐ(·, z) is convex in b. A filter with vertical extent averages (b, z) jointly, and
-# what that needs is joint convexity: the Hessian of eₐ is [[1/N²(z✶), -1], [-1, N²(z)]], so its
-# determinant is N²(z)/N²(z✶) - 1 and eₐ is jointly convex only where the stratification at the parcel's
-# own height is at least as strong as at its reference height. A uniform N² sits exactly on that
-# boundary, the Hessian singular and eₐ = bᵣ²/2N² a degenerate quadratic in (b, z), which is why the
-# straight profile fails only within 2σ of a wall, where the truncated stencil has ⟨r⟩ ≠ 0 and no longer
-# averages to the target height. Curvature moves off the boundary, and in a resting fluid always to the
-# wrong side: filter(eₐ) = 0 is the floor of a non-negative quantity, so any eₐˡ > 0 forces eₐˢ < 0.
-#
-# Unlike the tests above these are deterministic and exact. eₐ vanishes to the bit, so a negative eₐˢ
-# cannot be read as roundoff or as the nearest-class fallback for buoyancies off the profile.
+# The horizontal filter passes, but vertical filters don't. It's important that the stratification profile
+# is nonlinear: a linear test will pass even with a vertical filter.
 resting_tanh_b(x, y, z) = tanh((z - 1) / 0.25)   # stable and curved, flattening towards both walls
 resting_linear_b(x, y, z) = 0.5 * z              # stable and straight: no curvature for the filter to find
 
