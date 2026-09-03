@@ -5,7 +5,7 @@ export Tendency, TracerVarianceTendency
 export DissipationRate, TracerVarianceDissipationRate
 export Diffusion, TracerVarianceDiffusion
 
-using Oceanostics: validate_location, validate_dissipative_closure, CustomKFO
+using Oceanostics: validate_location, CustomKFO
 
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -210,9 +210,6 @@ TracerVarianceDissipationRate KernelFunctionOperation at (Center, Center, Center
 function TracerVarianceDissipationRate(model, tracer_name; tracer = nothing, location = (Center, Center, Center))
     validate_location(location, "TracerVarianceDissipationRate")
     tracer_index = findfirst(n -> n === tracer_name, propertynames(model.tracers))
-
-    parameters = (; model.closure, model.clock, model.buoyancy,
-                  id = Val(tracer_index))
 
     tracer = tracer == nothing ? model.tracers[tracer_name] : tracer
     return KernelFunctionOperation{Center, Center, Center}(tracer_variance_dissipation_rate_ccc, model.grid,
