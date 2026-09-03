@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Rayleigh-Taylor instability · Oceanostics.jl</title><meta name="title" content="Rayleigh-Taylor instability · Oceanostics.jl"/><meta property="og:title" content="Rayleigh-Taylor instability · Oceanostics.jl"/><meta property="twitter:title" content="Rayleigh-Taylor instability · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox"/><label class="tocitem" for="menuitem-2"><span class="docs-label">Budget equations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tracer_equation/">Tracer equation</a></li><li><a class="tocitem" href="../../momentum_equation/">Momentum equation</a></li><li><a class="tocitem" href="../../kinetic_energy_equation/">Kinetic energy equation</a></li><li><a class="tocitem" href="../../filtered_kinetic_energy_equation/">Filtered kinetic energy equation</a></li><li><a class="tocitem" href="../../subfilter_kinetic_energy_equation/">Sub-filter kinetic energy equation</a></li><li><a class="tocitem" href="../../turbulent_kinetic_energy_equation/">Turbulent kinetic energy equation</a></li><li><a class="tocitem" href="../../tracer_variance_equation/">Tracer variance equation</a></li><li><a class="tocitem" href="../../potential_energy_equation/">Potential energy equation</a></li><li><a class="tocitem" href="../../background_potential_energy_equation/">Background potential energy equation</a></li><li><a class="tocitem" href="../../available_potential_energy_equation/">Available potential energy equation</a></li></ul></li><li><a class="tocitem" href="../../flow_diagnostics/">Flow diagnostics</a></li><li><a class="tocitem" href="../../progress_messengers/">Progress messengers</a></li><li><a class="tocitem" href="../../filters/">Spatial filters</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox" checked/><label class="tocitem" for="menuitem-6"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li><a class="tocitem" href="../spatial_filtering/">Spatial filtering</a></li><li><a class="tocitem" href="../kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li class="is-active"><a class="tocitem" href>Rayleigh-Taylor instability</a><ul class="internal"><li><a class="tocitem" href="#Parameters-and-grid"><span>Parameters and grid</span></a></li><li><a class="tocitem" href="#Closure-and-model"><span>Closure and model</span></a></li><li><a class="tocitem" href="#Initial-condition"><span>Initial condition</span></a></li><li><a class="tocitem" href="#Simulation"><span>Simulation</span></a></li><li><a class="tocitem" href="#Model-diagnostics"><span>Model diagnostics</span></a></li><li><a class="tocitem" href="#Output"><span>Output</span></a></li><li><a class="tocitem" href="#Run-the-simulation-and-process-results"><span>Run the simulation and process results</span></a></li><li><a class="tocitem" href="#Plotting"><span>Plotting</span></a></li></ul></li><li><a class="tocitem" href="../lock_release/">Lock release</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-7" type="checkbox"/><label class="tocitem" for="menuitem-7"><span class="docs-label">Validation</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../validation/reference_state/">Sorted reference state</a></li></ul></li><li><a class="tocitem" href="../../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Rayleigh-Taylor instability</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Rayleigh-Taylor instability</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/examples/rayleigh_taylor_instability.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="rayleigh_taylor_example"><a class="docs-heading-anchor" href="#rayleigh_taylor_example">Rayleigh-Taylor instability</a><a id="rayleigh_taylor_example-1"></a><a class="docs-heading-anchor-permalink" href="#rayleigh_taylor_example" title="Permalink"></a></h1><p>This example simulates a three-dimensional <a href="https://en.wikipedia.org/wiki/Rayleigh%E2%80%93Taylor_instability">Rayleigh-Taylor instability</a>: a heavy fluid initially resting above a light one, which is unstable under gravity. All of the kinetic energy is released from the potential energy stored in the unstable stratification, with no fluxes through the boundaries. We run it as a large-eddy simulation (LES) and use Oceanostics to close the volume-integrated sub-filter-scale kinetic-energy budget, that is, the budget of the kinetic energy carried by the scales that a low-pass filter removes from the flow.</p><p>Before starting, make sure you have the required packages installed for this example, which can be done with</p><pre><code class="language-julia hljs">using Pkg
+pkg&quot;add Oceananigans, Oceanostics, CairoMakie, NCDatasets&quot;</code></pre><h2 id="Parameters-and-grid"><a class="docs-heading-anchor" href="#Parameters-and-grid">Parameters and grid</a><a id="Parameters-and-grid-1"></a><a class="docs-heading-anchor-permalink" href="#Parameters-and-grid" title="Permalink"></a></h2><pre><code class="language-julia hljs">using Oceananigans</code></pre><p>We work with nondimensional quantities. We take the domain height <code>H</code> as the length scale and the buoyancy jump <code>Δb</code> across the initial interface as the buoyancy scale, so the free-fall velocity <code>U = √(Δb H)</code> and the free-fall time <code>τ = √(H / Δb)</code> follow. Setting <code>H = Δb = 1</code> makes <code>U = τ = 1</code>, and time is measured in free-fall units:</p><pre><code class="language-julia hljs">H  = 1     # domain height (length scale)
+Δb = 1     # buoyancy jump across the interface (buoyancy scale)
+U  = sqrt(Δb * H)   # free-fall velocity scale
+τ  = sqrt(H / Δb)   # free-fall time scale</code></pre><pre><code class="nohighlight hljs">1.0</code></pre><p>We use a cuboid that is periodic in the two horizontal directions and bounded in the vertical, with the unstable interface at mid-depth <code>z = 0</code>:</p><pre><code class="language-julia hljs">N = 48
+grid = RectilinearGrid(size=(N, N÷2, N), x=(-H/2, H/2), y=(-H/4, H/4), z=(-H/2, H/2),
+                       topology=(Periodic, Periodic, Bounded))</code></pre><pre><code class="nohighlight hljs">48×24×48 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── Periodic x ∈ [-0.5, 0.5)   regularly spaced with Δx=0.0208333
+├── Periodic y ∈ [-0.25, 0.25) regularly spaced with Δy=0.0208333
+└── Bounded  z ∈ [-0.5, 0.5]   regularly spaced with Δz=0.0208333</code></pre><h2 id="Closure-and-model"><a class="docs-heading-anchor" href="#Closure-and-model">Closure and model</a><a id="Closure-and-model-1"></a><a class="docs-heading-anchor-permalink" href="#Closure-and-model" title="Permalink"></a></h2><p>We model the stresses with a Large Eddy Simulation (LES) closure:</p><pre><code class="language-julia hljs">closure = SmagorinskyLilly(C=0.3) # A large C increases eddy viscosity, keeping this very coarse example well behaved</code></pre><pre><code class="nohighlight hljs">Smagorinsky closure with
+├── coefficient = LillyCoefficient(smagorinsky = 0.3, reduction_factor = 1.0)
+└── Pr = 1.0</code></pre><p>We build a <code>NonhydrostaticModel</code> with a fourth-order centered advection scheme, a third-order Runge-Kutta timestepper, and a buoyancy <code>b</code> as the active tracer. A centered scheme is non-dissipative and adds no numerical dissipation of its own, so essentially all of the dissipation comes from the LES closure.</p><pre><code class="language-julia hljs">model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
+                            advection = Centered(order=4),
+                            closure,
+                            buoyancy = BuoyancyTracer(), tracers = :b)</code></pre><pre><code class="nohighlight hljs">NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 48×24×48 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: Centered(order=4)
+├── tracers: b
+├── closure: Smagorinsky with coefficient = LillyCoefficient(smagorinsky = 0.3, reduction_factor = 1.0), Pr=(b = 1.0,)
+├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
+└── coriolis: Nothing</code></pre><h2 id="Initial-condition"><a class="docs-heading-anchor" href="#Initial-condition">Initial condition</a><a id="Initial-condition-1"></a><a class="docs-heading-anchor-permalink" href="#Initial-condition" title="Permalink"></a></h2><p>The initial buoyancy is a hyperbolic-tangent profile that is <em>heavy on top</em>: it decreases from <code>+Δb/2</code> at the bottom to <code>−Δb/2</code> at the top, so <code>∂b/∂z &lt; 0</code> and the stratification is unstable. The interface is thin (its half-thickness <code>δ</code> is about one grid spacing) and we perturb it with small-amplitude random noise localized to the interface, which seeds a broad band of horizontal wavelengths and produces a multi-mode, turbulent instability rather than a single growing bubble. We seed the random number generator so the run is reproducible:</p><pre><code class="language-julia hljs">δ = 0.02 * H                    # interface half-thickness
+b₀(z) = -(Δb / 2) * tanh(z / δ) # +Δb/2 at the bottom, −Δb/2 at the top
+
+using Random
+Random.seed!(43)
+noise_amplitude = 1e-2
+bᵢ(x, y, z) = b₀(z) + noise_amplitude * Δb * randn() * exp(-(z / δ)^2)
+
+set!(model, b=bᵢ)</code></pre><h2 id="Simulation"><a class="docs-heading-anchor" href="#Simulation">Simulation</a><a id="Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Simulation" title="Permalink"></a></h2><p>We create an adaptive-time-step simulation. The initial step is set conservatively from the horizontal grid spacing and the free-fall velocity, and a <code>TimeStepWizard</code> adapts it as the mixing layer accelerates:</p><pre><code class="language-julia hljs">Δx = minimum_xspacing(grid)
+simulation = Simulation(model, Δt = 0.1 * Δx / U, stop_time = 7τ)
+conjure_time_step_wizard!(simulation, IterationInterval(2), cfl=0.8, max_change=1.1)</code></pre><h2 id="Model-diagnostics"><a class="docs-heading-anchor" href="#Model-diagnostics">Model diagnostics</a><a id="Model-diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Model-diagnostics" title="Permalink"></a></h2><p>We report progress with the <code>TimedMessenger</code></p><pre><code class="language-julia hljs">using Oceanostics
+progress = ProgressMessengers.TimedMessenger()
+add_callback!(simulation, progress, IterationInterval(100))</code></pre><h3 id="Sub-filter-scale-kinetic-energy-budget"><a class="docs-heading-anchor" href="#Sub-filter-scale-kinetic-energy-budget">Sub-filter-scale kinetic-energy budget</a><a id="Sub-filter-scale-kinetic-energy-budget-1"></a><a class="docs-heading-anchor-permalink" href="#Sub-filter-scale-kinetic-energy-budget" title="Permalink"></a></h3><p>Rayleigh-Taylor turbulence converts potential energy into kinetic energy (KE) across a wide range of scales, so we follow it with a coarse-graining analysis in the spirit of <a href="https://doi.org/10.1175/JPO-D-17-0100.1">Aluie et al. (2018)</a>. A low-pass filter (overbar) splits each field into a filtered part and a sub-filter remainder. Here we budget the kinetic energy carried by the scales the filter removes,</p><p class="math-container">\[K^s = \tfrac{1}{2}\,\tau^{ii} , \qquad
+\tau^{ij} = \overline{u^i u^j} - \overline{u}^i\,\overline{u}^j ,\]</p><p>where <span>$\tau^{ij}$</span> is the sub-filter stress (<a href="../../filtered_kinetic_energy_equation/#Oceanostics.FilteredKineticEnergyEquation.subfilter_stress_tensor"><code>subfilter_stress_tensor</code></a>), so <span>$K^s$</span> itself is computed by <a href="../../subfilter_kinetic_energy_equation/#Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy"><code>SubFilterKineticEnergy</code></a>. We apply a Gaussian filter of width <code>ℓ</code> in the two horizontal directions, which are statistically homogeneous; the vertical direction is left unfiltered.</p><p>Volume integrated (the transport terms integrate to zero, because the flow is doubly periodic and <code>w = 0</code> with free slip at the top and bottom), the budget reads</p><p class="math-container">\[\frac{d}{dt} \int K^s\, dV
+  = \int \Pi_K\, dV
+  + \int \tau(w, b)\, dV
+  - \int \varepsilon_K^s\, dV ,\]</p><p>with two sources and one sink:</p><ul><li><span>$\Pi_K = -\tau^{ij}\overline{S}^{ij}$</span> is the cross-scale kinetic-energy flux (<a href="../../filtered_kinetic_energy_equation/#Oceanostics.FilteredKineticEnergyEquation.KineticEnergyCrossScaleFlux"><code>KineticEnergyCrossScaleFlux</code></a>), the rate at which the filtered scales hand kinetic energy down to the sub-filter scales.</li><li><span>$\tau(w, b) = \overline{wb} - \overline{w}\,\overline{b}$</span> is the sub-filter buoyancy flux (a <code>subfilter_covariance</code>), which converts sub-filter potential energy into sub-filter kinetic energy.</li><li><span>$\varepsilon_K^s = \overline{\varepsilon} - \varepsilon^{\ell}$</span> is the sub-filter dissipation (<a href="../../subfilter_kinetic_energy_equation/#Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate"><code>SubFilterKineticEnergyDissipationRate</code></a>): the filtered total dissipation <span>$\varepsilon$</span> (<a href="../../kinetic_energy_equation/#Oceanostics.KineticEnergyEquation.DissipationRate"><code>KineticEnergyDissipationRate</code></a>) minus the dissipation <span>$\varepsilon^{\ell}$</span> of the filtered flow (<a href="../../filtered_kinetic_energy_equation/#Oceanostics.FilteredKineticEnergyEquation.FilteredKineticEnergyDissipationRate"><code>FilteredKineticEnergyDissipationRate</code></a>). For a constant viscosity it reduces to <span>$2\nu[\overline{S^{ij}S^{ij}} - \overline{S}^{ij}\overline{S}^{ij}] \ge 0$</span>, a strictly positive sink; with an LES closure it is the dissipation that the modeled stress carries out on the sub-filter scales.</li></ul><p>In the code below, <span>$K^s$</span>, <span>$\Pi_K$</span>, <span>$\tau(w,b)$</span> and <span>$\varepsilon_K^s$</span> are written <code>Kˢ</code>, <code>Πₖ</code>, <code>wbˢ</code> and <code>εˢ</code>.</p><pre><code class="language-julia hljs">using Oceananigans.AbstractOperations: @at
+
+ℓ  = 8 * Δx                          # filter scale (full width at half maximum of the Gaussian kernel)
+σℓ = ℓ / (2 * sqrt(2 * log(2)))      # corresponding Gaussian standard deviation
+gfilter = GaussianFilter(dims=(1, 2), σ=σℓ)
+
+u, v, w = model.velocities
+b = model.tracers.b
+
+Kˢ  = SubFilterKineticEnergy(model, gfilter)     # sub-filter kinetic energy ½τⁱⁱ
+Πₖ  = KineticEnergyCrossScaleFlux(model, gfilter)  # cross-scale flux from filtered scales
+wbˢ = subfilter_covariance(w, b, gfilter)          # sub-filter buoyancy flux τ(w, b)
+εˢ  = SubFilterKineticEnergyDissipationRate(model, gfilter)  # sub-filter dissipation ε̄ − εˡ</code></pre><pre><code class="nohighlight hljs">SubFilterKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
+├── grid: 48×24×48 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: subfilter_ke_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Oceananigans.AbstractOperations.BinaryOperation&quot;,)
+└── computes: sub-filter kinetic energy dissipation rate  εˢ = filter(ε) - εˡ</code></pre><p>The budget needs only the (cheap) volume integrals of these terms:</p><pre><code class="language-julia hljs">∫Kˢ  = Integral(Kˢ)
+∫Πₖ  = Integral(Πₖ)
+∫wbˢ = Integral(wbˢ)
+∫εˢ  = Integral(εˢ)</code></pre><pre><code class="nohighlight hljs">Integral of BinaryOperation at (Center, Center, Center) over dims (1, 2, 3)
+└── operand: BinaryOperation at (Center, Center, Center)
+    └── grid: 48×24×48 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo</code></pre><p>For the movie we also keep the coarse-grained kinetic energy <span>$\overline{K} = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i$</span> (<a href="../../filtered_kinetic_energy_equation/#Oceanostics.FilteredKineticEnergyEquation.FilteredKineticEnergy"><code>FilteredKineticEnergy</code></a>), the filtered counterpart of <span>$K^s$</span>. Together the two show how the filter splits the flow&#39;s kinetic energy between the scales it keeps and the scales it removes:</p><pre><code class="language-julia hljs"># `FilteredKineticEnergy` materializes the filtered velocities internally, so the multi-direction filter
+# runs on its fast staged path (see the filter performance notes and `check_filter_staging`).
+Kˡ = FilteredKineticEnergy(model, gfilter)  # kinetic energy of the coarse-grained (filtered) flow</code></pre><pre><code class="nohighlight hljs">FilteredKineticEnergy KernelFunctionOperation at (Center, Center, Center)
+├── grid: 48×24×48 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: filtered_kinetic_energy_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;)
+└── computes: kinetic energy of the filtered flow  Kˡ = ½ūᵢūᵢ</code></pre><h2 id="Output"><a class="docs-heading-anchor" href="#Output">Output</a><a id="Output-1"></a><a class="docs-heading-anchor-permalink" href="#Output" title="Permalink"></a></h2><p>We use two NetCDF writers. A snapshot writer stores vertical (<code>x</code>–<code>z</code>) slices of the buoyancy <code>b</code>, the cross-scale flux <code>Πₖ</code> and the two kinetic energies <code>Kˡ</code> and <code>Kˢ</code>, at a fixed <code>y</code> index (the flow is periodic and statistically homogeneous in <code>y</code>, so the particular plane makes no difference), while a budget writer stores only the integrated scalars on <code>ConsecutiveIterations(TimeInterval(τ/5))</code>, which takes a second sample one model step after each output time. That lets us finite-difference <code>∫Kˢ</code> across that single step to estimate <code>d/dt</code>, exactly as in the <a href="../kelvin_helmholtz/#kelvin_helmholtz_example">Kelvin-Helmholtz example</a>.</p><pre><code class="language-julia hljs">using NCDatasets
+filename = joinpath(@__DIR__, &quot;rayleigh_taylor_instability&quot;)
+
+simulation.output_writers[:fields] = NetCDFWriter(model, (; b, Πₖ, Kˡ, Kˢ),
+                                                  filename = filename,
+                                                  schedule = TimeInterval(τ / 5),
+                                                  indices = (:, 1, :),
+                                                  overwrite_existing = true)
+
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫Kˢ, ∫Πₖ, ∫wbˢ, ∫εˢ),
+                                                  filename = filename * &quot;_budget&quot;,
+                                                  schedule = ConsecutiveIterations(TimeInterval(τ / 5)),
+                                                  overwrite_existing = true)</code></pre><pre><code class="nohighlight hljs">NetCDFWriter scheduled on ConsecutiveIterations(TimeInterval(200 ms), 1):
+├── filepath: rayleigh_taylor_instability_budget.nc
+├── dimensions: time(0), y_afa(24), x_faa(48), x_caa(48), y_aca(24), z_aaf(49), z_aac(48)
+├── 4 outputs: (∫wbˢ, ∫Πₖ, ∫Kˢ, ∫εˢ)
+├── array_type: Array{Float32}
+├── file_splitting: NoFileSplitting
+└── file size: 33.7 KiB</code></pre><h2 id="Run-the-simulation-and-process-results"><a class="docs-heading-anchor" href="#Run-the-simulation-and-process-results">Run the simulation and process results</a><a id="Run-the-simulation-and-process-results-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-simulation-and-process-results" title="Permalink"></a></h2><p>To run the simulation:</p><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre><code class="nohighlight hljs">[ Info: Initializing simulation...
+┌ Info: iter = [93m     0[39m,  [[93m000.00%[39m] time = [93m0 seconds[39m,  Δt = [93m2.292 ms[39m,  walltime = [93m1.531 minutes[39m,  walltime / timestep = [93m0 seconds[39m
+└       |u⃗|ₘₐₓ = [[93m0.00e+00[39m,  [93m0.00e+00[39m,  [93m0.00e+00[39m] m/s,  advective CFL = [93m0[39m,  diffusive CFL = [93m0[39m,  νₘₐₓ = [93m0[39m m²/s
+[ Info:     ... simulation initialization complete (20.027 seconds)
+[ Info: Executing initial time step...
+[ Info:     ... initial time step complete (2.944 seconds).
+┌ Info: iter = [93m   100[39m,  [[93m040.00%[39m] time = [93m2.800 seconds[39m,  Δt = [93m45.487 ms[39m,  walltime = [93m2.273 minutes[39m,  walltime / timestep = [93m445.318 ms[39m
+└       |u⃗|ₘₐₓ = [[93m1.01e-01[39m,  [93m9.81e-02[39m,  [93m2.86e-01[39m] m/s,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.051[39m,  νₘₐₓ = [93m0.00049[39m m²/s
+┌ Info: iter = [93m   200[39m,  [[93m076.16%[39m] time = [93m5.331 seconds[39m,  Δt = [93m18.767 ms[39m,  walltime = [93m2.651 minutes[39m,  walltime / timestep = [93m226.553 ms[39m
+└       |u⃗|ₘₐₓ = [[93m3.39e-01[39m,  [93m3.42e-01[39m,  [93m7.03e-01[39m] m/s,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.037[39m,  νₘₐₓ = [93m0.00086[39m m²/s
+┌ Info: iter = [93m   300[39m,  [[93m099.53%[39m] time = [93m6.967 seconds[39m,  Δt = [93m14.831 ms[39m,  walltime = [93m2.903 minutes[39m,  walltime / timestep = [93m151.000 ms[39m
+└       |u⃗|ₘₐₓ = [[93m4.90e-01[39m,  [93m4.62e-01[39m,  [93m7.47e-01[39m] m/s,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.03[39m,  νₘₐₓ = [93m0.00089[39m m²/s
+[ Info: Simulation is stopping after running for 1.398 minutes.
+[ Info: Simulation time 7 seconds equals or exceeds stop time 7 seconds.
+</code></pre><p>We read the four field slices, and their <code>x</code>–<code>z</code> coordinates, back with <code>NCDataset</code> (all of them live at cell centers, so their coordinates are <code>x_caa</code> and <code>z_aac</code>); the singleton <code>y</code> dimension of the slice is dropped:</p><pre><code class="language-julia hljs">using CairoMakie
+
+ds = NCDataset(simulation.output_writers[:fields].filepath)
+times = ds[&quot;time&quot;][:]
+x_caa = ds[&quot;x_caa&quot;][:]
+z_aac = ds[&quot;z_aac&quot;][:]
+b_arr = ds[&quot;b&quot;][:, 1, :, :]
+Π_arr = ds[&quot;Πₖ&quot;][:, 1, :, :]
+Kˡ_arr = ds[&quot;Kˡ&quot;][:, 1, :, :]
+Kˢ_arr = ds[&quot;Kˢ&quot;][:, 1, :, :]
+close(ds)</code></pre><pre><code class="nohighlight hljs">closed Dataset</code></pre><p>The integrated budget scalars come in consecutive-iteration pairs <code>(2k-1, 2k)</code>; a one-step finite difference inside each pair gives <code>d(∫Kˢ)/dt</code>, and each budget term is evaluated at the pair midpoint. The residual measures how well the sub-filter-scale budget closes.</p><pre><code class="language-julia hljs">bud_filepath = simulation.output_writers[:budget].filepath
+ds_bud = NCDataset(bud_filepath)
+times_bud = ds_bud[&quot;time&quot;][:]
+∫Kˢ_t = ds_bud[&quot;∫Kˢ&quot;][:]
+∫Πₖ_t = ds_bud[&quot;∫Πₖ&quot;][:]
+∫wbˢ_t = ds_bud[&quot;∫wbˢ&quot;][:]
+∫εˢ_t = ds_bud[&quot;∫εˢ&quot;][:]
+close(ds_bud)
+
+i1 = 1:2:length(times_bud)-1   # primary snapshots
+i2 = 2:2:length(times_bud)     # consecutive-iteration snapshots
+Δt_pair = times_bud[i2] .- times_bud[i1]
+t_pair = @. 0.5 * (times_bud[i1] + times_bud[i2])
+
+dKˢdt    = (∫Kˢ_t[i2] .- ∫Kˢ_t[i1]) ./ Δt_pair
+Πₖ_pair  = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2])
+wbˢ_pair = @. 0.5 * (∫wbˢ_t[i1] + ∫wbˢ_t[i2])
+εˢ_pair  = @. 0.5 * (∫εˢ_t[i1] + ∫εˢ_t[i2])</code></pre><pre><code class="nohighlight hljs">35-element Vector{Float64}:
+ 5.95359235713432e-16
+ 1.087107737163251e-9
+ 1.6115127010607466e-8
+ 1.3989108538225992e-7
+ 1.0053045116364956e-6
+ 5.913985660299659e-6
+ 2.537825275794603e-5
+ 7.691980863455683e-5
+ 0.0001773710537236184
+ 0.0003089088131673634
+ 0.0004670735215768218
+ 0.0006454169051721692
+ 0.0008495457004755735
+ 0.001091537531465292
+ 0.0013851976254954934
+ 0.0017412814777344465
+ 0.002166382735595107
+ 0.002652437426149845
+ 0.0031752674840390682
+ 0.0037090927362442017
+ 0.004239959642291069
+ 0.004766242112964392
+ 0.005304264836013317
+ 0.005912557244300842
+ 0.006579696200788021
+ 0.007150683552026749
+ 0.007710915058851242
+ 0.0084513109177351
+ 0.009435515850782394
+ 0.0103079192340374
+ 0.01102607510983944
+ 0.011534986086189747
+ 0.011679408140480518
+ 0.011499028652906418
+ 0.011203847825527191</code></pre><p>Residual in sum-to-zero form: the negative tendency plus the sources, so the plotted curves add to it</p><pre><code class="language-julia hljs">resid = @. -dKˢdt + Πₖ_pair + wbˢ_pair - εˢ_pair
+</code></pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><p>We build the figure in three rows: the vertical slices of the buoyancy <code>b</code> (the spikes and bubbles) and of the cross-scale flux <code>Πₖ</code> on top; the two kinetic energies that the filter separates, <code>Kˡ</code> and <code>Kˢ</code>, in the middle; and the volume-integrated sub-filter-scale kinetic-energy budget at the bottom.</p><pre><code class="language-julia hljs">set_theme!(Theme(fontsize=18))
+fig = Figure(size=(1000, 1200))
+
+n = Observable(1)
+
+axb = Axis(fig[2, 1]; title=&quot;buoyancy, b&quot;, xlabel=&quot;x&quot;, ylabel=&quot;z&quot;, aspect=1)
+axΠ = Axis(fig[2, 3]; title=&quot;cross-scale KE flux, Πₖ&quot;, xlabel=&quot;x&quot;, ylabel=&quot;z&quot;, aspect=1)
+
+blim = 0.8 * maximum(abs, b_arr[:, :, 1])
+Πlim = 0.5 * maximum(abs, Π_arr)
+
+bₙ = @lift b_arr[:, :, $n]
+Πₙ = @lift Π_arr[:, :, $n]
+
+hmb = heatmap!(axb, x_caa, z_aac, bₙ; colormap=:balance, colorrange=(-blim, blim))
+Colorbar(fig[2, 2], hmb)
+
+hmΠ = heatmap!(axΠ, x_caa, z_aac, Πₙ; colormap=:balance, colorrange=(-Πlim, Πlim))
+Colorbar(fig[2, 4], hmΠ)</code></pre><pre><code class="nohighlight hljs">Makie.Colorbar()</code></pre><p>The middle row splits the kinetic energy across the filter scale: on the left the coarse-grained (filtered) energy <code>Kˡ</code>, on the right the sub-filter energy <code>Kˢ</code> whose budget the bottom panel closes. Both are non-negative, so they get a sequential colormap, and each gets its own colour scale because the two differ by orders of magnitude.</p><pre><code class="language-julia hljs">axKˡ = Axis(fig[3, 1]; title=&quot;coarse-grained KE, Kˡ&quot;, xlabel=&quot;x&quot;, ylabel=&quot;z&quot;, aspect=1)
+axKˢ = Axis(fig[3, 3]; title=&quot;sub-filter-scale KE, Kˢ&quot;, xlabel=&quot;x&quot;, ylabel=&quot;z&quot;, aspect=1)
+
+Kˡlim = maximum(Kˡ_arr)
+Kˢlim = maximum(Kˢ_arr)
+
+Kˡₙ = @lift Kˡ_arr[:, :, $n]
+Kˢₙ = @lift Kˢ_arr[:, :, $n]
+
+hmKˡ = heatmap!(axKˡ, x_caa, z_aac, Kˡₙ; colormap=:magma, colorrange=(0, Kˡlim))
+Colorbar(fig[3, 2], hmKˡ)
+
+hmKˢ = heatmap!(axKˢ, x_caa, z_aac, Kˢₙ; colormap=:magma, colorrange=(0, Kˢlim))
+Colorbar(fig[3, 4], hmKˢ)</code></pre><pre><code class="nohighlight hljs">Makie.Colorbar()</code></pre><p>The bottom panel shows the volume-integrated sub-filter-scale kinetic-energy budget. We plot the negative tendency <code>−d(∫Kˢ)/dt</code> together with the two sources that feed it, the cross-scale flux <code>∫Πₖ dV</code> handed down from the filtered scales and the sub-filter buoyancy flux <code>∫τ(w,b) dV</code>, and the single sink that drains it, the sub-filter dissipation <code>−∫εˢ dV</code>. With the tendency negated, the four curves sum to the residual.</p><pre><code class="language-julia hljs">ax_bud = Axis(fig[4, 1:4]; xlabel=&quot;time [free-fall units]&quot;, title=&quot;Sub-filter-scale KE budget&quot;)
+lines!(ax_bud, t_pair ./ τ, -dKˢdt,   label=&quot;−d(∫Kˢ)/dt&quot;)
+lines!(ax_bud, t_pair ./ τ, Πₖ_pair,  label=&quot;∫Πₖ dV  (flux from filtered scales)&quot;)
+lines!(ax_bud, t_pair ./ τ, wbˢ_pair, label=&quot;∫τ(w,b) dV  (sub-filter buoyancy flux)&quot;)
+lines!(ax_bud, t_pair ./ τ, -εˢ_pair, label=&quot;−∫εˢ dV  (sub-filter dissipation)&quot;)
+lines!(ax_bud, t_pair ./ τ, resid,    label=&quot;residual&quot;, color=:black, linestyle=:dash)
+axislegend(ax_bud; position=:lt, labelsize=10)
+
+vlines!(ax_bud, @lift(times[$n] / τ), color=:black, linestyle=:dash)
+
+title = @lift &quot;Rayleigh-Taylor instability, t = &quot; * string(round(times[$n] / τ, digits=2)) * &quot; τ&quot;
+fig[1, 1:4] = Label(fig, title, fontsize=22, tellwidth=false)
+
+@info &quot;Animating...&quot;
+record(fig, &quot;rayleigh_taylor_instability.mp4&quot;, 1:length(times), framerate=12) do i
+    n[] = i
+end</code></pre><pre><code class="nohighlight hljs">&quot;rayleigh_taylor_instability.mp4&quot;</code></pre><p><video src="../rayleigh_taylor_instability.mp4" controls="true" title><a href="../rayleigh_taylor_instability.mp4"></a></video></p><p>As the heavy fluid falls in spikes and the light fluid rises in bubbles, the flow rolls up and breaks into a turbulent mixing layer. The bottom panel shows the volume-integrated SFS KE budget. The sub-filter buoyancy flux <code>∫τ(w,b) dV</code> and dissipation <code>∫εˢ dV</code> are the dominant terms, with the tendency <code>−d(∫Kˢ)/dt</code> in third place. The residual is small, which shows that the budget closes well and that the coarse-graining analysis is consistent with the simulation.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../kelvin_helmholtz/">« Kelvin-Helmholtz instability</a><a class="docs-footer-nextpage" href="../lock_release/">Lock release »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 31 July 2026 13:56">Friday 31 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
