@@ -2,8 +2,7 @@
 
 The `SubFilterAvailablePotentialEnergyEquation` module provides diagnostics for the available potential
 energy carried by the scales that a low-pass spatial filter ``\overline{(\,\cdot\,)}`` removes from the
-buoyancy field, following the filtered APE framework of
-[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879). It is the potential-energy
+buoyancy field. It is the potential-energy
 counterpart of the [Subfilter kinetic energy equation](@ref): where that module splits the kinetic
 energy across the filter scale, this one splits the *local* available potential energy ``e_a`` of
 [the available potential energy equation](available_potential_energy_equation.md). The other half of

@@ -99,8 +99,7 @@ scales a low-pass `filter` keeps would carry on their own:
 ```
 
 where `eₐ` is the local available potential energy density ([`AvailablePotentialEnergy`](@ref)) and
-`b✶(z̃)` is a reference profile the filtered buoyancy is looked up in, following the filtered APE
-framework of [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879). It is the
+`b✶(z̃)` is a reference profile the filtered buoyancy is looked up in. It is the
 potential-energy counterpart of the kinetic energy of the filtered flow `eₖˡ`
 ([`FilteredKineticEnergy`](@ref Oceanostics.FilteredKineticEnergyEquation.FilteredKineticEnergy)),
 and the filter splits the APE into it and the subfilter remainder `eₐˢ = filter(eₐ) - eₐˡ`
@@ -197,9 +196,8 @@ It is the full-field displacement potential `Υ = z✶ - z`
 ([`AvailablePotentialEnergyDisplacementPotential`](@ref)) evaluated on the filtered state, and it is
 the derivative of the filtered available potential energy with respect to the filtered buoyancy,
 `Υˡ = ∂eₐˡ/∂b̄` ([`FilteredAvailablePotentialEnergy`](@ref)). That is what makes it the field the
-filtered APE budget contracts its fluxes against, following the filtered APE framework of
-[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879): against the filtered diffusive
-flux it gives the dissipation
+filtered APE budget contracts its fluxes against: against the filtered diffusive flux it gives the
+dissipation
 [`FilteredAvailablePotentialEnergyDissipationRate`](@ref) `εₐˡ = -q̄ᵢ∂ᵢΥˡ`, and against the subfilter
 buoyancy flux the cross-scale flux
 [`AvailablePotentialEnergyCrossScaleFlux`](@ref) `Πₐ = -τ(uᵢ, b)∂ᵢΥˡ`.
@@ -302,8 +300,8 @@ It is the full-field contraction `εₐ = -qᵢ∂ᵢΥ` ([`AvailablePotentialEn
 evaluated on the filtered state: the closure's diffusive buoyancy flux `qᵢ` low-pass filtered, against
 the displacement potential of the filtered buoyancy `Υˡ`
 ([`FilteredAvailablePotentialEnergyDisplacementPotential`](@ref)).
-It is the diffusive sink of the budget of [`FilteredAvailablePotentialEnergy`](@ref)
-([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)), and it mirrors what
+It is the diffusive sink of the budget of [`FilteredAvailablePotentialEnergy`](@ref), and it mirrors
+what
 [`FilteredKineticEnergyDissipationRate`](@ref Oceanostics.FilteredKineticEnergyEquation.FilteredKineticEnergyDissipationRate)
 is to the filtered kinetic energy. The subfilter remainder `εₐˢ = filter(εₐ) - εₐˡ` is
 [`SubFilterAvailablePotentialEnergyDissipationRate`](@ref Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate).
@@ -421,8 +419,7 @@ const CrossScaleFlux = AvailablePotentialEnergyCrossScaleFlux
     $(SIGNATURES)
 
 Return the cross-scale (scale-to-scale) available-potential-energy flux `Πₐ`, the rate at which a
-low-pass `filter` transfers available potential energy from the filtered to the subfilter scales
-([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)):
+low-pass `filter` transfers available potential energy from the filtered to the subfilter scales:
 
 ```
     Πₐ = -τ(uᵢ, b) ∂ᵢΥˡ ,   τ(uᵢ, b) = filter(b uᵢ) - b̄ ūᵢ ,   Υˡ = z✶(b̄) - z
@@ -530,8 +527,7 @@ const FilteredAvailablePotentialToKineticEnergyConversion = CustomKFO{<:typeof(f
     $(SIGNATURES)
 
 Return the conversion of filtered available potential energy into filtered kinetic energy `w̄b_rˡ`,
-the rate at which the scales a low-pass `filter` keeps release their APE to the filtered flow
-([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)):
+the rate at which the scales a low-pass `filter` keeps release their APE to the filtered flow:
 
 ```
     w̄ b_rˡ ,   b_rˡ = b̄ - b✶(z) ,   b̄ = filter(b)

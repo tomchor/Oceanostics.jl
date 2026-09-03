@@ -1030,9 +1030,8 @@ end
 
 Return a `Field` holding `b✶(z)`: the buoyancy the adiabatically resorted reference state carries at
 each cell's **own height**, rather than at the reference height [`reference_height`](@ref) sends that
-cell's buoyancy to. It is the inverse of that map — `b✶` is defined implicitly by `z✶(b✶(z)) = z`
-([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879), §2.1) — and it is what turns a
-buoyancy into an anomaly against the reference state, `b_r = b - b✶(z)`.
+cell's buoyancy to. It is the inverse of that map, `b✶` being defined implicitly by `z✶(b✶(z)) = z`,
+and it is what turns a buoyancy into an anomaly against the reference state, `b_r = b - b✶(z)`.
 
 `profile` is the reference profile to read, in any of the forms [`ProfileLookup`](@ref) accepts a
 profile in: a reference height built with [`VerticalSort`](@ref), which is recomputed first so the

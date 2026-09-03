@@ -74,9 +74,8 @@ minus the APE of the filtered buoyancy `b̄ = filter(b)`:
 
 where `eₐ` is the local available potential energy density ([`AvailablePotentialEnergy`](@ref)),
 `eₐ(b̄, z)` is the APE of the filtered buoyancy ([`FilteredAvailablePotentialEnergy`](@ref)), and both
-terms are measured against **one shared reference profile** `(b✶, z✶)`, following the filtered APE
-framework of [Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879): the filtered buoyancy
-is looked up in the same profile the full field is measured against, which is exactly what
+terms are measured against **one shared reference profile** `(b✶, z✶)`: the filtered buoyancy is
+looked up in the same profile the full field is measured against, which is exactly what
 [`ProfileLookup`](@ref) was built for. It is the potential-energy counterpart of the subfilter
 kinetic energy `eₖˢ` ([`SubFilterKineticEnergy`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy)),
 just as [`FilteredAvailablePotentialEnergy`](@ref) is that of the filtered kinetic energy `eₖˡ`.
@@ -164,8 +163,8 @@ flux, and `εₐˡ` is the same contraction evaluated on the filtered state
 displacement potential `Υˡ` of the filtered buoyancy `b̄ = filter(b)`. Filtering the flux rather than
 recomputing it from `b̄` is what makes `εₐˡ` the sink of the filtered-state budget when `κ` varies in
 space; that docstring has the details. Both states are measured against one shared reference profile,
-exactly as in [`SubFilterAvailablePotentialEnergy`](@ref), whose budget this is the diffusive sink of
-([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)); it mirrors what
+exactly as in [`SubFilterAvailablePotentialEnergy`](@ref), whose budget this is the diffusive sink of;
+it mirrors what
 [`SubFilterKineticEnergyDissipationRate`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergyDissipationRate)
 is to the subfilter kinetic energy.
 
@@ -243,8 +242,8 @@ subfilter flow:
 
 It is the subfilter half of the split whose filtered half is
 [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref) `w̄b_rˡ`: the two sum to `filter(w bᵣ)`,
-so the subfilter and filtered budgets between them exchange exactly what the full field converts
-([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)). It enters this budget as
+so the subfilter and filtered budgets between them exchange exactly what the full field converts. It
+enters this budget as
 `-τˡ(w, bᵣ)` and the subfilter kinetic energy budget
 ([`SubFilterKineticEnergy`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy))
 as `+τˡ(w, bᵣ)`, so it is a reversible exchange rather than a source or a sink.

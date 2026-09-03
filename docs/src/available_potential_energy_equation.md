@@ -18,8 +18,7 @@ at finite ``\Delta z`` the two differ at second order.
 
 ## Deriving the local available potential energy equation
 
-The budget follows from the material derivative of ``e_a(b, z, t)`` along the flow
-([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)):
+The budget follows from the material derivative of ``e_a(b, z, t)`` along the flow:
 
 
 ```math
