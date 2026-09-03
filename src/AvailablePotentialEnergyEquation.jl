@@ -60,10 +60,9 @@ resorted state to the height `z` where it actually sits. The parcel's own buoyan
 along the path; only the reference profile `b✶` varies with `z̃`.
 
 This is the spatially local APE density of
-[Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742) and it is also used in
-[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) as a basis for a filtered APE
-framework. It is **non-negative everywhere** whenever the reference profile is one-dimensional and
-gravitationally stable.
+[Holliday & McIntyre (1981)](https://doi.org/10.1017/S0022112081001742), and it is the quantity the
+filtered APE framework is built on. It is **non-negative everywhere** whenever the reference profile is
+one-dimensional and gravitationally stable.
 
 `z✶` is the reference height computed by [`reference_height`](@ref); pass one explicitly to share a
 single sort with [`BackgroundPotentialEnergy`](@ref), or pass `method` through to choose how it is
@@ -149,9 +148,9 @@ contracting it with a buoyancy gradient gives an APE dissipation rate
 ([`AvailablePotentialEnergyDissipationRate`](@ref)), and contracting it with a subfilter buoyancy flux
 gives a cross-scale APE flux.
 
-This is the buoyancy form of `Υ(ρ, z) = g(z - z✶(ρ))/ρ₀` as
-[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) write it in their Eq. (7) for
-density. The two differ by the factor `-g/ρ₀` that converts between buoyancy and density, which cancels
+This is the buoyancy form of the displacement potential written for density as
+`Υ(ρ, z) = g(z - z✶(ρ))/ρ₀`. The two differ by the factor `-g/ρ₀` that converts between buoyancy and
+density, which cancels
 wherever `Υ` is contracted with a buoyancy gradient. The result lives at `(Center, Center, Center)` and
 is a length (units `m`).
 
@@ -217,8 +216,7 @@ adiabatically sorted reference profile taken at the parcel's **own** height,
     bᵣ = b - b✶(z) ,
 ```
 
-the buoyancy form of `b_r(ρ, z) = -g(ρ - ρ✶(z))/ρ₀` in
-[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879), their Eq. (8). It is what the
+the buoyancy form of the anomaly written for density as `b_r(ρ, z) = -g(ρ - ρ✶(z))/ρ₀`. It is what the
 available potential energy exchanges with the kinetic energy
 ([`AvailablePotentialToKineticEnergyConversion`](@ref)), and the buoyancy-space counterpart of
 [`AvailablePotentialEnergyDisplacementPotential`](@ref): `Υ = z✶ - z` measures a parcel's displacement from the reference state
@@ -289,8 +287,7 @@ into kinetic energy,
     w bᵣ = w [b - b✶(z)] ,
 ```
 
-the exchange term of the local available potential energy equation of
-[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879), which the `eₐ` budget takes with a
+the exchange term of the local available potential energy equation, which the `eₐ` budget takes with a
 minus sign and the kinetic energy budget with a plus.
 
 This is **not**
@@ -387,9 +384,8 @@ energy,
     εₐ = -qᵢ ∂ᵢΥ = -(∂z✶/∂b) qᵢ ∂ᵢb + q₃ ,
 ```
 
-the sink of the local available potential energy equation of
-[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879) (their Eqs. 11 and 14, where it
-appears as `-εₐ`), with `Υ` the [`AvailablePotentialEnergyDisplacementPotential`](@ref) and `qᵢ` the
+the sink of the local available potential energy equation, where it appears as `-εₐ`, with `Υ` the
+[`AvailablePotentialEnergyDisplacementPotential`](@ref) and `qᵢ` the
 diffusive buoyancy flux the closure supplies. It follows from `∂eₐ/∂b = Υ`, which makes the diffusive
 part of `Deₐ/Dt` equal to `-Υ ∂ᵢqᵢ = -∂ᵢ(Υqᵢ) + qᵢ∂ᵢΥ`: once the flux divergence is set aside,
 `εₐ = -qᵢ∂ᵢΥ` is what remains. Nothing here assumes a form for `qᵢ`: it is `-κ∂ᵢb` for Fickian

@@ -2,9 +2,7 @@
 
 The `FilteredAvailablePotentialEnergyEquation` module provides diagnostics for the available potential
 energy of the *filtered* buoyancy field. It is the potential-energy counterpart of the
-[Filtered kinetic energy equation](@ref). Following the filtered APE framework of
-[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879), we define the APE
-of the filtered flow as
+[Filtered kinetic energy equation](@ref). We define the APE of the filtered flow as
 
 ```math
 e_a^l = e_a(\bar b, z, t) = \int_{z^\star(\bar b, t)}^{z} \left[b^\star(\tilde z, t) - \bar b\right] \mathrm{d}\tilde z ,
@@ -22,8 +20,7 @@ the only method of obtaining the reference height that has this capability.
 The budget of ``e_a^l`` retraces the
 [full-APE derivation](@ref "Deriving the local available potential energy equation") with the
 filtered buoyancy taking the place of ``b`` and the material derivative taken along the *filtered*
-flow, ``D^l/Dt = \partial_t + \bar u_i \partial_i``
-([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)):
+flow, ``D^l/Dt = \partial_t + \bar u_i \partial_i``:
 
 ```math
 \frac{D^l e_a^l}{D t} = \left.\frac{\partial e_a^l}{\partial \bar b}\right|_{z,t} \frac{D^l \bar b}{D t}
@@ -103,8 +100,7 @@ Importantly, while ``R`` integrates to zero in a closed domain ([Winters et al.,
 ``R^l`` does not inherit that property. Given its subfilter counterpart ``R^s = \overline{R} - R^l``
 appears in the [Subfilter available potential energy equation](@ref), we get that
 ``\int R^l \, \mathrm{d}V = -\int R^s \, \mathrm{d}V``. Thus, interestingly, an evolving reference profile
-redistributes APE across the filter scale as well as in space
-([Wenegrat, Chor & Barkan, 2026](https://arxiv.org/abs/2605.15879)). With a reference profile held
+redistributes APE across the filter scale as well as in space. With a reference profile held
 fixed in time (implemented here with a [`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup)
 holding plain arrays) ``R^l`` vanishes identically.
 

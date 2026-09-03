@@ -219,6 +219,7 @@ end
     @testset "FlowDiagnostics" begin
         test_kfo_invariants("RossbyNumber",            RossbyNumber(model))
         test_kfo_invariants("ErtelPotentialVorticity", ErtelPotentialVorticity(model))
+        test_kfo_invariants("GradientRichardsonNumber", GradientRichardsonNumber(model))
         test_kfo_invariants("StrainRateTensorModulus", StrainRateTensorModulus(model))
 
         # Off-diagonal strain components live at edge locations (ffc/fcf/cff) and exercise the

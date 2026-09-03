@@ -2,8 +2,7 @@
 
 The `SubFilterAvailablePotentialEnergyEquation` module provides diagnostics for the available potential
 energy carried by the scales that a low-pass spatial filter ``\overline{(\,\cdot\,)}`` removes from the
-buoyancy field, following the filtered APE framework of
-[Wenegrat, Chor & Barkan (2026)](https://arxiv.org/abs/2605.15879). It is the potential-energy
+buoyancy field. It is the potential-energy
 counterpart of the [Subfilter kinetic energy equation](@ref): where that module splits the kinetic
 energy across the filter scale, this one splits the *local* available potential energy ``e_a`` of
 [the available potential energy equation](available_potential_energy_equation.md). The other half of
@@ -35,6 +34,10 @@ into a [`VerticalSort`](@ref Oceanostics.BackgroundPotentialEnergyEquation.Verti
 every `compute!`, a column you built yourself can be shared across diagnostics, and a profile given as
 plain arrays holds the reference state fixed in time (which also makes the diagnostics sort-free).
 
+<<<<<<< HEAD
+Because ``e_a`` is convex in buoyancy, a filter with no vertical component keeps ``e_a^s \geq 0``
+pointwise, by Jensen's inequality; a filter that acts vertically mixes heights as well as buoyancies
+and can produce locally negative values in the current formulation.
 ```@docs
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy
 ```
