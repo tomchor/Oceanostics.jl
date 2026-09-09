@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Lock release · Oceanostics.jl</title><meta name="title" content="Lock release · Oceanostics.jl"/><meta property="og:title" content="Lock release · Oceanostics.jl"/><meta property="twitter:title" content="Lock release · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox"/><label class="tocitem" for="menuitem-2"><span class="docs-label">Budget equations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tracer_equation/">Tracer equation</a></li><li><a class="tocitem" href="../../momentum_equation/">Momentum equation</a></li><li><a class="tocitem" href="../../kinetic_energy_equation/">Kinetic energy equation</a></li><li><a class="tocitem" href="../../filtered_kinetic_energy_equation/">Filtered kinetic energy equation</a></li><li><a class="tocitem" href="../../subfilter_kinetic_energy_equation/">Sub-filter kinetic energy equation</a></li><li><a class="tocitem" href="../../turbulent_kinetic_energy_equation/">Turbulent kinetic energy equation</a></li><li><a class="tocitem" href="../../tracer_variance_equation/">Tracer variance equation</a></li><li><a class="tocitem" href="../../potential_energy_equation/">Potential energy equation</a></li><li><a class="tocitem" href="../../background_potential_energy_equation/">Background potential energy equation</a></li><li><a class="tocitem" href="../../available_potential_energy_equation/">Available potential energy equation</a></li></ul></li><li><a class="tocitem" href="../../flow_diagnostics/">Flow diagnostics</a></li><li><a class="tocitem" href="../../progress_messengers/">Progress messengers</a></li><li><a class="tocitem" href="../../filters/">Spatial filters</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox" checked/><label class="tocitem" for="menuitem-6"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li><a class="tocitem" href="../spatial_filtering/">Spatial filtering</a></li><li><a class="tocitem" href="../kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li><a class="tocitem" href="../rayleigh_taylor_instability/">Rayleigh-Taylor instability</a></li><li class="is-active"><a class="tocitem" href>Lock release</a><ul class="internal"><li><a class="tocitem" href="#Model-and-simulation-setup"><span>Model and simulation setup</span></a></li><li><a class="tocitem" href="#Diagnostics"><span>Diagnostics</span></a></li><li><a class="tocitem" href="#Run-the-simulation"><span>Run the simulation</span></a></li><li><a class="tocitem" href="#Reference-profile"><span>Reference profile</span></a></li><li><a class="tocitem" href="#Flow-animation-and-local-energies"><span>Flow animation and local energies</span></a></li><li><a class="tocitem" href="#Energetics"><span>Energetics</span></a></li></ul></li><li><a class="tocitem" href="../tilted_bottom_boundary_layer/">Tilted bottom boundary layer</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-7" type="checkbox"/><label class="tocitem" for="menuitem-7"><span class="docs-label">Validation</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../validation/reference_state/">Sorted reference state</a></li></ul></li><li><a class="tocitem" href="../../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Lock release</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Lock release</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/examples/lock_release.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="lock_release_example"><a class="docs-heading-anchor" href="#lock_release_example">Lock release and the sorted reference state</a><a id="lock_release_example-1"></a><a class="docs-heading-anchor-permalink" href="#lock_release_example" title="Permalink"></a></h1><p>In this example we run a two-dimensional lock release simulation and use it to watch the <em>sorted reference state</em>, available potential energy and kinetic energy evolve. Along the way we build the reference profile with each of the four methods Oceanostics offers and compare what they do and do not agree on.</p><p>Before starting, make sure you have the required packages installed for this example, which can be done with</p><pre><code class="language-julia hljs">using Pkg
+pkg&quot;add Oceananigans, Oceanostics, CairoMakie&quot;</code></pre><h2 id="Model-and-simulation-setup"><a class="docs-heading-anchor" href="#Model-and-simulation-setup">Model and simulation setup</a><a id="Model-and-simulation-setup-1"></a><a class="docs-heading-anchor-permalink" href="#Model-and-simulation-setup" title="Permalink"></a></h2><pre><code class="language-julia hljs">using Oceananigans</code></pre><p>We work with nondimensional quantities. The buoyancy jump across the lock <code>Δb</code> and the channel depth <code>H</code> set the buoyancy velocity <code>U = √(Δb H) / 2</code>, which is the classic lock-release front speed and the only velocity scale in the problem. The channel is four times as long as it is deep:</p><pre><code class="language-julia hljs">Δb = 1      # buoyancy jump across the lock
+H  = 1      # channel depth
+Lx = 4H     # channel length
+
+U = √(Δb * H) / 2   # buoyancy velocity</code></pre><pre><code class="nohighlight hljs">0.5</code></pre><p>The domain is walled at both ends and at top and bottom, so the fronts eventually reflect and the channel fills with a mixed intermediate layer. That is what we want here: it drives the reference profile all the way from a step to something smooth. The grid is isotropic at <code>Δ = H/128</code>:</p><pre><code class="language-julia hljs">Nz = 128
+grid = RectilinearGrid(size = (4Nz, Nz), x = (-Lx/2, Lx/2), z = (0, H), topology = (Bounded, Flat, Bounded))
+
+model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
+                            advection = WENO(order=5), # Diffusive and bounded scheme
+                            buoyancy = BuoyancyTracer(), tracers = :b)</code></pre><pre><code class="nohighlight hljs">NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 512×1×128 RectilinearGrid{Float64, Bounded, Flat, Bounded} on CPU with 3×0×3 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: WENO{3, Float64, Oceananigans.Utils.BackendOptimizedDivision}(order=5)
+├── tracers: b
+├── closure: Nothing
+├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
+└── coriolis: Nothing</code></pre><p>The lock itself: buoyant fluid on the right, dense fluid on the left, separated by an interface a couple of cells thick. Smoothing the step over <code>δ</code> keeps the initial condition off the grid scale without changing the fact that almost every cell starts at one of two buoyancies:</p><pre><code class="language-julia hljs">δ = 2 * minimum_xspacing(grid)          # interface thickness, two cells
+lock_release(x, z) = (Δb / 2) * tanh(x / δ)
+set!(model, b = lock_release)
+
+simulation = Simulation(model, Δt = 0.1 * minimum_xspacing(grid) / U, stop_time = 20)
+conjure_time_step_wizard!(simulation, IterationInterval(5), cfl = 0.7)
+
+using Oceanostics
+progress = ProgressMessengers.BasicMessenger()
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(500))</code></pre><pre><code class="nohighlight hljs">Callback of Oceanostics.ProgressMessengers.BasicMessenger{Oceanostics.ProgressMessengers.AbstractProgressMessenger} on IterationInterval(500)</code></pre><h2 id="Diagnostics"><a class="docs-heading-anchor" href="#Diagnostics">Diagnostics</a><a id="Diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Diagnostics" title="Permalink"></a></h2><p>We build one <code>z★</code> per method and write all of them, so the reference state comes out of the run rather than being rebuilt afterwards. They are ordinary <code>Field</code>s that re-sort themselves whenever they are computed, so they can be passed to an output writer.</p><p>What each method gives you to write differs, and that difference is the same one the figures below show. The three model-grid methods produce a <em>map</em> of the reference height, one value per cell, on the model grid. <a href="../../background_potential_energy_equation/#Oceanostics.BackgroundPotentialEnergyEquation.VerticalSort"><code>VerticalSort</code></a> instead produces the sorted column itself, so its <code>z★</code> and the buoyancy that goes with it are already the profile, in order, and need no post-processing at all.</p><p>Given that the referece height calculation is nonnlocal, it is generally a computationally-heavy operation and its cost grows faster than the number of cells: see <a href="../../background_potential_energy_equation/#Computational-cost-per-method">Computational cost per method</a> for how different methods compare and how they scale.</p><pre><code class="language-julia hljs">b = model.tracers.b
+
+z★_ranked    = reference_height(model, method = ThreeDimensionalSort())
+z★_heaviside = reference_height(model, method = HeavisideIntegral())
+z★_lookup    = reference_height(model, method = ProfileLookup())
+z★_column    = reference_height(model, method = VerticalSort())
+b✶_column   = reference_buoyancy(z★_column)</code></pre><pre><code class="nohighlight hljs">1×1×65536 Field{Center, Center, Center} on RectilinearGrid on CPU
+├── grid: 1×1×65536 RectilinearGrid{Float64, Bounded, Flat, Bounded} on CPU with 1×0×3 halo
+├── boundary conditions: FieldBoundaryConditions
+│   └── west: ZeroFlux, east: ZeroFlux, south: Nothing, north: Nothing, bottom: ZeroFlux, top: ZeroFlux, immersed: Nothing
+├── operand: SortedBuoyancyState of 1×1×65536 Field{Center, Center, Center} on RectilinearGrid on CPU
+├── status: time=0.0
+└── data: 3×1×65542 OffsetArray(::Array{Float64, 3}, 0:2, 1:1, -2:65539) with eltype Float64 with indices 0:2×1:1×-2:65539
+    └── max=0.5, min=-0.5, mean=0.0</code></pre><p>Both background and available potential energies are built from the same reference height, so we share one rather than letting each diagnostic sort the domain for itself. Note that <code>Eₐ</code> here is the <em>local</em> available potential energy (as defined by Holliday &amp; McIntyre (1981)) and it should always be non-negative</p><p>We build one <code>Eₐ</code> per method. Three of the four answer on the model grid and give a map over the domain, which is what the animation below compares. <a href="../../background_potential_energy_equation/#Oceanostics.BackgroundPotentialEnergyEquation.VerticalSort"><code>VerticalSort</code></a> answers on the sorted column, so its <code>Eₐ</code> is ordered by rank rather than by position and is not a map of the flow; it is written anyway because the volume integral comes out the same whichever method builds the reference state. <a href="../../background_potential_energy_equation/#Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup"><code>ProfileLookup</code></a> is that same column read back onto the model grid, matching each cell to the profile through its buoyancy rather than through where it came from.</p><pre><code class="language-julia hljs">APE_ranked    = AvailablePotentialEnergy(model, z★_ranked)
+APE_heaviside = AvailablePotentialEnergy(model, z★_heaviside)
+APE_lookup    = AvailablePotentialEnergy(model, z★_lookup)
+APE_column    = AvailablePotentialEnergy(model, z★_column)
+KE            = KineticEnergy(model)
+
+∫BPE = Integral(BackgroundPotentialEnergy(model, z★_ranked))
+∫KE  = Integral(KE)
+
+∫APE           = Integral(APE_ranked)
+∫APE_heaviside = Integral(APE_heaviside)
+∫APE_lookup    = Integral(APE_lookup)
+∫APE_column    = Integral(APE_column)
+
+using NCDatasets
+filename = &quot;lock_release&quot;</code></pre><pre><code class="nohighlight hljs">&quot;lock_release&quot;</code></pre><p>A single <code>NetCDFWriter</code> copes with the two grids: the model-grid fields are written against <code>x</code> and <code>z</code>, and the column&#39;s against its own <code>N</code>-cell vertical axis.</p><pre><code class="language-julia hljs">outputs = (; b, KE, APE_ranked, APE_heaviside, APE_lookup, APE_column,
+             z★_ranked, z★_heaviside, z★_lookup, z★_column, b✶_column,
+             ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column)
+
+simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
+                                                  filename = joinpath(@__DIR__, filename),
+                                                  schedule = TimeInterval(0.5),
+                                                  overwrite_existing = true)</code></pre><pre><code class="nohighlight hljs">NetCDFWriter scheduled on TimeInterval(500 ms):
+├── filepath: lock_release.nc
+├── dimensions: time(0), z_aac_grid1(128), x_faa_grid1(513), x_caa_grid1(512), z_aaf_grid1(129), z_aaf_grid2(65537), x_caa_grid2(1), z_aac_grid2(65536), x_faa_grid2(2)
+├── 17 outputs: (APE_ranked, z★_lookup, KE, b, z★_heaviside, APE_column, z★_ranked, ∫APE, ∫APE_heaviside, APE_heaviside, APE_lookup, b✶_column, ∫APE_column, ∫BPE, ∫APE_lookup, z★_column, ∫KE)
+├── array_type: Array{Float32}
+├── file_splitting: NoFileSplitting
+└── file size: 715.7 KiB</code></pre><h2 id="Run-the-simulation"><a class="docs-heading-anchor" href="#Run-the-simulation">Run the simulation</a><a id="Run-the-simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-simulation" title="Permalink"></a></h2><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre><code class="nohighlight hljs">[ Info: Initializing simulation...
+[ Info: [[93m000.00%[39m] time = [93m0 seconds[39m,  Δt = [93m1.719 ms[39m,  walltime = [93m1.441 minutes[39m,  advective CFL = [93m0[39m,  diffusive CFL = [93m0[39m
+[ Info:     ... simulation initialization complete (11.076 seconds)
+[ Info: Executing initial time step...
+[ Info:     ... initial time step complete (2.870 seconds).
+[ Info: [[93m013.47%[39m] time = [93m2.694 seconds[39m,  Δt = [93m4.806 ms[39m,  walltime = [93m1.899 minutes[39m,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0[39m
+[ Info: [[93m024.61%[39m] time = [93m4.922 seconds[39m,  Δt = [93m4.798 ms[39m,  walltime = [93m2.146 minutes[39m,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0[39m
+[ Info: [[93m035.59%[39m] time = [93m7.117 seconds[39m,  Δt = [93m4.369 ms[39m,  walltime = [93m2.393 minutes[39m,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0[39m
+[ Info: [[93m046.17%[39m] time = [93m9.234 seconds[39m,  Δt = [93m3.577 ms[39m,  walltime = [93m2.642 minutes[39m,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0[39m
+[ Info: [[93m057.34%[39m] time = [93m11.467 seconds[39m,  Δt = [93m4.669 ms[39m,  walltime = [93m2.890 minutes[39m,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0[39m
+[ Info: [[93m068.93%[39m] time = [93m13.786 seconds[39m,  Δt = [93m4.474 ms[39m,  walltime = [93m3.145 minutes[39m,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0[39m
+[ Info: [[93m080.10%[39m] time = [93m16.021 seconds[39m,  Δt = [93m4.175 ms[39m,  walltime = [93m3.397 minutes[39m,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0[39m
+[ Info: [[93m090.52%[39m] time = [93m18.104 seconds[39m,  Δt = [93m4.055 ms[39m,  walltime = [93m3.642 minutes[39m,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0[39m
+[ Info: Simulation is stopping after running for 2.454 minutes.
+[ Info: Simulation time 20 seconds equals or exceeds stop time 20 seconds.
+</code></pre><h2 id="Reference-profile"><a class="docs-heading-anchor" href="#Reference-profile">Reference profile</a><a id="Reference-profile-1"></a><a class="docs-heading-anchor-permalink" href="#Reference-profile" title="Permalink"></a></h2><p>The reference state is what you get by rearranging every parcel adiabatically into the state of minimum potential energy: rank the cells by buoyancy and stack them from the bottom of the domain up. The height a parcel lands at is its reference height <span>$z^\star$</span>, and plotting the buoyancy that goes with it gives the reference profile <span>$b^\star(z^\star)$</span> — the stratification the flow would have if all of its available potential energy were released.</p><p>Everything needed is already in the file. For the column the profile is written as it stands. For the two model-grid methods, <code>z★</code> and <code>b</code> are both maps over the cells, so pairing them and ordering by <code>z★</code> recovers the same profile; that reordering is all the &quot;post-processing&quot; amounts to.</p><pre><code class="language-julia hljs">using Oceananigans.Fields: interior
+
+filepath = simulation.output_writers[:fields].filepath
+b_t = FieldTimeSeries(filepath, &quot;b&quot;)     # for the movie below
+
+ds = NCDataset(filepath)
+times = ds[&quot;time&quot;][:]
+B  = ds[&quot;b&quot;][:, :, :]                    # (x, z, time); y is Flat, so it is dropped
+Z3 = ds[&quot;z★_ranked&quot;][:, :, :]
+ZH = ds[&quot;z★_heaviside&quot;][:, :, :]
+Z1 = ds[&quot;z★_column&quot;][:, :, :]            # (1, N, time): the column keeps the model&#39;s Flat y, dropped here
+B1 = ds[&quot;b✶_column&quot;][:, :, :]
+close(ds)
+
+# pair a reference-height map with the buoyancy map and order by z★
+mapped_profile(Z, n) = (h = vec(Float64.(Z[:, :, n])); p = sortperm(h); (vec(Float64.(B[:, :, n]))[p], h[p]))
+
+# the column is already ordered, so it is read straight off
+column_profile(n) = (vec(Float64.(B1[:, :, n])), vec(Float64.(Z1[:, :, n])))
+
+snapshot_times = [0, 5, 10, 20]
+snapshots = [argmin(abs.(times .- t)) for t in snapshot_times]
+
+methods = (&quot;ThreeDimensionalSort&quot; =&gt; n -&gt; mapped_profile(Z3, n),
+           &quot;HeavisideIntegral&quot;    =&gt; n -&gt; mapped_profile(ZH, n),
+           &quot;VerticalSort&quot;         =&gt; column_profile)
+
+# `profiles[name][k]` is the `(b✶, z★)` pair for method `name` at the `k`-th snapshot
+profiles = Dict(name =&gt; [build(n) for n in snapshots] for (name, build) in methods);</code></pre><pre><code class="nohighlight hljs">┌ Warning: Reading boundary conditions from NetCDF files is not supported for FieldTimeSeries. Using default FieldBoundaryConditions for `grid` and `location`.
+└ @ OceananigansNCDatasetsExt ~/.julia/packages/Oceananigans/nF8Kf/ext/OceananigansNCDatasetsExt/output_readers.jl:44
+</code></pre><p>All three describe the same reference state, so wherever the buoyancy field is continuous their profiles coincide. They part ways only where cells are <em>tied</em> at exactly the same buoyancy, and a lock is the extreme case: the initial condition saturates to <code>±Δb/2</code> away from the interface, leaving just a few dozen distinct buoyancies across tens of thousands of cells.</p><pre><code class="language-julia hljs">n_distinct(n) = length(unique(vec(Float64.(B[:, :, n]))))
+@info &quot;distinct buoyancies: $(n_distinct(snapshots[1])) at t = 0, &quot; *
+      &quot;$(n_distinct(snapshots[end])) at t = $(times[snapshots[end]]), of $(prod(size(grid))) cells&quot;
+</code></pre><pre><code class="nohighlight hljs">[ Info: distinct buoyancies: 38 at t = 0, 57498 at t = 20.0, of 65536 cells
+</code></pre><p>The profile gets a figure of its own: one panel per method, each showing <code>b★(z★)</code> at the four times above. It starts as a step, two blocks of uniform buoyancy stacked one on the other, and mixing erodes it into a smooth stratification.</p><pre><code class="language-julia hljs">using CairoMakie
+
+set_theme!(Theme(fontsize = 20))
+fig = Figure();
+
+colors = cgrad(:viridis, length(snapshots); categorical = true)
+
+for (m, (name, _)) in enumerate(methods)
+    row, col = fldmod1(m, 2)   # fill a 2×2 grid row by row
+    local ax = Axis(fig[row, col]; xlabel = &quot;b✶&quot;, title = name, width = 200, height = 280,
+                    ylabel = col == 1 ? &quot;z★&quot; : &quot;&quot;, yticklabelsvisible = col == 1, titlesize = 15)
+    ylims!(ax, 0, H)
+    for (s, n) in enumerate(snapshots)
+        b✶, z★ = profiles[name][s]
+        lines!(ax, b✶, z★; color = colors[s], linewidth = 2, label = &quot;t = $(round(times[n], digits=1))&quot;)
+    end
+    m == 1 &amp;&amp; axislegend(ax; position = :lt, labelsize = 11)
+end</code></pre><pre><code class="nohighlight hljs">Precompiling packages...
+    548.4 ms  ✓ FilePathsGlobExt (serial)
+  1 dependency successfully precompiled in 1 seconds
+Precompiling packages...
+    445.3 ms  ✓ DistancesChainRulesCoreExt (serial)
+  1 dependency successfully precompiled in 0 seconds
+Precompiling packages...
+   1032.6 ms  ✓ TaylorSeriesIAExt (serial)
+  1 dependency successfully precompiled in 1 seconds
+Precompiling packages...
+   6536.6 ms  ✓ OceananigansMakieExt (serial)
+  1 dependency successfully precompiled in 7 seconds
+</code></pre><p>The fourth panel puts the three side by side at <code>t = 0</code>, where they disagree the most. <a href="../../background_potential_energy_equation/#Oceanostics.BackgroundPotentialEnergyEquation.HeavisideIntegral"><code>HeavisideIntegral</code></a> is drawn as markers rather than a line because its <code>z★</code> takes only as many distinct values as there are distinct buoyancies, which is a few dozen here against 65536 cells.</p><pre><code class="language-julia hljs">row0, col0 = fldmod1(length(methods) + 1, 2)
+ax0 = Axis(fig[row0, col0]; xlabel = &quot;b✶&quot;, title = &quot;t = 0, all three&quot;, width = 200, height = 280,
+           ylabel = col0 == 1 ? &quot;z★&quot; : &quot;&quot;, yticklabelsvisible = col0 == 1, titlesize = 15)
+ylims!(ax0, 0, H)
+
+b✶_r, z★_r = profiles[&quot;ThreeDimensionalSort&quot;][1]
+b✶_c, z★_c = profiles[&quot;VerticalSort&quot;][1]
+b✶_h, z★_h = profiles[&quot;HeavisideIntegral&quot;][1]
+
+lines!(ax0, b✶_r, z★_r; linewidth = 5, color = (:steelblue, 0.9), label = &quot;ThreeDimensionalSort&quot;)
+lines!(ax0, b✶_c, z★_c; linewidth = 2, linestyle = :dash, color = :black, label = &quot;VerticalSort&quot;)
+scatter!(ax0, b✶_h, z★_h; markersize = 9, color = :crimson, label = &quot;HeavisideIntegral&quot;)
+axislegend(ax0; position = :lt, labelsize = 9)</code></pre><pre><code class="nohighlight hljs">Makie.Legend()</code></pre><p>The three method panels are identical except while the lock is still intact, and that difference is informative rather than an error. At <code>t = 0</code> almost every cell is tied with thousands of others at one of two buoyancies, and the methods place tied cells differently. <a href="../../background_potential_energy_equation/#Oceanostics.BackgroundPotentialEnergyEquation.ThreeDimensionalSort"><code>ThreeDimensionalSort</code></a> and <a href="../../background_potential_energy_equation/#Oceanostics.BackgroundPotentialEnergyEquation.VerticalSort"><code>VerticalSort</code></a> give each cell its own slot in the stack, so they draw the true step spanning the full depth. <a href="../../background_potential_energy_equation/#Oceanostics.BackgroundPotentialEnergyEquation.HeavisideIntegral"><code>HeavisideIntegral</code></a> instead collapses each buoyancy class onto the mid-height of the layer it fills, which is what makes <code>z★</code> a function of buoyancy alone and a clean field to map, but leaves it unable to represent a step as a profile: its <code>z★</code> only ever reaches the mid-heights of the two blocks, about a quarter of the depth in from each boundary. Once mixing has made the buoyancy field continuous the ties vanish and all three agree to within a grid cell.</p><pre><code class="language-julia hljs">resize_to_layout!(fig)
+save(&quot;lock_release_profiles.png&quot;, fig)</code></pre><p><img src="../lock_release_profiles.png" alt/></p><h2 id="Flow-animation-and-local-energies"><a class="docs-heading-anchor" href="#Flow-animation-and-local-energies">Flow animation and local energies</a><a id="Flow-animation-and-local-energies-1"></a><a class="docs-heading-anchor-permalink" href="#Flow-animation-and-local-energies" title="Permalink"></a></h2><p>The movie sets the flow beside the energy it carries: buoyancy, kinetic energy, and the local <code>Eₐ</code> built from each of the three methods that answer on the model grid.</p><pre><code class="language-julia hljs">KE_t   = FieldTimeSeries(filepath, &quot;KE&quot;)
+APE3_t = FieldTimeSeries(filepath, &quot;APE_ranked&quot;)
+APEH_t = FieldTimeSeries(filepath, &quot;APE_heaviside&quot;)
+APEL_t = FieldTimeSeries(filepath, &quot;APE_lookup&quot;)
+
+
+fig3 = Figure(size = (900, 1010))
+
+n = Observable(1)
+
+# `DataAspect` draws the channel at its true proportions, so a `4H` by `H` domain comes out four times
+# as wide as it is deep. The width follows from the height, rather than both being set independently.
+panel_kwargs = (ylabel = &quot;z&quot;, height = 190, aspect = DataAspect())
+
+ax_b  = Axis(fig3[2, 1];  title = &quot;Buoyancy b&quot;,                      panel_kwargs...)
+ax_KE = Axis(fig3[4, 1];  title = &quot;Kinetic energy&quot;,                  panel_kwargs...)
+ax_E3 = Axis(fig3[6, 1];  title = &quot;Eₐ,  ThreeDimensionalSort&quot;,       panel_kwargs...)
+ax_EH = Axis(fig3[8, 1];  title = &quot;Eₐ,  HeavisideIntegral&quot;,          panel_kwargs...)
+ax_EL = Axis(fig3[10, 1]; title = &quot;Eₐ,  ProfileLookup&quot;, xlabel = &quot;x&quot;, panel_kwargs...)
+
+bₙ  = @lift b_t[$n]
+KEₙ = @lift KE_t[$n]
+E3ₙ = @lift APE3_t[$n]
+EHₙ = @lift APEH_t[$n]
+ELₙ = @lift APEL_t[$n]
+
+# `Eₐ` and the kinetic energy are both sign-definite, so they get one-sided ranges set from their own
+# peak over the run; the buoyancy keeps the symmetric range used above.
+KE_lim = maximum(maximum(interior(KE_t[k]))   for k in 1:length(times))
+Ea_lim = maximum(maximum(interior(APE3_t[k])) for k in 1:length(times))
+
+hm_b  = heatmap!(ax_b,  bₙ;  colormap = :balance, colorrange = (-Δb/2, Δb/2))
+Colorbar(fig3[3, 1], hm_b;  vertical = false, height = 8)
+
+energy_options = (; colormap = :magma, colorrange = (0, 0.5Ea_lim))
+hm_KE = heatmap!(ax_KE, KEₙ; energy_options...)
+Colorbar(fig3[5, 1], hm_KE; vertical = false, height = 8)
+
+hm_E3 = heatmap!(ax_E3, E3ₙ; energy_options...)
+Colorbar(fig3[7, 1], hm_E3; vertical = false, height = 8)
+
+hm_EH = heatmap!(ax_EH, EHₙ; energy_options...)
+Colorbar(fig3[9, 1], hm_EH; vertical = false, height = 8)
+
+hm_EL = heatmap!(ax_EL, ELₙ; energy_options...)
+Colorbar(fig3[11, 1], hm_EL; vertical = false, height = 8)
+
+title = @lift &quot;Lock release,  t = &quot; * string(round(times[$n], digits = 1))
+Label(fig3[1, 1], title, fontsize = 22, tellwidth = false)
+
+resize_to_layout!(fig3)
+
+@info &quot;Animating...&quot;
+record(fig3, &quot;lock_release.mp4&quot;, 1:length(times), framerate = 8) do i
+    n[] = i
+end</code></pre><pre><code class="nohighlight hljs">┌ Warning: Reading boundary conditions from NetCDF files is not supported for FieldTimeSeries. Using default FieldBoundaryConditions for `grid` and `location`.
+└ @ OceananigansNCDatasetsExt ~/.julia/packages/Oceananigans/nF8Kf/ext/OceananigansNCDatasetsExt/output_readers.jl:44
+┌ Warning: Reading boundary conditions from NetCDF files is not supported for FieldTimeSeries. Using default FieldBoundaryConditions for `grid` and `location`.
+└ @ OceananigansNCDatasetsExt ~/.julia/packages/Oceananigans/nF8Kf/ext/OceananigansNCDatasetsExt/output_readers.jl:44
+┌ Warning: Reading boundary conditions from NetCDF files is not supported for FieldTimeSeries. Using default FieldBoundaryConditions for `grid` and `location`.
+└ @ OceananigansNCDatasetsExt ~/.julia/packages/Oceananigans/nF8Kf/ext/OceananigansNCDatasetsExt/output_readers.jl:44
+┌ Warning: Reading boundary conditions from NetCDF files is not supported for FieldTimeSeries. Using default FieldBoundaryConditions for `grid` and `location`.
+└ @ OceananigansNCDatasetsExt ~/.julia/packages/Oceananigans/nF8Kf/ext/OceananigansNCDatasetsExt/output_readers.jl:44
+[ Info: Animating...
+</code></pre><p><video src="../lock_release.mp4" controls="true" title><a href="../lock_release.mp4"></a></video></p><p><code>Eₐ</code> drains from the lock as the fronts accelerate and refills wherever the seiche lifts dense fluid back above its reference height. Being the local form, it is non-negative everywhere. The three <code>Eₐ</code> panels are identical: the methods differ only in where inside a tied run they place <code>z★</code>, and <code>Eₐ</code> cannot see that choice.</p><h2 id="Energetics"><a class="docs-heading-anchor" href="#Energetics">Energetics</a><a id="Energetics-1"></a><a class="docs-heading-anchor-permalink" href="#Energetics" title="Permalink"></a></h2><p>The same three energies, now volume integrated. Their sum (dashed) is the total, which no exchange among them can alter.</p><pre><code class="language-julia hljs">ds = NCDataset(simulation.output_writers[:fields].filepath)
+t_e     = ds[&quot;time&quot;][:]
+BPE_int = ds[&quot;∫BPE&quot;][:]
+APE_int = ds[&quot;∫APE&quot;][:]
+KE_int  = ds[&quot;∫KE&quot;][:]
+close(ds)
+
+total_int = KE_int .+ APE_int .+ BPE_int
+
+
+fig2 = Figure(size = (780, 350))
+ax = Axis(fig2[1, 1]; xlabel = &quot;Time&quot;, ylabel = &quot;Energy&quot;, title = &quot;Lock-release energetics&quot;)
+lines!(ax, t_e, KE_int,  label = &quot;∫KE dV&quot;)
+lines!(ax, t_e, APE_int, label = &quot;∫APE dV&quot;)
+lines!(ax, t_e, BPE_int, label = &quot;∫BPE dV&quot;)
+lines!(ax, t_e, total_int; label = &quot;total&quot;, color = :black, linestyle = :dash)
+axislegend(ax; position = :rc, labelsize = 12)
+
+save(&quot;lock_release_energetics.png&quot;, fig2)</code></pre><p><img src="../lock_release_energetics.png" alt/></p><p><code>BPE</code> never turns back, since mixing across density surfaces cannot be undone. Everything the flow can still do sits in <code>APE</code>, which trades with <code>KE</code> as the box seiches, each cycle weaker than the last. The model has no explicit dissipation, so the dashed total drifts down only through the advection scheme&#39;s implicit dissipation.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../rayleigh_taylor_instability/">« Rayleigh-Taylor instability</a><a class="docs-footer-nextpage" href="../tilted_bottom_boundary_layer/">Tilted bottom boundary layer »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Saturday 25 July 2026 13:34">Saturday 25 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
