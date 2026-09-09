@@ -10,7 +10,7 @@ using Oceananigans.Coriolis: z_f_cross_U
 using Oceananigans.TurbulenceClosures: ∂ⱼ_τ₃ⱼ, immersed_∂ⱼ_τ₃ⱼ
 using Oceananigans.StokesDrifts: z_curl_Uˢ_cross_U, ∂t_wˢ
 
-using Oceanostics: validate_location, CustomKFO
+using Oceanostics: validate_location, CustomKFO, momentum_advection
 
 # NB: no `PressureGradient` here, unlike U/V. `w_velocity_tendency` has no `-∂z(pHY′)` line —
 # Oceananigans treats the vertical hydrostatic balance as a property of the pressure projection
@@ -88,8 +88,7 @@ function Advection(model, velocities, advection_scheme; location = (Center, Cent
     return KernelFunctionOperation{Center, Center, Face}(div_𝐯w, model.grid, advection_scheme, velocities, velocities.w)
 end
 
-Advection(model; kwargs...)                              = Advection(model, model.velocities, model.advection; kwargs...)
-Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.velocities, model.advection.momentum; kwargs...)
+Advection(model; kwargs...) = Advection(model, model.velocities, momentum_advection(model); kwargs...)
 #---
 
 #+++ Buoyancy acceleration
@@ -406,7 +405,7 @@ Tendency(model::HydrostaticFreeSurfaceModel; kwargs...) = throw(ArgumentError("W
 
 function Tendency(model; kwargs...)
     w_immersed_bc = model.velocities.w.boundary_conditions.immersed
-    return Tendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.w; kwargs...)
+    return Tendency(model, momentum_advection(model), model.coriolis, model.stokes_drift, model.closure, w_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.w; kwargs...)
 end
 #---
 

@@ -13,7 +13,7 @@ using Oceananigans.StokesDrifts: x_curl_Uˢ_cross_U, ∂t_uˢ
 using Oceananigans.Operators: ∂xᶠᶜᶜ
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: explicit_barotropic_pressure_x_gradient
 
-using Oceanostics: validate_location, CustomKFO
+using Oceanostics: validate_location, CustomKFO, momentum_advection
 
 export Advection, BuoyancyAcceleration, CoriolisAcceleration, PressureGradient, BarotropicPressureGradient,
        ViscousDissipation, ImmersedViscousDissipation, TotalViscousDissipation,
@@ -106,8 +106,7 @@ function Advection(model::HydrostaticFreeSurfaceModel, velocities, advection_sch
     return KernelFunctionOperation{Face, Center, Center}(U_dot_∇u, model.grid, advection_scheme, velocities)
 end
 
-Advection(model; kwargs...)                              = Advection(model, model.velocities, model.advection; kwargs...)
-Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.velocities, model.advection.momentum; kwargs...)
+Advection(model; kwargs...) = Advection(model, model.velocities, momentum_advection(model); kwargs...)
 #---
 
 #+++ Buoyancy acceleration
@@ -505,9 +504,9 @@ function Tendency(model; kwargs...)
     u_immersed_bc = model.velocities.u.boundary_conditions.immersed
 
     if model isa HydrostaticFreeSurfaceModel
-        return Tendency(model, model.advection.momentum, model.coriolis, model.closure, u_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.u; kwargs...)
+        return Tendency(model, momentum_advection(model), model.coriolis, model.closure, u_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.u; kwargs...)
     else
-        return Tendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, u_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.u; kwargs...)
+        return Tendency(model, momentum_advection(model), model.coriolis, model.stokes_drift, model.closure, u_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.u; kwargs...)
     end
 end
 #---

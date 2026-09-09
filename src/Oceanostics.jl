@@ -123,6 +123,31 @@ validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensional
 validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_closure(c) for c in closure_tuple)
 #---
 
+#+++ Utils for advection schemes
+using Oceananigans: AbstractModel
+"""
+    $(SIGNATURES)
+
+Return the scheme `model` advects momentum with. `HydrostaticFreeSurfaceModel` and, since Oceananigans
+0.112, `NonhydrostaticModel` keep their schemes in a `NamedTuple` with a `momentum` entry plus one
+entry per tracer; an older `NonhydrostaticModel` carries a single scheme for everything, which is
+returned as is.
+"""
+momentum_advection(model::AbstractModel) = momentum_advection(model.advection)
+momentum_advection(advection::NamedTuple) = advection.momentum
+momentum_advection(advection) = advection
+
+"""
+    $(SIGNATURES)
+
+Return the scheme `model` advects the tracer `tracer_name` with. See `momentum_advection` for the two
+layouts of `model.advection` this covers.
+"""
+tracer_advection(model::AbstractModel, tracer_name) = tracer_advection(model.advection, tracer_name)
+tracer_advection(advection::NamedTuple, tracer_name) = advection[tracer_name]
+tracer_advection(advection, tracer_name) = advection
+#---
+
 #+++ Utils for background fields
 using Oceananigans.Fields: Field, ZeroField
 """

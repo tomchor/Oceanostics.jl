@@ -28,7 +28,7 @@ using Oceananigans.Models: ShallowWaterModel
 using Oceananigans.Operators: ℑzᵃᵃᶜ, δxᶜᵃᵃ, δyᵃᶜᵃ, δzᵃᵃᶜ, V⁻¹ᶜᶜᶜ, Axᶠᶜᶜ, Ayᶜᶠᶜ, Azᶜᶜᶠ
 using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z, ∇_dot_qᶜ
 using Oceananigans.Utils: sum_of_velocities
-using Oceanostics: validate_location, CustomKFO
+using Oceanostics: validate_location, CustomKFO, tracer_advection
 using SeawaterPolynomials: BoussinesqEquationOfState
 
 using ..KineticEnergyEquation: PotentialToKineticEnergyConversion
@@ -107,7 +107,9 @@ julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=(:b,
 NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── timestepper: RungeKutta3TimeStepper
-├── advection scheme: Centered(order=2)
+├── advection scheme:
+│   ├── momentum: Centered(order=2)
+│   └── b: Centered(order=2)
 ├── tracers: b
 ├── closure: Nothing
 ├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
@@ -149,7 +151,10 @@ julia> model = NonhydrostaticModel(grid; buoyancy, tracers)
 NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── timestepper: RungeKutta3TimeStepper
-├── advection scheme: Centered(order=2)
+├── advection scheme:
+│   ├── momentum: Centered(order=2)
+│   ├── T: Centered(order=2)
+│   └── S: Centered(order=2)
 ├── tracers: (T, S)
 ├── closure: Nothing
 ├── buoyancy: SeawaterBuoyancy with g=9.80665 and BoussinesqEquationOfState{Float64} with ĝ = NegativeZDirection()
@@ -495,7 +500,7 @@ function PotentialEnergyTendency(model::NonhydrostaticModel; location = (Center,
 
     dependencies = (buoyancy_tracer_index(model),
                     Val(:b),
-                    model.advection,
+                    tracer_advection(model, :b),
                     model.closure,
                     model.tracers.b.boundary_conditions.immersed,
                     model.buoyancy,
@@ -513,9 +518,9 @@ end
 #---
 
 #+++ Advection of eₚ
-# `∂ⱼ(uⱼeₚ)`, the transport of the potential energy itself, formed by handing `eₚ` to the model's own
-# advection scheme exactly as it would a tracer. Being a flux divergence it telescopes, so its volume
-# integral over a periodic or closed domain vanishes to roundoff rather than to truncation error.
+# `∂ⱼ(uⱼeₚ)`, the transport of the potential energy itself, formed by handing `eₚ` to the scheme the
+# model advects `b` with, exactly as it would a tracer. Being a flux divergence it telescopes, so its
+# volume integral over a periodic or closed domain vanishes to roundoff rather than to truncation error.
 @inline div_U_eₚ_ccc(i, j, k, grid, advection, U, eₚ) = div_Uc(i, j, k, grid, advection, U, eₚ)
 
 const PotentialEnergyAdvection = CustomKFO{<:typeof(div_U_eₚ_ccc)}
@@ -530,9 +535,9 @@ Return a `KernelFunctionOperation` computing the advection of the potential ener
     ADV = ∂ⱼ(uⱼeₚ) ,
 ```
 
-with `eₚ = -bz` handed to the model's own advection scheme the way a tracer would be. `uⱼ` defaults to
-the *total* velocity, perturbation plus background, which is what the model advects with; pass
-`velocities` to override it. It enters the `eₚ` equation with a minus sign, as
+with `eₚ = -bz` handed to the scheme the model advects `b` with, the way a tracer would be. `uⱼ`
+defaults to the *total* velocity, perturbation plus background, which is what the model advects
+with; pass `velocities` to override it. It enters the `eₚ` equation with a minus sign, as
 [`TracerEquation.Advection`](@ref Oceanostics.TracerEquation.Advection) does for a tracer.
 
 This is a transport and nothing else: it is a flux divergence, so over a periodic or closed domain it
@@ -570,7 +575,7 @@ function PotentialEnergyAdvection(model::NonhydrostaticModel;
     validate_gravity_is_z_aligned("PotentialEnergyAdvection", model)
 
     return KernelFunctionOperation{Center, Center, Center}(div_U_eₚ_ccc, model.grid,
-                                                           model.advection, velocities, PotentialEnergy(model))
+                                                           tracer_advection(model, :b), velocities, PotentialEnergy(model))
 end
 #---
 
@@ -630,7 +635,7 @@ function PotentialEnergyBuoyancyAdvection(model::NonhydrostaticModel;
     validate_gravity_is_z_aligned("PotentialEnergyBuoyancyAdvection", model)
 
     return KernelFunctionOperation{Center, Center, Center}(z_div_Uc_ccc, model.grid,
-                                                           model.advection, velocities, model.tracers.b)
+                                                           tracer_advection(model, :b), velocities, model.tracers.b)
 end
 #---
 

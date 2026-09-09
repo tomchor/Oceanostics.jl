@@ -47,11 +47,7 @@ model_types = (NonhydrostaticModel,
 
 #+++ Test functions
 function test_tracer_terms(model)
-    if model isa NonhydrostaticModel
-        ADV = TracerEquation.Advection(model, model.velocities..., model.tracers.a, model.advection)
-    elseif model isa HydrostaticFreeSurfaceModel
-        ADV = TracerEquation.Advection(model, model.velocities..., model.tracers.a, model.advection.a)
-    end
+    ADV = TracerEquation.Advection(model, model.velocities..., model.tracers.a, model.advection.a)
     ADV_field = Field(ADV)
     @test ADV isa TracerEquation.Advection
     @test ADV isa TracerAdvection

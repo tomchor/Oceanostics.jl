@@ -112,7 +112,7 @@ function long_form_args(dir, model, term)
     immersed_bc = velocity(dir, model).boundary_conditions.immersed
     component_forcing = getfield(model.forcing, dir.component)
 
-    term === :Advection               && return (model.velocities, hfs ? model.advection.momentum : model.advection)
+    term === :Advection               && return (model.velocities, model.advection.momentum)
     term === :BuoyancyAcceleration    && return (model.buoyancy, model.tracers)
     term === :CoriolisAcceleration    && return (model.coriolis, model.velocities)
     term === :PressureGradient        && return (hfs ? model.pressure.pHY′ : model.pressures.pHY′,)
@@ -128,7 +128,7 @@ function long_form_args(dir, model, term)
         (model.advection.momentum, model.coriolis, model.closure, immersed_bc, model.velocities,
          model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′,
          model.auxiliary_fields, model.vertical_coordinate, model.clock, component_forcing) :
-        (model.advection, model.coriolis, model.stokes_drift, model.closure, immersed_bc, model.buoyancy,
+        (model.advection.momentum, model.coriolis, model.stokes_drift, model.closure, immersed_bc, model.buoyancy,
          model.background_fields, model.velocities, model.tracers, model.auxiliary_fields,
          model.closure_fields, model.pressures.pHY′, model.clock, component_forcing)
 
