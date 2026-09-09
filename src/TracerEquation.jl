@@ -2,11 +2,10 @@ module TracerEquation
 using DocStringExtensions
 
 using Oceananigans: fields, Center, Face, KernelFunctionOperation
-using Oceananigans.Models: HydrostaticFreeSurfaceModel
 using Oceananigans.Models.NonhydrostaticModels: div_Uc, ∇_dot_qᶜ, immersed_∇_dot_qᶜ, biogeochemical_transition
 using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 
-using Oceanostics: validate_location, CustomKFO
+using Oceanostics: validate_location, CustomKFO, tracer_advection
 
 export Advection, Diffusion, ImmersedDiffusion, TotalDiffusion, XDiffusiveFlux, YDiffusiveFlux, ZDiffusiveFlux, Forcing,
        TracerAdvection, TracerDiffusion, TracerImmersedDiffusion, TracerTotalDiffusion, 
@@ -74,13 +73,7 @@ end
 
 function Advection(model, tracer_name; kwargs...)
     @inbounds c = model.tracers[tracer_name]
-    return Advection(model, model.velocities..., c, model.advection; kwargs...)
-end
-
-function Advection(model::HydrostaticFreeSurfaceModel, tracer_name; kwargs...)
-    @inbounds c = model.tracers[tracer_name]
-    tracer_advection = model.advection[tracer_name]
-    return Advection(model, model.velocities..., c, tracer_advection; kwargs...)
+    return Advection(model, model.velocities..., c, tracer_advection(model, tracer_name); kwargs...)
 end
 #---
 

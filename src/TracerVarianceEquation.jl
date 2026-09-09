@@ -5,7 +5,7 @@ export Tendency, TracerVarianceTendency
 export DissipationRate, TracerVarianceDissipationRate
 export Diffusion, TracerVarianceDiffusion
 
-using Oceanostics: validate_location, validate_dissipative_closure, CustomKFO
+using Oceanostics: validate_location, validate_dissipative_closure, CustomKFO, tracer_advection
 
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -72,7 +72,7 @@ function TracerVarianceTendency(model::NonhydrostaticModel, tracer_name; locatio
 
     dependencies = (Val(tracer_index),
                     Val(tracer_name),
-                    model.advection,
+                    tracer_advection(model, tracer_name),
                     model.closure,
                     model.tracers[tracer_name].boundary_conditions.immersed,
                     model.buoyancy,

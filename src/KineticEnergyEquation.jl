@@ -27,7 +27,7 @@ using Oceananigans.TurbulenceClosures: immersed_∂ⱼ_τ₁ⱼ, immersed_∂ⱼ
 using Oceananigans.BuoyancyFormulations: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
 
 using Oceanostics: _νᶜᶜᶜ
-using Oceanostics: validate_location, validate_dissipative_closure, perturbation_fields, CustomKFO
+using Oceanostics: validate_location, validate_dissipative_closure, perturbation_fields, CustomKFO, momentum_advection
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -123,7 +123,7 @@ KineticEnergyTendency KernelFunctionOperation at (Center, Center, Center)
 """
 function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyTendency")
-    dependencies = (model.advection,
+    dependencies = (advection = momentum_advection(model),
                     model.coriolis,
                     model.stokes_drift,
                     model.closure,
@@ -183,7 +183,7 @@ KineticEnergyAdvection KernelFunctionOperation at (Center, Center, Center)
 """
 function KineticEnergyAdvection(model::NonhydrostaticModel; velocities = model.velocities, location = (Center, Center, Center))
     validate_location(location, "KineticEnergyAdvection")
-    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ, model.grid, velocities, model.advection)
+    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ, model.grid, velocities, momentum_advection(model))
 end
 #---
 
