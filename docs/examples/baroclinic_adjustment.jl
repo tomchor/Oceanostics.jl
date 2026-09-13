@@ -292,15 +292,15 @@ eₖ_terms = (deₖdt, wb_pair, εₖ_pair)                                     
 # ## Plotting
 
 set_theme!(Theme(fontsize = 18))
-fig = Figure(size = (2000, 950))
+fig = Figure(size = (1800, 1200))
 
 n = Observable(1)
 
-panel_kwargs = (xlabel = "x [m]", ylabel = "y [m]", aspect = DataAspect(), height = 240)
-axζ = Axis(fig[2, 1]; title = "vertical vorticity, ζ",  panel_kwargs...)
-axb = Axis(fig[2, 3]; title = "surface buoyancy, b",    panel_kwargs...)
-axν = Axis(fig[2, 5]; title = "eddy viscosity, νₑ",     panel_kwargs...)
-axh = Axis(fig[2, 7]; title = "mixed layer depth, MLD", panel_kwargs...)
+panel_kwargs = (xlabel = "x [m]", ylabel = "y [m]", aspect = DataAspect())
+axζ = Axis(fig[2, 1][1, 1]; title = "vertical vorticity, ζ",  panel_kwargs...)
+axb = Axis(fig[2, 2][1, 1]; title = "surface buoyancy, b",    panel_kwargs...)
+axν = Axis(fig[3, 1][1, 1]; title = "eddy viscosity, νₑ",     panel_kwargs...)
+axh = Axis(fig[3, 2][1, 1]; title = "mixed layer depth, MLD", panel_kwargs...)
 
 ζₙ = @lift ζ_arr[:, :, $n]
 bₙ = @lift b_arr[:, :, $n]
@@ -308,27 +308,27 @@ bₙ = @lift b_arr[:, :, $n]
 MLDₙ = @lift MLD_arr[:, :, $n]
 
 hmζ = heatmap!(axζ, x_faa, y_afa, ζₙ; colormap = :balance, colorrange = (-ζlim, ζlim))
-Colorbar(fig[2, 2], hmζ)
+Colorbar(fig[2, 1][1, 2], hmζ)
 
 hmb = heatmap!(axb, x_caa, y_aca, bₙ; colormap = :thermal)
-Colorbar(fig[2, 4], hmb)
+Colorbar(fig[2, 2][1, 2], hmb)
 
 hmν = heatmap!(axν, x_caa, y_aca, νₙ; colormap = :tempo, colorrange = (0, νlim))
-Colorbar(fig[2, 6], hmν)
+Colorbar(fig[3, 1][1, 2], hmν)
 
 hmh = heatmap!(axh, x_caa, y_aca, MLDₙ; colormap = :deep, colorrange = (-H, 0))
-Colorbar(fig[2, 8], hmh)
+Colorbar(fig[3, 2][1, 2], hmh)
 
 budget_kwargs = (xlabel = "time [days]", ylabel = "[m⁵ s⁻³]")
 
-ax_p = Axis(fig[3, 1:8]; title = "Volume-integrated potential energy budget", budget_kwargs...)
+ax_p = Axis(fig[2:3, 3]; title = "Volume-integrated potential energy budget", budget_kwargs...)
 lines!(ax_p, t_pair ./ day, -deₚdt,    label = "-d(∫eₚ)/dt")
 lines!(ax_p, t_pair ./ day, -wb_pair,  label = "-∫wb dV")
 lines!(ax_p, t_pair ./ day,  Φ_pair,   label = "∫Φ dV")
 lines!(ax_p, t_pair ./ day,  eₚ_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_p; position = :rt, labelsize = 10, nbanks = 2)
 
-ax_k = Axis(fig[4, 1:8]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
+ax_k = Axis(fig[2:3, 4]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
 lines!(ax_k, t_pair ./ day, -deₖdt,    label = "-d(∫eₖ)/dt")
 lines!(ax_k, t_pair ./ day,  wb_pair,  label = "∫wb dV")
 lines!(ax_k, t_pair ./ day, -εₖ_pair,  label = "-∫εₖ dV")
@@ -339,7 +339,16 @@ vlines!(ax_p, @lift(times[$n] / day), color = :black, linestyle = :dot)
 vlines!(ax_k, @lift(times[$n] / day), color = :black, linestyle = :dot)
 
 title = @lift "Baroclinic adjustment, t = " * prettytime(times[$n])
-fig[1, 1:8] = Label(fig, title, fontsize = 22, tellwidth = false)
+fig[1, 1:4] = Label(fig, title, fontsize = 22, tellwidth = false)
+
+rowsize!(fig.layout, 1, Fixed(50))
+rowsize!(fig.layout, 2, Fixed(550))
+rowsize!(fig.layout, 3, Fixed(550))
+colsize!(fig.layout, 1, Fixed(280))
+colsize!(fig.layout, 2, Fixed(280))
+colsize!(fig.layout, 3, Fixed(600))
+colsize!(fig.layout, 4, Fixed(600))
+resize_to_layout!(fig)
 
 @info "Animating..."
 record(fig, "baroclinic_adjustment.mp4", 1:length(times), framerate = 8) do i
