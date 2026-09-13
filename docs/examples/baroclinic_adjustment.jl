@@ -178,13 +178,16 @@ eₖ = KineticEnergy(model)
 ∫wb = ∫dV(wb)
 ∫εₖ = ∫dV(εₖ)
 
-# For the movie we keep the surface vorticity, buoyancy, and the closure's own eddy viscosity, which
-# shows where `Smagorinsky` is actually acting:
+# For the movie we keep the surface vorticity, buoyancy, the closure's own eddy viscosity (which shows
+# where `Smagorinsky` is actually acting), and the mixed layer depth. Its criterion threshold is set to
+# the initial buoyancy jump across the mixed layer, `N²_ml * h`, since the default threshold assumes
+# realistic ocean stratification, well above what this coarse example reaches:
 
 u, v, w = model.velocities
 b = model.tracers.b
 ζ = ∂x(v) - ∂y(u)
 νₑ = viscosity(model)
+MLD = MixedLayerDepth(grid, model.buoyancy.formulation, (; b); criterion = BuoyancyAnomalyCriterion(threshold = -N²_ml * h))
 
 # ## Output
 #
@@ -196,7 +199,7 @@ using NCDatasets
 filename = joinpath(@__DIR__, "baroclinic_adjustment")
 
 simulation.output_writers[:fields] =
-    NetCDFWriter(model, (; ζ, b, νₑ),
+    NetCDFWriter(model, (; ζ, b, νₑ, MLD),
                  filename = filename,
                  schedule = TimeInterval(3hours),
                  indices = (:, :, grid.Nz),
@@ -223,6 +226,7 @@ x_caa = ds["x_caa"][:]; y_aca = ds["y_aca"][:]
 ζ_arr = ds["ζ"][:, :, 1, :]
 b_arr = ds["b"][:, :, 1, :]
 ν_arr = ds["νₑ"][:, :, 1, :]
+MLD_arr = ds["MLD"][:, :, :]   # (Center, Center, Nothing)-located: no z dimension to slice
 close(ds)
 
 ζlim = maximum(abs, ζ_arr)
@@ -288,49 +292,63 @@ eₖ_terms = (deₖdt, wb_pair, εₖ_pair)                                     
 # ## Plotting
 
 set_theme!(Theme(fontsize = 18))
-fig = Figure(size = (1500, 950))
+fig = Figure(size = (1000, 1800))
 
 n = Observable(1)
 
-panel_kwargs = (xlabel = "x [m]", ylabel = "y [m]", aspect = DataAspect(), height = 240)
-axζ = Axis(fig[2, 1]; title = "vertical vorticity, ζ",  panel_kwargs...)
-axb = Axis(fig[2, 3]; title = "surface buoyancy, b",    panel_kwargs...)
-axν = Axis(fig[2, 5]; title = "eddy viscosity, νₑ",     panel_kwargs...)
+panel_kwargs = (xlabel = "x [m]", ylabel = "y [m]", aspect = DataAspect())
+axζ = Axis(fig[2, 1][1, 1]; title = "vertical vorticity, ζ",  panel_kwargs...)
+axb = Axis(fig[2, 2][1, 1]; title = "surface buoyancy, b",    panel_kwargs...)
+axν = Axis(fig[3, 1][1, 1]; title = "eddy viscosity, νₑ",     panel_kwargs...)
+axh = Axis(fig[3, 2][1, 1]; title = "mixed layer depth, MLD", panel_kwargs...)
 
 ζₙ = @lift ζ_arr[:, :, $n]
 bₙ = @lift b_arr[:, :, $n]
 νₙ = @lift ν_arr[:, :, $n]
+MLDₙ = @lift MLD_arr[:, :, $n]
 
 hmζ = heatmap!(axζ, x_faa, y_afa, ζₙ; colormap = :balance, colorrange = (-ζlim, ζlim))
-Colorbar(fig[2, 2], hmζ)
+Colorbar(fig[2, 1][1, 2], hmζ)
 
 hmb = heatmap!(axb, x_caa, y_aca, bₙ; colormap = :thermal)
-Colorbar(fig[2, 4], hmb)
+Colorbar(fig[2, 2][1, 2], hmb)
 
 hmν = heatmap!(axν, x_caa, y_aca, νₙ; colormap = :tempo, colorrange = (0, νlim))
-Colorbar(fig[2, 6], hmν)
+Colorbar(fig[3, 1][1, 2], hmν)
+
+hmh = heatmap!(axh, x_caa, y_aca, MLDₙ; colormap = :deep, colorrange = (-h, 0))
+Colorbar(fig[3, 2][1, 2], hmh)
 
 budget_kwargs = (xlabel = "time [days]", ylabel = "[m⁵ s⁻³]")
 
-ax_p = Axis(fig[3, 1:6]; title = "Volume-integrated potential energy budget", budget_kwargs...)
+ax_p = Axis(fig[4, 1:2]; title = "Volume-integrated potential energy budget", budget_kwargs...)
 lines!(ax_p, t_pair ./ day, -deₚdt,    label = "-d(∫eₚ)/dt")
 lines!(ax_p, t_pair ./ day, -wb_pair,  label = "-∫wb dV")
 lines!(ax_p, t_pair ./ day,  Φ_pair,   label = "∫Φ dV")
 lines!(ax_p, t_pair ./ day,  eₚ_resid, label = "residual", color = :black, linestyle = :dash)
-axislegend(ax_p; position = :rt, labelsize = 10, nbanks = 2)
+axislegend(ax_p; position = :rt, labelsize = 16, nbanks = 2)
 
-ax_k = Axis(fig[4, 1:6]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
+ax_k = Axis(fig[5, 1:2]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
 lines!(ax_k, t_pair ./ day, -deₖdt,    label = "-d(∫eₖ)/dt")
 lines!(ax_k, t_pair ./ day,  wb_pair,  label = "∫wb dV")
 lines!(ax_k, t_pair ./ day, -εₖ_pair,  label = "-∫εₖ dV")
 lines!(ax_k, t_pair ./ day,  eₖ_resid, label = "residual", color = :black, linestyle = :dash)
-axislegend(ax_k; position = :rt, labelsize = 10, nbanks = 2)
+axislegend(ax_k; position = :rt, labelsize = 16, nbanks = 2)
 
 vlines!(ax_p, @lift(times[$n] / day), color = :black, linestyle = :dot)
 vlines!(ax_k, @lift(times[$n] / day), color = :black, linestyle = :dot)
 
 title = @lift "Baroclinic adjustment, t = " * prettytime(times[$n])
-fig[1, 1:6] = Label(fig, title, fontsize = 22, tellwidth = false)
+fig[1, 1:2] = Label(fig, title, fontsize = 22, tellwidth = false)
+
+rowsize!(fig.layout, 1, Fixed(50))
+rowsize!(fig.layout, 2, Fixed(500))
+rowsize!(fig.layout, 3, Fixed(500))
+rowsize!(fig.layout, 4, Fixed(350))
+rowsize!(fig.layout, 5, Fixed(350))
+colsize!(fig.layout, 1, Fixed(450))
+colsize!(fig.layout, 2, Fixed(450))
+resize_to_layout!(fig)
 
 @info "Animating..."
 record(fig, "baroclinic_adjustment.mp4", 1:length(times), framerate = 8) do i
