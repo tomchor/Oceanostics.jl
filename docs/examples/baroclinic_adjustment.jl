@@ -292,7 +292,7 @@ eₖ_terms = (deₖdt, wb_pair, εₖ_pair)                                     
 # ## Plotting
 
 set_theme!(Theme(fontsize = 18))
-fig = Figure(size = (1800, 1200))
+fig = Figure(size = (1000, 1800))
 
 n = Observable(1)
 
@@ -316,19 +316,19 @@ Colorbar(fig[2, 2][1, 2], hmb)
 hmν = heatmap!(axν, x_caa, y_aca, νₙ; colormap = :tempo, colorrange = (0, νlim))
 Colorbar(fig[3, 1][1, 2], hmν)
 
-hmh = heatmap!(axh, x_caa, y_aca, MLDₙ; colormap = :deep, colorrange = (-H, 0))
+hmh = heatmap!(axh, x_caa, y_aca, MLDₙ; colormap = :deep, colorrange = (-h, 0))
 Colorbar(fig[3, 2][1, 2], hmh)
 
 budget_kwargs = (xlabel = "time [days]", ylabel = "[m⁵ s⁻³]")
 
-ax_p = Axis(fig[2:3, 3]; title = "Volume-integrated potential energy budget", budget_kwargs...)
+ax_p = Axis(fig[4, 1:2]; title = "Volume-integrated potential energy budget", budget_kwargs...)
 lines!(ax_p, t_pair ./ day, -deₚdt,    label = "-d(∫eₚ)/dt")
 lines!(ax_p, t_pair ./ day, -wb_pair,  label = "-∫wb dV")
 lines!(ax_p, t_pair ./ day,  Φ_pair,   label = "∫Φ dV")
 lines!(ax_p, t_pair ./ day,  eₚ_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_p; position = :rt, labelsize = 10, nbanks = 2)
 
-ax_k = Axis(fig[2:3, 4]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
+ax_k = Axis(fig[5, 1:2]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
 lines!(ax_k, t_pair ./ day, -deₖdt,    label = "-d(∫eₖ)/dt")
 lines!(ax_k, t_pair ./ day,  wb_pair,  label = "∫wb dV")
 lines!(ax_k, t_pair ./ day, -εₖ_pair,  label = "-∫εₖ dV")
@@ -339,15 +339,15 @@ vlines!(ax_p, @lift(times[$n] / day), color = :black, linestyle = :dot)
 vlines!(ax_k, @lift(times[$n] / day), color = :black, linestyle = :dot)
 
 title = @lift "Baroclinic adjustment, t = " * prettytime(times[$n])
-fig[1, 1:4] = Label(fig, title, fontsize = 22, tellwidth = false)
+fig[1, 1:2] = Label(fig, title, fontsize = 22, tellwidth = false)
 
 rowsize!(fig.layout, 1, Fixed(50))
-rowsize!(fig.layout, 2, Fixed(550))
-rowsize!(fig.layout, 3, Fixed(550))
-colsize!(fig.layout, 1, Fixed(280))
-colsize!(fig.layout, 2, Fixed(280))
-colsize!(fig.layout, 3, Fixed(600))
-colsize!(fig.layout, 4, Fixed(600))
+rowsize!(fig.layout, 2, Fixed(500))
+rowsize!(fig.layout, 3, Fixed(500))
+rowsize!(fig.layout, 4, Fixed(350))
+rowsize!(fig.layout, 5, Fixed(350))
+colsize!(fig.layout, 1, Fixed(450))
+colsize!(fig.layout, 2, Fixed(450))
 resize_to_layout!(fig)
 
 @info "Animating..."
