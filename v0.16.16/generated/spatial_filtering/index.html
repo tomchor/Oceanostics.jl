@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Spatial filtering · Oceanostics.jl</title><meta name="title" content="Spatial filtering · Oceanostics.jl"/><meta property="og:title" content="Spatial filtering · Oceanostics.jl"/><meta property="twitter:title" content="Spatial filtering · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox"/><label class="tocitem" for="menuitem-2"><span class="docs-label">Budget equations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tracer_equation/">Tracer equation</a></li><li><a class="tocitem" href="../../momentum_equation/">Momentum equation</a></li><li><a class="tocitem" href="../../kinetic_energy_equation/">Kinetic energy equation</a></li><li><a class="tocitem" href="../../turbulent_kinetic_energy_equation/">Turbulent kinetic energy equation</a></li><li><a class="tocitem" href="../../tracer_variance_equation/">Tracer variance equation</a></li><li><a class="tocitem" href="../../potential_energy_equation/">Potential energy equation</a></li></ul></li><li><a class="tocitem" href="../../flow_diagnostics/">Flow diagnostics</a></li><li><a class="tocitem" href="../../progress_messengers/">Progress messengers</a></li><li><a class="tocitem" href="../../filters/">Filters</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox" checked/><label class="tocitem" for="menuitem-6"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li><a class="tocitem" href="../kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li><a class="tocitem" href="../tilted_bottom_boundary_layer/">Tilted bottom boundary layer</a></li><li class="is-active"><a class="tocitem" href>Spatial filtering</a><ul class="internal"><li><a class="tocitem" href="#Model-and-simulation-setup"><span>Model and simulation setup</span></a></li><li><a class="tocitem" href="#Scale-separation"><span>Scale separation</span></a></li><li><a class="tocitem" href="#Filter-width-sweep"><span>Filter-width sweep</span></a></li><li><a class="tocitem" href="#Subfilter-tracer-flux"><span>Subfilter tracer flux</span></a></li></ul></li></ul></li><li><a class="tocitem" href="../../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Spatial filtering</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Spatial filtering</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/examples/spatial_filtering.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="spatial_filtering_example"><a class="docs-heading-anchor" href="#spatial_filtering_example">Spatial filtering and subfilter fluxes</a><a id="spatial_filtering_example-1"></a><a class="docs-heading-anchor-permalink" href="#spatial_filtering_example" title="Permalink"></a></h1><p>In this example we use Oceanostics&#39; <a href="../../filters/#Oceanostics.Filters.GaussianFilter"><code>GaussianFilter</code></a> to coarse-grain a two-dimensional turbulent flow. Spatial filtering splits a field into a smooth, large-scale (resolved) part and a small-scale (subfilter) fluctuation,</p><p class="math-container">\[\psi = \bar{\psi} + \psi&#39;, \qquad \psi&#39; \equiv \psi - \bar{\psi},\]</p><p>where the overbar denotes a Gaussian-weighted local average with standard deviation <span>$\sigma$</span>. Beyond visualization, filtering lets us build <em>subfilter</em> (subgrid-scale) diagnostics such as the subfilter tracer flux <span>$\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}$</span>, which represents the transport carried by scales smaller than <span>$\sigma$</span>.</p><p>Before starting, make sure you have the required packages installed for this example, which can be done with</p><pre><code class="language-julia hljs">using Pkg
+pkg&quot;add Oceananigans, Oceanostics, CairoMakie&quot;</code></pre><h2 id="Model-and-simulation-setup"><a class="docs-heading-anchor" href="#Model-and-simulation-setup">Model and simulation setup</a><a id="Model-and-simulation-setup-1"></a><a class="docs-heading-anchor-permalink" href="#Model-and-simulation-setup" title="Permalink"></a></h2><p>To get a turbulent field to filter, we follow the <a href="../two_dimensional_turbulence/#two_d_turbulence_example">Two-dimensional turbulence example</a>: we run the same quick doubly-periodic 2D turbulence simulation, initialized with a smooth, well-resolved sum of Gaussian velocity blobs and a sine/cosine tracer that the flow stirs into thin filaments. See that example for a detailed walk-through of the setup — here we only summarize it, with two differences: we use a smaller grid and a shorter run time, since we just need a developed, multi-scale field. (The grid here is uniform, but <a href="../../filters/#Oceanostics.Filters.GaussianFilter"><code>GaussianFilter</code></a> also supports stretched directions, choosing a fast precomputed-weight path on uniform directions and a node-distance path on variably spaced ones.)</p><pre><code class="language-julia hljs">using Oceananigans
+
+grid = RectilinearGrid(size=(128, 128), extent=(2π, 2π), topology=(Periodic, Periodic, Flat))
+
+model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
+                            advection = Centered(order=4),
+                            tracers = :c,
+                            closure = ScalarDiffusivity(ν=1e-4, κ=1e-3))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 128×128×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: Centered(order=4)
+├── tracers: c
+├── closure: ScalarDiffusivity{ExplicitTimeDiscretization}(ν=0.0001, κ=(c=0.001,))
+├── buoyancy: Nothing
+└── coriolis: Nothing</code></pre><p>Initial conditions:</p><pre><code class="language-julia hljs">using Random, Statistics
+
+u, v, w = model.velocities
+c = model.tracers.c
+
+Random.seed!(772)
+N_blobs = 24
+σ_blob  = 8 * minimum_xspacing(grid)
+xc      = grid.Lx * rand(N_blobs)
+yc      = grid.Ly * rand(N_blobs)
+amp_u   = randn(N_blobs)
+amp_v   = randn(N_blobs)
+
+# Sum of blobs and their periodic images so the field is smooth across the periodic boundary
+blob_sum(x, y, amp) = sum(amp[k] * exp(-((x - xc[k] - dx)^2 + (y - yc[k] - dy)^2) / σ_blob^2)
+                          for k  in 1:N_blobs,
+                              dx in (-grid.Lx, 0, grid.Lx),
+                              dy in (-grid.Ly, 0, grid.Ly))
+
+uᵢ(x, y) = blob_sum(x, y, amp_u)
+vᵢ(x, y) = blob_sum(x, y, amp_v)
+cᵢ(x, y) = sin(3x) * cos(2y)
+
+set!(model, u=uᵢ, v=vᵢ, c=cᵢ)
+u .-= mean(u)
+v .-= mean(v)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">128×128×1 Field{Center, Face, Center} on RectilinearGrid on CPU
+├── grid: 128×128×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── boundary conditions: FieldBoundaryConditions
+│   └── west: Periodic, east: Periodic, south: Periodic, north: Periodic, bottom: Nothing, top: Nothing, immersed: Nothing
+└── data: 134×134×1 OffsetArray(::Array{Float64, 3}, -2:131, -2:131, 1:1) with eltype Float64 with indices -2:131×-2:131×1:1
+    └── max=1.06785, min=-1.24389, mean=1.27834e-16</code></pre><p>We run a short simulation with an adaptive time step to let the flow develop a range of scales:</p><pre><code class="language-julia hljs">u_max = max(maximum(abs, u), maximum(abs, v))
+simulation = Simulation(model; Δt = 0.2 * minimum_xspacing(grid) / u_max, stop_time = 30)
+
+wizard = TimeStepWizard(cfl=0.8, diffusive_cfl=0.8)
+simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))
+
+run!(simulation)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>Initializing simulation...
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>    ... simulation initialization complete (2.360 seconds)
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Executing initial time step...
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>    ... initial time step complete (2.815 seconds).
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulation is stopping after running for 12.908 seconds.
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulation time 30 seconds equals or exceeds stop time 30 seconds.</code></pre><h2 id="Scale-separation"><a class="docs-heading-anchor" href="#Scale-separation">Scale separation</a><a id="Scale-separation-1"></a><a class="docs-heading-anchor-permalink" href="#Scale-separation" title="Permalink"></a></h2><p>We now filter the snapshot at the end of the run. We pick a filter width <span>$\sigma = 4\Delta$</span> (a few grid cells) and split the vorticity into resolved and subfilter parts. Vorticity lives at <span>$(f, f, c)$</span>, so we interpolate it to cell centers before filtering (and for plotting).</p><pre><code class="language-julia hljs">using Oceananigans.AbstractOperations: @at
+using Oceanostics
+
+Δ = minimum_xspacing(grid)
+σ = 4Δ
+
+ω  = Field(@at (Center, Center, Center) (∂x(v) - ∂y(u)))   # vorticity at (Center, Center, Center)
+ω̄  = Field(GaussianFilter(ω; dims=(1, 2), σ=σ))            # resolved (large-scale) vorticity
+ω′ = Field(ω - ω̄)                                          # subfilter fluctuation</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">128×128×1 Field{Center, Center, Center} on RectilinearGrid on CPU
+├── grid: 128×128×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── boundary conditions: FieldBoundaryConditions
+│   └── west: Periodic, east: Periodic, south: Periodic, north: Periodic, bottom: Nothing, top: Nothing, immersed: Nothing
+├── operand: BinaryOperation at (Center, Center, Center)
+├── status: time=0.0
+└── data: 134×134×1 OffsetArray(::Array{Float64, 3}, -2:131, -2:131, 1:1) with eltype Float64 with indices -2:131×-2:131×1:1
+    └── max=4.67303, min=-3.2875, mean=-1.00289e-18</code></pre><p>A normalized Gaussian filter removes small-scale variance while (on a periodic domain) preserving the field mean, so the filtered field is necessarily smoother than the original. We plot the three fields side by side:</p><pre><code class="language-julia hljs">using CairoMakie
+set_theme!(Theme(fontsize = 18))
+
+axis_kwargs = (aspect = DataAspect(),
+               height = 200, width = 200,
+               xticksvisible = false, yticksvisible = false,
+               xticklabelsvisible = false, yticklabelsvisible = false)
+
+fig_ω = Figure()
+ax_ω  = Axis(fig_ω[1, 1]; title = &quot;Vorticity ω&quot;,         axis_kwargs...)
+ax_ω̄  = Axis(fig_ω[1, 2]; title = &quot;Filtered ω̄&quot;,          axis_kwargs...)
+ax_ω′ = Axis(fig_ω[1, 3]; title = &quot;Residual ω′ = ω − ω̄&quot;, axis_kwargs...)
+
+ω_range = (-10, 10)
+heatmap!(ax_ω,  ω;  colormap = :balance, colorrange = ω_range)
+heatmap!(ax_ω̄,  ω̄;  colormap = :balance, colorrange = ω_range)
+hm_ω = heatmap!(ax_ω′, ω′; colormap = :balance, colorrange = ω_range)
+Colorbar(fig_ω[1, 4], hm_ω)
+
+resize_to_layout!(fig_ω)
+fig_ω</code></pre><img src="af59bbeb.png" alt="Example block output"/><p>The Gaussian filter splits the vorticity into a smooth resolved field <span>$\bar{\omega}$</span> and the fine-scale residual <span>$\omega&#39;$</span> it removes.</p><h2 id="Filter-width-sweep"><a class="docs-heading-anchor" href="#Filter-width-sweep">Filter-width sweep</a><a id="Filter-width-sweep-1"></a><a class="docs-heading-anchor-permalink" href="#Filter-width-sweep" title="Permalink"></a></h2><p>The amount of structure that survives depends on <span>$\sigma$</span>: the wider the kernel, the more scales are averaged away. We filter the vorticity at three increasing widths — <span>$2\Delta$</span>, <span>$4\Delta$</span> and <span>$8\Delta$</span> — and plot each result as it is computed.</p><pre><code class="language-julia hljs">σ_sweep = (2Δ, 4Δ, 8Δ)
+ω̄_sweep = [Field(GaussianFilter(ω; dims=(1, 2), σ=s)) for s in σ_sweep]
+
+fig_sweep = Figure()
+for (i, s) in enumerate(σ_sweep)
+    ax = Axis(fig_sweep[1, i]; title = &quot;ω̄, σ = $(round(Int, s / Δ))Δ&quot;, axis_kwargs...)
+    hm = heatmap!(ax, ω̄_sweep[i]; colormap = :balance, colorrange = ω_range)
+    i == length(σ_sweep) &amp;&amp; Colorbar(fig_sweep[1, i + 1], hm)
+end
+
+resize_to_layout!(fig_sweep)
+fig_sweep</code></pre><img src="72ff0941.png" alt="Example block output"/><p>Wider kernels (<span>$\sigma = 2\Delta \to 8\Delta$</span>) progressively erase smaller scales.</p><h2 id="Subfilter-tracer-flux"><a class="docs-heading-anchor" href="#Subfilter-tracer-flux">Subfilter tracer flux</a><a id="Subfilter-tracer-flux-1"></a><a class="docs-heading-anchor-permalink" href="#Subfilter-tracer-flux" title="Permalink"></a></h2><p>Filtering also lets us quantify transport by unresolved scales. The subfilter tracer flux is <span>$\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}$</span>: the difference between the filtered advective flux and the flux carried by the filtered fields. We interpolate the velocities to centers, build the products as <code>Field</code>s, filter each piece, and combine.</p><pre><code class="language-julia hljs">uᶜ = Field(@at (Center, Center, Center) u)
+vᶜ = Field(@at (Center, Center, Center) v)
+
+ū  = Field(GaussianFilter(uᶜ; dims=(1, 2), σ=σ))
+v̄  = Field(GaussianFilter(vᶜ; dims=(1, 2), σ=σ))
+c̄  = Field(GaussianFilter(c;  dims=(1, 2), σ=σ))
+
+ūc̄ = Field(GaussianFilter(Field(uᶜ * c); dims=(1, 2), σ=σ))   # = overline(u c)
+v̄c̄ = Field(GaussianFilter(Field(vᶜ * c); dims=(1, 2), σ=σ))   # = overline(v c)
+
+τx = Field(ūc̄ - ū * c̄)
+τy = Field(v̄c̄ - v̄ * c̄)
+τ  = Field(sqrt(τx^2 + τy^2))   # subfilter flux magnitude</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">128×128×1 Field{Center, Center, Center} on RectilinearGrid on CPU
+├── grid: 128×128×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── boundary conditions: FieldBoundaryConditions
+│   └── west: Periodic, east: Periodic, south: Periodic, north: Periodic, bottom: Nothing, top: Nothing, immersed: Nothing
+├── operand: UnaryOperation at (Center, Center, Center)
+├── status: time=0.0
+└── data: 134×134×1 OffsetArray(::Array{Float64, 3}, -2:131, -2:131, 1:1) with eltype Float64 with indices -2:131×-2:131×1:1
+    └── max=0.0134707, min=1.74766e-5, mean=0.00180643</code></pre><p>Finally we plot the tracer, its filtered version, and the magnitude of the subfilter flux:</p><pre><code class="language-julia hljs">fig_τ = Figure()
+ax_c  = Axis(fig_τ[1, 1]; title = &quot;Tracer c&quot;,      axis_kwargs...)
+ax_c̄  = Axis(fig_τ[1, 2]; title = &quot;Filtered c̄&quot;,    axis_kwargs...)
+ax_τ  = Axis(fig_τ[1, 3]; title = &quot;Subfilter |τ|&quot;, axis_kwargs...)
+
+heatmap!(ax_c, c;  colormap = :balance, colorrange = (-1, 1))
+heatmap!(ax_c̄, c̄;  colormap = :balance, colorrange = (-1, 1))
+hm_τ = heatmap!(ax_τ, τ; colormap = :magma)
+Colorbar(fig_τ[1, 4], hm_τ)
+
+resize_to_layout!(fig_τ)
+fig_τ</code></pre><img src="8614bbfe.png" alt="Example block output"/><p>The magnitude of the subfilter flux <span>$\tau$</span> is largest precisely along the thin tracer filaments — the small-scale structure that the filtered fields <span>$\bar{u}_i\,\bar{c}$</span> cannot represent on their own.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../tilted_bottom_boundary_layer/">« Tilted bottom boundary layer</a><a class="docs-footer-nextpage" href="../../library/">Function library »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Tuesday 2 June 2026 23:34">Tuesday 2 June 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
