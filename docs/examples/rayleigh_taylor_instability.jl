@@ -159,6 +159,8 @@ wbˢ = subfilter_covariance(w, b, gfilter)          # subfilter buoyancy flux τ
 ∫wbˢ = Integral(wbˢ)
 ∫εₖˢ = Integral(εₖˢ)
 
+∂ₜ∫eₖˢ = TimeDerivative(∫eₖˢ)
+
 # For the movie we also keep the filtered kinetic energy
 # ``e_k^l = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i`` ([`FilteredKineticEnergy`](@ref)), the
 # filtered counterpart of ``e_k^s``. Together the two show how the filter splits the flow's kinetic energy
@@ -173,10 +175,7 @@ eₖˡ = FilteredKineticEnergy(model, gfilter)  # kinetic energy of the filtered
 # We use two NetCDF writers. A snapshot writer stores vertical (`x`–`z`) slices of the buoyancy `b`,
 # the cross-scale flux `Πₖ` and the two kinetic energies `eₖˡ` and `eₖˢ`, at a fixed `y` index (the flow is
 # periodic and statistically homogeneous in `y`, so the particular plane makes no difference), while a
-# budget writer stores only the integrated scalars on `ConsecutiveIterations(TimeInterval(τ/5))`, which
-# takes a second sample one model step after each output time. That lets us finite-difference `∫eₖˢ` across
-# that single step to estimate `d/dt`, exactly as in the
-# [Kelvin-Helmholtz example](@ref kelvin_helmholtz_example).
+# budget writer stores only the integrated scalars. Both run on `TimeInterval(τ/5)`.
 
 using NCDatasets
 filename = joinpath(@__DIR__, "rayleigh_taylor_instability")
@@ -187,9 +186,9 @@ simulation.output_writers[:fields] = NetCDFWriter(model, (; b, Πₖ, eₖˡ, e�
                                                   indices = (:, 1, :),
                                                   overwrite_files = true)
 
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫eₖˢ, ∫Πₖ, ∫wbˢ, ∫εₖˢ),
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∂ₜ∫eₖˢ, ∫Πₖ, ∫wbˢ, ∫εₖˢ),
                                                   filename = filename * "_budget",
-                                                  schedule = ConsecutiveIterations(TimeInterval(τ / 5)),
+                                                  schedule = TimeInterval(τ / 5),
                                                   overwrite_files = true)
 
 # ## Run the simulation and process results
@@ -214,36 +213,28 @@ eₖˡ_arr = ds["eₖˡ"][:, 1, :, :]
 eₖˢ_arr = ds["eₖˢ"][:, 1, :, :]
 close(ds)
 
-# The integrated budget scalars come in consecutive-iteration pairs `(2k-1, 2k)`; a one-step finite
-# difference inside each pair gives `d(∫eₖˢ)/dt`, and each budget term is evaluated at the pair
-# midpoint. The residual measures how well the subfilter-scale budget closes.
+# Every budget record carries the tendency and the three budget terms at the same time. The first
+# record has no earlier state to difference against and is written as zero, so the budget starts from
+# the second. The residual measures how well the subfilter-scale budget closes.
 
 bud_filepath = simulation.output_writers[:budget].filepath
 ds_bud = NCDataset(bud_filepath)
-times_bud = ds_bud["time"][:]
-∫eₖˢ_t = ds_bud["∫eₖˢ"][:]
-∫Πₖ_t = ds_bud["∫Πₖ"][:]
-∫wbˢ_t = ds_bud["∫wbˢ"][:]
-∫εₖˢ_t = ds_bud["∫εₖˢ"][:]
+nb     = 2:length(ds_bud["time"])
+
+t_bud    = ds_bud["time"][nb]
+deₖˢdt   = ds_bud["∂ₜ∫eₖˢ"][nb]
+Πₖ_bud   = ds_bud["∫Πₖ"][nb]
+wbˢ_bud  = ds_bud["∫wbˢ"][nb]
+εₖˢ_bud  = ds_bud["∫εₖˢ"][nb]
 close(ds_bud)
 
-i1 = 1:2:length(times_bud)-1   # primary snapshots
-i2 = 2:2:length(times_bud)     # consecutive-iteration snapshots
-Δt_pair = times_bud[i2] .- times_bud[i1]
-t_pair = @. 0.5 * (times_bud[i1] + times_bud[i2])
-
-deₖˢdt   = (∫eₖˢ_t[i2] .- ∫eₖˢ_t[i1]) ./ Δt_pair
-Πₖ_pair  = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2]);
-wbˢ_pair = @. 0.5 * (∫wbˢ_t[i1] + ∫wbˢ_t[i2]);
-εₖˢ_pair = @. 0.5 * (∫εₖˢ_t[i1] + ∫εₖˢ_t[i2]);
-
 # Residual in sum-to-zero form: the negative tendency plus the sources, so the plotted curves add to it
-resid = @. -deₖˢdt + Πₖ_pair + wbˢ_pair - εₖˢ_pair
+resid = @. -deₖˢdt + Πₖ_bud + wbˢ_bud - εₖˢ_bud
 
-using Test                                                          #hide
-rms(x) = √(sum(abs2, x) / length(x))                                #hide
-budget_scale = rms(@. abs(Πₖ_pair) + abs(wbˢ_pair) + abs(εₖˢ_pair)) #hide
-@test rms(resid) < 0.02 * budget_scale;                             #hide
+using Test                                                       #hide
+rms(x) = √(sum(abs2, x) / length(x))                             #hide
+budget_scale = rms(@. abs(Πₖ_bud) + abs(wbˢ_bud) + abs(εₖˢ_bud)) #hide
+@test rms(resid) < 0.02 * budget_scale;                          #hide
 
 # ## Plotting
 #
@@ -298,11 +289,11 @@ Colorbar(fig[3, 4], hmeₖˢ)
 # curves sum to the residual.
 
 ax_bud = Axis(fig[4, 1:4]; xlabel="time [free-fall units]", title="Subfilter kinetic energy budget")
-lines!(ax_bud, t_pair ./ τ, -deₖˢdt,   label="−d(∫eₖˢ)/dt")
-lines!(ax_bud, t_pair ./ τ, Πₖ_pair,   label="∫Πₖ dV  (flux from filtered scales)")
-lines!(ax_bud, t_pair ./ τ, wbˢ_pair,  label="∫τ(w,b) dV  (subfilter buoyancy flux)")
-lines!(ax_bud, t_pair ./ τ, -εₖˢ_pair, label="−∫εₖˢ dV  (subfilter dissipation)")
-lines!(ax_bud, t_pair ./ τ, resid,    label="residual", color=:black, linestyle=:dash)
+lines!(ax_bud, t_bud ./ τ, -deₖˢdt,  label="−d(∫eₖˢ)/dt")
+lines!(ax_bud, t_bud ./ τ, Πₖ_bud,   label="∫Πₖ dV  (flux from filtered scales)")
+lines!(ax_bud, t_bud ./ τ, wbˢ_bud,  label="∫τ(w,b) dV  (subfilter buoyancy flux)")
+lines!(ax_bud, t_bud ./ τ, -εₖˢ_bud, label="−∫εₖˢ dV  (subfilter dissipation)")
+lines!(ax_bud, t_bud ./ τ, resid,    label="residual", color=:black, linestyle=:dash)
 axislegend(ax_bud; position=:lt, labelsize=10)
 
 vlines!(ax_bud, @lift(times[$n] / τ), color=:black, linestyle=:dash)
