@@ -185,12 +185,12 @@ simulation.output_writers[:fields] = NetCDFWriter(model, (; b, Πₖ, eₖˡ, e�
                                                   filename = filename,
                                                   schedule = TimeInterval(τ / 5),
                                                   indices = (:, 1, :),
-                                                  overwrite_existing = true)
+                                                  overwrite_files = true)
 
 simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫eₖˢ, ∫Πₖ, ∫wbˢ, ∫εₖˢ),
                                                   filename = filename * "_budget",
                                                   schedule = ConsecutiveIterations(TimeInterval(τ / 5)),
-                                                  overwrite_existing = true)
+                                                  overwrite_files = true)
 
 # ## Run the simulation and process results
 #

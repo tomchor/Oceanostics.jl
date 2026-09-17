@@ -168,7 +168,7 @@ outputs = (; b, eₖ, eₐ_ranked, eₐ_heaviside, eₐ_lookup, eₐ_column,
 simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
                                                   filename = joinpath(@__DIR__, filename),
                                                   schedule = TimeInterval(0.5),
-                                                  overwrite_existing = true)
+                                                  overwrite_files = true)
 
 # The *budget* writer carries only the volume integrals, which are cheap next to the maps, on
 # `ConsecutiveIterations(TimeInterval(0.5))`. That schedules a second sample one model step after each
@@ -181,7 +181,7 @@ integrals = (; ∫e_b, ∫eₖ, ∫eₐ, ∫eₐ_heaviside, ∫eₐ_lookup, ∫e
 simulation.output_writers[:budget] = NetCDFWriter(model, integrals,
                                                   filename = joinpath(@__DIR__, filename * "_budget"),
                                                   schedule = ConsecutiveIterations(TimeInterval(0.5)),
-                                                  overwrite_existing = true)
+                                                  overwrite_files = true)
 
 # ## Run the simulation
 
