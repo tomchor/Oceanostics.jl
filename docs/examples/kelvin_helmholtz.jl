@@ -167,12 +167,12 @@ filename = "kelvin_helmholtz"
 simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b, w̄b̄, Πₖ, εₖˡ),
                                               filename=joinpath(@__DIR__, filename),
                                               schedule=TimeInterval(1),
-                                              overwrite_existing=true)
+                                              overwrite_files=true)
 
 simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫eₖˡ, ∫w̄b̄, ∫Πₖ, ∫εₖˡ),
                                                   filename=joinpath(@__DIR__, filename * "_budget"),
                                                   schedule=ConsecutiveIterations(TimeInterval(1)),
-                                                  overwrite_existing=true)
+                                                  overwrite_files=true)
 
 
 # ## Run the simulation and process results

@@ -135,12 +135,12 @@ filename = "two_dimensional_turbulence"
 simulation.output_writers[:nc] = NetCDFWriter(model, (; speed, vorticity, eₖ, c),
                                               filename = joinpath(@__DIR__, filename),
                                               schedule = TimeInterval(0.6),
-                                              overwrite_existing = true)
+                                              overwrite_files = true)
 
 simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫eₖ, ∫c², ∫εₖ, ∫χ),
                                                   filename = joinpath(@__DIR__, filename * "_budget"),
                                                   schedule = ConsecutiveIterations(TimeInterval(0.6)),
-                                                  overwrite_existing = true)
+                                                  overwrite_files = true)
 
 
 # ## Run the simulation and process results
