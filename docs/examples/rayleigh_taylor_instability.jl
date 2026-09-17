@@ -159,6 +159,8 @@ wbˢ = subfilter_covariance(w, b, gfilter)          # subfilter buoyancy flux τ
 ∫wbˢ = Integral(wbˢ)
 ∫εₖˢ = Integral(εₖˢ)
 
+∂ₜ∫eₖˢ = TimeDerivative(∫eₖˢ)
+
 # For the movie we also keep the filtered kinetic energy
 # ``e_k^l = \tfrac{1}{2}\,\overline{u}_i\overline{u}_i`` ([`FilteredKineticEnergy`](@ref)), the
 # filtered counterpart of ``e_k^s``. Together the two show how the filter splits the flow's kinetic energy
@@ -170,11 +172,6 @@ eₖˡ = FilteredKineticEnergy(model, gfilter)  # kinetic energy of the filtered
 
 # ## Output
 #
-# `d/dt` comes from `TimeDerivative`, which differences `∫eₖˢ` across one model step while the simulation
-# runs, exactly as in the [Kelvin-Helmholtz example](@ref kelvin_helmholtz_example).
-
-∂ₜ∫eₖˢ = TimeDerivative(∫eₖˢ)
-
 # We use two NetCDF writers. A snapshot writer stores vertical (`x`–`z`) slices of the buoyancy `b`,
 # the cross-scale flux `Πₖ` and the two kinetic energies `eₖˡ` and `eₖˢ`, at a fixed `y` index (the flow is
 # periodic and statistically homogeneous in `y`, so the particular plane makes no difference), while a
@@ -216,10 +213,9 @@ eₖˡ_arr = ds["eₖˡ"][:, 1, :, :]
 eₖˢ_arr = ds["eₖˢ"][:, 1, :, :]
 close(ds)
 
-# Every budget record carries the tendency and the three budget terms at the same time. The one
-# exception is the first record, at the start of the run, where a `TimeDerivative` has no earlier state
-# to difference against and is written as zero; the budget starts from the second. The residual
-# measures how well the subfilter-scale budget closes.
+# Every budget record carries the tendency and the three budget terms at the same time. The first
+# record has no earlier state to difference against and is written as zero, so the budget starts from
+# the second. The residual measures how well the subfilter-scale budget closes.
 
 bud_filepath = simulation.output_writers[:budget].filepath
 ds_bud = NCDataset(bud_filepath)

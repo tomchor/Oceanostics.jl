@@ -170,11 +170,8 @@ simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
                                                   schedule = TimeInterval(0.5),
                                                   overwrite_files = true)
 
-# The two tendencies come from `TimeDerivative`, which differences its operand across one model step
-# while the simulation runs. The writer registers a callback that updates it on the iteration before
-# each output as well as at the output itself, so ``d/dt`` lands on the same record, at the same time,
-# as the terms it has to balance. The ``e_a`` differenced here is `∫eₐ_heaviside`, the one that pairs
-# with ``\varepsilon_a``, since the two come off the same sort.
+# The ``e_a`` differenced here is `∫eₐ_heaviside`, the one that pairs with ``\varepsilon_a``, since the
+# two come off the same sort.
 
 ∂ₜ∫eₖ = TimeDerivative(∫eₖ)
 ∂ₜ∫eₐ = TimeDerivative(∫eₐ_heaviside)
@@ -430,7 +427,7 @@ nothing #hide
 # ## Energetics
 #
 # The same three energies, now volume integrated, read off the budget writer, which carries them
-# alongside the two tendencies and the source terms that balance them, all at the same time.
+# alongside the two tendencies and the source terms that balance them.
 
 ds = NCDataset(simulation.output_writers[:budget].filepath)
 t_e     = ds["time"][:]
@@ -442,8 +439,8 @@ eₖ_int  = ds["∫eₖ"][:]
 @test ds["∫eₐ_lookup"][:] ≈ eₐ_int rtol=1e-8                                              #hide
 @test ds["∫eₐ_column"][:] ≈ eₐ_int rtol=1e-8                                              #hide
 
-# The budget terms come off the same records bar the first, at the start of the run, where a
-# `TimeDerivative` has no earlier state to difference against and is written as zero.
+# The budget terms come off the same records bar the first, which has no earlier state to difference
+# against and is written as zero.
 
 nb = 2:length(t_e)
 
@@ -494,11 +491,8 @@ nothing #hide
 
 # ## Closing the budgets
 #
-# Now the two budgets written at the top. Both tendencies and every source term come off the same
-# record, at the same instant, so there is nothing left to line up.
-#
-# Both budgets are written in sum-to-zero form: each curve is plotted with the sign it carries here, so
-# the panels below add up to the residual.
+# Now the two budgets written at the top, in sum-to-zero form: each curve is plotted with the sign it
+# carries here, so the panels below add up to the residual.
 
 eₖ_resid = @. -deₖdt + wbᵣ_bud - εₖ_bud
 eₐ_resid = @. -deₐdt - wbᵣ_bud - εₐ_bud

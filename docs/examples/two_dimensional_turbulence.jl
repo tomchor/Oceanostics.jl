@@ -122,11 +122,6 @@ eₖ        = KineticEnergyEquation.KineticEnergy(model)
 ∫εₖ = Integral(εₖ)
 ∫χ  = Integral(χ)
 
-# The two tendencies come from `TimeDerivative`, which differences its operand across one model step
-# while the simulation runs. The writer registers a callback that updates it on the iteration before
-# each output as well as at the output itself, so each record carries ``d/dt`` at its own time, already
-# divided by the elapsed time and already alongside the source term it has to balance.
-
 ∂ₜ∫eₖ = TimeDerivative(∫eₖ)
 ∂ₜ∫c² = TimeDerivative(∫c²)
 
@@ -167,9 +162,8 @@ times = ds["time"][:]
 close(ds)
 
 # Read the budget scalars from the `:budget` writer. Every record carries both tendencies and both
-# source terms at the same time, so there is nothing left to pair up. The one exception is the first
-# record, at the start of the run, where a `TimeDerivative` has no earlier state to difference against
-# and is written as zero; the budget starts from the second.
+# source terms at the same time. The first record has no earlier state to difference against and is
+# written as zero, so the budget starts from the second.
 
 bud_filepath = simulation.output_writers[:budget].filepath
 ds_bud = NCDataset(bud_filepath)

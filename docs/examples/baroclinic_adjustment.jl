@@ -178,6 +178,9 @@ eₖ = KineticEnergy(model)
 ∫wb = ∫dV(wb)
 ∫εₖ = ∫dV(εₖ)
 
+∂ₜ∫eₚ = TimeDerivative(∫eₚ)
+∂ₜ∫eₖ = TimeDerivative(∫eₖ)
+
 # For the movie we keep the surface vorticity, buoyancy, the closure's own eddy viscosity (which shows
 # where `Smagorinsky` is actually acting), and the mixed layer depth. Its criterion threshold is set to
 # the initial buoyancy jump across the mixed layer, `N²_ml * h`, since the default threshold assumes
@@ -191,14 +194,6 @@ MLD = MixedLayerDepth(grid, model.buoyancy.formulation, (; b); criterion = Buoya
 
 # ## Output
 #
-# The two tendencies come from `TimeDerivative`, which differences its operand across one model step
-# while the simulation runs. The writer registers a callback that updates it on the iteration before
-# each output as well as at the output itself, so `d/dt` lands on the same record, at the same time, as
-# the source terms it has to balance.
-
-∂ₜ∫eₚ = TimeDerivative(∫eₚ)
-∂ₜ∫eₖ = TimeDerivative(∫eₖ)
-
 # A *snapshot* writer for the surface maps and a *budget* writer for the volume integrals, both on
 # `TimeInterval(3hours)`.
 
@@ -239,9 +234,9 @@ close(ds)
 ζlim = maximum(abs, ζ_arr)
 νlim = maximum(ν_arr)
 
-# Every budget record carries both tendencies and every source term at the same time. The one exception
-# is the first record, at the start of the run, where a `TimeDerivative` has no earlier state to
-# difference against and is written as zero; the budgets start from the second.
+# Every budget record carries both tendencies and every source term at the same time. The first record
+# has no earlier state to difference against and is written as zero, so the budgets start from the
+# second.
 
 ds_b = NCDataset(simulation.output_writers[:budget].filepath)
 nb   = 2:length(ds_b["time"])

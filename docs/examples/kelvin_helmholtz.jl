@@ -154,11 +154,8 @@ w̄b̄  = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy producti
 ∫Πₖ  = Integral(Πₖ)
 ∫εₖˡ = Integral(εₖˡ)
 
-
-# `d/dt` comes from `TimeDerivative`, which differences `∫eₖˡ` across one model step while the simulation
-# runs, exactly as in the [Two-dimensional turbulence example](@ref two_d_turbulence_example).
-
 ∂ₜ∫eₖˡ = TimeDerivative(∫eₖˡ)
+
 
 # We use two NetCDF writers. A *snapshot* writer stores the 2D fields and a *budget* writer only the
 # integrated scalars, both on `TimeInterval(1)`.
@@ -197,9 +194,9 @@ ds = NCDataset(filepath)
 times = ds["time"][:]
 close(ds)
 
-# Every budget record carries the tendency and the three source terms at the same time. The one
-# exception is the first record, at the start of the run, where a `TimeDerivative` has no earlier state
-# to difference against and is written as zero; the budget starts from the second.
+# Every budget record carries the tendency and the three source terms at the same time. The first
+# record has no earlier state to difference against and is written as zero, so the budget starts from
+# the second.
 
 bud_filepath = simulation.output_writers[:budget].filepath
 ds_bud = NCDataset(bud_filepath)
