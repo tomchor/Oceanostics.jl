@@ -203,6 +203,19 @@ Tests in `test/` share setup via `test_utils.jl` which defines common grids (reg
 
 Budget closure is checked by `@test` assertions embedded in `docs/examples/two_dimensional_turbulence.jl` (hidden from the rendered output via Literate `#hide`), so the docs build acts as the budget regression test.
 
+Every budget example gets its `d/dt` from Oceananigans' `TimeDerivative` (0.113+), not from differencing
+output offline, so a budget writer is scheduled on a plain `TimeInterval` and each record carries the
+tendency and its source terms at one time. Two things about it are easy to get wrong. A `TimeDerivative`
+has to be a *direct* entry in the writer's `outputs`, since `add_dependencies!` dispatches on the output
+itself and does not walk into composite operations; it is what makes the writer register the
+`PrecedingIterations` callback that updates the derivative on the iteration before each output as well as
+at the output, which is what keeps the difference one model step wide rather than one output interval.
+And the first record of a run is written as *zero*, not `NaN`, because there is no earlier state to
+difference against, so post-processing starts at record 2 (`nb = 2:length(ds["time"])`). The derivative
+is a backward difference centered at `t - Δt/2` while the source terms sit at `t`, so the budgets are
+consistent only to `O(Δt_model)` rather than the `O(Δt_model²)` the old pair-averaged recipe gave; that
+is worth remembering if a residual tolerance ever starts to look marginal.
+
 The `perf_invariants` test group guards against performance regressions without encoding hardware-specific numbers: it asserts zero-allocation, type-stable per-cell evaluation on representative KFOs from every module (so accidental boxing or `Any`-typed dispatch fails immediately), plus same-runner ratio invariants on the separable filters (staged 3D wide-stencil path must beat the fused path by ≥2× — same hardware, ratio cancels noise).
 
 GPU coverage comes from a Buildkite pipeline (`.buildkite/gpu-pipeline.yml`) rather than GitHub Actions,

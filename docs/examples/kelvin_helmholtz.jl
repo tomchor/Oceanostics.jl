@@ -155,11 +155,13 @@ w̄b̄  = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy producti
 ∫εₖˡ = Integral(εₖˡ)
 
 
-# We use two NetCDF writers. A *snapshot* writer stores the 2D fields on a plain `TimeInterval(1)`,
-# while a *budget* writer stores only the integrated scalars on `ConsecutiveIterations(TimeInterval(1))`
-# — a second sample one model step after each output time — which lets us finite-difference `∫eₖˡ` across
-# that single step to estimate `d/dt`, exactly as in the
-# [Two-dimensional turbulence example](@ref two_d_turbulence_example).
+# `d/dt` comes from `TimeDerivative`, which differences `∫eₖˡ` across one model step while the simulation
+# runs, exactly as in the [Two-dimensional turbulence example](@ref two_d_turbulence_example).
+
+∂ₜ∫eₖˡ = TimeDerivative(∫eₖˡ)
+
+# We use two NetCDF writers. A *snapshot* writer stores the 2D fields and a *budget* writer only the
+# integrated scalars, both on `TimeInterval(1)`.
 
 using NCDatasets
 filename = "kelvin_helmholtz"
@@ -169,9 +171,9 @@ simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b, w̄b̄, Πₖ,
                                               schedule=TimeInterval(1),
                                               overwrite_files=true)
 
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫eₖˡ, ∫w̄b̄, ∫Πₖ, ∫εₖˡ),
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∂ₜ∫eₖˡ, ∫w̄b̄, ∫Πₖ, ∫εₖˡ),
                                                   filename=joinpath(@__DIR__, filename * "_budget"),
-                                                  schedule=ConsecutiveIterations(TimeInterval(1)),
+                                                  schedule=TimeInterval(1),
                                                   overwrite_files=true)
 
 
@@ -195,30 +197,23 @@ ds = NCDataset(filepath)
 times = ds["time"][:]
 close(ds)
 
-# The integrated budget scalars come in consecutive-iteration pairs `(2k-1, 2k)`; a one-step finite
-# difference inside each pair gives `d(∫eₖˡ)/dt`, and each source term is evaluated at the pair midpoint.
+# Every budget record carries the tendency and the three source terms at the same time. The one
+# exception is the first record, at the start of the run, where a `TimeDerivative` has no earlier state
+# to difference against and is written as zero; the budget starts from the second.
 
 bud_filepath = simulation.output_writers[:budget].filepath
 ds_bud = NCDataset(bud_filepath)
-times_bud = ds_bud["time"][:]
-∫eₖˡ_t    = ds_bud["∫eₖˡ"][:]
-∫w̄b̄_t     = ds_bud["∫w̄b̄"][:]
-∫Πₖ_t     = ds_bud["∫Πₖ"][:]
-∫εₖˡ_t    = ds_bud["∫εₖˡ"][:]
+nb     = 2:length(ds_bud["time"])
+
+t_bud    = ds_bud["time"][nb]
+deₖˡdt   = ds_bud["∂ₜ∫eₖˡ"][nb]
+w̄b̄_bud   = ds_bud["∫w̄b̄"][nb]
+Πₖ_bud   = ds_bud["∫Πₖ"][nb]
+εₖˡ_bud  = ds_bud["∫εₖˡ"][nb]
 close(ds_bud)
 
-i1 = 1:2:length(times_bud)-1   # primary snapshots
-i2 = 2:2:length(times_bud)       # consecutive-iteration snapshots
-Δt_pair = times_bud[i2] .- times_bud[i1]
-t_pair = @. 0.5 * (times_bud[i1] + times_bud[i2])
-
-deₖˡdt   = (∫eₖˡ_t[i2] .- ∫eₖˡ_t[i1]) ./ Δt_pair
-w̄b̄_pair  = @. 0.5 * (∫w̄b̄_t[i1] + ∫w̄b̄_t[i2]);
-Πₖ_pair  = @. 0.5 * (∫Πₖ_t[i1] + ∫Πₖ_t[i2]);
-εₖˡ_pair = @. 0.5 * (∫εₖˡ_t[i1] + ∫εₖˡ_t[i2]);
-
 # Residual in sum-to-zero form: the negative tendency plus the three sources, so the plotted curves add to it
-resid = @. -deₖˡdt + w̄b̄_pair - Πₖ_pair - εₖˡ_pair
+resid = @. -deₖˡdt + w̄b̄_bud - Πₖ_bud - εₖˡ_bud
 
 using Test                              #hide
 rms(x) = √(sum(abs2, x) / length(x))    #hide
@@ -286,11 +281,11 @@ Colorbar(fig[5, 3], hm6, vertical=false, height=8);
 # sum to the residual.
 
 ax_bud = Axis(fig[6, 1:3]; xlabel="Time", title="Filtered kinetic energy budget", height=140)
-lines!(ax_bud, t_pair, -deₖˡdt, label="−d(∫eₖˡ)/dt")
-lines!(ax_bud, t_pair, w̄b̄_pair, label="∫w̄b̄ dV")
-lines!(ax_bud, t_pair, -Πₖ_pair, label="−∫Πₖ dV")
-lines!(ax_bud, t_pair, -εₖˡ_pair, label="−∫εₖˡ dV")
-lines!(ax_bud, t_pair, resid, label="residual", color=:black, linestyle=:dash)
+lines!(ax_bud, t_bud, -deₖˡdt, label="−d(∫eₖˡ)/dt")
+lines!(ax_bud, t_bud, w̄b̄_bud, label="∫w̄b̄ dV")
+lines!(ax_bud, t_bud, -Πₖ_bud, label="−∫Πₖ dV")
+lines!(ax_bud, t_bud, -εₖˡ_bud, label="−∫εₖˡ dV")
+lines!(ax_bud, t_bud, resid, label="residual", color=:black, linestyle=:dash)
 axislegend(ax_bud; position=:lb, labelsize=10)
 
 # Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title

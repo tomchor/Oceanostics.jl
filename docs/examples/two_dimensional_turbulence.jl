@@ -113,7 +113,7 @@ eₖ        = KineticEnergyEquation.KineticEnergy(model)
 # the *discrete* level. To get strict discrete conservation of energy one would have to derive a discrete
 # KE equation directly from the discrete momentum equations — using both the current and
 # previous time-step velocities. We are not doing that here: we compute ``\varepsilon_k``
-# from the current model state and finite-difference snapshots of ``\int e_k\, \mathrm{d}V``
+# from the current model state and difference ``\int e_k\, \mathrm{d}V`` across a time step
 # independently. The two relations are consistent in the continuum limit but only approximately
 # at the discrete level for a well-resolved flow, so we expect the KE budget to close only approximately.
 
@@ -122,11 +122,16 @@ eₖ        = KineticEnergyEquation.KineticEnergy(model)
 ∫εₖ = Integral(εₖ)
 ∫χ  = Integral(χ)
 
-# We use two NetCDF writers. A *visualization* writer outputs the 2D snapshot fields on a plain
-# `TimeInterval(0.6)`. A *budget* writer outputs only the (cheap) integrated scalars on
-# `ConsecutiveIterations(TimeInterval(0.6))` — i.e. a second sample one model step after each
-# scheduled time — which lets us finite-difference the integrated quantities across that single
-# step to estimate ``d/dt`` without time-integration accumulators. Separating the two avoids
+# The two tendencies come from `TimeDerivative`, which differences its operand across one model step
+# while the simulation runs. The writer registers a callback that updates it on the iteration before
+# each output as well as at the output itself, so each record carries ``d/dt`` at its own time, already
+# divided by the elapsed time and already alongside the source term it has to balance.
+
+∂ₜ∫eₖ = TimeDerivative(∫eₖ)
+∂ₜ∫c² = TimeDerivative(∫c²)
+
+# We use two NetCDF writers. A *visualization* writer outputs the 2D snapshot fields and a *budget*
+# writer only the (cheap) integrated scalars, both on `TimeInterval(0.6)`. Separating the two avoids
 # writing the heavy 2D fields twice per output time.
 
 using NCDatasets
@@ -137,9 +142,9 @@ simulation.output_writers[:nc] = NetCDFWriter(model, (; speed, vorticity, eₖ, 
                                               schedule = TimeInterval(0.6),
                                               overwrite_files = true)
 
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫eₖ, ∫c², ∫εₖ, ∫χ),
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∂ₜ∫eₖ, ∂ₜ∫c², ∫εₖ, ∫χ),
                                                   filename = joinpath(@__DIR__, filename * "_budget"),
-                                                  schedule = ConsecutiveIterations(TimeInterval(0.6)),
+                                                  schedule = TimeInterval(0.6),
                                                   overwrite_files = true)
 
 
@@ -161,42 +166,33 @@ ds = NCDataset(snap_filepath)
 times = ds["time"][:]
 close(ds)
 
-# Read the integrated-quantity scalars from the `:budget` writer. These come in consecutive-
-# iteration pairs: `(t₀, t₀+Δt_model, t₀+0.6, t₀+0.6+Δt_model, …)`. Pair `k` has indices
-# `(2k-1, 2k)`; we obtain ``d/dt`` from a one-step finite difference inside each pair.
+# Read the budget scalars from the `:budget` writer. Every record carries both tendencies and both
+# source terms at the same time, so there is nothing left to pair up. The one exception is the first
+# record, at the start of the run, where a `TimeDerivative` has no earlier state to difference against
+# and is written as zero; the budget starts from the second.
 
 bud_filepath = simulation.output_writers[:budget].filepath
 ds_bud = NCDataset(bud_filepath)
-times_bud = ds_bud["time"][:]
-∫eₖ_t = ds_bud["∫eₖ"][:]
-∫c²_t = ds_bud["∫c²"][:]
-∫εₖ_t = ds_bud["∫εₖ"][:]
-∫χ_t  = ds_bud["∫χ"][:]
+nb     = 2:length(ds_bud["time"])
+
+t_bud    = ds_bud["time"][nb]
+deₖdt    = ds_bud["∂ₜ∫eₖ"][nb]
+dc²dt    = ds_bud["∂ₜ∫c²"][nb]
+εₖ_bud   = ds_bud["∫εₖ"][nb]
+χ_bud    = ds_bud["∫χ"][nb]
 close(ds_bud)
-
-idx1     = 1:2:length(times_bud) - 1   # primary snapshots
-idx2     = 2:2:length(times_bud)       # consecutive-iteration snapshots
-Δt_pair  = times_bud[idx2] .- times_bud[idx1]
-t_pair   = @. 0.5 * (times_bud[idx1] + times_bud[idx2])
-
-deₖdt    = (∫eₖ_t[idx2] .- ∫eₖ_t[idx1]) ./ Δt_pair;
-dc²dt    = (∫c²_t[idx2] .- ∫c²_t[idx1]) ./ Δt_pair;
-
-# Source terms at the pair midpoint
-εₖ_pair  = @. 0.5 * (∫εₖ_t[idx1] + ∫εₖ_t[idx2]);
-χ_pair   = @. 0.5 * (∫χ_t[idx1] + ∫χ_t[idx2]);
 
 # Budget residuals in sum-to-zero form: the negative tendency plus the source term. Plotting every
 # curve with these signs makes them add up to the residual, which stays near zero.
-eₖ_resid = @. -deₖdt - εₖ_pair
-c²_resid = @. -dc²dt - χ_pair
+eₖ_resid = @. -deₖdt - εₖ_bud
+c²_resid = @. -dc²dt - χ_bud
 
 using Test                                #hide
 rms(x) = √(sum(abs2, x) / length(x))      #hide
 @test rms(eₖ_resid) < 0.02 * rms(deₖdt);  #hide
-@test rms(eₖ_resid) < 0.02 * rms(εₖ_pair); #hide
+@test rms(eₖ_resid) < 0.02 * rms(εₖ_bud);  #hide
 @test rms(c²_resid) < 0.01 * rms(dc²dt);  #hide
-@test rms(c²_resid) < 0.01 * rms(χ_pair); #hide
+@test rms(c²_resid) < 0.01 * rms(χ_bud);   #hide
 
 
 # ## Plotting
@@ -244,17 +240,17 @@ Colorbar(fig[3, 4], hm_c; vertical=false, height=8, ticklabelsize=12)
 budget_kwargs = (height = 180, width = 1080)
 
 ax_eₖbud = Axis(fig[4, 1:4]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
-lines!(ax_eₖbud, t_pair, -deₖdt,   label = "-d(∫eₖ)/dt")
-lines!(ax_eₖbud, t_pair, -εₖ_pair, label = "-∫εₖ dV")
-lines!(ax_eₖbud, t_pair, eₖ_resid, label = "residual", color = :black, linestyle = :dash)
+lines!(ax_eₖbud, t_bud, -deₖdt,   label = "-d(∫eₖ)/dt")
+lines!(ax_eₖbud, t_bud, -εₖ_bud,  label = "-∫εₖ dV")
+lines!(ax_eₖbud, t_bud, eₖ_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_eₖbud; labelsize = 10, position = :rb)
 
 # Volume-integrated c² budget: the negative tendency `-d(∫c²)/dt` and `-∫χ dV`, which sum to the residual.
 
 ax_c²bud = Axis(fig[5, 1:4]; title = "Volume-integrated tracer variance budget", xlabel = "Time", budget_kwargs...)
-lines!(ax_c²bud, t_pair, -dc²dt,  label = "-d(∫c²)/dt")
-lines!(ax_c²bud, t_pair, -χ_pair, label = "-∫χ dV")
-lines!(ax_c²bud, t_pair, c²_resid, label = "residual", color = :black, linestyle = :dash)
+lines!(ax_c²bud, t_bud, -dc²dt,  label = "-d(∫c²)/dt")
+lines!(ax_c²bud, t_bud, -χ_bud,   label = "-∫χ dV")
+lines!(ax_c²bud, t_bud, c²_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_c²bud; labelsize = 10, position = :rb)
 
 # Time marker on both budget panels (using the snapshot time shown in the heatmaps)

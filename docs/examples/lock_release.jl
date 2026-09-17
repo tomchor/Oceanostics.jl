@@ -170,17 +170,24 @@ simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
                                                   schedule = TimeInterval(0.5),
                                                   overwrite_files = true)
 
-# The *budget* writer carries only the volume integrals, which are cheap next to the maps, on
-# `ConsecutiveIterations(TimeInterval(0.5))`. That schedules a second sample one model step after each
-# scheduled time, which lets us finite-difference ``d/dt`` across that step instead of accumulating it.
-# The `∫eₐ_heaviside` written here is the tendency term that pairs with ``\varepsilon_a``, since the
-# two come off the same sort.
+# The two tendencies come from `TimeDerivative`, which differences its operand across one model step
+# while the simulation runs. The writer registers a callback that updates it on the iteration before
+# each output as well as at the output itself, so ``d/dt`` lands on the same record, at the same time,
+# as the terms it has to balance. The ``e_a`` differenced here is `∫eₐ_heaviside`, the one that pairs
+# with ``\varepsilon_a``, since the two come off the same sort.
 
-integrals = (; ∫e_b, ∫eₖ, ∫eₐ, ∫eₐ_heaviside, ∫eₐ_lookup, ∫eₐ_column, ∫wb, ∫wbᵣ, ∫εₖ, ∫εₐ)
+∂ₜ∫eₖ = TimeDerivative(∫eₖ)
+∂ₜ∫eₐ = TimeDerivative(∫eₐ_heaviside)
+
+# The *budget* writer carries only the volume integrals and those two tendencies, all cheap next to the
+# maps, on the same `TimeInterval(0.5)` as the fields writer.
+
+integrals = (; ∫e_b, ∫eₖ, ∫eₐ, ∫eₐ_heaviside, ∫eₐ_lookup, ∫eₐ_column, ∫wb, ∫wbᵣ, ∫εₖ, ∫εₐ,
+               ∂ₜ∫eₖ, ∂ₜ∫eₐ)
 
 simulation.output_writers[:budget] = NetCDFWriter(model, integrals,
                                                   filename = joinpath(@__DIR__, filename * "_budget"),
-                                                  schedule = ConsecutiveIterations(TimeInterval(0.5)),
+                                                  schedule = TimeInterval(0.5),
                                                   overwrite_files = true)
 
 # ## Run the simulation
@@ -422,33 +429,32 @@ nothing #hide
 
 # ## Energetics
 #
-# The same three energies, now volume integrated, read off the budget writer. Its samples come in
-# consecutive-iteration pairs `(t₀, t₀ + Δt_model, t₀ + 0.5, t₀ + 0.5 + Δt_model, …)`, so pair `k` sits
-# at indices `(2k-1, 2k)`. The first of each pair falls on the `TimeInterval` grid and is what the
-# energy curves use; the pair as a whole is what gives `d/dt` further down.
+# The same three energies, now volume integrated, read off the budget writer, which carries them
+# alongside the two tendencies and the source terms that balance them, all at the same time.
 
 ds = NCDataset(simulation.output_writers[:budget].filepath)
-t_bud   = ds["time"][:]
-e_b_bud = ds["∫e_b"][:]
-eₐ_bud  = ds["∫eₐ_heaviside"][:]
-eₖ_bud  = ds["∫eₖ"][:]
-wb_bud  = ds["∫wb"][:]
-wbᵣ_bud = ds["∫wbᵣ"][:]
-εₖ_bud  = ds["∫εₖ"][:]
-εₐ_bud  = ds["∫εₐ"][:]
+t_e     = ds["time"][:]
+e_b_int = ds["∫e_b"][:]
+eₐ_int  = ds["∫eₐ_heaviside"][:]
+eₖ_int  = ds["∫eₖ"][:]
 ## all four methods integrate to the same eₐ, however they place cells of equal buoyancy  #hide
-@test ds["∫eₐ"][:]        ≈ eₐ_bud rtol=1e-8                                              #hide
-@test ds["∫eₐ_lookup"][:] ≈ eₐ_bud rtol=1e-8                                              #hide
-@test ds["∫eₐ_column"][:] ≈ eₐ_bud rtol=1e-8                                              #hide
+@test ds["∫eₐ"][:]        ≈ eₐ_int rtol=1e-8                                              #hide
+@test ds["∫eₐ_lookup"][:] ≈ eₐ_int rtol=1e-8                                              #hide
+@test ds["∫eₐ_column"][:] ≈ eₐ_int rtol=1e-8                                              #hide
+
+# The budget terms come off the same records bar the first, at the start of the run, where a
+# `TimeDerivative` has no earlier state to difference against and is written as zero.
+
+nb = 2:length(t_e)
+
+t_bud   = ds["time"][nb]
+deₖdt   = ds["∂ₜ∫eₖ"][nb]
+deₐdt   = ds["∂ₜ∫eₐ"][nb]
+wb_bud  = ds["∫wb"][nb]
+wbᵣ_bud = ds["∫wbᵣ"][nb]
+εₖ_bud  = ds["∫εₖ"][nb]
+εₐ_bud  = ds["∫εₐ"][nb]
 close(ds)
-
-idx1 = 1:2:length(t_bud) - 1   # primary snapshots
-idx2 = 2:2:length(t_bud)       # consecutive-iteration snapshots
-
-t_e     = t_bud[idx1]
-eₖ_int  = eₖ_bud[idx1]
-eₐ_int  = eₐ_bud[idx1]
-e_b_int = e_b_bud[idx1]
 
 total_int = eₖ_int .+ eₐ_int .+ e_b_int
 
@@ -488,58 +494,44 @@ nothing #hide
 
 # ## Closing the budgets
 #
-# Now the two budgets written at the top. `d/dt` comes from a one-step finite difference inside each
-# consecutive-iteration pair, and the source terms are averaged over the same pair so that every term
-# is evaluated at the same instant.
-
-Δt_pair = t_bud[idx2] .- t_bud[idx1]
-t_pair  = @. 0.5 * (t_bud[idx1] + t_bud[idx2])
-
-deₖdt = (eₖ_bud[idx2] .- eₖ_bud[idx1]) ./ Δt_pair
-deₐdt = (eₐ_bud[idx2] .- eₐ_bud[idx1]) ./ Δt_pair
-
-pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
-
-wb_pair  = pair_mean(wb_bud);
-wbᵣ_pair = pair_mean(wbᵣ_bud);
-εₖ_pair  = pair_mean(εₖ_bud);
-εₐ_pair  = pair_mean(εₐ_bud);
-
+# Now the two budgets written at the top. Both tendencies and every source term come off the same
+# record, at the same instant, so there is nothing left to line up.
+#
 # Both budgets are written in sum-to-zero form: each curve is plotted with the sign it carries here, so
 # the panels below add up to the residual.
 
-eₖ_resid = @. -deₖdt + wbᵣ_pair - εₖ_pair
-eₐ_resid = @. -deₐdt - wbᵣ_pair - εₐ_pair
+eₖ_resid = @. -deₖdt + wbᵣ_bud - εₖ_bud
+eₐ_resid = @. -deₐdt - wbᵣ_bud - εₐ_bud
 
 rms(x) = √(sum(abs2, x) / length(x))                                       #hide
 @test rms(eₖ_resid) < 0.01 * rms(deₖdt)                                                        #hide
-@test rms(eₖ_resid) < 0.02 * rms(εₖ_pair)                                                       #hide
+@test rms(eₖ_resid) < 0.02 * rms(εₖ_bud)                                                        #hide
 @test rms(eₐ_resid) < 0.01 * rms(deₐdt)                                                         #hide
 ## the sharp one: the eₐ residual is a small fraction of εₐ itself, so the budget resolves       #hide
 ## the new term rather than closing to within its size                                           #hide
-@test rms(eₐ_resid) < 0.05 * rms(εₐ_pair)                                                       #hide
+@test rms(eₐ_resid) < 0.05 * rms(εₐ_bud)                                                        #hide
 ## the two conversions have the same volume integral, so they cancel from the sum of the budgets #hide
-@test rms(wb_pair .- wbᵣ_pair) < 1e-8 * rms(wb_pair)                                            #hide
-@test rms(eₖ_resid .+ eₐ_resid) < 0.02 * rms(εₖ_pair)                                           #hide
+@test rms(wb_bud .- wbᵣ_bud) < 1e-8 * rms(wb_bud)                                              #hide
+@test rms(eₖ_resid .+ eₐ_resid) < 0.02 * rms(εₖ_bud)                                            #hide
 ## and εₐ takes both signs over the run, which is what the discussion below rests on             #hide
-@test minimum(εₐ_pair) < 0 < maximum(εₐ_pair);                                                  #hide
+@test minimum(εₐ_bud) < 0 < maximum(εₐ_bud);                                                   #hide
 
 fig4 = Figure(size = (900, 760))
 
 budget_kwargs = (xlabel = "Time", ylabel = "Rate", height = 190, width = 560)
 
 ax_eₖ_bud = Axis(fig4[1, 1]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
-lines!(ax_eₖ_bud, t_pair, -deₖdt,    label = "-d(∫eₖ)/dt")
-lines!(ax_eₖ_bud, t_pair, wbᵣ_pair,  label = "∫wbᵣ dV")
-lines!(ax_eₖ_bud, t_pair, -εₖ_pair,  label = "-∫εₖ dV")
-lines!(ax_eₖ_bud, t_pair, eₖ_resid; label = "residual", color = :black, linestyle = :dash)
+lines!(ax_eₖ_bud, t_bud, -deₖdt,    label = "-d(∫eₖ)/dt")
+lines!(ax_eₖ_bud, t_bud, wbᵣ_bud,   label = "∫wbᵣ dV")
+lines!(ax_eₖ_bud, t_bud, -εₖ_bud,   label = "-∫εₖ dV")
+lines!(ax_eₖ_bud, t_bud, eₖ_resid; label = "residual", color = :black, linestyle = :dash)
 Legend(fig4[1, 2], ax_eₖ_bud; labelsize = 12, framevisible = false)
 
 ax_eₐ_bud = Axis(fig4[2, 1]; title = "Volume-integrated available potential energy budget", budget_kwargs...)
-lines!(ax_eₐ_bud, t_pair, -deₐdt,    label = "-d(∫eₐ)/dt")
-lines!(ax_eₐ_bud, t_pair, -wbᵣ_pair, label = "-∫wbᵣ dV")
-lines!(ax_eₐ_bud, t_pair, -εₐ_pair,  label = "-∫εₐ dV")
-lines!(ax_eₐ_bud, t_pair, eₐ_resid; label = "residual", color = :black, linestyle = :dash)
+lines!(ax_eₐ_bud, t_bud, -deₐdt,    label = "-d(∫eₐ)/dt")
+lines!(ax_eₐ_bud, t_bud, -wbᵣ_bud,  label = "-∫wbᵣ dV")
+lines!(ax_eₐ_bud, t_bud, -εₐ_bud,   label = "-∫εₐ dV")
+lines!(ax_eₐ_bud, t_bud, eₐ_resid; label = "residual", color = :black, linestyle = :dash)
 Legend(fig4[2, 2], ax_eₐ_bud; labelsize = 12, framevisible = false)
 
 # `εₐ` is small enough next to the exchange term that it sits on top of the axis in the panel above, so
@@ -548,9 +540,9 @@ Legend(fig4[2, 2], ax_eₐ_bud; labelsize = 12, framevisible = false)
 # `d(∫eₐ)/dt`, it is small next to `∫εₐ dV`, the smallest term in the budget.
 
 ax_small = Axis(fig4[3, 1]; title = "The small terms, magnified", budget_kwargs...)
-lines!(ax_small, t_pair, -εₐ_pair, label = "-∫εₐ dV", color = Cycled(3))
-lines!(ax_small, t_pair, eₐ_resid, label = "eₐ residual", color = :black, linestyle = :dash)
-lines!(ax_small, t_pair, eₖ_resid, label = "eₖ residual", color = :grey40, linestyle = :dot)
+lines!(ax_small, t_bud, -εₐ_bud,  label = "-∫εₐ dV", color = Cycled(3))
+lines!(ax_small, t_bud, eₐ_resid, label = "eₐ residual", color = :black, linestyle = :dash)
+lines!(ax_small, t_bud, eₖ_resid, label = "eₖ residual", color = :grey40, linestyle = :dot)
 Legend(fig4[3, 2], ax_small; labelsize = 12, framevisible = false)
 
 resize_to_layout!(fig4)
@@ -587,12 +579,12 @@ nothing #hide
 wb_t  = FieldTimeSeries(filepath, "wb")
 wbᵣ_t = FieldTimeSeries(filepath, "wbᵣ")
 
-k_peak = argmax(abs.(wb_bud[idx1]))        # the snapshot where the exchange is strongest
-t_peak = t_e[k_peak]
+k_peak = argmax(abs.(wb_bud))              # the snapshot where the exchange is strongest
+t_peak = t_bud[k_peak]
 n_peak = argmin(abs.(times .- t_peak))
 
-∫wb_peak  = wb_bud[idx1][k_peak]           # the same instant's volume integrals, off the budget writer
-∫wbᵣ_peak = wbᵣ_bud[idx1][k_peak]
+∫wb_peak  = wb_bud[k_peak]                 # the same instant's volume integrals, off the budget writer
+∫wbᵣ_peak = wbᵣ_bud[k_peak]
 
 wb_map  = interior(wb_t[n_peak],  :, 1, :)
 wbᵣ_map = interior(wbᵣ_t[n_peak], :, 1, :)
