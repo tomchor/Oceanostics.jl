@@ -178,6 +178,9 @@ eₖ = KineticEnergy(model)
 ∫wb = ∫dV(wb)
 ∫εₖ = ∫dV(εₖ)
 
+∂ₜ∫eₚ = TimeDerivative(∫eₚ)
+∂ₜ∫eₖ = TimeDerivative(∫eₖ)
+
 # For the movie we keep the surface vorticity, buoyancy, the closure's own eddy viscosity (which shows
 # where `Smagorinsky` is actually acting), and the mixed layer depth. Its criterion threshold is set to
 # the initial buoyancy jump across the mixed layer, `N²_ml * h`, since the default threshold assumes
@@ -191,9 +194,8 @@ MLD = MixedLayerDepth(grid, model.buoyancy.formulation, (; b); criterion = Buoya
 
 # ## Output
 #
-# A *snapshot* writer for the surface maps and a *budget* writer for the volume integrals, the latter
-# on `ConsecutiveIterations`, which takes a second sample one model step after each output time so we
-# can finite-difference `d/dt` across that step.
+# A *snapshot* writer for the surface maps and a *budget* writer for the volume integrals, both on
+# `TimeInterval(3hours)`.
 
 using NCDatasets
 filename = joinpath(@__DIR__, "baroclinic_adjustment")
@@ -203,13 +205,13 @@ simulation.output_writers[:fields] =
                  filename = filename,
                  schedule = TimeInterval(3hours),
                  indices = (:, :, grid.Nz),
-                 overwrite_existing = true)
+                 overwrite_files = true)
 
 simulation.output_writers[:budget] =
-    NetCDFWriter(model, (; ∫eₚ, ∫Φ, ∫eₖ, ∫wb, ∫εₖ),
+    NetCDFWriter(model, (; ∂ₜ∫eₚ, ∫Φ, ∂ₜ∫eₖ, ∫wb, ∫εₖ),
                  filename = filename * "_budget",
-                 schedule = ConsecutiveIterations(TimeInterval(3hours)),
-                 overwrite_existing = true)
+                 schedule = TimeInterval(3hours),
+                 overwrite_files = true)
 
 # ## Run the simulation
 
@@ -232,62 +234,50 @@ close(ds)
 ζlim = maximum(abs, ζ_arr)
 νlim = maximum(ν_arr)
 
-# The budget scalars come in consecutive-iteration pairs `(2k-1, 2k)`; a one-step finite difference
-# inside each pair gives the tendencies, and every source term is averaged over the same pair.
+# Every budget record carries both tendencies and every source term at the same time. The first record
+# has no earlier state to difference against and is written as zero, so the budgets start from the
+# second.
 
 ds_b = NCDataset(simulation.output_writers[:budget].filepath)
-t_bud    = ds_b["time"][:]
-eₚ_bud = ds_b["∫eₚ"][:]
-Φ_bud  = ds_b["∫Φ"][:]
-eₖ_bud = ds_b["∫eₖ"][:]
-wb_bud = ds_b["∫wb"][:]
-εₖ_bud = ds_b["∫εₖ"][:]
+nb   = 2:length(ds_b["time"])
+
+t_bud   = ds_b["time"][nb]
+deₚdt   = ds_b["∂ₜ∫eₚ"][nb]
+deₖdt   = ds_b["∂ₜ∫eₖ"][nb]
+Φ_bud   = ds_b["∫Φ"][nb]
+wb_bud  = ds_b["∫wb"][nb]
+εₖ_bud  = ds_b["∫εₖ"][nb]
 close(ds_b)
-
-idx1 = 1:2:length(t_bud) - 1
-idx2 = 2:2:length(t_bud)
-
-Δt_pair = t_bud[idx2] .- t_bud[idx1]
-t_pair  = @. 0.5 * (t_bud[idx1] + t_bud[idx2])
-
-deₚdt = (eₚ_bud[idx2] .- eₚ_bud[idx1]) ./ Δt_pair
-deₖdt = (eₖ_bud[idx2] .- eₖ_bud[idx1]) ./ Δt_pair
-
-pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
-
-Φ_pair  = pair_mean(Φ_bud)
-wb_pair = pair_mean(wb_bud)
-εₖ_pair = pair_mean(εₖ_bud);
 
 # Both budgets in sum-to-zero form: every curve is plotted with the sign it carries here, so each panel
 # below adds up to its residual.
 
-eₚ_resid = @. -deₚdt - wb_pair + Φ_pair
-eₖ_resid = @. -deₖdt + wb_pair - εₖ_pair
+eₚ_resid = @. -deₚdt - wb_bud + Φ_bud
+eₖ_resid = @. -deₖdt + wb_bud - εₖ_bud
 
 using Test                                                                            #hide
 using Statistics: mean                                                                #hide
 rms(x) = √(sum(abs2, x) / length(x))                                                  #hide
-eₚ_terms = (deₚdt, wb_pair, Φ_pair)                                                   #hide
-eₖ_terms = (deₖdt, wb_pair, εₖ_pair)                                                  #hide
+eₚ_terms = (deₚdt, wb_bud, Φ_bud)                                                     #hide
+eₖ_terms = (deₖdt, wb_bud, εₖ_bud)                                                    #hide
 ## Each budget closes to a small fraction of its own largest term.                                   #hide
 @test rms(eₚ_resid) < 0.03 * maximum(rms, eₚ_terms)                                   #hide
 @test rms(eₖ_resid) < 0.05 * maximum(rms, eₖ_terms)                                   #hide
 ## `wb` is the same term in both, so it cancels from their sum                        #hide
-@test rms(eₚ_resid .+ eₖ_resid) < 0.05 * rms(wb_pair)                                 #hide
+@test rms(eₚ_resid .+ eₖ_resid) < 0.05 * rms(wb_bud)                                  #hide
 ## The adjustment does what it should: the fronts slump and the potential energy they release turns  #hide
 ## into kinetic energy, so the conversion is positive on average.                                    #hide
-@test mean(wb_pair) > 0                                                               #hide
+@test mean(wb_bud) > 0                                                                #hide
 ## It leads the kinetic energy budget. It does not lead the potential energy one — with this closure #hide
 ## the diffusive term is an order of magnitude larger — but the budget resolves it far above its own #hide
 ## residual, which is the claim that matters.                                                        #hide
-@test rms(wb_pair) > 0.5 * rms(deₖdt)                                                 #hide
-@test rms(wb_pair) > 10 * rms(eₚ_resid)                                               #hide
-@test rms(Φ_pair)  > rms(wb_pair)                                                     #hide
+@test rms(wb_bud) > 0.5 * rms(deₖdt)                                                  #hide
+@test rms(wb_bud) > 10 * rms(eₚ_resid)                                                #hide
+@test rms(Φ_bud)  > rms(wb_bud)                                                       #hide
 ## The closure is active everywhere, which is what a constant-coefficient Smagorinsky does and what  #hide
 ## the Lilly-corrected one would not at this resolution.                                             #hide
-@test minimum(εₖ_pair) > 0                                                            #hide
-@test all(εₖ_pair .≥ 0);                                                              #hide
+@test minimum(εₖ_bud) > 0                                                             #hide
+@test all(εₖ_bud .≥ 0);                                                               #hide
 
 # ## Plotting
 
@@ -322,17 +312,17 @@ Colorbar(fig[3, 2][1, 2], hmh)
 budget_kwargs = (xlabel = "time [days]", ylabel = "[m⁵ s⁻³]")
 
 ax_p = Axis(fig[4, 1:2]; title = "Volume-integrated potential energy budget", budget_kwargs...)
-lines!(ax_p, t_pair ./ day, -deₚdt,    label = "-d(∫eₚ)/dt")
-lines!(ax_p, t_pair ./ day, -wb_pair,  label = "-∫wb dV")
-lines!(ax_p, t_pair ./ day,  Φ_pair,   label = "∫Φ dV")
-lines!(ax_p, t_pair ./ day,  eₚ_resid, label = "residual", color = :black, linestyle = :dash)
+lines!(ax_p, t_bud ./ day, -deₚdt,    label = "-d(∫eₚ)/dt")
+lines!(ax_p, t_bud ./ day, -wb_bud,   label = "-∫wb dV")
+lines!(ax_p, t_bud ./ day,  Φ_bud,    label = "∫Φ dV")
+lines!(ax_p, t_bud ./ day,  eₚ_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_p; position = :rt, labelsize = 16, nbanks = 2)
 
 ax_k = Axis(fig[5, 1:2]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
-lines!(ax_k, t_pair ./ day, -deₖdt,    label = "-d(∫eₖ)/dt")
-lines!(ax_k, t_pair ./ day,  wb_pair,  label = "∫wb dV")
-lines!(ax_k, t_pair ./ day, -εₖ_pair,  label = "-∫εₖ dV")
-lines!(ax_k, t_pair ./ day,  eₖ_resid, label = "residual", color = :black, linestyle = :dash)
+lines!(ax_k, t_bud ./ day, -deₖdt,    label = "-d(∫eₖ)/dt")
+lines!(ax_k, t_bud ./ day,  wb_bud,   label = "∫wb dV")
+lines!(ax_k, t_bud ./ day, -εₖ_bud,   label = "-∫εₖ dV")
+lines!(ax_k, t_bud ./ day,  eₖ_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_k; position = :rt, labelsize = 16, nbanks = 2)
 
 vlines!(ax_p, @lift(times[$n] / day), color = :black, linestyle = :dot)
