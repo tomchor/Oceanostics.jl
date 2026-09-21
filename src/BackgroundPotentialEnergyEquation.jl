@@ -29,6 +29,11 @@ import Oceananigans.Fields: compute!
 # `ImmersedBoundaryGrid` yet; a stretched grid breaks only the first, so every method but
 # `HeavisideIntegral` additionally needs uniform cell volumes. See `validate_grid_for_method` further
 # down, once the method types exist.
+#
+# The profile arrays live on the same architecture as the field, so nothing here reads or writes a
+# single element from the host: one element is set with a one-element broadcast
+# (`@views faces[1:1] .= x`) and ordering is checked with `is_nondecreasing`, since `setindex!` and
+# `issorted` are scalar indexing on a GPU.
 
 #+++ Buoyancy as a single materialized `Field`
 # The sorting below needs the buoyancy of every cell as plain data, and the `BackgroundPotentialEnergy`
