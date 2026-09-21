@@ -552,8 +552,9 @@ end
 # Independent reference for a 1D stretched Gaussian filter: the discrete quadrature
 # `Σₘ Δₘ G(xₘ-x₀) ψₘ / Σₘ Δₘ G(xₘ-x₀)` with the same boundary geometry as the
 # kernel — periodic offsets use the unwrapped image coordinate; bounded offsets
-# clamp to the boundary (and `:shrink` drops out-of-range offsets from sum and
-# count). `boundary` is ignored for periodic directions.
+# past a wall continue at the boundary cell's spacing and width (and `:shrink`
+# drops them from sum and count). `boundary` is `:shrink`, `:edge` or a
+# `(left, right)` pad, and is ignored for periodic directions.
 function reference_gaussian_stretched(c, grid, d, σ, width; boundary=:shrink)
     N = size(grid, d)
     coords, spac = direction_coords_and_spacings(grid, d, location(c))
@@ -572,15 +573,18 @@ function reference_gaussian_stretched(c, grid, d, σ, width; boundary=:shrink)
                 mr = mod1(m, N)
                 pos, sp = coords[mr] - L*(m < 1) + L*(m > N), spac[mr]
                 val, cnt = ic[Base.setindex(idx, mr, d)...], 1
-            elseif boundary === :shrink
-                inb = 1 <= m <= N
+            else
                 mr = clamp(m, 1, N)
-                pos, sp = coords[mr], spac[mr]
-                val, cnt = (inb ? ic[Base.setindex(idx, mr, d)...] : zero(eltype(ic))), Int(inb)
-            else # :edge
-                mr = clamp(m, 1, N)
-                pos, sp = coords[mr], spac[mr]
-                val, cnt = ic[Base.setindex(idx, mr, d)...], 1
+                pos, sp = coords[mr] + (m - mr) * spac[mr], spac[mr]
+                inside = ic[Base.setindex(idx, mr, d)...]
+                if boundary === :shrink
+                    inb = 1 <= m <= N
+                    val, cnt = (inb ? inside : zero(eltype(ic))), Int(inb)
+                elseif boundary === :edge
+                    val, cnt = inside, 1
+                else # (left=a, right=b)
+                    val, cnt = (m < 1 ? boundary.left : m > N ? boundary.right : inside), 1
+                end
             end
             w = sp * exp(-(pos - x₀)^2 / (2σ^2))
             s += w * val; wsum += w * cnt
@@ -591,14 +595,14 @@ function reference_gaussian_stretched(c, grid, d, σ, width; boundary=:shrink)
 end
 
 # The stretched filter must reproduce the discrete-quadrature reference exactly,
-# for a bounded direction (shrink + edge) and a periodic stretched direction.
+# for a bounded direction (every boundary policy) and a periodic stretched direction.
 function test_gaussian_stretched_numerical()
     σ = 0.15
     for width in (2, 3)
-        # Bounded stretched z, :shrink and :edge
+        # Bounded stretched z, :shrink, :edge and constant padding
         gz = make_stretched_z_grid()
         cz = center_field_from(gz, (x, y, z) -> sin(2π*x) * cos(2π*y) + z^2 + 0.3z)
-        for boundary in (:shrink, :edge)
+        for boundary in (:shrink, :edge, (left=0.5, right=-0.5))
             cf = compute_filter(cz, GaussianFilter, (3,), width; σ=σ, boundary=boundary)
             ref = reference_gaussian_stretched(cz, gz, 3, σ, width; boundary=boundary)
             @test Array(interior(cf)) ≈ ref
@@ -612,6 +616,36 @@ function test_gaussian_stretched_numerical()
         cf = compute_filter(cx, GaussianFilter, (1,), width; σ=0.12)
         ref = reference_gaussian_stretched(cx, gx, 1, 0.12, width)
         @test Array(interior(cf)) ≈ ref
+    end
+end
+
+# On a uniform grid the stretched kernel must reproduce the uniform one for every boundary policy, at
+# centres and at faces. That pins down where it puts the taps past a wall: under `:edge` and constant
+# padding each padded value is weighted by its own distance, as the precomputed weights do.
+function test_gaussian_stretched_kernel_matches_uniform()
+    grid = make_grid(; Nz=16, halo=(3, 3, 3), topology=(Periodic, Periodic, Bounded))
+    f(x, y, z) = sin(2π*x) + z^2 + 0.2cos(6π*z)
+    c = center_field_from(grid, f)
+    w = ZFaceField(grid); set!(w, f); fill_halo_regions!(w)
+    σ = 2/16
+    for ψ in (c, w), boundary in (:shrink, :edge, (left=0.5, right=-0.5))
+        uniform = GaussianFilter(ψ; dims=3, σ, N=9, boundary)
+        loc = location(uniform)
+        kernel = StretchedGaussianFilterKernel{3}(σ, map(ℓ -> ℓ(), loc), grid.Lz)
+        stretched = KernelFunctionOperation{loc...}(kernel, grid, uniform.arguments...)
+        @test Array(interior(Field(stretched))) ≈ Array(interior(Field(uniform)))
+    end
+end
+
+# Past a wall the padded taps fade with distance like any other tap, so once the stencil spans many σ
+# a wider one leaves the filtered field unchanged, at the walls as everywhere else.
+function test_gaussian_stretched_padding_converges()
+    gz = make_stretched_z_grid(; Nz=32)
+    cz = center_field_from(gz, (x, y, z) -> sin(2π*x) + z^2 + 0.3z)
+    for boundary in (:edge, (left=0.5, right=-0.5))
+        wide  = compute_filter(cz, GaussianFilter, (3,), 15; σ=0.03, boundary)
+        wider = compute_filter(cz, GaussianFilter, (3,), 31; σ=0.03, boundary)
+        @test Array(interior(wide)) ≈ Array(interior(wider))
     end
 end
 
@@ -930,6 +964,8 @@ filter_configs = [
     @testset "GaussianFilter on stretched grids" begin
         test_gaussian_stretched_supported()
         test_gaussian_stretched_numerical()
+        test_gaussian_stretched_kernel_matches_uniform()
+        test_gaussian_stretched_padding_converges()
         test_gaussian_stretched_constant_and_linear()
         test_gaussian_stretched_staged_matches_fused()
         test_gaussian_stretched_dirac_delta()
