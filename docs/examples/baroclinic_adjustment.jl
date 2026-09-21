@@ -34,9 +34,10 @@ w_front = 250.0      # [m]   width of each front
 # ## Grid
 #
 # Doubly periodic in the horizontal and bounded in the vertical. Periodicity in `y` is what the double
-# front buys us, and it is what makes the transport terms of both budgets integrate to zero. The
-# vertical coordinate is surface-intensified: a constant 2 m spacing over the top 32 m resolves the
-# mixed layer the instability lives in, and stretches below it.
+# front buys us, and it is what makes the transport terms of both budgets integrate to zero. A single
+# (Eady) front would need a uniform background buoyancy gradient, which makes the domain's potential
+# energy infinite. The vertical coordinate is surface-intensified: a constant 2 m spacing over the top
+# 32 m resolves the mixed layer the instability lives in, and stretches below it.
 #
 # The cells come out roughly 16 m by 16 m by 2 to 8 m, within an order of magnitude of isotropic. That
 # matters for the closure below: `Smagorinsky` builds its filter width from the cell volume, so it is

@@ -146,4 +146,9 @@ architecture_label = has_gpu ? "GPU" : "CPU"
         @info "Running test_perf_invariants.jl on $architecture_label"
         include("test_perf_invariants.jl")
     end
+
+    if group == :quality_assurance || group == :all
+        @info "Running test_quality_assurance.jl on $architecture_label"
+        include("test_quality_assurance.jl")
+    end
 end
