@@ -128,6 +128,13 @@ eₖ        = KineticEnergyEquation.KineticEnergy(model)
 # We use two NetCDF writers. A *visualization* writer outputs the 2D snapshot fields and a *budget*
 # writer only the (cheap) integrated scalars, both on `TimeInterval(0.6)`. Separating the two avoids
 # writing the heavy 2D fields twice per output time.
+#
+# Each tendency (`∂ₜ∫eₖ` and `∂ₜ∫c²`) is its own entry in the budget writer's `outputs`, which is how
+# the writer recognizes a `TimeDerivative` and registers the callback that updates it on the iteration
+# before each output as well as at the output; a `TimeDerivative` inside a larger operation gets no
+# such callback. The difference therefore spans one model time step. It is a backward difference
+# centered at `t - Δt/2`, while the source terms are evaluated at `t`, so the budget closes to first
+# order in the model time step.
 
 using NCDatasets
 filename = "two_dimensional_turbulence"

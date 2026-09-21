@@ -70,7 +70,7 @@ steps:
       julia +$JULIA_VERSION -O0 --color=yes --project -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate(); Pkg.precompile()'
 
       # Resolve and precompile the real test sandbox once, into the shared depot, and
-      # prove the GPU actually works end to end before 19 matrix jobs depend on it. The
+      # prove the GPU actually works end to end before the matrix jobs depend on it. The
       # matrix below reuses these precompile caches, so this is the step that pays for
       # the package load time rather than every job paying it separately.
       julia +$JULIA_VERSION -O0 --color=yes --project -e 'using Pkg; Pkg.test()'
@@ -101,6 +101,9 @@ steps:
           # free -- the agent spawns fewer workers than there are groups, so ordering
           # decides the critical path. This ordering is a guess at relative cost; worth
           # revisiting once a few builds have produced real per-group timings.
+          #
+          # The `quality_assurance` group checks that this list, plus the two groups left
+          # out below, is exactly the set of groups in test/runtests.jl.
           - "canonical_flows"
           - "subfilter_ape_diagnostics"
           - "filtered_ape_diagnostics"
@@ -124,6 +127,9 @@ steps:
           # nothing over the GitHub Actions run -- and its separable-filter checks are
           # wall-clock ratio assertions, which are a poor fit for a host shared with two
           # other organizations' CI. Leave it to Actions, where the runner is dedicated.
+          #
+          # `quality_assurance` is absent too: it reads the repository's own files (this
+          # pipeline among them) and runs no kernel, so a GPU adds nothing to it.
 
     # Retry only when the agent itself disappears (a lost or interrupted job), never on a
     # genuine test failure. Auto-retrying real failures turns an intermittent GPU bug into

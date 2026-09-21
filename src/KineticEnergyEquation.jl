@@ -33,7 +33,7 @@ using Oceanostics: validate_location, validate_dissipative_closure, perturbation
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
 @inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
-#++++ KineticEnergy
+#+++ KineticEnergy
 @inline kinetic_energy_ccc(i, j, k, grid, u, v, w) = (ℑxᶜᵃᵃ(i, j, k, grid, ψ², u) +
                                                       ℑyᵃᶜᵃ(i, j, k, grid, ψ², v) +
                                                       ℑzᵃᵃᶜ(i, j, k, grid, ψ², w)) / 2
@@ -66,7 +66,7 @@ KineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ```
 """
 KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwargs...)
-#------
+#---
 
 #+++ KineticEnergyTendency
 @inline ψf(i, j, k, grid, ψ, f, args...) = @inbounds ψ[i, j, k] * f(i, j, k, grid, args...)

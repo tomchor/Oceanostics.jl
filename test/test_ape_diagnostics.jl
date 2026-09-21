@@ -791,7 +791,6 @@ function test_upsilon_and_ape_dissipation_errors(grid)
 
     return nothing
 end
-#---
 
 """
 The reference state is the arrangement of the fluid with the least potential energy, which means sorting

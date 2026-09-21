@@ -236,6 +236,11 @@ using Oceananigans.TurbulenceClosures: νᶜᶜᶜ
                                                                      _νᶜᶜᶜ(i, j, k, grid, closure_tuple[2:end], K[2:end], clock)
 #---
 
+# A module is included after every module it imports from (`using ..X`), which fixes the order below:
+# `KineticEnergyEquation` precedes `PotentialEnergyEquation`, which starts the chain through the
+# background and available potential energy modules; `FlowDiagnostics` and `SpatialFilters` precede
+# the filtered and subfilter modules; and `SubFilterKineticEnergyEquation` comes after
+# `SubFilterAvailablePotentialEnergyEquation`, whose APE-to-KE conversion it re-exports.
 include("TracerEquation.jl")
 include("UMomentumEquation.jl")
 include("VMomentumEquation.jl")
