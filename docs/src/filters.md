@@ -125,7 +125,10 @@ on regular grids:
   to cell, so the weights cannot be precomputed and are evaluated on the fly.
   Keeping the per-cell ``\Delta_m`` factor is what stops the average from being
   biased toward finely resolved regions; it makes the filter preserve constants
-  exactly and linear fields to quadrature accuracy.
+  exactly and linear fields to quadrature accuracy. Past a `Bounded` wall the
+  stencil continues with cells as wide as the boundary cell, so `:edge` and
+  constant padding weight each padded value by its distance from the current
+  cell, as they do on a uniform direction.
 
 Directions are handled independently, so a grid that is uniform in `x` and `y`
 but stretched in `z` uses the fast path for the horizontal directions and the
