@@ -307,10 +307,11 @@ macro unroll_full(expr)
 end
 
 import Oceananigans.Fields: compute!
-using Oceananigans.Fields: Field, AbstractField, offset_index, set_status!
+using Oceananigans.Fields: Field, AbstractField, FieldStatus, offset_index, set_status!
 using Oceananigans.AbstractOperations: compute_at!, _compute!
 using Oceananigans.BoundaryConditions: fill_halo_regions!
 using Oceananigans.Architectures: architecture
+using Oceananigans.Grids: halo_size
 using Oceananigans.Utils: KernelParameters, launch!
 
 # Build a single-direction KFO for one stage of the chain at the filter's
@@ -329,16 +330,56 @@ function _launch_compute_into!(dest, grid, kfo)
     return nothing
 end
 
-# Allocate an intermediate Field and compute the 1D pass into it *without*
-# filling halo regions. The next pass reads only the interior of the
-# intermediate (every `*_stencil_fetch` / `*_stencil_call` clamps or wraps
-# offsets into `1:N`), so halo data is irrelevant. Skipping the halo fill
-# saves several small kernel launches per intermediate.
-function _stage_into_temp(loc, grid, kern, valw, pol, input)
+# The intermediate passes write into scratch fields that are kept between calls, so a staged
+# `compute!` does not allocate and zero-fill `d - 1` new fields every time. Every output whose
+# intermediates have the same layout (architecture, element type, location, topology, size and halo)
+# shares one set of scratch fields, and `scratch_lock` is held from the first pass to the last, so two
+# tasks never use a set at the same time. On a GPU the lock orders the kernel launches but not their
+# execution, so staged filters computed concurrently on different streams could still overwrite each
+# other's intermediates.
+#
+# `scratch_sets` holds each set weakly, and the outputs that use a set hold it strongly through
+# `scratch_users`, which is keyed weakly on each output's `status`: the one mutable object a `Field`
+# owns, and one compared by identity. A set therefore becomes garbage once every output that used it
+# has been collected; `WeakKeyDict` drops the entries of collected keys on its next use, which is the
+# next staged `compute!`. An output built with its own `data` has no status, so it holds no set and
+# gets a new one whenever the last one has been collected.
+const scratch_lock  = ReentrantLock()
+const scratch_sets  = Dict{Any, WeakRef}()
+const scratch_users = WeakKeyDict{Any, Any}()
+
+# The `n`-th scratch field for the passes of the staged output `comp`, allocated on first use. Called
+# with `scratch_lock` held.
+function scratch_field(comp, n)
+    op   = comp.operand
+    grid = op.grid
+    loc  = location(op)
+    key  = (architecture(grid), eltype(grid), loc, topology(grid), size(grid), halo_size(grid))
+
+    set = get(scratch_sets, key, WeakRef()).value
+    if isnothing(set)
+        filter!(entry -> !isnothing(entry.second.value), scratch_sets)   # forget the sets already collected
+        set = Any[]
+        scratch_sets[key] = WeakRef(set)
+    end
+    comp.status isa FieldStatus && (scratch_users[comp.status] = set)
+
+    while length(set) < n
+        push!(set, Field{loc...}(grid))
+    end
+    return set[n]
+end
+
+# Compute one 1D pass into the scratch field `dest` *without* filling its halo
+# regions. The next pass reads only the interior of the intermediate (every
+# `*_stencil_fetch` / `*_stencil_call` clamps or wraps offsets into `1:N`), so
+# halo data is irrelevant. Skipping the halo fill saves several small kernel
+# launches per intermediate. Each pass overwrites the whole interior, so nothing
+# left in `dest` by an earlier call is read.
+function _stage_into!(dest, loc, grid, kern, valw, pol, input)
     kfo = _single_dim_kfo(loc, grid, kern, valw, pol, input)
-    temp = Field(kfo, compute=false)
-    _launch_compute_into!(temp, grid, kfo)
-    return temp
+    _launch_compute_into!(dest, grid, kfo)
+    return dest
 end
 
 # Generic staged compute for a 2D or 3D separable filter. Both `BoxFilter`
@@ -351,27 +392,31 @@ function _compute_staged_filter!(comp, time)
     args  = op.arguments
     kern1 = op.kernel_function
 
-    # If ψ is itself a computed field that needs refreshing, do that first.
+    # If ψ is itself a computed field that needs refreshing, do that first. A staged filter inside ψ
+    # is then done with the scratch fields before the passes below start using them.
     ψ = args[end]
     compute_at!(ψ, time)
 
-    if length(args) == 6        # 2D filter
-        valw1, pol1        = args[1], args[2]
-        kern2, valw2, pol2 = args[3], args[4], args[5]
+    @lock scratch_lock begin
+        if length(args) == 6        # 2D filter
+            valw1, pol1        = args[1], args[2]
+            kern2, valw2, pol2 = args[3], args[4], args[5]
 
-        temp1 = _stage_into_temp(loc, grid, kern1, valw1, pol1, ψ)
-        final = _single_dim_kfo(loc, grid, kern2, valw2, pol2, temp1)
-    else                        # 3D filter, length(args) == 9
-        valw1, pol1        = args[1], args[2]
-        kern2, valw2, pol2 = args[3], args[4], args[5]
-        kern3, valw3, pol3 = args[6], args[7], args[8]
+            temp1 = _stage_into!(scratch_field(comp, 1), loc, grid, kern1, valw1, pol1, ψ)
+            final = _single_dim_kfo(loc, grid, kern2, valw2, pol2, temp1)
+        else                        # 3D filter, length(args) == 9
+            valw1, pol1        = args[1], args[2]
+            kern2, valw2, pol2 = args[3], args[4], args[5]
+            kern3, valw3, pol3 = args[6], args[7], args[8]
 
-        temp1 = _stage_into_temp(loc, grid, kern1, valw1, pol1, ψ)
-        temp2 = _stage_into_temp(loc, grid, kern2, valw2, pol2, temp1)
-        final = _single_dim_kfo(loc, grid, kern3, valw3, pol3, temp2)
+            temp1 = _stage_into!(scratch_field(comp, 1), loc, grid, kern1, valw1, pol1, ψ)
+            temp2 = _stage_into!(scratch_field(comp, 2), loc, grid, kern2, valw2, pol2, temp1)
+            final = _single_dim_kfo(loc, grid, kern3, valw3, pol3, temp2)
+        end
+
+        _launch_compute_into!(comp, grid, final)
     end
 
-    _launch_compute_into!(comp, grid, final)
     fill_halo_regions!(comp)
     set_status!(comp.status, time)
     return comp

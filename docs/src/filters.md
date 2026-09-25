@@ -221,6 +221,11 @@ t_staged = @elapsed compute!(∫εₖˢ_staged)
 Absolute timings depend on the machine, and the ratio grows with the stencil width; the point is
 that materializing the filtered field first speeds up the calculation at the cost of one array.
 
+A filter over `d` directions also needs `d - 1` intermediate arrays for its passes. They are allocated
+on the first `compute!` and reused by every later one, and all filtered fields on the same grid and
+location share them, so they add at most two arrays per location however many filtered fields are
+materialized. They are released after every field that uses them has been garbage collected.
+
 The same reasoning applies to any filtered quantity assembled from operations rather than stored fields.
 Wrap the filtered velocities in `Field`s before forming `½(ū² + v̄² + w̄²)`, for instance. This is also why
 [`subfilter_stress_tensor`](@ref) materializes its filtered velocities and momentum fluxes internally.

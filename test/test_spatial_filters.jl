@@ -221,6 +221,25 @@ function test_windowed_output_matches_full(grid, Filter, fkw)
     end
 end
 
+# Staged filters on the same grid and location share their scratch fields between calls, so computing
+# one must leave the next result of another unchanged. A staged filter nested in the operand of another
+# is computed inside the outer `compute!`, before the outer passes start on the same scratch fields.
+function test_shared_scratch(grid, Filter, fkw)
+    a = center_field_from(grid, (x, y, z) -> sin(2π*x) * cos(2π*y) + sin(2π*z))
+    b = center_field_from(grid, (x, y, z) -> cos(2π*x) + z^2)
+    fa = Field(Filter(a; dims=(1, 2, 3), N=3, fkw...))
+    fb = Field(Filter(b; dims=(1, 2), N=5, fkw...))
+    expected = Array(interior(fa))
+    compute!(fb); compute!(fa)
+    @test Array(interior(fa)) == expected
+
+    inner  = Field(Filter(b; dims=(1, 2), N=3, fkw...))
+    nested = Field(Filter(inner; dims=(1, 2, 3), N=3, fkw...))
+    fused  = Field(1.0 * Filter(inner; dims=(1, 2, 3), N=3, fkw...))
+    compute!(nested); compute!(fused)
+    @test Array(interior(nested)) ≈ Array(interior(fused))
+end
+
 function test_dims_validation(grid, Filter, fkw)
     c = CenterField(grid)
     @test_throws ArgumentError Filter(c; dims=(),     N=3, fkw...)
@@ -902,6 +921,10 @@ filter_configs = [
 
             @testset "Windowed output" begin
                 test_windowed_output_matches_full(grid, Filter, fkw)
+            end
+
+            @testset "Shared scratch fields" begin
+                test_shared_scratch(grid, Filter, fkw)
             end
 
             @testset "Argument validation" begin
