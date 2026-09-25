@@ -1,5 +1,14 @@
-pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..")) # add Oceanostics environment
-using Pkg; Pkg.instantiate()
+# One self-contained environment: `Oceanostics` is this repository, entered as a `[sources]` path in
+# `Project.toml` rather than reached through the package environment stacked on `LOAD_PATH`. Julia 1.13
+# precompiles an extension against the environment its *parent* package was found in and stops the
+# search there, so a trigger that lives in the other environment of the stack reads as uninstalled.
+# `ConstructionBase` resolved from the package environment, `IntervalSets` from this one, and
+# `ConstructionBaseIntervalSetsExt` failed with "Package IntervalSets is required but does not seem to
+# be installed"; extensions of `AbstractFFTs`, `StaticArrays` and `Interpolations` went the same way.
+# Makie then never precompiles and `using CairoMakie` inside an example falls back to loading it from
+# source, which dies with a world-age `UndefVarError` for `Makie.ComputePipeline` (#317).
+using Pkg
+Pkg.instantiate()
 
 using Base64
 
