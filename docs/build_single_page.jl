@@ -43,9 +43,9 @@ using Pkg
 if !@isdefined(SINGLE_PAGE_ENVIRONMENT_READY)
     Base.active_project() == joinpath(@__DIR__, "Project.toml") || Pkg.activate(@__DIR__)
 
-    # `Oceanostics` comes from the parent environment, as in `make.jl`.
-    parent_environment = normpath(joinpath(@__DIR__, ".."))
-    parent_environment in LOAD_PATH || pushfirst!(LOAD_PATH, parent_environment)
+    # `Oceanostics` is developed into this environment, as in `make.jl`; the comment there says why
+    # it is not reached through a second environment stacked on `LOAD_PATH`.
+    Pkg.develop(PackageSpec(path = normpath(joinpath(@__DIR__, ".."))))
 
     try
         Pkg.instantiate()

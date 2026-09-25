@@ -4,7 +4,12 @@ Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterCodeBlocks = "b6400b83-267f-4b55-9fd8-bffc853bdfd8"
 Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 NCDatasets = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
+Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
+Oceanostics = "d0ccf422-c8fb-49b5-a76d-74acdde946ac"
 SeawaterPolynomials = "d496a93d-167e-4197-9f49-d3af4ff8fe40"
+
+[sources]
+Oceanostics = {path = "/home/tomas/repos/Oceanostics.jl"}
 
 [compat]
 Documenter = "1.17"
