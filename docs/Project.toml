@@ -1,5 +1,8 @@
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+# Loaded by name inside a `jldoctest` block (`set_description_color!`), so it has to be a direct
+# dependency here and not only an indirect one through Oceanostics.
+Crayons = "a8cc5b0e-0ffa-5ad4-8c14-923d3ee1735f"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterCodeBlocks = "b6400b83-267f-4b55-9fd8-bffc853bdfd8"
 Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
@@ -8,8 +11,10 @@ Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
 Oceanostics = "d0ccf422-c8fb-49b5-a76d-74acdde946ac"
 SeawaterPolynomials = "d496a93d-167e-4197-9f49-d3af4ff8fe40"
 
+# `Oceanostics` is this repository, not a registered version. A relative path keeps the entry
+# machine-independent; `Pkg.develop` would write an absolute one into this tracked file.
 [sources]
-Oceanostics = {path = "/home/tomas/repos/Oceanostics.jl"}
+Oceanostics = {path = ".."}
 
 [compat]
 Documenter = "1.17"

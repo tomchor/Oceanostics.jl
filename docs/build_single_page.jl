@@ -43,10 +43,6 @@ using Pkg
 if !@isdefined(SINGLE_PAGE_ENVIRONMENT_READY)
     Base.active_project() == joinpath(@__DIR__, "Project.toml") || Pkg.activate(@__DIR__)
 
-    # `Oceanostics` is developed into this environment, as in `make.jl`; the comment there says why
-    # it is not reached through a second environment stacked on `LOAD_PATH`.
-    Pkg.develop(PackageSpec(path = normpath(joinpath(@__DIR__, ".."))))
-
     try
         Pkg.instantiate()
     catch # a manifest older than `Project.toml` can be missing a dependency it has since gained
