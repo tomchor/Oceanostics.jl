@@ -10,7 +10,7 @@
 # compose project for how it is deployed and which Buildkite organization it belongs to.
 
 env:
-  JULIA_VERSION: "1.12"
+  JULIA_VERSION: "1"
 
   # A dedicated depot, not the agent's default ~/.julia: it is shared by every job in
   # this pipeline (the `init` step below warms it once so the matrix jobs hit
