@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Baroclinic adjustment · Oceanostics.jl</title><meta name="title" content="Baroclinic adjustment · Oceanostics.jl"/><meta property="og:title" content="Baroclinic adjustment · Oceanostics.jl"/><meta property="twitter:title" content="Baroclinic adjustment · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox"/><label class="tocitem" for="menuitem-2"><span class="docs-label">Budget equations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tracer_equation/">Tracer equation</a></li><li><a class="tocitem" href="../../momentum_equation/">Momentum equation</a></li><li><a class="tocitem" href="../../kinetic_energy_equation/">Kinetic energy equation</a></li><li><a class="tocitem" href="../../filtered_kinetic_energy_equation/">Filtered kinetic energy equation</a></li><li><a class="tocitem" href="../../subfilter_kinetic_energy_equation/">Sub-filter kinetic energy equation</a></li><li><a class="tocitem" href="../../turbulent_kinetic_energy_equation/">Turbulent kinetic energy equation</a></li><li><a class="tocitem" href="../../tracer_variance_equation/">Tracer variance equation</a></li><li><a class="tocitem" href="../../potential_energy_equation/">Potential energy equation</a></li><li><a class="tocitem" href="../../background_potential_energy_equation/">Background potential energy equation</a></li><li><a class="tocitem" href="../../available_potential_energy_equation/">Available potential energy equation</a></li></ul></li><li><a class="tocitem" href="../../flow_diagnostics/">Flow diagnostics</a></li><li><a class="tocitem" href="../../progress_messengers/">Progress messengers</a></li><li><a class="tocitem" href="../../filters/">Spatial filters</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox" checked/><label class="tocitem" for="menuitem-6"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li class="is-active"><a class="tocitem" href>Baroclinic adjustment</a><ul class="internal"><li><a class="tocitem" href="#Parameters"><span>Parameters</span></a></li><li><a class="tocitem" href="#Grid"><span>Grid</span></a></li><li><a class="tocitem" href="#Derived-quantities"><span>Derived quantities</span></a></li><li><a class="tocitem" href="#Closure"><span>Closure</span></a></li><li><a class="tocitem" href="#Model"><span>Model</span></a></li><li><a class="tocitem" href="#Initial-condition"><span>Initial condition</span></a></li><li><a class="tocitem" href="#Simulation"><span>Simulation</span></a></li><li><a class="tocitem" href="#The-potential-energy-budget"><span>The potential energy budget</span></a></li><li><a class="tocitem" href="#The-kinetic-energy-budget"><span>The kinetic energy budget</span></a></li><li><a class="tocitem" href="#Output"><span>Output</span></a></li><li><a class="tocitem" href="#Run-the-simulation"><span>Run the simulation</span></a></li><li><a class="tocitem" href="#Process-the-results"><span>Process the results</span></a></li><li><a class="tocitem" href="#Plotting"><span>Plotting</span></a></li></ul></li><li><a class="tocitem" href="../spatial_filtering/">Spatial filtering</a></li><li><a class="tocitem" href="../kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li><a class="tocitem" href="../rayleigh_taylor_instability/">Rayleigh-Taylor instability</a></li><li><a class="tocitem" href="../lock_release/">Lock release</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-7" type="checkbox"/><label class="tocitem" for="menuitem-7"><span class="docs-label">Validation</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../validation/reference_state/">Sorted reference state</a></li></ul></li><li><a class="tocitem" href="../../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Baroclinic adjustment</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Baroclinic adjustment</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/examples/baroclinic_adjustment.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="baroclinic_adjustment_example"><a class="docs-heading-anchor" href="#baroclinic_adjustment_example">Baroclinic adjustment and the potential energy budget</a><a id="baroclinic_adjustment_example-1"></a><a class="docs-heading-anchor-permalink" href="#baroclinic_adjustment_example" title="Permalink"></a></h1><p>In this example we spin up a pair of submesoscale fronts in a doubly-periodic channel, let them go baroclinically unstable, and close the volume-integrated potential energy budget against the kinetic energy one.</p><p>Before starting, make sure you have the required packages installed for this example, which can be done with</p><pre><code class="language-julia hljs">using Pkg
+pkg&quot;add Oceananigans, Oceanostics, CairoMakie, NCDatasets&quot;</code></pre><pre><code class="language-julia hljs">using Oceananigans
+using Oceananigans.Units</code></pre><h2 id="Parameters"><a class="docs-heading-anchor" href="#Parameters">Parameters</a><a id="Parameters-1"></a><a class="docs-heading-anchor-permalink" href="#Parameters" title="Permalink"></a></h2><p>A 1 km by 2 km channel, 70 m deep, with a 30 m mixed layer over a stratified interior. The two fronts are 250 m wide and carry a cross-front buoyancy gradient <code>M²</code>:</p><pre><code class="language-julia hljs">Lx = 1kilometers
+Ly = 2kilometers
+H_target = 70.0      # [m] requested depth; the stretched grid below lands a little deeper
+h  = 30.0            # [m] mixed-layer depth
+
+f       = 1e-4       # [s⁻¹] Coriolis frequency
+M²      = 3e-8       # [s⁻²] cross-front buoyancy gradient inside each front
+N²_ml   = 9e-8       # [s⁻²] mixed-layer stratification (z &gt; -h)
+N²_int  = 1.8e-6     # [s⁻²] interior stratification (z &lt; -h)
+w_front = 250.0      # [m]   width of each front</code></pre><pre><code class="nohighlight hljs">250.0</code></pre><h2 id="Grid"><a class="docs-heading-anchor" href="#Grid">Grid</a><a id="Grid-1"></a><a class="docs-heading-anchor-permalink" href="#Grid" title="Permalink"></a></h2><p>Doubly periodic in the horizontal and bounded in the vertical. Periodicity in <code>y</code> is what the double front buys us, and it is what makes the transport terms of both budgets integrate to zero. The vertical coordinate is surface-intensified: a constant 2 m spacing over the top 32 m resolves the mixed layer the instability lives in, and stretches below it.</p><p>The cells come out roughly 16 m by 16 m by 2 to 8 m, within an order of magnitude of isotropic. That matters for the closure below: <code>Smagorinsky</code> builds its filter width from the cell volume, so it is only meaningful on a grid that is not wildly stretched in one direction.</p><pre><code class="language-julia hljs">z = ReferenceToStretchedDiscretization(extent = H_target,
+                                       bias = :right, bias_edge = 0,   # fine spacing at the surface
+                                       constant_spacing = 2,
+                                       constant_spacing_extent = 32,
+                                       stretching = PowerLawStretching(1.08))
+
+grid = RectilinearGrid(size = (64, 128, length(z)),
+                       x = (0, Lx), y = (-Ly/2, Ly/2), z = z,
+                       topology = (Periodic, Periodic, Bounded))
+
+H = grid.Lz   # [m] the depth the grid actually has
+
+@info &quot;Grid: $(size(grid)), depth $(round(H, digits=1)) m, Δx = $(round(minimum_xspacing(grid), digits=1)) m, Δz from $(round(minimum_zspacing(grid), digits=2)) m to $(round(maximum(zspacings(grid, Center())), digits=2)) m&quot;</code></pre><pre><code class="nohighlight hljs">[ Info: Grid: (64, 128, 28), depth 72.9 m, Δx = 15.6 m, Δz from 2.0 m to 5.66 m
+</code></pre><h2 id="Derived-quantities"><a class="docs-heading-anchor" href="#Derived-quantities">Derived quantities</a><a id="Derived-quantities-1"></a><a class="docs-heading-anchor-permalink" href="#Derived-quantities" title="Permalink"></a></h2><p>The mixed layer sets the scale of the instability: its deformation radius <code>Ld = N h / f</code>, the fastest-growing wavelength <code>λ ≈ 3.9 Ld</code>, and the growth rate <code>σ ≈ 0.31 M²/N</code>. The balanced Richardson number <code>Ri = N²/α²</code> is 1 in the mixed layer, which is what lets the resolved strain reach the stratification, and so what lets the closure below do anything at all.</p><pre><code class="language-julia hljs">α     = M² / f              # [s⁻¹]   thermal-wind shear inside a front
+N_ml  = √N²_ml              # [s⁻¹]
+N_int = √N²_int             # [s⁻¹]
+Ld    = N_ml * h / f        # [m]     mixed-layer deformation radius
+λ     = 3.9 * Ld            # [m]     fastest-growing wavelength
+Ri_ml = N²_ml / α^2         # []      balanced Richardson number in the mixed layer
+Δb    = M² * w_front        # [m s⁻²] buoyancy jump across each front
+Ū     = α * H               # [m s⁻¹] thermal-wind velocity scale
+σ     = 0.31 * M² / N_ml    # [s⁻¹]   growth rate of the mixed-layer mode
+
+@info &quot;Ld = $(round(Ld, digits=1)) m, λ = $(round(λ, digits=1)) m in a $(round(Int, Ly)) m channel, Ri = $(round(Ri_ml, digits=2))&quot;
+@info &quot;Δb = $(round(Δb, sigdigits=3)) m s⁻², Ū = $(round(100Ū, digits=2)) cm/s, growth time 1/σ = $(prettytime(1/σ))&quot;</code></pre><pre><code class="nohighlight hljs">[ Info: Ld = 90.0 m, λ = 351.0 m in a 2000 m channel, Ri = 1.0
+[ Info: Δb = 7.5e-6 m s⁻², Ū = 2.19 cm/s, growth time 1/σ = 8.961 hours
+</code></pre><h2 id="Closure"><a class="docs-heading-anchor" href="#Closure">Closure</a><a id="Closure-1"></a><a class="docs-heading-anchor-permalink" href="#Closure" title="Permalink"></a></h2><p>We use a <code>Smagorinsky</code> closure with a constant coefficient to model turbulence stresses. We use a high coefficient to make sure the instability is well-resolved in this very coarse example:</p><pre><code class="language-julia hljs">using Oceananigans.TurbulenceClosures.Smagorinskys: Smagorinsky
+closure = Smagorinsky(coefficient=0.3)</code></pre><pre><code class="nohighlight hljs">Smagorinsky closure with
+├── coefficient = 0.3
+└── Pr = 1.0</code></pre><h2 id="Model"><a class="docs-heading-anchor" href="#Model">Model</a><a id="Model-1"></a><a class="docs-heading-anchor-permalink" href="#Model" title="Permalink"></a></h2><p>The advection scheme is <code>Centered</code>, which adds no dissipation of its own, so every sink in the budgets below is one we write down and compute. We set up an <code>f</code>-plane Coriolis:</p><pre><code class="language-julia hljs">model = NonhydrostaticModel(grid;
+                            coriolis = FPlane(; f),
+                            buoyancy = BuoyancyTracer(),
+                            tracers = :b,
+                            timestepper = :RungeKutta3,
+                            advection = Centered(order=4),
+                            closure = closure)</code></pre><pre><code class="nohighlight hljs">NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 64×128×28 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: Centered(order=4)
+├── tracers: b
+├── closure: Smagorinsky with coefficient = Float64, Pr=(b = 1.0,)
+├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
+└── coriolis: FPlane{Float64}(f=0.0001)</code></pre><h2 id="Initial-condition"><a class="docs-heading-anchor" href="#Initial-condition">Initial condition</a><a id="Initial-condition-1"></a><a class="docs-heading-anchor-permalink" href="#Initial-condition" title="Permalink"></a></h2><p>The buoyancy is the two-layer stratification plus two ramps of width <code>w_front</code>, one rising at <code>y = -Ly/4</code> and one falling at <code>y = +Ly/4</code>. Their difference returns to zero at the edges of the domain, so <code>b</code> matches across the periodic boundary:</p><pre><code class="language-julia hljs">ramp(y, w) = min(max(0, y/w + 1/2), 1)
+
+y₁ = -Ly/4
+y₂ = +Ly/4
+
+double_ramp(y, w) = ramp(y - y₁, w) - ramp(y - y₂, w)
+
+# the stratification integrated from the surface down, continuous across the mixed-layer base
+b_strat(z) = ifelse(z ≥ -h, N²_ml * z, -N²_ml * h + N²_int * (z + h))</code></pre><pre><code class="nohighlight hljs">b_strat (generic function with 1 method)</code></pre><p>The velocity starts in thermal-wind balance with those fronts, referenced to the bottom, and a little noise on the buoyancy seeds the instability:</p><pre><code class="language-julia hljs">using Random
+Random.seed!(8675309)
+
+ϵb = 1e-2 * Δb    # noise amplitude, a percent of the front&#39;s buoyancy jump
+
+bᵢ(x, y, z) = b_strat(z) + Δb * double_ramp(y, w_front) + ϵb * randn()
+
+ramp_prime(y, w) = (-w/2 &lt; y &lt; w/2) ? 1/w : zero(y)
+double_ramp_prime(y, w) = ramp_prime(y - y₁, w) - ramp_prime(y - y₂, w)
+
+uᵢ(x, y, z) = -(Δb * double_ramp_prime(y, w_front) / f) * (z + H)
+
+set!(model, u=uᵢ, b=bᵢ)</code></pre><h2 id="Simulation"><a class="docs-heading-anchor" href="#Simulation">Simulation</a><a id="Simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Simulation" title="Permalink"></a></h2><pre><code class="language-julia hljs">max_Δt = min(minimum_xspacing(grid) / Ū, 1 / N_int)   # Smagorinsky sets ν from the flow, so no fixed diffusive bound
+
+simulation = Simulation(model, Δt = max_Δt, stop_time = 8days)
+conjure_time_step_wizard!(simulation, IterationInterval(5), cfl = 0.7, max_Δt = max_Δt)
+
+using Oceanostics
+add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval(100))</code></pre><h2 id="The-potential-energy-budget"><a class="docs-heading-anchor" href="#The-potential-energy-budget">The potential energy budget</a><a id="The-potential-energy-budget-1"></a><a class="docs-heading-anchor-permalink" href="#The-potential-energy-budget" title="Permalink"></a></h2><p>Given <code>eₚ = -bz</code>, we multiply the budget equation for <code>b</code> by <code>-z</code>. Pulling <code>z</code> inside each derivative splits terms into a transport and a conversion, and over this domain every transport integrates away, leaving just the two conversions:</p><p class="math-container">\[\frac{d}{dt}\int e_p\, dV = -\int wb\, dV + \int \Phi\, dV ,\]</p><p>with <span>$wb$</span> (<a href="../../kinetic_energy_equation/#Oceanostics.KineticEnergyEquation.PotentialEnergyConversion"><code>PotentialToKineticEnergyConversion</code></a>) the exchange with the kinetic energy and <span>$\Phi = \kappa\,\partial b/\partial z$</span> (<a href="../../potential_energy_equation/#Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux"><code>PotentialEnergyDiffusiveVerticalBuoyancyFlux</code></a>) the work diffusion does against gravity.</p><pre><code class="language-julia hljs">eₚ = PotentialEnergy(model)
+wb = PotentialToKineticEnergyConversion(model)
+Φ  = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)</code></pre><pre><code class="nohighlight hljs">PotentialEnergyDiffusiveVerticalBuoyancyFlux KernelFunctionOperation at (Center, Center, Center)
+├── grid: 64×128×28 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: diffusive_buoyancy_flux_ccc (generic function with 1 method)
+└── arguments: (&quot;Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky&quot;, &quot;NamedTuple&quot;, &quot;Val&quot;, &quot;Field&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;BuoyancyForce&quot;)
+└── computes: diffusive vertical buoyancy flux  Φ = κ ∂b/∂z = -q₃</code></pre><h2 id="The-kinetic-energy-budget"><a class="docs-heading-anchor" href="#The-kinetic-energy-budget">The kinetic energy budget</a><a id="The-kinetic-energy-budget-1"></a><a class="docs-heading-anchor-permalink" href="#The-kinetic-energy-budget" title="Permalink"></a></h2><p>The other side of the exchange, written with <code>eₖ = ½uᵢuᵢ</code> to match <code>eₚ</code>. <code>wb</code> is the same term in both and carries opposite signs, so it cancels from their sum:</p><p class="math-container">\[\frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon_k\, dV .\]</p><pre><code class="language-julia hljs">eₖ = KineticEnergy(model)
+εₖ = KineticEnergyDissipationRate(model)
+
+∫eₚ = ∫dV(eₚ)
+∫Φ  = ∫dV(Φ)
+∫eₖ = ∫dV(eₖ)
+∫wb = ∫dV(wb)
+∫εₖ = ∫dV(εₖ)</code></pre><pre><code class="nohighlight hljs">1×1×1 Field{Nothing, Nothing, Nothing} reduced over dims = (1, 2, 3) on RectilinearGrid on CPU
+├── data: OffsetArrays.OffsetArray{Float64, 3, Array{Float64, 3}}, size: (1, 1, 1)
+├── grid: 64×128×28 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── operand: Integral of BinaryOperation at (Center, Center, Center) over dims (1, 2, 3)
+├── status: time=0.0
+└── data: 1×1×1 OffsetArray(::Array{Float64, 3}, 1:1, 1:1, 1:1) with eltype Float64 with indices 1:1×1:1×1:1
+    └── max=0.0202361, min=0.0202361, mean=0.0202361</code></pre><p>For the movie we keep the surface vorticity, buoyancy, and the closure&#39;s own eddy viscosity, which shows where <code>Smagorinsky</code> is actually acting:</p><pre><code class="language-julia hljs">u, v, w = model.velocities
+b = model.tracers.b
+ζ = ∂x(v) - ∂y(u)
+νₑ = viscosity(model)</code></pre><pre><code class="nohighlight hljs">64×128×28 Field{Center, Center, Center} on RectilinearGrid on CPU
+├── grid: 64×128×28 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── boundary conditions: FieldBoundaryConditions
+│   └── west: Periodic, east: Periodic, south: Periodic, north: Periodic, bottom: ZeroFlux, top: ZeroFlux, immersed: Nothing
+└── data: 70×134×34 OffsetArray(::Array{Float64, 3}, -2:67, -2:131, -2:31) with eltype Float64 with indices -2:67×-2:131×-2:31
+    └── max=0.00557548, min=0.0, mean=0.000655031</code></pre><h2 id="Output"><a class="docs-heading-anchor" href="#Output">Output</a><a id="Output-1"></a><a class="docs-heading-anchor-permalink" href="#Output" title="Permalink"></a></h2><p>A <em>snapshot</em> writer for the surface maps and a <em>budget</em> writer for the volume integrals, the latter on <code>ConsecutiveIterations</code>, which takes a second sample one model step after each output time so we can finite-difference <code>d/dt</code> across that step.</p><pre><code class="language-julia hljs">using NCDatasets
+filename = joinpath(@__DIR__, &quot;baroclinic_adjustment&quot;)
+
+simulation.output_writers[:fields] =
+    NetCDFWriter(model, (; ζ, b, νₑ),
+                 filename = filename,
+                 schedule = TimeInterval(3hours),
+                 indices = (:, :, grid.Nz),
+                 overwrite_existing = true)
+
+simulation.output_writers[:budget] =
+    NetCDFWriter(model, (; ∫eₚ, ∫Φ, ∫eₖ, ∫wb, ∫εₖ),
+                 filename = filename * &quot;_budget&quot;,
+                 schedule = ConsecutiveIterations(TimeInterval(3hours)),
+                 overwrite_existing = true)</code></pre><pre><code class="nohighlight hljs">NetCDFWriter scheduled on ConsecutiveIterations(TimeInterval(3 hours), 1):
+├── filepath: baroclinic_adjustment_budget.nc
+├── dimensions: time(0), y_afa(128), x_faa(64), x_caa(64), y_aca(128), z_aaf(29), z_aac(28)
+├── 5 outputs: (∫Φ, ∫εₖ, ∫wb, ∫eₚ, ∫eₖ)
+├── array_type: Array{Float32}
+├── file_splitting: NoFileSplitting
+└── file size: 35.1 KiB</code></pre><h2 id="Run-the-simulation"><a class="docs-heading-anchor" href="#Run-the-simulation">Run the simulation</a><a id="Run-the-simulation-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-simulation" title="Permalink"></a></h2><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre><code class="nohighlight hljs">[ Info: Initializing simulation...
+┌ Info: iter = [93m     0[39m,  [[93m000.00%[39m] time = [93m0 seconds[39m,  Δt = [93m8.450 minutes[39m,  walltime = [93m1.166 minutes[39m,  walltime / timestep = [93m0 seconds[39m
+└       |u⃗|ₘₐₓ = [[93m2.16e-02[39m,  [93m0.00e+00[39m,  [93m0.00e+00[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.71[39m,  νₘₐₓ = [93m0.0056[39m m²/s
+[ Info:     ... simulation initialization complete (14.271 seconds)
+[ Info: Executing initial time step...
+[ Info:     ... initial time step complete (4.544 seconds).
+┌ Info: iter = [93m   100[39m,  [[93m006.25%[39m] time = [93m12 hours[39m,  Δt = [93m6.232 minutes[39m,  walltime = [93m1.771 minutes[39m,  walltime / timestep = [93m363.377 ms[39m
+└       |u⃗|ₘₐₓ = [[93m2.45e-02[39m,  [93m5.37e-03[39m,  [93m5.28e-04[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.43[39m,  νₘₐₓ = [93m0.0046[39m m²/s
+┌ Info: iter = [93m   200[39m,  [[93m011.70%[39m] time = [93m22.464 hours[39m,  Δt = [93m6.822 minutes[39m,  walltime = [93m2.142 minutes[39m,  walltime / timestep = [93m222.217 ms[39m
+└       |u⃗|ₘₐₓ = [[93m2.45e-02[39m,  [93m2.07e-03[39m,  [93m1.88e-04[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.42[39m,  νₘₐₓ = [93m0.0041[39m m²/s
+┌ Info: iter = [93m   300[39m,  [[93m017.84%[39m] time = [93m1.427 days[39m,  Δt = [93m7.578 minutes[39m,  walltime = [93m2.505 minutes[39m,  walltime / timestep = [93m218.151 ms[39m
+└       |u⃗|ₘₐₓ = [[93m2.26e-02[39m,  [93m1.45e-03[39m,  [93m2.03e-04[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.41[39m,  νₘₐₓ = [93m0.0036[39m m²/s
+┌ Info: iter = [93m   400[39m,  [[93m024.36%[39m] time = [93m1.949 days[39m,  Δt = [93m7.568 minutes[39m,  walltime = [93m2.870 minutes[39m,  walltime / timestep = [93m219.017 ms[39m
+└       |u⃗|ₘₐₓ = [[93m2.24e-02[39m,  [93m2.55e-03[39m,  [93m3.95e-04[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.39[39m,  νₘₐₓ = [93m0.0035[39m m²/s
+┌ Info: iter = [93m   500[39m,  [[93m030.51%[39m] time = [93m2.441 days[39m,  Δt = [93m6.717 minutes[39m,  walltime = [93m3.233 minutes[39m,  walltime / timestep = [93m217.772 ms[39m
+└       |u⃗|ₘₐₓ = [[93m2.28e-02[39m,  [93m6.27e-03[39m,  [93m8.33e-04[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.36[39m,  νₘₐₓ = [93m0.0036[39m m²/s
+┌ Info: iter = [93m   600[39m,  [[93m036.18%[39m] time = [93m2.894 days[39m,  Δt = [93m6.958 minutes[39m,  walltime = [93m3.597 minutes[39m,  walltime / timestep = [93m218.100 ms[39m
+└       |u⃗|ₘₐₓ = [[93m2.26e-02[39m,  [93m8.12e-03[39m,  [93m7.60e-04[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.33[39m,  νₘₐₓ = [93m0.0031[39m m²/s
+┌ Info: iter = [93m   700[39m,  [[93m042.25%[39m] time = [93m3.380 days[39m,  Δt = [93m7.265 minutes[39m,  walltime = [93m3.934 minutes[39m,  walltime / timestep = [93m202.097 ms[39m
+└       |u⃗|ₘₐₓ = [[93m2.23e-02[39m,  [93m7.98e-03[39m,  [93m4.67e-04[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.32[39m,  νₘₐₓ = [93m0.0029[39m m²/s
+┌ Info: iter = [93m   800[39m,  [[93m048.64%[39m] time = [93m3.891 days[39m,  Δt = [93m7.725 minutes[39m,  walltime = [93m4.340 minutes[39m,  walltime / timestep = [93m243.618 ms[39m
+└       |u⃗|ₘₐₓ = [[93m2.17e-02[39m,  [93m7.73e-03[39m,  [93m5.60e-04[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.33[39m,  νₘₐₓ = [93m0.0028[39m m²/s
+┌ Info: iter = [93m   900[39m,  [[93m055.01%[39m] time = [93m4.401 days[39m,  Δt = [93m7.476 minutes[39m,  walltime = [93m4.725 minutes[39m,  walltime / timestep = [93m231.022 ms[39m
+└       |u⃗|ₘₐₓ = [[93m2.04e-02[39m,  [93m9.94e-03[39m,  [93m5.78e-04[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.32[39m,  νₘₐₓ = [93m0.0028[39m m²/s
+┌ Info: iter = [93m  1000[39m,  [[93m061.40%[39m] time = [93m4.912 days[39m,  Δt = [93m7.576 minutes[39m,  walltime = [93m5.108 minutes[39m,  walltime / timestep = [93m229.834 ms[39m
+└       |u⃗|ₘₐₓ = [[93m1.94e-02[39m,  [93m1.10e-02[39m,  [93m1.01e-03[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.32[39m,  νₘₐₓ = [93m0.0028[39m m²/s
+┌ Info: iter = [93m  1100[39m,  [[93m067.84%[39m] time = [93m5.427 days[39m,  Δt = [93m7.568 minutes[39m,  walltime = [93m5.492 minutes[39m,  walltime / timestep = [93m230.626 ms[39m
+└       |u⃗|ₘₐₓ = [[93m1.81e-02[39m,  [93m1.11e-02[39m,  [93m1.76e-03[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.38[39m,  νₘₐₓ = [93m0.0033[39m m²/s
+┌ Info: iter = [93m  1200[39m,  [[93m074.42%[39m] time = [93m5.954 days[39m,  Δt = [93m8.441 minutes[39m,  walltime = [93m5.876 minutes[39m,  walltime / timestep = [93m230.185 ms[39m
+└       |u⃗|ₘₐₓ = [[93m1.64e-02[39m,  [93m8.95e-03[39m,  [93m1.39e-03[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.43[39m,  νₘₐₓ = [93m0.0034[39m m²/s
+┌ Info: iter = [93m  1300[39m,  [[93m081.39%[39m] time = [93m6.511 days[39m,  Δt = [93m7.920 minutes[39m,  walltime = [93m6.319 minutes[39m,  walltime / timestep = [93m265.703 ms[39m
+└       |u⃗|ₘₐₓ = [[93m1.44e-02[39m,  [93m9.23e-03[39m,  [93m8.71e-04[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.3[39m,  νₘₐₓ = [93m0.0025[39m m²/s
+┌ Info: iter = [93m  1400[39m,  [[93m088.21%[39m] time = [93m7.057 days[39m,  Δt = [93m8.188 minutes[39m,  walltime = [93m6.703 minutes[39m,  walltime / timestep = [93m230.426 ms[39m
+└       |u⃗|ₘₐₓ = [[93m1.35e-02[39m,  [93m9.97e-03[39m,  [93m5.04e-04[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.36[39m,  νₘₐₓ = [93m0.0029[39m m²/s
+┌ Info: iter = [93m  1500[39m,  [[93m095.14%[39m] time = [93m7.611 days[39m,  Δt = [93m8.420 minutes[39m,  walltime = [93m7.087 minutes[39m,  walltime / timestep = [93m230.861 ms[39m
+└       |u⃗|ₘₐₓ = [[93m1.37e-02[39m,  [93m9.25e-03[39m,  [93m7.05e-04[39m] m/s,  advective CFL = [93m0.7[39m,  diffusive CFL = [93m0.36[39m,  νₘₐₓ = [93m0.0028[39m m²/s
+[ Info: Simulation is stopping after running for 6.225 minutes.
+[ Info: Simulation time 8 days equals or exceeds stop time 8 days.
+</code></pre><h2 id="Process-the-results"><a class="docs-heading-anchor" href="#Process-the-results">Process the results</a><a id="Process-the-results-1"></a><a class="docs-heading-anchor-permalink" href="#Process-the-results" title="Permalink"></a></h2><pre><code class="language-julia hljs">using CairoMakie
+
+ds = NCDataset(simulation.output_writers[:fields].filepath)
+times = ds[&quot;time&quot;][:]
+x_faa = ds[&quot;x_faa&quot;][:]; y_afa = ds[&quot;y_afa&quot;][:]
+x_caa = ds[&quot;x_caa&quot;][:]; y_aca = ds[&quot;y_aca&quot;][:]
+ζ_arr = ds[&quot;ζ&quot;][:, :, 1, :]
+b_arr = ds[&quot;b&quot;][:, :, 1, :]
+ν_arr = ds[&quot;νₑ&quot;][:, :, 1, :]
+close(ds)
+
+ζlim = maximum(abs, ζ_arr)
+νlim = maximum(ν_arr)</code></pre><pre><code class="nohighlight hljs">0.0055754795f0</code></pre><p>The budget scalars come in consecutive-iteration pairs <code>(2k-1, 2k)</code>; a one-step finite difference inside each pair gives the tendencies, and every source term is averaged over the same pair.</p><pre><code class="language-julia hljs">ds_b = NCDataset(simulation.output_writers[:budget].filepath)
+t_bud    = ds_b[&quot;time&quot;][:]
+eₚ_bud = ds_b[&quot;∫eₚ&quot;][:]
+Φ_bud  = ds_b[&quot;∫Φ&quot;][:]
+eₖ_bud = ds_b[&quot;∫eₖ&quot;][:]
+wb_bud = ds_b[&quot;∫wb&quot;][:]
+εₖ_bud = ds_b[&quot;∫εₖ&quot;][:]
+close(ds_b)
+
+idx1 = 1:2:length(t_bud) - 1
+idx2 = 2:2:length(t_bud)
+
+Δt_pair = t_bud[idx2] .- t_bud[idx1]
+t_pair  = @. 0.5 * (t_bud[idx1] + t_bud[idx2])
+
+deₚdt = (eₚ_bud[idx2] .- eₚ_bud[idx1]) ./ Δt_pair
+deₖdt = (eₖ_bud[idx2] .- eₖ_bud[idx1]) ./ Δt_pair
+
+pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
+
+Φ_pair  = pair_mean(Φ_bud)
+wb_pair = pair_mean(wb_bud)
+εₖ_pair = pair_mean(εₖ_bud);</code></pre><p>Both budgets in sum-to-zero form: every curve is plotted with the sign it carries here, so each panel below adds up to its residual.</p><pre><code class="language-julia hljs">eₚ_resid = @. -deₚdt - wb_pair + Φ_pair
+eₖ_resid = @. -deₖdt + wb_pair - εₖ_pair
+</code></pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><pre><code class="language-julia hljs">set_theme!(Theme(fontsize = 18))
+fig = Figure(size = (1500, 950))
+
+n = Observable(1)
+
+panel_kwargs = (xlabel = &quot;x [m]&quot;, ylabel = &quot;y [m]&quot;, aspect = DataAspect(), height = 240)
+axζ = Axis(fig[2, 1]; title = &quot;vertical vorticity, ζ&quot;,  panel_kwargs...)
+axb = Axis(fig[2, 3]; title = &quot;surface buoyancy, b&quot;,    panel_kwargs...)
+axν = Axis(fig[2, 5]; title = &quot;eddy viscosity, νₑ&quot;,     panel_kwargs...)
+
+ζₙ = @lift ζ_arr[:, :, $n]
+bₙ = @lift b_arr[:, :, $n]
+νₙ = @lift ν_arr[:, :, $n]
+
+hmζ = heatmap!(axζ, x_faa, y_afa, ζₙ; colormap = :balance, colorrange = (-ζlim, ζlim))
+Colorbar(fig[2, 2], hmζ)
+
+hmb = heatmap!(axb, x_caa, y_aca, bₙ; colormap = :thermal)
+Colorbar(fig[2, 4], hmb)
+
+hmν = heatmap!(axν, x_caa, y_aca, νₙ; colormap = :tempo, colorrange = (0, νlim))
+Colorbar(fig[2, 6], hmν)
+
+budget_kwargs = (xlabel = &quot;time [days]&quot;, ylabel = &quot;[m⁵ s⁻³]&quot;)
+
+ax_p = Axis(fig[3, 1:6]; title = &quot;Volume-integrated potential energy budget&quot;, budget_kwargs...)
+lines!(ax_p, t_pair ./ day, -deₚdt,    label = &quot;-d(∫eₚ)/dt&quot;)
+lines!(ax_p, t_pair ./ day, -wb_pair,  label = &quot;-∫wb dV&quot;)
+lines!(ax_p, t_pair ./ day,  Φ_pair,   label = &quot;∫Φ dV&quot;)
+lines!(ax_p, t_pair ./ day,  eₚ_resid, label = &quot;residual&quot;, color = :black, linestyle = :dash)
+axislegend(ax_p; position = :rt, labelsize = 10, nbanks = 2)
+
+ax_k = Axis(fig[4, 1:6]; title = &quot;Volume-integrated kinetic energy budget&quot;, budget_kwargs...)
+lines!(ax_k, t_pair ./ day, -deₖdt,    label = &quot;-d(∫eₖ)/dt&quot;)
+lines!(ax_k, t_pair ./ day,  wb_pair,  label = &quot;∫wb dV&quot;)
+lines!(ax_k, t_pair ./ day, -εₖ_pair,  label = &quot;-∫εₖ dV&quot;)
+lines!(ax_k, t_pair ./ day,  eₖ_resid, label = &quot;residual&quot;, color = :black, linestyle = :dash)
+axislegend(ax_k; position = :rt, labelsize = 10, nbanks = 2)
+
+vlines!(ax_p, @lift(times[$n] / day), color = :black, linestyle = :dot)
+vlines!(ax_k, @lift(times[$n] / day), color = :black, linestyle = :dot)
+
+title = @lift &quot;Baroclinic adjustment, t = &quot; * prettytime(times[$n])
+fig[1, 1:6] = Label(fig, title, fontsize = 22, tellwidth = false)
+
+@info &quot;Animating...&quot;
+record(fig, &quot;baroclinic_adjustment.mp4&quot;, 1:length(times), framerate = 8) do i
+    n[] = i
+end</code></pre><pre><code class="nohighlight hljs">[ Info: Animating...
+</code></pre><p><video src="../baroclinic_adjustment.mp4" controls="true" title><a href="../baroclinic_adjustment.mp4"></a></video></p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../two_dimensional_turbulence/">« Two-dimensional turbulence</a><a class="docs-footer-nextpage" href="../spatial_filtering/">Spatial filtering »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Wednesday 5 August 2026 23:14">Wednesday 5 August 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
