@@ -108,6 +108,13 @@ function time_compute(field; samples)
     end
     return minimum(times)
 end
+
+# Bytes allocated by one `compute!` on a Field, after a warm-up call that compiles it and allocates
+# whatever the field keeps between calls.
+function allocated_compute(field)
+    compute!(field)
+    return @allocated compute!(field)
+end
 #---
 
 @testset "Performance invariants" begin
@@ -311,14 +318,30 @@ end
         end
 
         # And for small-N 2D filters the staged path may be slightly slower
-        # due to extra launches + an intermediate allocation, but it must
-        # not be more than ~5× slower — that would indicate the staged
-        # implementation grew significant overhead.
+        # due to the extra launches, but it must not be more than ~5× slower
+        # — that would indicate the staged implementation grew significant
+        # overhead.
         for (name, build) in configs
             kfo = build((1, 2), 1)                 # N_sten = 3, 2D
             t_staged = time_compute(Field(kfo); samples=5)
             t_fused  = time_compute(Field(1.0 * kfo); samples=5)
             @test t_staged < 5 * t_fused
+        end
+    end
+    #---
+
+    #+++ Scratch reuse
+    # The passes of a staged filter write into scratch fields that are allocated on the first
+    # `compute!` and reused afterwards, so a later call allocates only the small objects of the kernel
+    # launches and the halo fill. The grid is large enough for one field (2.7 MB) to dwarf those.
+    @testset "Staged filter reuses its scratch fields" begin
+        scratch_grid = RectilinearGrid(CPU(), size=(64, 64, 64), extent=(1, 1, 1), halo=(3, 3, 3),
+                                       topology=(Periodic, Periodic, Bounded))
+        c = CenterField(scratch_grid)
+        set!(c, (x, y, z) -> sin(2π*x) * cos(2π*y) + z)
+        for kfo in (BoxFilter(c; dims=(1, 2), N=3), GaussianFilter(c; dims=(1, 2, 3), σ=2/64, boundary=:edge))
+            f = Field(kfo)
+            @test allocated_compute(f) < sizeof(parent(f.data)) / 2
         end
     end
     #---
