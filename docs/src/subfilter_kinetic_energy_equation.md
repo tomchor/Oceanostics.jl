@@ -36,7 +36,8 @@ with two sources and one sink:
     is the subfilter buoyancy flux, which converts subfilter available potential energy into
     subfilter kinetic energy. It is defined in the
     [Subfilter available potential energy equation](@ref), whose budget it is the sink of, and is
-    re-exported here.
+    re-exported here. Like every filtered and subfilter APE diagnostic, it takes only a filter that
+    acts in the horizontal directions.
   - ``\varepsilon_k^s = \overline{\varepsilon_k} - \varepsilon_k^l`` is the subfilter dissipation
     ([`SubFilterKineticEnergyDissipationRate`](@ref)): the filtered total dissipation
     ``\overline{\varepsilon_k}``

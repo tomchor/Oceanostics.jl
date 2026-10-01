@@ -481,4 +481,41 @@ function check_filter_staging(op; warn=true)
 end
 #---
 
+#+++ Filtered directions
+# The direction a filter averages along is the type parameter `D` of its 1D kernels, which a filter
+# operation carries as its kernel function and among its arguments (see `build_filter_kfo`).
+# `filtered_dims` walks an operation tree the way `check_filter_staging` does and returns, sorted, every
+# direction that a `BoxFilter` or `GaussianFilter` in it averages along. Reading the directions off the
+# operation rather than off the filter object gives the same answer for `GaussianFilter(; dims, σ)` and
+# for a closure `ψ -> GaussianFilter(ψ; dims, σ)`. Filters of any other kind are not recognized.
+const FilterKernel = Union{BoxFilterKernel, AbstractGaussianFilterKernel}
+
+filtered_dim(::BoxFilterKernel{D}) where {D} = D
+filtered_dim(::AbstractGaussianFilterKernel{D}) where {D} = D
+
+function _collect_filtered_dims!(found, seen, node)
+    (node in seen) && return found
+    push!(seen, node)
+
+    if node isa Field
+        op = node.operand
+        op === nothing || _collect_filtered_dims!(found, seen, op)
+        return found
+    end
+
+    if node isa KernelFunctionOperation
+        for f in (node.kernel_function, node.arguments...)
+            f isa FilterKernel && push!(found, filtered_dim(f))
+        end
+    end
+
+    for child in _operation_children(node)
+        _collect_filtered_dims!(found, seen, child)
+    end
+    return found
+end
+
+filtered_dims(op) = Tuple(sort!(collect(_collect_filtered_dims!(Set{Int}(), Base.IdSet{Any}(), op))))
+#---
+
 end # module

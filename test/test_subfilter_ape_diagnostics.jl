@@ -11,7 +11,7 @@ using Oceanostics: SubFilterAvailablePotentialToKineticEnergyConversion, Availab
                    reference_buoyancy_at_height
 using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate,
                    reference_height, reference_buoyancy, VerticalSort, ProfileLookup, HeavisideIntegral,
-                   GaussianFilter
+                   GaussianFilter, BoxFilter
 
 arch = has_cuda_gpu() ? GPU() : CPU()
 
@@ -54,21 +54,16 @@ end
 # kernels against the full-state ones with no reimplementation: `filtered_ape_dissipation_rate_ccc`
 # reproduces `ape_dissipation_rate_ccc` exactly when handed the unfiltered fluxes.
 function test_subfilter_ape_identity_filter_vanishes(model)
-    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=1e-4, N=3)
+    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=1e-4, N=3)
     @test all(interior(Field(SubFilterAvailablePotentialEnergy(model, identity_filter))) .== 0)
     @test all(interior(Field(SubFilterAvailablePotentialEnergyDissipationRate(model, identity_filter))) .== 0)
     return nothing
 end
 
 # A horizontally uniform, stable stratification is its own reference state, so it carries no available
-# energy at any scale and eₐˢ has to vanish whichever way the filter cuts. Filtered horizontally, b̄ = b
-# up to roundoff and both eₐ and eₐˡ vanish cell by cell (z✶ = z); eₐ is blind to where in a tied run
-# the lookup lands, so the roundoff in b̄ cannot leak an O(Δz) error into this test. A filter with
-# vertical extent returns the straight profile unchanged only where its stencil fits inside the domain.
-# Within 2σ of a wall the stencil is truncated and renormalized and b̄ leaves the profile. On this coarse
-# grid that shift stays below half a class gap of the reference profile, so the lookup does not move and
-# the test passes for every filter; the resting straight profile on the tall grid below resolves the
-# same shift and fails there.
+# energy at any scale and eₐˢ has to vanish. Filtered horizontally, b̄ = b up to roundoff and both eₐ and
+# eₐˡ vanish cell by cell (z✶ = z); eₐ is blind to where in a tied run the lookup lands, so the roundoff
+# in b̄ cannot leak an O(Δz) error into this test.
 function test_subfilter_ape_uniform_stratification_vanishes(grid, filt)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b=(x, y, z) -> 1e-2 * z)
@@ -78,17 +73,16 @@ function test_subfilter_ape_uniform_stratification_vanishes(grid, filt)
 end
 
 # eₐ is convex in buoyancy, so Jensen's inequality makes eₐˢ ≥ 0 pointwise for a filter that averages at
-# fixed z (exactly, up to roundoff, since the full field's buoyancies are the profile's own entries). This
-# asserts the bound for every filter. The horizontal one satisfies it. A filter with vertical extent
-# averages (b, z) jointly, and there the bound needs joint convexity of eₐ, which fails wherever the
-# stratification at the parcel's own height is weaker than at its reference height (the resting-fluid
-# tests below carry the derivation); the bound is `broken` for the vertical and 3D calls. A constant
-# buoyancy is the degenerate case: no available energy at any scale, and that holds for every filter.
-function test_subfilter_ape_signs(grid, filt; vertical_filter=false)
+# fixed z (exactly, up to roundoff, since the full field's buoyancies are the profile's own entries),
+# which is the only kind the diagnostics accept. A filter with vertical extent would average (b, z)
+# jointly, and there the bound needs joint convexity of eₐ, which fails wherever the stratification at
+# the parcel's own height is weaker than at its reference height (the resting-fluid tests below show
+# it). A constant buoyancy is the degenerate case: no available energy at any scale.
+function test_subfilter_ape_signs(grid, filt)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b=wavy_stratified_b)
     eₐˢ = Field(SubFilterAvailablePotentialEnergy(model, filt))
-    @test minimum(interior(eₐˢ)) ≥ -1e-12 broken=vertical_filter
+    @test minimum(interior(eₐˢ)) ≥ -1e-12
 
     set!(model, b=1e-2)   # constant buoyancy: eₐ ≡ 0 and eₐˡ is roundoff-sized
     eₐˢ_const = Field(SubFilterAvailablePotentialEnergy(model, filt))
@@ -98,40 +92,54 @@ end
 
 # The sharpest test of that bound is a fluid at rest in its own reference state, b = b✶(z). Every parcel
 # already sits at its reference height, so eₐ ≡ 0 everywhere and any split of it has to give zero for
-# both parts, whichever filter makes the split. These tests assert exactly that, for a curved and for a
-# straight resting profile under a horizontal, a vertical and a 3D filter.
-#
-# The horizontal filter passes, but vertical filters don't. It's important that the stratification profile
-# is nonlinear: a linear test will pass even with a vertical filter.
+# both parts. A horizontal filter does that. A filter with vertical extent averages the stratification
+# itself, so b̄ leaves the profile wherever the profile is curved, and within reach of a wall even where
+# it is straight: the filtered state then picks up eₐˡ > 0, which the subfilter state pays for with
+# eₐˢ < 0. That failure is why every filtered and subfilter APE diagnostic rejects such a filter, and
+# these tests keep it pinned, for a curved and for a straight resting profile under a horizontal, a
+# vertical and a 3D filter.
 resting_tanh_b(x, y, z) = tanh((z - 1) / 0.25)   # stable and curved, flattening towards both walls
 resting_linear_b(x, y, z) = 0.5 * z              # stable and straight: no curvature for the filter to find
 
-# eₐ, eₐˡ and eₐˢ against one shared profile, the way `SubFilterAvailablePotentialEnergy` builds them,
-# brought back to the host, where the checks below are plain array reductions.
-function resting_energies(grid, setter, filt)
+# eₐ, eₐˡ and eₐˢ against one shared profile, brought back to the host, where the checks below are plain
+# array reductions. The diagnostics build the split for the horizontal filter. They refuse the others,
+# so for those the split is built by hand the way `SubFilterAvailablePotentialEnergy` builds it, with the
+# full-field `AvailablePotentialEnergy`, whose kernel `FilteredAvailablePotentialEnergy` forwards to.
+function resting_energies(grid, setter, filt; vertical_filter)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b=setter)
     lookup = ProfileLookup(reference_height(model, method=VerticalSort()))
+    z✶ˡ = reference_height(Field(filt(model.tracers.b)); method=lookup)
     eₐ  = AvailablePotentialEnergy(model, reference_height(model.tracers.b; method=lookup))
-    eₐˡ = FilteredAvailablePotentialEnergy(model, reference_height(Field(filt(model.tracers.b)); method=lookup))
-    eₐˢ = SubFilterAvailablePotentialEnergy(model, filt; method=lookup)
+    if vertical_filter
+        eₐˡ = AvailablePotentialEnergy(model, z✶ˡ)
+        eₐˢ = Field(filt(Field(eₐ))) - eₐˡ
+    else
+        eₐˡ = FilteredAvailablePotentialEnergy(model, z✶ˡ)
+        eₐˢ = SubFilterAvailablePotentialEnergy(model, filt; method=lookup)
+    end
     return map(op -> Array(interior(Field(op))), (eₐ, eₐˡ, eₐˢ))
 end
 
 function test_subfilter_ape_resting_fluid(grid, setter, filt; vertical_filter=false)
-    eₐ, eₐˡ, eₐˢ = resting_energies(grid, setter, filt)
+    eₐ, eₐˡ, eₐˢ = resting_energies(grid, setter, filt; vertical_filter)
     @test maximum(abs, eₐ) < 1e-14          # the premise: a resting fluid has no available energy
     @test maximum(abs, eₐˢ .+ eₐˡ) < 1e-14  # and the split is exact, eₐˢ = -eₐˡ, whatever their signs
-    @test minimum(eₐˢ) ≥ -1e-12     broken=vertical_filter # the bound: no negative subfilter reservoir ...
-    @test sum(eₐˢ) ≥ 0              broken=vertical_filter # ... and none in the volume integral either (uniform cells)
-    @test maximum(abs, eₐˡ) < 1e-12 broken=vertical_filter # equivalently, no large-scale reservoir to pay for it
+    if vertical_filter                      # the failure that keeps such filters out of the diagnostics:
+        @test minimum(eₐˢ) < -1e-12         # a negative subfilter reservoir ...
+        @test sum(eₐˢ) < 0                  # ... in the volume integral too (uniform cells)
+    else
+        @test minimum(eₐˢ) ≥ -1e-12         # the bound: no negative subfilter reservoir ...
+        @test sum(eₐˢ) ≥ 0                  # ... and none in the volume integral either (uniform cells)
+        @test maximum(abs, eₐˡ) < 1e-12     # equivalently, no large-scale reservoir to pay for it
+    end
     return nothing
 end
 
 # The Gaussian convenience methods must reproduce the explicit filter-factory call with matching kwargs.
 function test_subfilter_ape_convenience(model)
     σ = 0.12
-    filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
+    filt = ψ -> GaussianFilter(ψ; dims=(1, 2), σ, boundary=:shrink) # the convenience defaults
     @test interior(Field(SubFilterAvailablePotentialEnergy(model; σ))) ≈
           interior(Field(SubFilterAvailablePotentialEnergy(model, filt)))
     return nothing
@@ -139,7 +147,7 @@ end
 
 function test_subfilter_ape_dissipation_convenience(model)
     σ = 0.12
-    filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink)
+    filt = ψ -> GaussianFilter(ψ; dims=(1, 2), σ, boundary=:shrink)
     @test interior(Field(SubFilterAvailablePotentialEnergyDissipationRate(model; σ))) ≈
           interior(Field(SubFilterAvailablePotentialEnergyDissipationRate(model, filt)))
     return nothing
@@ -226,6 +234,24 @@ function test_subfilter_ape_errors(grid, filt)
     return nothing
 end
 
+# A filter that averages along z makes eₐˢ negative even for a fluid at rest (the resting-fluid tests
+# above), so every subfilter diagnostic refuses one, whether it comes as a filter object, as a closure or
+# through the convenience methods' `dims`.
+function test_subfilter_ape_rejects_vertical_filters(grid, vertical_filters)
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
+    set!(model, b=random_stratified_b)
+    for diagnostic in (SubFilterAvailablePotentialEnergy, SubFilterAvailablePotentialEnergyDissipationRate,
+                       SubFilterAvailablePotentialToKineticEnergyConversion)
+        for vertical in vertical_filters
+            @test_throws "acts in the horizontal" diagnostic(model, vertical)
+        end
+        for dims in ((1, 2, 3), (3,))
+            @test_throws "acts in the horizontal" diagnostic(model; σ=0.1, dims)
+        end
+    end
+    return nothing
+end
+
 # The module re-exports the filtered-flow APE and its dissipation (the "ˡ" halves of both splits) from
 # `FilteredAvailablePotentialEnergyEquation`, aliases its own dissipation rate as `DissipationRate`,
 # and re-exports the reference-profile machinery so it can be used on its own.
@@ -273,7 +299,7 @@ end
 # the bit — the check that the two are the same expression evaluated on different fields, not two
 # separately built ones.
 function test_subfilter_ape_ke_conversion_identity_filter_vanishes(model)
-    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=1e-4, N=3)
+    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=1e-4, N=3)
     @test all(interior(Field(SubFilterAvailablePotentialToKineticEnergyConversion(model, identity_filter))) .== 0)
     return nothing
 end
@@ -290,13 +316,14 @@ end
 # Both halves measure the buoyancy against the *unfiltered* reference profile, so the filtered half uses
 # b_rˡ = b̄ - b✶(z) rather than filter(bᵣ) = filter(b - b✶(z)), which filters the reference too. The two
 # differ once the filter acts in the vertical and coincide for a purely horizontal one, b✶ being a
-# function of z alone — the convention that makes the two halves an exact decomposition.
-function test_subfilter_ape_ke_conversion_unfiltered_reference(model, filt, filt_horizontal)
+# function of z alone — the convention that makes the two halves an exact decomposition. The diagnostic
+# itself takes only the horizontal kind, so the vertical filter here is applied to the fields directly.
+function test_subfilter_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt_horizontal)
     lookup = ProfileLookup(reference_height(model, method=VerticalSort()))
     b   = model.tracers.b
     b✶ᶻ = reference_buoyancy_at_height(model.grid, lookup.profile)
 
-    for (filter, coincide) in ((filt, false), (filt_horizontal, true))
+    for (filter, coincide) in ((filt_vertical, false), (filt_horizontal, true))
         b_rˡ        = Field(Field(filter(b)) - b✶ᶻ)   # filtered buoyancy, unfiltered reference
         filtered_bᵣ = Field(filter(Field(b - b✶ᶻ)))   # filters the reference too
         @test (interior(b_rˡ) ≈ interior(filtered_bᵣ)) == coincide
@@ -307,7 +334,7 @@ end
 # The Gaussian convenience method must reproduce the explicit filter-factory call with matching kwargs.
 function test_subfilter_ape_ke_conversion_convenience(model)
     σ = 0.12
-    filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
+    filt = ψ -> GaussianFilter(ψ; dims=(1, 2), σ, boundary=:shrink) # the convenience defaults
     @test interior(Field(SubFilterAvailablePotentialToKineticEnergyConversion(model; σ))) ≈
           interior(Field(SubFilterAvailablePotentialToKineticEnergyConversion(model, filt)))
     return nothing
@@ -344,9 +371,12 @@ end
 @testset "Subfilter available potential energy equation" begin
     @info "  Testing subfilter available potential energy diagnostics"
     grid = RectilinearGrid(arch, size=(8, 8, 8), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
-    filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1, boundary=:edge)
-    filt_horizontal = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1)
+    filt = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1)   # the diagnostics take only filters that act in the horizontal
+
+    # Filters with a vertical component, in the three forms a caller can hand one over: a filter object, a
+    # closure over the one-step form, and a `BoxFilter` that cuts along y and z.
     filt_vertical = ψ -> GaussianFilter(ψ; dims=(3,), σ=0.1, boundary=:edge)
+    vertical_filters = (GaussianFilter(; dims=(1, 2, 3), σ=0.1, boundary=:edge), filt_vertical, BoxFilter(; dims=(2, 3), N=3))
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
     set!(model, b=random_stratified_b)
@@ -357,36 +387,21 @@ end
     @info "    Identity filter makes eₐˢ and εₐˢ vanish identically"
     test_subfilter_ape_identity_filter_vanishes(model)
 
-    # The sign checks run over all three ways a filter can cut, each in its own labelled testset so the
-    # summary names the case. The bound they assert is guaranteed only for the horizontal filter, so the
-    # two cuts that reach in z carry `vertical_filter=true` (the third element of each entry) and their
-    # bound assertions are `broken` wherever the grid resolves the displacement the filter creates. The
-    # comments on the test functions carry the mechanism.
-    cuts = (("horizontal", filt_horizontal, false),
-            ("vertical",   filt_vertical,   true),
-            ("3D",         filt,            true))
+    @info "    Horizontally uniform stratification vanishes (eₐˢ)"
+    test_subfilter_ape_uniform_stratification_vanishes(grid, filt)
 
-    # This one holds for every cut: on this coarse grid the wall shift stays inside a class gap of the
-    # reference profile, so nothing here is broken. The tall-grid resting profiles below resolve the
-    # same shift and do break.
-    @info "    Horizontally uniform stratification vanishes (eₐˢ), whichever way the filter cuts"
-    for (cut, f, _) in cuts
-        @testset "uniform stratification, $cut filter" begin
-            test_subfilter_ape_uniform_stratification_vanishes(grid, f)
-        end
-    end
+    @info "    eₐˢ ≥ 0 (Jensen); constant buoyancy vanishes"
+    test_subfilter_ape_signs(grid, filt)
 
-    @info "    eₐˢ ≥ 0 (Jensen) for every filter; constant buoyancy vanishes"
-    for (cut, f, vertical_filter) in cuts
-        @testset "eₐˢ ≥ 0, $cut filter" begin
-            test_subfilter_ape_signs(grid, f; vertical_filter)
-        end
-    end
-
+    # The resting-fluid checks run over all three ways a filter can cut, each in its own labelled testset
+    # so the summary names the case. The two cuts that reach in z carry `vertical_filter=true` (the third
+    # element of each entry): the diagnostics refuse them, so their split is built by hand, and they
+    # assert the failure rather than the bound. The comments on the test functions carry the mechanism.
+    #
     # A curved profile has to be curved *on the grid*, and the filter has to be wide enough that the
     # displacement it creates clears the reference profile's own class spacing, so these carry their own
     # tall grid and their own filters rather than the shared 8×8×8 box.
-    @info "    A fluid at rest carries no available energy at any scale, whichever way the filter cuts"
+    @info "    Fluid at rest: no APE at any scale with a horizontal filter, eₐˡ > 0 and eₐˢ < 0 with one along z"
     resting_grid = RectilinearGrid(arch, size=(4, 4, 64), x=(0, 1), y=(0, 1), z=(0, 2),
                                    topology=(Periodic, Periodic, Bounded))
     resting_cuts = (("horizontal", ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.2), false),
@@ -416,13 +431,16 @@ end
     @info "    Validation errors (method, buoyancy, closure)"
     test_subfilter_ape_errors(grid, filt)
 
+    @info "    Filters with a vertical component are rejected"
+    test_subfilter_ape_rejects_vertical_filters(grid, vertical_filters)
+
     @info "    Subfilter APE to KE conversion τˡ(w, bᵣ)"
     # The shared model is buoyancy-only, and the conversion is carried by the vertical velocity, so
     # without this every assertion below would hold trivially on a field of zeros.
     set!(model, u=(x, y, z) -> 1e-2 * randn(), w=(x, y, z) -> 1e-2 * randn())
     test_subfilter_ape_ke_conversion_decomposition(model, filt)
     test_subfilter_ape_ke_conversion_identity_filter_vanishes(model)
-    test_subfilter_ape_ke_conversion_unfiltered_reference(model, filt, filt_horizontal)
+    test_subfilter_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt)
     test_subfilter_ape_ke_conversion_convenience(model)
     test_subfilter_ape_ke_conversion_vanishes_without_motion(grid, filt)
     test_subfilter_ape_ke_conversion_errors(grid, filt)

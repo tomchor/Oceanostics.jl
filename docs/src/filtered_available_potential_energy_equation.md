@@ -14,6 +14,17 @@ in the full reference profile ``b^\star(z^\star)`` in calculating some terms, wh
 to use [`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup), since it's
 the only method of obtaining the reference height that has this capability.
 
+!!! warning "Horizontal filters only"
+    The filter has to act only in the horizontal directions, and every diagnostic on this page and on
+    the [Subfilter available potential energy equation](@ref) page throws an `ArgumentError` for a
+    filter with a vertical component. The filtered buoyancy ``\bar b`` is measured against the
+    reference profile at the parcel's own height ``z``, which describes ``\bar b`` only when it is an
+    average at fixed ``z``. A filter with vertical extent averages the stratification itself, so
+    ``\bar b`` departs from ``b^\star(z)`` even in a fluid at rest in its reference state, which has no
+    available potential energy. That fluid then gets ``e_a^l > 0`` wherever its stratification is
+    curved (and next to the walls even where it is not), and the subfilter remainder
+    ``e_a^s = \overline{e_a} - e_a^l = -e_a^l`` is negative there, so neither is an energy.
+
 
 ## Deriving the filtered available potential energy equation
 
