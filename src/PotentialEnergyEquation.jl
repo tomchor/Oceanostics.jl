@@ -15,7 +15,7 @@ export Forcing, PotentialEnergyForcing
 # `KineticEnergyEquation` and re-exported here under both its own name and a budget-neutral alias.
 export PotentialToKineticEnergyConversion, KineticEnergyConversion
 
-using Oceananigans: NonhydrostaticModel, fields
+using Oceananigans: NonhydrostaticModel, HydrostaticFreeSurfaceModel, fields
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Models: seawater_density
 using Oceananigans.Models: model_geopotential_height
@@ -72,6 +72,19 @@ validate_gravity_unit_vector(diagnostic, gravity_unit_vector) =
 # term's own buoyancy validator instead.
 validate_gravity_is_z_aligned(diagnostic, model) =
     isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(diagnostic, model.buoyancy.gravity_unit_vector)
+
+# `Forcing`, `Advection` and `BuoyancyAdvection` build on pieces that are the same for either model type
+# (`model.forcing`, `div_Uc`, `tracer_advection`), so both model types are accepted here. `Tendency` is
+# not (#282):
+# it is built directly on `NonhydrostaticModels.tracer_tendency`, and
+# `hydrostatic_free_surface_tracer_tendency` does not take the same dependencies, so widening it needs a
+# kernel of its own rather than just a wider signature.
+const SupportedModel = Union{NonhydrostaticModel, HydrostaticFreeSurfaceModel}
+
+validate_model_supports_potential_energy_budget(diagnostic, model::SupportedModel) = nothing
+validate_model_supports_potential_energy_budget(diagnostic, model) =
+    throw(ArgumentError("`$diagnostic` supports `NonhydrostaticModel` and `HydrostaticFreeSurfaceModel`, \
+                         but got a $(nameof(typeof(model)))."))
 
 #+++ Potential energy
 """
@@ -523,6 +536,12 @@ end
 # volume integral over a periodic or closed domain vanishes to roundoff rather than to truncation error.
 @inline div_U_eₚ_ccc(i, j, k, grid, advection, U, eₚ) = div_Uc(i, j, k, grid, advection, U, eₚ)
 
+# `NonhydrostaticModel` carries `background_fields`, so its total advecting velocity is the perturbation
+# plus the background. `HydrostaticFreeSurfaceModel` has no `background_fields` container at all, so its
+# `velocities` already are the total.
+default_eₚ_velocities(model::NonhydrostaticModel) = sum_of_velocities(model.velocities, model.background_fields.velocities)
+default_eₚ_velocities(model) = model.velocities
+
 const PotentialEnergyAdvection = CustomKFO{<:typeof(div_U_eₚ_ccc)}
 const Advection = PotentialEnergyAdvection
 
@@ -567,10 +586,11 @@ PotentialEnergyAdvection KernelFunctionOperation at (Center, Center, Center)
 └── computes: potential energy advection  ∂ⱼ(uⱼeₚ)
 ```
 """
-function PotentialEnergyAdvection(model::NonhydrostaticModel;
-                                  velocities = sum_of_velocities(model.velocities, model.background_fields.velocities),
+function PotentialEnergyAdvection(model;
+                                  velocities = default_eₚ_velocities(model),
                                   location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyAdvection")
+    validate_model_supports_potential_energy_budget("PotentialEnergyAdvection", model)
     validate_buoyancy_is_a_tracer("PotentialEnergyAdvection", model)
     validate_gravity_is_z_aligned("PotentialEnergyAdvection", model)
 
@@ -627,10 +647,11 @@ PotentialEnergyBuoyancyAdvection KernelFunctionOperation at (Center, Center, Cen
 └── computes: potential energy buoyancy advection  z ∂ⱼ(uⱼb)
 ```
 """
-function PotentialEnergyBuoyancyAdvection(model::NonhydrostaticModel;
-                                          velocities = sum_of_velocities(model.velocities, model.background_fields.velocities),
+function PotentialEnergyBuoyancyAdvection(model;
+                                          velocities = default_eₚ_velocities(model),
                                           location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyBuoyancyAdvection")
+    validate_model_supports_potential_energy_budget("PotentialEnergyBuoyancyAdvection", model)
     validate_buoyancy_is_a_tracer("PotentialEnergyBuoyancyAdvection", model)
     validate_gravity_is_z_aligned("PotentialEnergyBuoyancyAdvection", model)
 
@@ -819,8 +840,9 @@ PotentialEnergyForcing KernelFunctionOperation at (Center, Center, Center)
 └── computes: potential energy forcing  -z Fᵇ
 ```
 """
-function PotentialEnergyForcing(model::NonhydrostaticModel; location = (Center, Center, Center))
+function PotentialEnergyForcing(model; location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyForcing")
+    validate_model_supports_potential_energy_budget("PotentialEnergyForcing", model)
     validate_buoyancy_is_a_tracer("PotentialEnergyForcing", model)
     validate_gravity_is_z_aligned("PotentialEnergyForcing", model)
 
