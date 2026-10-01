@@ -36,23 +36,17 @@ using ..SpatialFilters: GaussianFilter, BoxFilter, filtered_dims
 using ..FlowDiagnostics: validate_dims, subfilter_covariance, to_center
 
 #+++ Horizontal filters only
-# The filtered buoyancy `b̄` is measured against the reference profile at the parcel's own height `z`,
-# which describes `b̄` only when it is an average at fixed `z`. A filter with a vertical component
-# averages the stratification itself: `b̄` departs from `b✶(z)` even in a fluid at rest in its reference
-# state, which then gets `eₐˡ > 0` wherever its stratification is curved (and next to the walls even
-# where it is not), while the subfilter remainder `eₐˢ = filter(eₐ) - eₐˡ = -eₐˡ` goes negative
-# (`test_subfilter_ape_resting_fluid` pins this). Neither part of the split is then an energy, so every
-# filtered and subfilter APE diagnostic rejects such a filter. `filtered_dims` reads the directions off
-# the operation the filter builds, so the check runs on `filter(ψ)` before any `Field` computes it. It
-# recognizes `BoxFilter` and `GaussianFilter` however they are wrapped; a filter of another kind cannot
-# be inspected and passes unchecked.
+# With a filter that has a vertical component the current implementation cannot guarantee a non-negative
+# APE (`test_subfilter_ape_resting_fluid` shows a case), so every filtered and subfilter APE diagnostic
+# rejects such a filter. `filtered_dims` reads the directions off the operation the filter builds, so the
+# check runs on `filter(ψ)` before any `Field` computes it. It recognizes `BoxFilter` and `GaussianFilter`
+# however they are wrapped; a filter of another kind cannot be inspected and passes unchecked.
 function validate_filter_is_horizontal(diagnostic, filtered)
     dims = filtered_dims(filtered)
     3 in dims && throw(ArgumentError("`$diagnostic` takes only a filter that acts in the horizontal, but got one that \
-                                      averages along z (it filters dims $dims). Averaging across heights mixes \
-                                      buoyancies from different levels, so even a fluid at rest picks up filtered APE \
-                                      and the subfilter APE can be negative. Filter along x and y only, e.g. with \
-                                      `dims = (1, 2)`."))
+                                      averages along z (it filters dims $dims). With such a filter the current \
+                                      implementation cannot guarantee a non-negative APE. Filter along x and y only, \
+                                      e.g. with `dims = (1, 2)`."))
     return nothing
 end
 #---
@@ -143,13 +137,9 @@ profile sorted from `b̄` itself. Looking a field up in a profile it did not pro
   - `ProfileLookup(b✶, z✶)` with plain arrays holds the reference profile fixed in time, which also
     makes the diagnostic sort-free: each `compute!` is then a filter plus a binary-search lookup.
 
-The split also needs `filter` to act only in the horizontal, and a filter with a vertical component
-throws an `ArgumentError`. `eₐˡ` measures `b̄` against the reference profile at the parcel's own
-height `z`, which describes `b̄` only when it is an average at fixed `z`. A filter with vertical extent
-averages the stratification itself, so `b̄` departs from `b✶(z)` even in a fluid at rest in its
-reference state, which has no available potential energy. That fluid then gets `eₐˡ > 0` wherever its
-stratification is curved (and next to the walls even where it is not), and the subfilter remainder
-`eₐˢ = -eₐˡ` is negative there, so neither is an energy. With a horizontal filter `eₐˢ ≥ 0` pointwise
+`filter` has to act only in the horizontal: a filter with a vertical component needs extra steps, not
+currently implemented, to guarantee a non-negative APE, so it throws an `ArgumentError`. With a
+horizontal filter `eₐˢ ≥ 0` pointwise
 ([`SubFilterAvailablePotentialEnergy`](@ref Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy)).
 
 A second method, `FilteredAvailablePotentialEnergy(model, z✶ˡ)`, takes a reference height you built
@@ -246,8 +236,8 @@ As with every diagnostic here the filtered buoyancy is measured against the refe
 [`FilteredAvailablePotentialEnergy`](@ref) gives. The lookup also makes `z✶ˡ` a function of buoyancy
 alone, which is what differentiating `Υˡ` needs (see
 [`AvailablePotentialEnergyDisplacementPotential`](@ref)). `filter` has to act only in the horizontal,
-for the reason [`FilteredAvailablePotentialEnergy`](@ref) gives, and a filter with a vertical
-component throws an `ArgumentError`.
+since the current implementation cannot guarantee a non-negative APE with a filter that has a vertical
+component; such a filter throws an `ArgumentError`.
 
 A second method, `FilteredAvailablePotentialEnergyDisplacementPotential(model, z✶ˡ)`, takes a reference
 height you built yourself from a filtered buoyancy, `z✶ˡ = reference_height(Field(filter(b));
@@ -359,10 +349,10 @@ draws for the viscous flux.
 `method` has to be a [`ProfileLookup`](@ref), for the reason [`FilteredAvailablePotentialEnergy`](@ref)
 gives, and the lookup also makes `z✶ˡ` a function of buoyancy alone — the property that differentiating
 `Υˡ` needs (see [`AvailablePotentialEnergyDisplacementPotential`](@ref)). `filter` has to act only in
-the horizontal, for the reason [`FilteredAvailablePotentialEnergy`](@ref) gives, and a filter with a
-vertical component throws an `ArgumentError`. Like [`AvailablePotentialEnergyDissipationRate`](@ref),
-this diagnostic needs the buoyancy to be a tracer the closure diffuses (`BuoyancyTracer` only) and a
-closure that supplies a diffusive flux.
+the horizontal, since the current implementation cannot guarantee a non-negative APE with a filter
+that has a vertical component; such a filter throws an `ArgumentError`. Like
+[`AvailablePotentialEnergyDissipationRate`](@ref), this diagnostic needs the buoyancy to be a tracer
+the closure diffuses (`BuoyancyTracer` only) and a closure that supplies a diffusive flux.
 
 A second method, `FilteredAvailablePotentialEnergyDissipationRate(model, filter, z✶ˡ; upsilon)`, takes
 a reference height you built from the filtered buoyancy (see [`FilteredAvailablePotentialEnergy`](@ref)),
@@ -488,8 +478,8 @@ source or a sink. The result lives at `(Center, Center, Center)`, per unit mass 
 [`FilteredAvailablePotentialEnergy`](@ref) gives: `Υˡ` measures the filtered buoyancy against a profile
 it did not itself produce, ordinarily the sorted state of the full buoyancy. The lookup also makes `z✶`
 a function of buoyancy alone, which is what differentiating `Υˡ` needs. `filter` has to act only in
-the horizontal, for the reason [`FilteredAvailablePotentialEnergy`](@ref) gives, and a filter with a
-vertical component throws an `ArgumentError`.
+the horizontal, since the current implementation cannot guarantee a non-negative APE with a filter
+that has a vertical component; such a filter throws an `ArgumentError`.
 
 `dims` selects which directions are summed over and which velocities are filtered: the default
 `dims = (1, 2, 3)` gives the full flux, while `dims = (1, 3)` gives the 2D `x`–`z` flux
@@ -609,8 +599,8 @@ Note the reference profile is **not** filtered: `b_rˡ = b̄ - b✶(z)` is what 
 `eₐˡ = eₐ(b̄, z)` with respect to `z` produces, `eₐˡ` being itself measured against the full field's
 reference state ([`FilteredAvailablePotentialEnergy`](@ref)). For the horizontal filters this
 diagnostic accepts, it equals the filtered anomaly `filter(b_r) = b̄ - filter(b✶(z))`, since `b✶` is a
-function of `z` alone. A filter with a vertical component would separate the two, and it throws an
-`ArgumentError` here for the reason [`FilteredAvailablePotentialEnergy`](@ref) gives.
+function of `z` alone. Only those are accepted, since the current implementation cannot guarantee a
+non-negative APE with a filter that has a vertical component; such a filter throws an `ArgumentError`.
 
 `method` has to be a [`ProfileLookup`](@ref), for the reason [`FilteredAvailablePotentialEnergy`](@ref)
 gives, and it supplies the profile `b✶(z)` is read from. Unlike the other diagnostics here this one

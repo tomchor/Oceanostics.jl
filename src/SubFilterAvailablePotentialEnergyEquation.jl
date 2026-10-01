@@ -93,10 +93,9 @@ Because the two states have to share one profile, `method` must be a [`ProfileLo
 `eₐ` is convex in buoyancy (`∂²eₐ/∂b² = ∂z✶/∂b ≥ 0` on a stable profile), so for a filter that
 averages at fixed `z` Jensen's inequality gives `eₐˢ ≥ 0` pointwise, up to a marginal error where a
 filtered buoyancy falls between the profile's entries (the lookup then takes the nearest class). A
-filter with a vertical component mixes heights as well as buoyancies, and `eₐˢ` can then be negative
-even for a fluid at rest in its reference state, so it is not an energy. `filter` therefore has to act
-only in the horizontal, and a filter with a vertical component throws an `ArgumentError`
-([`FilteredAvailablePotentialEnergy`](@ref) gives the mechanism).
+filter with a vertical component mixes heights as well as buoyancies and needs extra steps, not
+currently implemented, to guarantee a non-negative `eₐˢ`, so `filter` has to act only in the
+horizontal and a filter with a vertical component throws an `ArgumentError`.
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref) over `dims = (1, 2)`. The filtered buoyancy and the
@@ -176,10 +175,10 @@ is to the subfilter kinetic energy.
 [`SubFilterAvailablePotentialEnergy`](@ref) gives, and the lookup also makes each `z✶` a function of
 buoyancy alone — the property that differentiating `Υ` and `Υˡ` needs (see
 [`AvailablePotentialEnergyDisplacementPotential`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential)).
-`filter` has to act only in the horizontal, for the reason [`SubFilterAvailablePotentialEnergy`](@ref)
-gives, and a filter with a vertical component throws an `ArgumentError`. Like
-[`AvailablePotentialEnergyDissipationRate`](@ref), this diagnostic needs the buoyancy to be a tracer
-the closure diffuses (`BuoyancyTracer` only) and a closure that supplies a diffusive flux.
+`filter` has to act only in the horizontal, since the current implementation cannot guarantee a
+non-negative APE with a filter that has a vertical component; such a filter throws an `ArgumentError`.
+Like [`AvailablePotentialEnergyDissipationRate`](@ref), this diagnostic needs the buoyancy to be a
+tracer the closure diffuses (`BuoyancyTracer` only) and a closure that supplies a diffusive flux.
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The filtered fluxes, the filtered buoyancy, `Υˡ` and
@@ -262,10 +261,11 @@ alone.
 
 `method` has to be a [`ProfileLookup`](@ref), for the reason
 [`SubFilterAvailablePotentialEnergy`](@ref) gives, and both halves are built on the one profile it
-supplies. `filter` has to act only in the horizontal, for the reason it also gives, and a filter with
-a vertical component throws an `ArgumentError`. `filter` is any callable mapping a field to its
-low-pass-filtered counterpart, e.g. a reusable [`GaussianFilter`](@ref) or [`BoxFilter`](@ref) over
-`dims = (1, 2)`. The result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`):
+supplies. `filter` has to act only in the horizontal, since the current implementation cannot
+guarantee a non-negative APE with a filter that has a vertical component; such a filter throws an
+`ArgumentError`. `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a
+reusable [`GaussianFilter`](@ref) or [`BoxFilter`](@ref) over `dims = (1, 2)`. The result lives at
+`(Center, Center, Center)`, per unit mass (units `m² s⁻³`):
 
 ```jldoctest
 using Oceananigans, Oceanostics

@@ -11,8 +11,8 @@ the split, the APE of the filtered buoyancy and its dissipation, lives in the
 
 !!! warning "Horizontal filters only"
     The filter has to act only in the horizontal directions, and every diagnostic on this page throws
-    an `ArgumentError` for a filter with a vertical component. With such a filter ``e_a^s`` can be
-    negative even for a fluid at rest, so it is not an energy; the next section gives the reason.
+    an `ArgumentError` for a filter with a vertical component, since the current implementation cannot
+    guarantee a non-negative APE with one.
 
 ## The subfilter available potential energy
 
