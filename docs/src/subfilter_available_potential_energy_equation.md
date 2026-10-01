@@ -32,10 +32,7 @@ computed by [`SubFilterAvailablePotentialEnergy`](@ref); ``e_a(\bar b, z)`` is
 
 Because ``e_a`` is convex in buoyancy, a filter that averages at fixed ``z`` keeps ``e_a^s \geq 0``
 pointwise, by Jensen's inequality. A filter with a vertical component mixes heights as well as
-buoyancies: it averages the stratification itself, so even a fluid at rest in its reference state,
-which has no available potential energy, gets ``e_a^l > 0`` wherever its stratification is curved (and
-next to the walls even where it is not), and ``e_a^s = -e_a^l`` is negative there. This is why these
-diagnostics take only filters that act in the horizontal directions.
+buoyancies and needs extra steps to guarantee non-negativity of energy which are not currently implemented.
 
 Looking the filtered buoyancy up in a profile it did not itself produce is exactly what
 [`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup) was built for, so

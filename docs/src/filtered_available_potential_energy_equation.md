@@ -17,13 +17,10 @@ the only method of obtaining the reference height that has this capability.
 !!! warning "Horizontal filters only"
     The filter has to act only in the horizontal directions, and every diagnostic on this page and on
     the [Subfilter available potential energy equation](@ref) page throws an `ArgumentError` for a
-    filter with a vertical component. The filtered buoyancy ``\bar b`` is measured against the
-    reference profile at the parcel's own height ``z``, which describes ``\bar b`` only when it is an
-    average at fixed ``z``. A filter with vertical extent averages the stratification itself, so
-    ``\bar b`` departs from ``b^\star(z)`` even in a fluid at rest in its reference state, which has no
-    available potential energy. That fluid then gets ``e_a^l > 0`` wherever its stratification is
-    curved (and next to the walls even where it is not), and the subfilter remainder
-    ``e_a^s = \overline{e_a} - e_a^l = -e_a^l`` is negative there, so neither is an energy.
+    filter with a vertical component. A filter with vertical extent averages the stratification itself, needs
+    extra steps (that are not currently implemented) in order to guarantee the non-negativity of the
+    APE, and therefore is not supported. Filtered and sub-filter APEs under horizontal-only filters are
+    supported and guaranteed to be non-negative.
 
 
 ## Deriving the filtered available potential energy equation
