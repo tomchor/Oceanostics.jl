@@ -12,7 +12,7 @@ using Oceanostics.BackgroundPotentialEnergyEquation: reference_buoyancy_at_heigh
 using Oceanostics.AvailablePotentialEnergyEquation: DisplacementPotential
 using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate,
                    reference_height, reference_buoyancy, VerticalSort, ProfileLookup, HeavisideIntegral,
-                   GaussianFilter
+                   GaussianFilter, BoxFilter
 
 arch = has_cuda_gpu() ? GPU() : CPU()
 
@@ -22,6 +22,13 @@ random_stratified_b(x, y, z) = 1e-2 * z + 1e-3 * randn()
 # The shared profile the filtered buoyancy is looked up in: a column sorted from the model's own
 # buoyancy, borrowed through `ProfileLookup` so the tests can build the same `z✶ˡ` by hand.
 shared_lookup(model) = ProfileLookup(reference_height(model, method=VerticalSort()))
+
+# Filters that are neither a `BoxFilter` nor a `GaussianFilter`: three-point means along z and along x,
+# written as plain kernels, which the diagnostics can only recognize by trying them on a probe field.
+@inline z_mean(i, j, k, grid, ψ) = @inbounds (ψ[i, j, k-1] + ψ[i, j, k] + ψ[i, j, k+1]) / 3
+@inline x_mean(i, j, k, grid, ψ) = @inbounds (ψ[i-1, j, k] + ψ[i, j, k] + ψ[i+1, j, k]) / 3
+z_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(z_mean, ψ.grid, ψ)
+x_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(x_mean, ψ.grid, ψ)
 
 #+++ Test functions
 # eₐˡ = eₐ(b̄, z): the local APE kernel evaluated on the reference height of the filtered buoyancy,
@@ -52,7 +59,7 @@ end
 # reduces to `local_ape_ccc`, and `filtered_ape_dissipation_rate_ccc` reproduces
 # `ape_dissipation_rate_ccc` when handed the unfiltered fluxes.
 function test_filtered_ape_identity_filter_reproduces_full(model)
-    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=1e-4, N=3)
+    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=1e-4, N=3)
     lookup = shared_lookup(model)
     z✶ = reference_height(model.tracers.b; method=lookup)
 
@@ -86,11 +93,6 @@ end
 # term can dip below zero by at most half a class gap times the displacement — a discretization-sized
 # amount, not roundoff. Looking b̄ up in a profile sorted from b̄ itself puts it on the profile, and
 # there eₐˡ ≥ 0 to roundoff, which is the sharp check that the kernel's sign is right.
-#
-# Neither bound depends on which way the filter cuts: b̄ is a convex combination of the field's own
-# buoyancies whatever `dims` is, so it lands between the same profile entries. That makes this test the
-# one place the vertical direction can be exercised, unlike `eₐˢ ≥ 0` in the subfilter suite, which
-# rests on Jensen at fixed z and genuinely fails once the filter averages across heights.
 function test_filtered_ape_nonnegative(grid, filt)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b=random_stratified_b)
@@ -114,7 +116,7 @@ end
 # The Gaussian convenience methods must reproduce the explicit filter-factory call with matching kwargs.
 function test_filtered_ape_convenience(model)
     σ = 0.12
-    filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
+    filt = ψ -> GaussianFilter(ψ; dims=(1, 2), σ, boundary=:shrink) # the convenience defaults
     @test interior(Field(FilteredAvailablePotentialEnergy(model; σ))) ≈
           interior(Field(FilteredAvailablePotentialEnergy(model, filt)))
     @test interior(Field(FilteredAvailablePotentialEnergyDissipationRate(model; σ))) ≈
@@ -164,7 +166,7 @@ function test_filtered_displacement_potential(model, filt)
           interior(Field(AvailablePotentialEnergyCrossScaleFlux(model, filt, z✶ˡ)))
 
     σ = 0.12
-    conv = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
+    conv = ψ -> GaussianFilter(ψ; dims=(1, 2), σ, boundary=:shrink) # the convenience defaults
     @test interior(Field(FilteredAvailablePotentialEnergyDisplacementPotential(model; σ))) ≈
           interior(Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, conv)))
 
@@ -175,7 +177,7 @@ end
 # An identity-scale filter leaves the buoyancy alone, so Υˡ collapses onto the full field's Υ measured
 # against the same shared profile — the same bit-for-bit check the other filtered diagnostics get.
 function test_filtered_displacement_potential_identity_filter(model)
-    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=1e-6, N=3, boundary=:edge)
+    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=1e-6, N=3, boundary=:edge)
     lookup = shared_lookup(model)
     @test interior(Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, identity_filter; method=lookup))) ≈
           interior(Field(DisplacementPotential(model, reference_height(model; method=lookup))))
@@ -252,6 +254,57 @@ function test_filtered_ape_errors(grid, filt)
     model_seawater = NonhydrostaticModel(grid; buoyancy=SeawaterBuoyancy(), tracers=(:T, :S),
                                          closure=ScalarDiffusivity(κ=1e-4))
     @test_throws ArgumentError FilteredAvailablePotentialEnergyDissipationRate(model_seawater, filt)
+    return nothing
+end
+
+# A filter that averages along z breaks the split into filtered and subfilter APE (the resting-fluid
+# tests in the subfilter suite pin how), so every filtered-state diagnostic refuses one however it is
+# handed over: as a filter object or a closure, through the convenience methods' `dims`, or inside a
+# reference height or `upsilon` built from a vertically filtered buoyancy. The low-level forms of εₐˡ and
+# Πₐ apply their own `filter` to the fluxes and velocities, so that one is checked as well.
+function test_filtered_ape_rejects_vertical_filters(grid, filt, vertical_filters)
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
+    set!(model, b=random_stratified_b)
+    lookup = shared_lookup(model)
+    b = model.tracers.b
+    z✶ˡ = reference_height(Field(filt(b)); method=lookup)
+
+    for vertical in vertical_filters
+        for diagnostic in (FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDisplacementPotential,
+                           FilteredAvailablePotentialEnergyDissipationRate, AvailablePotentialEnergyCrossScaleFlux,
+                           FilteredAvailablePotentialToKineticEnergyConversion)
+            @test_throws "acts in the horizontal" diagnostic(model, vertical; method=lookup)
+        end
+
+        z✶ˡ_vertical = reference_height(Field(vertical(b)); method=lookup)
+        Υ_vertical = Field(DisplacementPotential(model, z✶ˡ_vertical))   # the full-field Υ does no such check
+        @test_throws "acts in the horizontal" FilteredAvailablePotentialEnergy(model, z✶ˡ_vertical)
+        @test_throws "acts in the horizontal" FilteredAvailablePotentialEnergyDisplacementPotential(model, z✶ˡ_vertical)
+        for diagnostic in (FilteredAvailablePotentialEnergyDissipationRate, AvailablePotentialEnergyCrossScaleFlux)
+            @test_throws "acts in the horizontal" diagnostic(model, filt, z✶ˡ_vertical)
+            @test_throws "acts in the horizontal" diagnostic(model, vertical, z✶ˡ)
+            @test_throws "acts in the horizontal" diagnostic(model, filt, z✶ˡ; upsilon=Υ_vertical)
+        end
+    end
+
+    for diagnostic in (FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDisplacementPotential,
+                       FilteredAvailablePotentialEnergyDissipationRate, FilteredAvailablePotentialToKineticEnergyConversion),
+        dims in ((1, 2, 3), (3,))
+        @test_throws "acts in the horizontal" diagnostic(model; σ=0.1, dims)
+    end
+
+    # A filter of another kind is tried on a probe field wherever the diagnostic is handed the filter
+    # itself: the mean along z is refused, and the mean along x is accepted. A prebuilt `z✶ˡ` or `upsilon`
+    # carries no filter to try, so those paths recognize only `BoxFilter` and `GaussianFilter`.
+    for diagnostic in (FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDisplacementPotential,
+                       FilteredAvailablePotentialEnergyDissipationRate, AvailablePotentialEnergyCrossScaleFlux,
+                       FilteredAvailablePotentialToKineticEnergyConversion)
+        @test_throws "acts in the horizontal" diagnostic(model, z_mean_filter; method=lookup)
+        @test diagnostic(model, x_mean_filter; method=lookup) isa diagnostic
+    end
+    for diagnostic in (FilteredAvailablePotentialEnergyDissipationRate, AvailablePotentialEnergyCrossScaleFlux)
+        @test_throws "acts in the horizontal" diagnostic(model, z_mean_filter, z✶ˡ)
+    end
     return nothing
 end
 
@@ -342,6 +395,30 @@ function test_ape_cross_scale_flux_dims(model, filt)
 end
 
 """
+The convenience method filters along the horizontal directions in `dims` and sums over all of them: the
+default is a horizontal Gaussian with the vertical term τ₃∂₃Υˡ still in the sum, and `dims = (1, 3)`
+filters along `x` and sums over `x` and `z`. The model carries motion, since with none the flux vanishes
+and the comparisons would hold trivially.
+"""
+function test_ape_cross_scale_flux_convenience(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = random_stratified_b, u = (x, y, z) -> 1e-2 * randn(), w = (x, y, z) -> 1e-2 * randn())
+
+    σ = 0.12
+    horizontal = ψ -> GaussianFilter(ψ; dims=(1, 2), σ, boundary=:shrink)   # :shrink is the convenience default
+    along_x    = ψ -> GaussianFilter(ψ; dims=(1,), σ, boundary=:shrink)
+
+    Πₐ = Field(AvailablePotentialEnergyCrossScaleFlux(model; σ))
+    @test maximum(abs, interior(Πₐ)) > 0
+    @test interior(Πₐ) ≈ interior(Field(AvailablePotentialEnergyCrossScaleFlux(model, horizontal)))
+    @test interior(Field(AvailablePotentialEnergyCrossScaleFlux(model; σ, dims = (1, 3)))) ≈
+          interior(Field(AvailablePotentialEnergyCrossScaleFlux(model, along_x; dims = (1, 3))))
+
+    return nothing
+end
+
+"""
 Like the other filtered-state diagnostics, the flux measures the filtered buoyancy against a profile it
 did not produce, so anything but a `ProfileLookup` has to be refused rather than silently sorting `b̄`
 into its own reference state.
@@ -422,14 +499,15 @@ end
 b_rˡ = b̄ − b✶(z) measures the filtered buoyancy against the *unfiltered* reference profile, which is
 what differentiating eₐˡ produces; it is not filter(b_r) = b̄ − filter(b✶(z)), which filters the
 reference too. The two differ once the filter acts in the vertical and coincide for a purely horizontal
-one, since b✶ is a function of z alone — exactly the distinction this term is defined by.
+one, since b✶ is a function of z alone — exactly the distinction this term is defined by. The diagnostic
+itself takes only the horizontal kind, so the vertical filter here is applied to the fields directly.
 """
-function test_filtered_ape_ke_conversion_unfiltered_reference(model, filt, filt_horizontal)
+function test_filtered_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt_horizontal)
 
     lookup = shared_lookup(model)
     b = model.tracers.b
 
-    for (filter, coincide) in ((filt, false), (filt_horizontal, true))
+    for (filter, coincide) in ((filt_vertical, false), (filt_horizontal, true))
         b✶z = reference_buoyancy_at_height(model.grid, lookup.profile)
         b_rˡ         = Field(Field(filter(b)) - b✶z)     # filtered buoyancy, unfiltered reference
         filtered_b_r = Field(filter(Field(b - b✶z)))     # filters the reference too
@@ -442,7 +520,7 @@ end
 # The Gaussian convenience method must reproduce the explicit filter-factory call with matching kwargs.
 function test_filtered_ape_ke_conversion_convenience(model)
     σ = 0.12
-    filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ, boundary=:shrink) # :shrink is the convenience default
+    filt = ψ -> GaussianFilter(ψ; dims=(1, 2), σ, boundary=:shrink) # the convenience defaults
     @test interior(Field(FilteredAvailablePotentialToKineticEnergyConversion(model; σ))) ≈
           interior(Field(FilteredAvailablePotentialToKineticEnergyConversion(model, filt)))
     return nothing
@@ -499,9 +577,12 @@ end
 @testset "Filtered available potential energy equation" begin
     @info "  Testing filtered available potential energy diagnostics"
     grid = RectilinearGrid(arch, size=(8, 8, 8), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
-    filt = ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1, boundary=:edge)
-    filt_horizontal = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1)
+    filt = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1)   # the diagnostics take only filters that act in the horizontal
+
+    # Filters with a vertical component, in the three forms a caller can hand one over: a filter object, a
+    # closure over the one-step form, and a `BoxFilter` that cuts along y and z.
     filt_vertical = ψ -> GaussianFilter(ψ; dims=(3,), σ=0.1, boundary=:edge)
+    vertical_filters = (GaussianFilter(; dims=(1, 2, 3), σ=0.1, boundary=:edge), filt_vertical, BoxFilter(; dims=(2, 3), N=3))
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
     set!(model, b=random_stratified_b)
@@ -513,11 +594,9 @@ end
     test_filtered_ape_identity_filter_reproduces_full(model)
 
     @info "    Horizontally uniform stratification vanishes"
-    test_filtered_ape_uniform_stratification_vanishes(grid, filt_horizontal)
+    test_filtered_ape_uniform_stratification_vanishes(grid, filt)
 
     @info "    eₐˡ ≥ 0 (to the profile's resolution against the full field's profile; to roundoff against its own)"
-    test_filtered_ape_nonnegative(grid, filt_horizontal)
-    test_filtered_ape_nonnegative(grid, filt_vertical)
     test_filtered_ape_nonnegative(grid, filt)
 
     @info "    Gaussian convenience methods"
@@ -540,20 +619,24 @@ end
     @info "    Validation errors (method, buoyancy, closure)"
     test_filtered_ape_errors(grid, filt)
 
+    @info "    Filters with a vertical component are rejected"
+    test_filtered_ape_rejects_vertical_filters(grid, filt, vertical_filters)
+
     @info "    Module re-exports and aliases"
     test_filtered_ape_module_reexports()
 
     @info "  Testing the filtered APE to filtered KE conversion w̄b_rˡ"
     test_filtered_ape_ke_conversion_matches_manual(model, filt)
-    test_filtered_ape_ke_conversion_unfiltered_reference(model, filt, filt_horizontal)
+    test_filtered_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt)
     test_filtered_ape_ke_conversion_convenience(model)
-    test_filtered_ape_ke_conversion_uniform_stratification_vanishes(grid, filt_horizontal)
+    test_filtered_ape_ke_conversion_uniform_stratification_vanishes(grid, filt)
     test_filtered_ape_ke_conversion_vanishes_without_motion(grid, filt)
     test_filtered_ape_ke_conversion_errors(grid, filt)
 
     @info "  Testing the cross-scale available potential energy flux Πₐ"
     test_ape_cross_scale_flux_matches_manual(model, filt)
     test_ape_cross_scale_flux_dims(model, filt)
+    test_ape_cross_scale_flux_convenience(grid)
     test_ape_cross_scale_flux_vanishes_without_motion(grid, filt)
     test_ape_cross_scale_flux_errors(grid, filt)
 

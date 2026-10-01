@@ -14,6 +14,14 @@ in the full reference profile ``b^\star(z^\star)`` in calculating some terms, wh
 to use [`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup), since it's
 the only method of obtaining the reference height that has this capability.
 
+!!! warning "Horizontal filters only"
+    The filter has to act only in the horizontal directions, and every diagnostic on this page and on
+    the [Subfilter available potential energy equation](@ref) page throws an `ArgumentError` for a
+    filter with a vertical component. A filter with vertical extent averages the stratification itself, needs
+    extra steps (that are not currently implemented) in order to guarantee the non-negativity of the
+    APE, and therefore is not supported. Filtered and sub-filter APEs under horizontal-only filters are
+    supported and guaranteed to be non-negative.
+
 
 ## Deriving the filtered available potential energy equation
 

@@ -9,6 +9,11 @@ energy across the filter scale, this one splits the *local* available potential 
 the split, the APE of the filtered buoyancy and its dissipation, lives in the
 [Filtered available potential energy equation](@ref) and is re-exported here.
 
+!!! warning "Horizontal filters only"
+    The filter has to act only in the horizontal directions, and every diagnostic on this page throws
+    an `ArgumentError` for a filter with a vertical component, since the current implementation cannot
+    guarantee a non-negative APE with one.
+
 ## The subfilter available potential energy
 
 Both the full and the filtered buoyancy are measured against **one shared reference profile**
@@ -25,7 +30,9 @@ e_a(b, z) = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z) - b\right] \mathrm{d}\
 computed by [`SubFilterAvailablePotentialEnergy`](@ref); ``e_a(\bar b, z)`` is
 [`FilteredAvailablePotentialEnergy`](@ref).
 
-``e_a^s`` is guaranteed to be non-negative only when the filter acts in the horizontal directions.
+Because ``e_a`` is convex in buoyancy, a filter that averages at fixed ``z`` keeps ``e_a^s \geq 0``
+pointwise, by Jensen's inequality. A filter with a vertical component mixes heights as well as
+buoyancies and needs extra steps to guarantee non-negativity of energy which are not currently implemented.
 
 Looking the filtered buoyancy up in a profile it did not itself produce is exactly what
 [`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup) was built for, so
@@ -34,10 +41,6 @@ into a [`VerticalSort`](@ref Oceanostics.BackgroundPotentialEnergyEquation.Verti
 every `compute!`, a column you built yourself can be shared across diagnostics, and a profile given as
 plain arrays holds the reference state fixed in time (which also makes the diagnostics sort-free).
 
-<<<<<<< HEAD
-Because ``e_a`` is convex in buoyancy, a filter with no vertical component keeps ``e_a^s \geq 0``
-pointwise, by Jensen's inequality; a filter that acts vertically mixes heights as well as buoyancies
-and can produce locally negative values in the current formulation.
 ```@docs
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy
 ```

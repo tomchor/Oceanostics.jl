@@ -11,6 +11,7 @@ using Oceanostics
 using Oceanostics: BoxFilter, GaussianFilter
 # operator types are internal (not exported) — reach them through the submodule for the `isa` checks
 using Oceanostics.SpatialFilters: GaussianFilterKernel, StretchedGaussianFilterKernel, BoxFilterOperator, GaussianFilterOperator
+using Oceanostics.SpatialFilters: filtered_dims, mixes_vertical_levels
 
 arch = has_cuda_gpu() ? GPU() : CPU()
 
@@ -854,6 +855,51 @@ function test_check_filter_staging()
 end
 #---
 
+#+++ Filtered directions (`filtered_dims`)
+# `filtered_dims` reads the directions a `BoxFilter` or `GaussianFilter` averages along off the operation
+# the filter builds, so a filter object and a closure over the one-step form report the same directions,
+# and so does a filter materialized in a `Field`, composed into a larger operation, or stacked on another
+# filter. The filtered and subfilter APE diagnostics rely on it to turn away filters that act along z.
+function test_filtered_dims()
+    grid = make_grid()
+    c = center_field_from(grid, (x, y, z) -> sin(2π*x) + cos(2π*z))
+    gf = GaussianFilter(; dims=(1, 2), σ=0.1)
+    box_z = ψ -> BoxFilter(ψ; dims=3, N=3)
+
+    @test filtered_dims(c) == ()
+    @test filtered_dims(gf(c)) == (1, 2)
+    @test filtered_dims(GaussianFilter(; dims=(3, 1), σ=0.1)(c)) == (1, 3)   # sorted, whatever order `dims` had
+    @test filtered_dims(box_z(c)) == (3,)
+    @test filtered_dims(Field(gf(c))) == (1, 2)
+    @test filtered_dims(2 * gf(c) - c) == (1, 2)
+    @test filtered_dims(box_z(Field(gf(c)))) == (1, 2, 3)
+    return nothing
+end
+#---
+
+#+++ Vertical-mixing probe (`mixes_vertical_levels`)
+# `mixes_vertical_levels` tries a filter on a field that is nonzero on a single level, so it recognizes a
+# filter of any kind: the Oceanostics filters, a hand-written kernel, and an affine filter whose constant
+# boundary pad adds the same amount whatever the input. The filtered and subfilter APE diagnostics rely
+# on it to turn away filters that act along z.
+@inline z_mean(i, j, k, grid, ψ) = @inbounds (ψ[i, j, k-1] + ψ[i, j, k] + ψ[i, j, k+1]) / 3
+@inline x_mean(i, j, k, grid, ψ) = @inbounds (ψ[i-1, j, k] + ψ[i, j, k] + ψ[i+1, j, k]) / 3
+
+function test_mixes_vertical_levels()
+    grid = make_grid(; topology=(Bounded, Periodic, Bounded))
+    z_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(z_mean, ψ.grid, ψ)
+    x_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(x_mean, ψ.grid, ψ)
+
+    @test !mixes_vertical_levels(GaussianFilter(; dims=(1, 2), σ=0.1), grid)
+    @test !mixes_vertical_levels(BoxFilter(; dims=1, N=3, boundary=(left=1.0, right=2.0)), grid)   # the pad cancels
+    @test !mixes_vertical_levels(x_mean_filter, grid)
+    @test mixes_vertical_levels(GaussianFilter(; dims=(1, 2, 3), σ=0.1), grid)
+    @test mixes_vertical_levels(BoxFilter(; dims=3, N=3), grid)
+    @test mixes_vertical_levels(z_mean_filter, grid)
+    return nothing
+end
+#---
+
 #+++ Run tests
 # Reference weights are computed in cells; the GaussianFilter API takes σ in
 # physical units. The shared test grid is uniform with Δ = 1/8, so a physical
@@ -942,6 +988,14 @@ filter_configs = [
 
     @testset "check_filter_staging (staged vs fused)" begin
         test_check_filter_staging()
+    end
+
+    @testset "filtered_dims" begin
+        test_filtered_dims()
+    end
+
+    @testset "mixes_vertical_levels" begin
+        test_mixes_vertical_levels()
     end
 end
 #---
