@@ -582,8 +582,8 @@ end
 
 #+++ Filtered available-potential-to-kinetic-energy conversion
 # w̄b_rˡ, the term the filtered APE and the filtered KE budgets exchange. `b_rˡ = b̄ - b✶(z)` is the
-# filtered buoyancy measured against the reference profile at the parcel's own height — the *unfiltered*
-# reference, matching `eₐˡ = eₐ(b̄, z)` itself. `w̄` lives on the z face, so the product is formed there
+# filtered buoyancy measured against the reference profile at the parcel's own height, the profile
+# `eₐˡ = eₐ(b̄, z)` itself is measured against. `w̄` lives on the z face, so the product is formed there
 # and only then interpolated to the cell center, exactly as `PotentialToKineticEnergyConversion` does.
 @inline b_rˡᶜᶜᶜ(i, j, k, grid, b̄, b✶z) = @inbounds b̄[i, j, k] - b✶z[i, j, k]
 
@@ -610,12 +610,19 @@ its buoyancy would take it to (`reference_buoyancy_at_height`). It is the term t
 carries as `-w̄b_rˡ` and the filtered kinetic energy budget as `+w̄b_rˡ`, which is what makes it a
 reversible exchange rather than a source or a sink; `w̄b_rˡ > 0` converts filtered APE into filtered KE.
 
-Note the reference profile is **not** filtered: `b_rˡ = b̄ - b✶(z)` is what differentiating
-`eₐˡ = eₐ(b̄, z)` with respect to `z` produces, `eₐˡ` being itself measured against the full field's
-reference state ([`FilteredAvailablePotentialEnergy`](@ref)). For the horizontal filters this
-diagnostic accepts, it equals the filtered anomaly `filter(b_r) = b̄ - filter(b✶(z))`, since `b✶` is a
-function of `z` alone. Only those are accepted, since the current implementation cannot guarantee a
-non-negative APE with a filter that has a vertical component; such a filter throws an `ArgumentError`.
+The kinetic energy budget that carries `+w̄b_rˡ` measures its pressure from the hydrostatic pressure
+`p✶` of the reference profile (`∂p✶/∂z = b✶`), as for
+[`AvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion).
+With the model's own pressure the filtered kinetic energy budget carries `w̄b̄` instead, and the two
+differ by `w̄b✶(z) = ∂ᵢ(ūᵢp✶)`, a divergence that integrates to zero over a domain periodic in the
+horizontal.
+
+`b_rˡ = b̄ - b✶(z)` is what differentiating `eₐˡ = eₐ(b̄, z)` with respect to `z` produces, with `b✶`
+the reference profile `eₐˡ` is measured against ([`FilteredAvailablePotentialEnergy`](@ref)). For the
+horizontal filters this diagnostic accepts, `b✶` depends on `z` alone and passes through the filter
+unchanged, so `b_rˡ` is also the filtered anomaly `filter(b_r) = b̄ - filter(b✶(z))`. Only those are
+accepted, since the current implementation cannot guarantee a non-negative APE with a filter that has
+a vertical component; such a filter throws an `ArgumentError`.
 
 `method` has to be a [`ProfileLookup`](@ref), for the reason [`FilteredAvailablePotentialEnergy`](@ref)
 gives, and it supplies the profile `b✶(z)` is read from. Unlike the other diagnostics here this one
@@ -654,8 +661,8 @@ function FilteredAvailablePotentialToKineticEnergyConversion(model, filter; meth
                                                              geopotential_height = model_geopotential_height(model))
     validate_gravity_is_z_aligned("FilteredAvailablePotentialToKineticEnergyConversion", model)
 
-    # The lookup's profile is the *unfiltered* reference state, which is what `b✶(z)` is read from; `b̄`
-    # comes back from the same helper, so the buoyancy is filtered once.
+    # The lookup's profile is the full buoyancy's reference state, which is what `b✶(z)` is read from;
+    # `b̄` comes back from the same helper, so the buoyancy is filtered once.
     _, b̄, lookup = filtered_buoyancy_and_lookup("FilteredAvailablePotentialToKineticEnergyConversion", model, filter,
                                                 method, geopotential_height)
     b✶z = reference_buoyancy_at_height(model.grid, lookup.profile)

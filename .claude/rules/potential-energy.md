@@ -34,6 +34,6 @@ A diagnostic that is a map on the model grid (Υ, bᵣ, wbᵣ, εₐ) rejects `V
 
 ## Filtered and subfilter APE
 The filtered buoyancy is looked up in a profile it did not produce, so `method` must be a `ProfileLookup`; `shared_profile_lookup` turns the default into a `VerticalSort` column of the model's buoyancy.
-Build `z✶` and `z✶ˡ` against one lookup (`filtered_buoyancy_and_lookup`, `subfilter_reference_heights`); with two lookups `filter(eₐ) − eₐˡ` is a difference of unrelated quantities, not a decomposition.
-`b_rˡ = b̄ − b✶(z)` keeps the reference profile unfiltered, which is what differentiating eₐˡ in z produces; `filter(b_r)` differs from it once the filter acts vertically.
+Build `z✶` and `z✶ˡ` against one lookup (`filtered_buoyancy_and_lookup`, `subfilter_reference_heights`): `b̄` is measured against the reference profile as the filter sees it, which a horizontal filter leaves unchanged, and any other profile (one sorted from `b̄`, say) loses the guarantee `eₐˢ ≥ 0`.
+`b_rˡ = b̄ − b✶(z)` is −∂eₐˡ/∂z and equals `filter(b_r)` for a horizontal filter; supporting a filter with vertical extent means measuring `b̄` against the filtered profile `filter(b✶(z))`, which changes `eₐˡ`, `Υˡ` and `b_rˡ` together and keeps `b_rˡ = filter(b_r)`.
 `eₐˢ ≥ 0` holds pointwise only for a filter that averages at fixed z (Jensen), so every filtered and subfilter APE constructor calls `validate_filter_is_horizontal` before any `Field` is computed, on the filter itself (probed by `mixes_vertical_levels`, which recognizes any filter) and on a prebuilt `z✶ˡ` or `upsilon` (walked by `filtered_dims`, which recognizes only `BoxFilter` and `GaussianFilter`).
