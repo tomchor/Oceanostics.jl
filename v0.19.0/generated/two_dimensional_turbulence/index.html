@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Two-dimensional turbulence · Oceanostics.jl</title><meta name="title" content="Two-dimensional turbulence · Oceanostics.jl"/><meta property="og:title" content="Two-dimensional turbulence · Oceanostics.jl"/><meta property="twitter:title" content="Two-dimensional turbulence · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox"/><label class="tocitem" for="menuitem-2"><span class="docs-label">Budget equations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tracer_equation/">Tracer equation</a></li><li><a class="tocitem" href="../../momentum_equation/">Momentum equation</a></li><li><a class="tocitem" href="../../kinetic_energy_equation/">Kinetic energy equation</a></li><li><a class="tocitem" href="../../filtered_kinetic_energy_equation/">Filtered kinetic energy equation</a></li><li><a class="tocitem" href="../../subfilter_kinetic_energy_equation/">Sub-filter kinetic energy equation</a></li><li><a class="tocitem" href="../../turbulent_kinetic_energy_equation/">Turbulent kinetic energy equation</a></li><li><a class="tocitem" href="../../tracer_variance_equation/">Tracer variance equation</a></li><li><a class="tocitem" href="../../potential_energy_equation/">Potential energy equation</a></li><li><a class="tocitem" href="../../background_potential_energy_equation/">Background potential energy equation</a></li><li><a class="tocitem" href="../../available_potential_energy_equation/">Available potential energy equation</a></li></ul></li><li><a class="tocitem" href="../../flow_diagnostics/">Flow diagnostics</a></li><li><a class="tocitem" href="../../progress_messengers/">Progress messengers</a></li><li><a class="tocitem" href="../../filters/">Spatial filters</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox" checked/><label class="tocitem" for="menuitem-6"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>Two-dimensional turbulence</a><ul class="internal"><li><a class="tocitem" href="#Model-and-simulation-setup"><span>Model and simulation setup</span></a></li><li><a class="tocitem" href="#Model-diagnostics"><span>Model diagnostics</span></a></li><li><a class="tocitem" href="#Run-the-simulation-and-process-results"><span>Run the simulation and process results</span></a></li><li><a class="tocitem" href="#Plotting"><span>Plotting</span></a></li></ul></li><li><a class="tocitem" href="../spatial_filtering/">Spatial filtering</a></li><li><a class="tocitem" href="../kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li><a class="tocitem" href="../rayleigh_taylor_instability/">Rayleigh-Taylor instability</a></li><li><a class="tocitem" href="../lock_release/">Lock release</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-7" type="checkbox"/><label class="tocitem" for="menuitem-7"><span class="docs-label">Validation</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../validation/reference_state/">Sorted reference state</a></li></ul></li><li><a class="tocitem" href="../../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Two-dimensional turbulence</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Two-dimensional turbulence</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/examples/two_dimensional_turbulence.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="two_d_turbulence_example"><a class="docs-heading-anchor" href="#two_d_turbulence_example">Two-dimensional turbulence example</a><a id="two_d_turbulence_example-1"></a><a class="docs-heading-anchor-permalink" href="#two_d_turbulence_example" title="Permalink"></a></h1><p>In this example we simulate a 2D flow initialized with random-noise velocities and a passive tracer <span>$c$</span> with a smooth sine/cosine initial condition. We then use Oceanostics to close the volume-integrated kinetic energy and tracer variance (<span>$c^2$</span>) budgets.</p><p>Before starting, make sure you have the required packages installed for this example, which can be done with</p><pre><code class="language-julia hljs">using Pkg
+pkg&quot;add Oceananigans, Oceanostics, CairoMakie&quot;</code></pre><h2 id="Model-and-simulation-setup"><a class="docs-heading-anchor" href="#Model-and-simulation-setup">Model and simulation setup</a><a id="Model-and-simulation-setup-1"></a><a class="docs-heading-anchor-permalink" href="#Model-and-simulation-setup" title="Permalink"></a></h2><p>We begin by creating a model with an isotropic diffusivity and a fourth-order centered advection scheme on a 256² grid, with one passive tracer <code>c</code>. Using a centered scheme avoids numerical dissipation, so the volume-integrated KE and <span>$c^2$</span> budgets reduce to purely dissipative balances and we can close them against <span>$\varepsilon$</span> and <span>$\chi$</span> alone.</p><pre><code class="language-julia hljs">using Oceananigans
+
+grid = RectilinearGrid(size=(256, 256), extent=(2π, 2π), topology=(Periodic, Periodic, Flat))
+
+model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
+                            advection = Centered(order=4),
+                            tracers = :c,
+                            closure = ScalarDiffusivity(ν=1e-4, κ=1e-3))</code></pre><pre><code class="nohighlight hljs">NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 256×256×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: Centered(order=4)
+├── tracers: c
+├── closure: ScalarDiffusivity{ExplicitTimeDiscretization}(ν=0.0001, κ=(c=0.001,))
+├── buoyancy: Nothing
+└── coriolis: Nothing</code></pre><p>Grid-scale white noise is not really <em>resolved</em> by the grid, so instead we build a randomized but well-resolved velocity initial condition as a sum of <code>N_blobs</code> Gaussian bumps with random centers and random amplitudes. Each bump is <span>$\sigma_b \approx 10\Delta x$</span> wide and the periodic copies of each center are summed in so the resulting field is smooth across the periodic boundary. The tracer keeps a smooth sine/cosine pattern.</p><pre><code class="language-julia hljs">using Random, Statistics
+
+u, v, w = model.velocities
+c = model.tracers.c
+
+Random.seed!(772)
+N_blobs = 32
+σ_blob  = 10 * minimum_xspacing(grid)
+xc      = grid.Lx * rand(N_blobs)
+yc      = grid.Ly * rand(N_blobs)
+amp_u   = randn(N_blobs) # random Gaussian amplitudes for u
+amp_v   = randn(N_blobs) # ... and for v</code></pre><pre><code class="nohighlight hljs">32-element Vector{Float64}:
+ -0.8353820358062429
+  1.7747312451395405
+ -1.9487671556166866
+  0.16949972192372834
+ -0.18212397359825486
+ -0.3390149109706559
+  0.5024285562453012
+ -0.7023462100880767
+ -0.6899087629358344
+ -1.7794241370329904
+  1.0409281653898634
+ -0.12951936644761403
+ -0.5538074230529054
+ -0.8782796313850649
+ -0.6095931282713188
+  0.3215956600054153
+  1.6761977141306177
+ -0.1706308193969656
+  0.8717488531798974
+  0.8020525821907217
+ -0.9533722295902304
+ -0.7776191950259158
+  1.2655708980723255
+ -1.5689986344020759
+  0.48606157251275944
+ -0.043133230163655625
+  1.0790526075733167
+  1.04042304875431
+ -0.26015686321021925
+ -0.2621007538287886
+ -1.419160151826568
+  0.431663181261639</code></pre><p>Sum of blobs and their periodic images at (dx, dy) ∈ {-Lx, 0, Lx} × {-Ly, 0, Ly}</p><pre><code class="language-julia hljs">blob_sum(x, y, amp) = sum(amp[k] * exp(-((x - xc[k] - dx)^2 + (y - yc[k] - dy)^2) / σ_blob^2)
+                          for k  in 1:N_blobs,
+                              dx in (-grid.Lx, 0, grid.Lx),
+                              dy in (-grid.Ly, 0, grid.Ly))
+
+uᵢ(x, y) = blob_sum(x, y, amp_u)
+vᵢ(x, y) = blob_sum(x, y, amp_v)
+cᵢ(x, y) = sin(2x) * cos(3y) + cos(x) * sin(2y)
+
+set!(model, u=uᵢ, v=vᵢ, c=cᵢ)
+
+u .-= mean(u)
+v .-= mean(v)</code></pre><pre><code class="nohighlight hljs">256×256×1 Field{Center, Face, Center} on RectilinearGrid on CPU
+├── grid: 256×256×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── boundary conditions: FieldBoundaryConditions
+│   └── west: Periodic, east: Periodic, south: Periodic, north: Periodic, bottom: Nothing, top: Nothing, immersed: Nothing
+└── data: 262×262×1 OffsetArray(::Array{Float64, 3}, -2:259, -2:259, 1:1) with eltype Float64 with indices -2:259×-2:259×1:1
+    └── max=0.865115, min=-1.148, mean=-3.03368e-17</code></pre><p>We use this model to create a simulation with a <code>TimeStepWizard</code> to maximize the Δt</p><pre><code class="language-julia hljs">u_max = max(maximum(abs, u), maximum(abs, v)) # peak speed magnitude (not signed max)
+Δt = 0.2 * minimum_xspacing(grid) / u_max      # Start with a conservative Δt
+simulation = Simulation(model; Δt, stop_time=80)
+
+wizard = TimeStepWizard(cfl=0.8, diffusive_cfl=0.8)
+simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))</code></pre><pre><code class="nohighlight hljs">Callback of TimeStepWizard(cfl=0.8, max_Δt=Inf, min_Δt=0.0) on IterationInterval(5)</code></pre><h2 id="Model-diagnostics"><a class="docs-heading-anchor" href="#Model-diagnostics">Model diagnostics</a><a id="Model-diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Model-diagnostics" title="Permalink"></a></h2><p>Up until now we have only used Oceananigans, but we can make use of Oceanostics for the first diagnostic we&#39;ll set-up: a progress messenger. Here we use a <code>BasicMessenger</code>, which, as the name suggests, displays only basic information about the simulation</p><pre><code class="language-julia hljs">using Oceanostics
+
+progress = ProgressMessengers.BasicMessenger()
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(200))</code></pre><pre><code class="nohighlight hljs">Callback of Oceanostics.ProgressMessengers.BasicMessenger{Oceanostics.ProgressMessengers.AbstractProgressMessenger} on IterationInterval(200)</code></pre><p>We define the visualization fields — speed, vorticity, kinetic energy <code>KE</code> — and the dissipation rates <code>ε</code> and <code>χ</code>, which we will use to close KE and tracer variance budgets.</p><pre><code class="language-julia hljs">using Oceananigans.AbstractOperations: @at
+
+speed     = @at (Center, Center, Center) √(u^2 + v^2)
+vorticity = ∂x(v) - ∂y(u)
+KE        = KineticEnergyEquation.KineticEnergy(model)
+ε         = KineticEnergyEquation.DissipationRate(model)
+χ         = TracerVarianceEquation.TracerVarianceDissipationRate(model, :c)</code></pre><pre><code class="nohighlight hljs">TracerVarianceDissipationRate KernelFunctionOperation at (Center, Center, Center)
+├── grid: 256×256×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;ScalarDiffusivity&quot;, &quot;Nothing&quot;, &quot;Val&quot;, &quot;Field&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)
+└── computes: tracer variance dissipation rate  χ = 2 ∂ⱼc·Fⱼ</code></pre><p>Note that <code>KineticEnergyEquation.DissipationRate</code> (<code>ε</code>) and <code>TracerVarianceEquation.TracerVarianceDissipationRate</code> (<code>χ</code>) –- which can also be called as <code>KineticEnergyDissipationRate</code> and <code>TracerVarianceDissipationRate</code> –- are implemented using the same kernels as Oceananigans (and therefore use the same interpolations and discretizations).</p><p>To close the budgets we also define the relevant volume integrals as scalar outputs. For a 2D periodic domain with no forcing or buoyancy, advection and pressure-redistribution terms volume-integrate to zero due to incompressibility, so the volume-integrated KE and <span>$c^2$</span> evolution equations reduce to</p><p class="math-container">\[\frac{d}{dt} \int \mathrm{KE}\, dV = -\int \varepsilon\, dV,\qquad
+\frac{d}{dt} \int c^2\, dV = -\int \chi\, dV.\]</p><p>A caveat: a discretized version of the continuum KE equation (such as the one above) is not guaranteed to exactly conserve energy at the <em>discrete</em> level. To get strict discrete conservation of energy one would have to derive a discrete KE equation directly from the discrete momentum equations — using both the current and previous time-step velocities. We are not doing that here: we compute <span>$\varepsilon$</span> from the current model state and finite-difference snapshots of <span>$\int \mathrm{KE}\, dV$</span> independently. The two relations are consistent in the continuum limit but only approximately at the discrete level for a well-resolved flow, so we expect the KE budget to close only approximately.</p><pre><code class="language-julia hljs">∫KE = Integral(KE)
+∫c² = Integral(c^2)
+∫ε  = Integral(ε)
+∫χ  = Integral(χ)</code></pre><pre><code class="nohighlight hljs">Integral of BinaryOperation at (Center, Center, Center) over dims (1, 2, 3)
+└── operand: BinaryOperation at (Center, Center, Center)
+    └── grid: 256×256×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo</code></pre><p>We use two NetCDF writers. A <em>visualization</em> writer outputs the 2D snapshot fields on a plain <code>TimeInterval(0.6)</code>. A <em>budget</em> writer outputs only the (cheap) integrated scalars on <code>ConsecutiveIterations(TimeInterval(0.6))</code> — i.e. a second sample one model step after each scheduled time — which lets us finite-difference the integrated quantities across that single step to estimate <span>$d/dt$</span> without time-integration accumulators. Separating the two avoids writing the heavy 2D fields twice per output time.</p><pre><code class="language-julia hljs">using NCDatasets
+filename = &quot;two_dimensional_turbulence&quot;
+
+simulation.output_writers[:nc] = NetCDFWriter(model, (; speed, vorticity, KE, c),
+                                              filename = joinpath(@__DIR__, filename),
+                                              schedule = TimeInterval(0.6),
+                                              overwrite_existing = true)
+
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫KE, ∫c², ∫ε, ∫χ),
+                                                  filename = joinpath(@__DIR__, filename * &quot;_budget&quot;),
+                                                  schedule = ConsecutiveIterations(TimeInterval(0.6)),
+                                                  overwrite_existing = true)</code></pre><pre><code class="nohighlight hljs">NetCDFWriter scheduled on ConsecutiveIterations(TimeInterval(600 ms), 1):
+├── filepath: two_dimensional_turbulence_budget.nc
+├── dimensions: time(0), y_afa(256), x_faa(256), x_caa(256), y_aca(256)
+├── 4 outputs: (∫ε, ∫c², ∫KE, ∫χ)
+├── array_type: Array{Float32}
+├── file_splitting: NoFileSplitting
+└── file size: 34.4 KiB</code></pre><h2 id="Run-the-simulation-and-process-results"><a class="docs-heading-anchor" href="#Run-the-simulation-and-process-results">Run the simulation and process results</a><a id="Run-the-simulation-and-process-results-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-simulation-and-process-results" title="Permalink"></a></h2><p>To run the simulation:</p><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre><code class="nohighlight hljs">[ Info: Initializing simulation...
+[ Info: [[93m000.00%[39m] time = [93m0 seconds[39m,  Δt = [93m3.069 ms[39m,  walltime = [93m1.129 minutes[39m,  advective CFL = [93m0.25[39m,  diffusive CFL = [93m0.0051[39m
+[ Info:     ... simulation initialization complete (7.825 seconds)
+[ Info: Executing initial time step...
+[ Info:     ... initial time step complete (2.747 seconds).
+[ Info: [[93m002.32%[39m] time = [93m1.860 seconds[39m,  Δt = [93m12.110 ms[39m,  walltime = [93m1.386 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.02[39m
+[ Info: [[93m005.02%[39m] time = [93m4.013 seconds[39m,  Δt = [93m10.075 ms[39m,  walltime = [93m1.507 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.017[39m
+[ Info: [[93m007.93%[39m] time = [93m6.343 seconds[39m,  Δt = [93m12.454 ms[39m,  walltime = [93m1.635 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.021[39m
+[ Info: [[93m011.18%[39m] time = [93m8.943 seconds[39m,  Δt = [93m14.071 ms[39m,  walltime = [93m1.762 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.023[39m
+[ Info: [[93m014.96%[39m] time = [93m11.971 seconds[39m,  Δt = [93m15.045 ms[39m,  walltime = [93m1.904 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.025[39m
+[ Info: [[93m018.52%[39m] time = [93m14.814 seconds[39m,  Δt = [93m14.067 ms[39m,  walltime = [93m2.050 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.023[39m
+[ Info: [[93m022.21%[39m] time = [93m17.764 seconds[39m,  Δt = [93m15.116 ms[39m,  walltime = [93m2.195 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.025[39m
+[ Info: [[93m025.99%[39m] time = [93m20.793 seconds[39m,  Δt = [93m14.938 ms[39m,  walltime = [93m2.340 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.025[39m
+[ Info: [[93m029.52%[39m] time = [93m23.617 seconds[39m,  Δt = [93m13.491 ms[39m,  walltime = [93m2.482 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.022[39m
+[ Info: [[93m032.86%[39m] time = [93m26.285 seconds[39m,  Δt = [93m13.473 ms[39m,  walltime = [93m2.616 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.022[39m
+[ Info: [[93m036.13%[39m] time = [93m28.906 seconds[39m,  Δt = [93m13.213 ms[39m,  walltime = [93m2.759 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.022[39m
+[ Info: [[93m039.53%[39m] time = [93m31.626 seconds[39m,  Δt = [93m14.253 ms[39m,  walltime = [93m2.896 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.024[39m
+[ Info: [[93m043.10%[39m] time = [93m34.478 seconds[39m,  Δt = [93m14.727 ms[39m,  walltime = [93m3.032 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.024[39m
+[ Info: [[93m046.85%[39m] time = [93m37.478 seconds[39m,  Δt = [93m15.403 ms[39m,  walltime = [93m3.161 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.026[39m
+[ Info: [[93m050.58%[39m] time = [93m40.466 seconds[39m,  Δt = [93m14.727 ms[39m,  walltime = [93m3.296 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.024[39m
+[ Info: [[93m054.19%[39m] time = [93m43.349 seconds[39m,  Δt = [93m14.895 ms[39m,  walltime = [93m3.436 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.025[39m
+[ Info: [[93m057.92%[39m] time = [93m46.336 seconds[39m,  Δt = [93m15.077 ms[39m,  walltime = [93m3.574 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.025[39m
+[ Info: [[93m061.66%[39m] time = [93m49.330 seconds[39m,  Δt = [93m14.308 ms[39m,  walltime = [93m3.715 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.024[39m
+[ Info: [[93m065.04%[39m] time = [93m52.031 seconds[39m,  Δt = [93m13.446 ms[39m,  walltime = [93m3.835 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.022[39m
+[ Info: [[93m068.28%[39m] time = [93m54.625 seconds[39m,  Δt = [93m12.375 ms[39m,  walltime = [93m3.961 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.021[39m
+[ Info: [[93m071.18%[39m] time = [93m56.947 seconds[39m,  Δt = [93m11.736 ms[39m,  walltime = [93m4.068 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.019[39m
+[ Info: [[93m074.25%[39m] time = [93m59.398 seconds[39m,  Δt = [93m13.889 ms[39m,  walltime = [93m4.184 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.023[39m
+[ Info: [[93m078.16%[39m] time = [93m1.042 minutes[39m,  Δt = [93m16.072 ms[39m,  walltime = [93m4.322 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.027[39m
+[ Info: [[93m082.02%[39m] time = [93m1.094 minutes[39m,  Δt = [93m15.622 ms[39m,  walltime = [93m4.451 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.026[39m
+[ Info: [[93m086.05%[39m] time = [93m1.147 minutes[39m,  Δt = [93m17.709 ms[39m,  walltime = [93m4.589 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.029[39m
+[ Info: [[93m090.47%[39m] time = [93m1.206 minutes[39m,  Δt = [93m17.994 ms[39m,  walltime = [93m4.729 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.03[39m
+[ Info: [[93m094.50%[39m] time = [93m1.260 minutes[39m,  Δt = [93m15.147 ms[39m,  walltime = [93m4.861 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.025[39m
+[ Info: [[93m098.31%[39m] time = [93m1.311 minutes[39m,  Δt = [93m16.116 ms[39m,  walltime = [93m5.006 minutes[39m,  advective CFL = [93m0.8[39m,  diffusive CFL = [93m0.027[39m
+[ Info: Simulation is stopping after running for 3.970 minutes.
+[ Info: Simulation time 1.333 minutes equals or exceeds stop time 1.333 minutes.
+</code></pre><p>Read visualization snapshots from the <code>:nc</code> writer.</p><pre><code class="language-julia hljs">snap_filepath = simulation.output_writers[:nc].filepath
+speed_t       = FieldTimeSeries(snap_filepath, &quot;speed&quot;)
+vorticity_t   = FieldTimeSeries(snap_filepath, &quot;vorticity&quot;)
+KE_t          = FieldTimeSeries(snap_filepath, &quot;KE&quot;)
+c_t           = FieldTimeSeries(snap_filepath, &quot;c&quot;)
+
+ds = NCDataset(snap_filepath)
+times = ds[&quot;time&quot;][:]
+close(ds)</code></pre><pre><code class="nohighlight hljs">closed Dataset</code></pre><p>Read the integrated-quantity scalars from the <code>:budget</code> writer. These come in consecutive- iteration pairs: <code>(t₀, t₀+Δt_model, t₀+0.6, t₀+0.6+Δt_model, …)</code>. Pair <code>k</code> has indices <code>(2k-1, 2k)</code>; we obtain <span>$d/dt$</span> from a one-step finite difference inside each pair.</p><pre><code class="language-julia hljs">bud_filepath = simulation.output_writers[:budget].filepath
+ds_bud = NCDataset(bud_filepath)
+times_bud = ds_bud[&quot;time&quot;][:]
+∫KE_t = ds_bud[&quot;∫KE&quot;][:]
+∫c²_t = ds_bud[&quot;∫c²&quot;][:]
+∫ε_t  = ds_bud[&quot;∫ε&quot;][:]
+∫χ_t  = ds_bud[&quot;∫χ&quot;][:]
+close(ds_bud)
+
+idx1     = 1:2:length(times_bud) - 1   # primary snapshots
+idx2     = 2:2:length(times_bud)       # consecutive-iteration snapshots
+Δt_pair  = times_bud[idx2] .- times_bud[idx1]
+t_pair   = @. 0.5 * (times_bud[idx1] + times_bud[idx2])
+
+dKEdt    = (∫KE_t[idx2] .- ∫KE_t[idx1]) ./ Δt_pair
+dc²dt    = (∫c²_t[idx2] .- ∫c²_t[idx1]) ./ Δt_pair</code></pre><pre><code class="nohighlight hljs">134-element Vector{Float64}:
+ -0.354898904740625
+ -0.4617221626657696
+ -0.7438569497464611
+ -1.0578007294339566
+ -1.2609977148921634
+ -1.3585533075002856
+ -1.4201250020239262
+ -1.4699955056855198
+ -1.4516182558510475
+ -1.3581433652232064
+ -1.2836991418275059
+ -1.2355738063093178
+ -1.1898117849028103
+ -1.1372122381525758
+ -1.0592180625333425
+ -0.9895235779651956
+ -0.9213747681889354
+ -0.8735024498050783
+ -0.8394253640270962
+ -0.7939195861682742
+ -0.744055210193945
+ -0.6894419396148946
+ -0.6393549372954381
+ -0.5999617806687535
+ -0.5706662899593563
+ -0.5484875970459667
+ -0.5187997542396892
+ -0.4822714455397606
+ -0.4457976343700646
+ -0.4065527673349562
+ -0.3666123329066638
+ -0.33119501625382214
+ -0.30678091615569547
+ -0.2915656312766562
+ -0.27886288229964645
+ -0.2626728691964791
+ -0.24041384498606952
+ -0.21664639511582168
+ -0.19652158816756973
+ -0.18016037167648213
+ -0.16609919430161296
+ -0.15427198764935943
+ -0.144363404585659
+ -0.13580903644887368
+ -0.12919699438931506
+ -0.12393099800213672
+ -0.11864512682804577
+ -0.11279611050118118
+ -0.10712671488704872
+ -0.10198828149435699
+ -0.09660965084614032
+ -0.0900091505890241
+ -0.08353888823313815
+ -0.07958988111727211
+ -0.07703590782619239
+ -0.07493045879774002
+ -0.07334438503448155
+ -0.07221851699465681
+ -0.07148918829720755
+ -0.07093888044594196
+ -0.06984522647474073
+ -0.06792704138921708
+ -0.0653341908625168
+ -0.0624540293248163
+ -0.05988928125806489
+ -0.0579043296722322
+ -0.05639088314355271
+ -0.055040472621028964
+ -0.05353162129417434
+ -0.05167864101581455
+ -0.049411890422125605
+ -0.046637766874775104
+ -0.04326584411215406
+ -0.039173294840298425
+ -0.03452895491994872
+ -0.03002402073868589
+ -0.026331259959617083
+ -0.02359957209244815
+ -0.02150077480992402
+ -0.019760082177777607
+ -0.018343818871953
+ -0.017254385491730553
+ -0.01639650390078959
+ -0.01569425838662303
+ -0.015151648649957538
+ -0.014740319453794337
+ -0.014342323847611077
+ -0.013928180144407113
+ -0.013586681622114148
+ -0.013308391252338883
+ -0.013014802016437059
+ -0.012675313195415617
+ -0.012259968641030555
+ -0.011721688535217585
+ -0.011099702377132736
+ -0.010553459726494994
+ -0.010184610844933672
+ -0.009977607176177298
+ -0.009851446439147813
+ -0.009618131184010174
+ -0.009202026341671226
+ -0.00875565489018925
+ -0.008265981026591823
+ -0.007588848750184786
+ -0.006836494402118819
+ -0.006218603534642127
+ -0.005732396120243326
+ -0.005308600069842405
+ -0.004954198936180989
+ -0.004665322257956904
+ -0.004411144740776093
+ -0.004183933853420453
+ -0.004000287760875495
+ -0.00386198990540654
+ -0.003747540487224247
+ -0.0036207613581971986
+ -0.0034534570275028
+ -0.003291210211106548
+ -0.0031733576795138457
+ -0.00306944630817225
+ -0.0029545865756768876
+ -0.0028358352845847586
+ -0.002727341788673868
+ -0.0026481969017496244
+ -0.0026025481816865305
+ -0.002569251363927358
+ -0.0025276220686900708
+ -0.002476650844014095
+ -0.0024325344013906344
+ -0.002394865684376498
+ -0.0023563589462217097
+ -0.0023165350455714986
+ -0.0022798143275960005
+ -0.002247612257518094</code></pre><p>Source terms at the pair midpoint</p><pre><code class="language-julia hljs">ε_pair   = @. 0.5 * (∫ε_t[idx1] + ∫ε_t[idx2])
+χ_pair   = @. 0.5 * (∫χ_t[idx1] + ∫χ_t[idx2])</code></pre><pre><code class="nohighlight hljs">134-element Vector{Float64}:
+ 0.3551666736602783
+ 0.457741379737854
+ 0.7361592054367065
+ 1.0465004444122314
+ 1.2491860389709473
+ 1.3469089269638062
+ 1.4085922241210938
+ 1.4566887617111206
+ 1.4389774799346924
+ 1.3465545177459717
+ 1.2738051414489746
+ 1.2267212867736816
+ 1.1808910369873047
+ 1.1296007633209229
+ 1.0526365041732788
+ 0.9835692048072815
+ 0.9159939289093018
+ 0.8684498071670532
+ 0.8345208168029785
+ 0.7893809080123901
+ 0.7400428056716919
+ 0.6859161853790283
+ 0.6362783908843994
+ 0.597054123878479
+ 0.567639946937561
+ 0.5455952882766724
+ 0.516348123550415
+ 0.4801141023635864
+ 0.4440050721168518
+ 0.40512192249298096
+ 0.3654344379901886
+ 0.33007824420928955
+ 0.30556297302246094
+ 0.290302038192749
+ 0.2776789665222168
+ 0.2616632580757141
+ 0.2395484745502472
+ 0.21584497392177582
+ 0.19582399725914001
+ 0.17952214181423187
+ 0.16549643874168396
+ 0.15367859601974487
+ 0.14377151429653168
+ 0.13522741198539734
+ 0.12865029275417328
+ 0.12341762334108353
+ 0.11820244789123535
+ 0.11245965957641602
+ 0.10681137442588806
+ 0.10166363418102264
+ 0.09623780846595764
+ 0.08964651823043823
+ 0.0831780731678009
+ 0.07920265197753906
+ 0.07669048011302948
+ 0.07464471459388733
+ 0.07306922972202301
+ 0.07192672789096832
+ 0.07118043303489685
+ 0.07064306735992432
+ 0.06956946849822998
+ 0.06766656786203384
+ 0.06508691608905792
+ 0.062228962779045105
+ 0.059678804129362106
+ 0.057705238461494446
+ 0.05620795488357544
+ 0.05485861003398895
+ 0.05334531515836716
+ 0.05148863419890404
+ 0.04921581596136093
+ 0.04643690586090088
+ 0.043071113526821136
+ 0.03900181129574776
+ 0.034388430416584015
+ 0.02990766242146492
+ 0.026226218789815903
+ 0.023502299562096596
+ 0.021410658955574036
+ 0.01967710442841053
+ 0.01826929673552513
+ 0.01718449965119362
+ 0.01633187010884285
+ 0.015635492280125618
+ 0.015097251161932945
+ 0.01468813419342041
+ 0.014295333996415138
+ 0.013889546506106853
+ 0.013554263859987259
+ 0.013278258964419365
+ 0.012981124222278595
+ 0.012637646868824959
+ 0.012222092598676682
+ 0.01168467290699482
+ 0.011064903810620308
+ 0.010519633069634438
+ 0.010149935260415077
+ 0.009943220764398575
+ 0.009814977645874023
+ 0.009583036415278912
+ 0.009172037243843079
+ 0.008727865293622017
+ 0.00824051070958376
+ 0.0075669921934604645
+ 0.006818146910518408
+ 0.006202648393809795
+ 0.005719003267586231
+ 0.005297940224409103
+ 0.004944406449794769
+ 0.004656272009015083
+ 0.004402238875627518
+ 0.004175539128482342
+ 0.003992681857198477
+ 0.003854493610560894
+ 0.0037404231261461973
+ 0.0036139206495136023
+ 0.0034471494145691395
+ 0.003285316051915288
+ 0.003166991751641035
+ 0.003062817268073559
+ 0.0029480918310582638
+ 0.0028295337688177824
+ 0.0027211573906242847
+ 0.0026415535248816013
+ 0.0025954903103411198
+ 0.002562489826232195
+ 0.002521076938137412
+ 0.002470807870849967
+ 0.002426826860755682
+ 0.002389600034803152
+ 0.0023514307104051113
+ 0.0023114709183573723
+ 0.00227424968034029
+ 0.0022417246364057064</code></pre><p>Budget residuals in sum-to-zero form: the negative tendency plus the source term. Plotting every curve with these signs makes them add up to the residual, which stays near zero.</p><pre><code class="language-julia hljs">KE_resid = @. -dKEdt - ε_pair
+c²_resid = @. -dc²dt - χ_pair
+</code></pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><p>We use Makie.jl, which has recipes for Oceananigans <code>Field</code>s.</p><pre><code class="language-julia hljs">using CairoMakie
+
+set_theme!(Theme(fontsize = 20))
+fig = Figure()
+
+axis_kwargs = (aspect = DataAspect(),
+               height = 250, width = 250,
+               xticksvisible = false, yticksvisible = false,
+               xticklabelsvisible = false, yticklabelsvisible = false)
+
+ax_speed = Axis(fig[2, 1]; title = &quot;Speed&quot;,          axis_kwargs...)
+ax_ω     = Axis(fig[2, 2]; title = &quot;Vorticity&quot;,      axis_kwargs...)
+ax_KE    = Axis(fig[2, 3]; title = &quot;Kinetic energy&quot;, axis_kwargs...)
+ax_c     = Axis(fig[2, 4]; title = &quot;Tracer c&quot;,       axis_kwargs...)</code></pre><pre><code class="nohighlight hljs">Makie.Axis with 0 plots:
+</code></pre><p>Each frame is one visualization snapshot.</p><pre><code class="language-julia hljs">n = Observable(1)
+
+speedₙ = @lift speed_t[$n]
+ωₙ     = @lift vorticity_t[$n]
+KEₙ    = @lift KE_t[$n]
+cₙ     = @lift c_t[$n]
+
+hm_speed = heatmap!(ax_speed, speedₙ, colormap = :magma, colorrange=(0, 1.5))
+Colorbar(fig[3, 1], hm_speed; vertical=false, height=8, ticklabelsize=12)
+
+hm_ω = heatmap!(ax_ω, ωₙ, colormap = :balance, colorrange=(-10, 10))
+Colorbar(fig[3, 2], hm_ω; vertical=false, height=8, ticklabelsize=12)
+
+hm_KE = heatmap!(ax_KE, KEₙ, colormap = :plasma, colorrange=(0, 0.5))
+Colorbar(fig[3, 3], hm_KE; vertical=false, height=8, ticklabelsize=12)
+
+hm_c = heatmap!(ax_c, cₙ, colormap = :balance, colorrange=(-1.5, 1.5))
+Colorbar(fig[3, 4], hm_c; vertical=false, height=8, ticklabelsize=12)</code></pre><pre><code class="nohighlight hljs">Makie.Colorbar()</code></pre><p>Volume-integrated KE budget: the negative tendency <code>-d(∫KE)/dt</code> and <code>-∫ε dV</code>, which sum to the residual.</p><pre><code class="language-julia hljs">budget_kwargs = (height = 180, width = 1080)
+
+ax_KEbud = Axis(fig[4, 1:4]; title = &quot;Volume-integrated KE budget&quot;, budget_kwargs...)
+lines!(ax_KEbud, t_pair, -dKEdt,  label = &quot;-d(∫KE)/dt&quot;)
+lines!(ax_KEbud, t_pair, -ε_pair, label = &quot;-∫ε dV&quot;)
+lines!(ax_KEbud, t_pair, KE_resid, label = &quot;residual&quot;, color = :black, linestyle = :dash)
+axislegend(ax_KEbud; labelsize = 10, position = :rb)</code></pre><pre><code class="nohighlight hljs">Makie.Legend()</code></pre><p>Volume-integrated c² budget: the negative tendency <code>-d(∫c²)/dt</code> and <code>-∫χ dV</code>, which sum to the residual.</p><pre><code class="language-julia hljs">ax_c²bud = Axis(fig[5, 1:4]; title = &quot;Volume-integrated ∫c² budget&quot;, xlabel = &quot;Time&quot;, budget_kwargs...)
+lines!(ax_c²bud, t_pair, -dc²dt,  label = &quot;-d(∫c²)/dt&quot;)
+lines!(ax_c²bud, t_pair, -χ_pair, label = &quot;-∫χ dV&quot;)
+lines!(ax_c²bud, t_pair, c²_resid, label = &quot;residual&quot;, color = :black, linestyle = :dash)
+axislegend(ax_c²bud; labelsize = 10, position = :rb)</code></pre><pre><code class="nohighlight hljs">Makie.Legend()</code></pre><p>Time marker on both budget panels (using the snapshot time shown in the heatmaps)</p><pre><code class="language-julia hljs">tₙ = @lift times[$n]
+vlines!(ax_KEbud, tₙ, color = :black, linestyle = :dot)
+vlines!(ax_c²bud, tₙ, color = :black, linestyle = :dot)
+
+title = @lift &quot;Time = &quot; * string(round(times[$n], digits=2))
+Label(fig[1, 1:4], title, fontsize=24, tellwidth=false);</code></pre><p>Adjust the total figure size based on our panels and record a movie.</p><pre><code class="language-julia hljs">resize_to_layout!(fig)
+@info &quot;Animating...&quot;
+record(fig, filename * &quot;.mp4&quot;, 1:length(times), framerate=24) do i
+    n[] = i
+end</code></pre><pre><code class="nohighlight hljs">[ Info: Animating...
+</code></pre><p><video src="../two_dimensional_turbulence.mp4" controls="true" title><a href="../two_dimensional_turbulence.mp4"></a></video></p><p>The two bottom panels show the volume-integrated KE and <span>$c^2$</span> budgets. Each plots the negative tendency <span>$-d/dt$</span> of the integrated quantity alongside <span>$-\int \varepsilon\, dV$</span> (respectively <span>$-\int \chi\, dV$</span>), the only source term that survives volume-integration for a periodic incompressible flow with a centered advection scheme. With the tendency negated, the two curves add up to the residual, which stays near zero.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../filters/">« Spatial filters</a><a class="docs-footer-nextpage" href="../spatial_filtering/">Spatial filtering »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Friday 31 July 2026 13:56">Friday 31 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
