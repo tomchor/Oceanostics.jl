@@ -152,8 +152,10 @@ Fields:
 
 This kernel reduces *exactly* to [`GaussianFilterKernel`](@ref) on a uniform
 grid: there `Δₘ` is constant (cancels in the normalization) and `xₘ - xᵢ = Δm·Δ`,
-matching the precomputed cell-offset weights. It has terminal (indexable input)
-and recursive (function input) methods, like the uniform kernel.
+matching the precomputed cell-offset weights. That holds for every boundary
+policy, since the taps past a `Bounded` wall continue at the boundary cell's
+spacing. It has terminal (indexable input) and recursive (function input)
+methods, like the uniform kernel.
 """
 struct StretchedGaussianFilterKernel{D, S, L} <: AbstractGaussianFilterKernel{D}
     σ::S
@@ -180,10 +182,15 @@ Adapt.adapt_structure(to, k::StretchedGaussianFilterKernel{D}) where {D} =
 #     a single ±`period` correction is exact (even on a stretched periodic grid,
 #     where node positions tile with the period). The width at the wrapped index
 #     equals the width of the true image cell.
-#   • Bounded (shrink/edge/constant) — the clamped boundary cell's coordinate and
-#     width. For `:shrink` this is irrelevant (out-of-range offsets carry count
-#     0); for `:edge`/constant padding it places the contributing value at the
-#     boundary, matching where that value is read from.
+#   • Bounded (shrink/edge/constant) — past the wall the stencil continues with
+#     cells as wide as the boundary cell `mr`: offset `m` sits `m - mr` of those
+#     widths from it. On a uniform grid this is where the cell-offset weights of
+#     `GaussianFilterKernel` place it, so under `:edge` and constant padding each
+#     padded value is weighted by its own distance on both kinds of direction.
+#     (Placing every padded tap at the boundary cell instead would give each one
+#     the boundary cell's full weight however far past the wall it lies, so the
+#     result near a wall would keep changing as `N` grows.) For `:shrink` the
+#     position is irrelevant, since out-of-range offsets carry count 0.
 # Unwrap a `SizedBoundary` first, so a wrapped `PeriodicBoundary` still reaches the periodic
 # method below rather than falling through to the generic clamping one.
 @inline x_node_geometry(sb::SizedBoundary, grid, loc, i, j, k, m, N, L) = x_node_geometry(sb.policy, grid, loc, i, j, k, m, N, L)
@@ -196,7 +203,8 @@ Adapt.adapt_structure(to, k::StretchedGaussianFilterKernel{D}) where {D} =
 end
 @inline function x_node_geometry(::AbstractBoundaryPolicy, grid, loc, i, j, k, m, N, L)
     mr = clamp(m, 1, N)
-    return xnode(mr, j, k, grid, loc...), xspacing(mr, j, k, grid, loc...)
+    Δx = xspacing(mr, j, k, grid, loc...)
+    return xnode(mr, j, k, grid, loc...) + (m - mr) * Δx, Δx
 end
 @inline function y_node_geometry(::PeriodicBoundary, grid, loc, i, j, k, m, N, L)
     mr = wrap_periodic_index(m, N)
@@ -204,7 +212,8 @@ end
 end
 @inline function y_node_geometry(::AbstractBoundaryPolicy, grid, loc, i, j, k, m, N, L)
     mr = clamp(m, 1, N)
-    return ynode(i, mr, k, grid, loc...), yspacing(i, mr, k, grid, loc...)
+    Δy = yspacing(i, mr, k, grid, loc...)
+    return ynode(i, mr, k, grid, loc...) + (m - mr) * Δy, Δy
 end
 @inline function z_node_geometry(::PeriodicBoundary, grid, loc, i, j, k, m, N, L)
     mr = wrap_periodic_index(m, N)
@@ -212,7 +221,8 @@ end
 end
 @inline function z_node_geometry(::AbstractBoundaryPolicy, grid, loc, i, j, k, m, N, L)
     mr = clamp(m, 1, N)
-    return znode(i, j, mr, grid, loc...), zspacing(i, j, mr, grid, loc...)
+    Δz = zspacing(i, j, mr, grid, loc...)
+    return znode(i, j, mr, grid, loc...) + (m - mr) * Δz, Δz
 end
 
 #+++ Terminal methods (indexable input).
@@ -421,10 +431,12 @@ the implementation per direction so the regular-grid case keeps its original spe
     coordinates and widths (`Δₘ · exp(-(xₘ - xᵢ)² / 2σ²)`). The cell-width factor `Δₘ` is the
     quadrature weight of the continuous convolution; it stops the average from being biased toward
     finely resolved regions and keeps constants (and, to quadrature accuracy, linear fields)
-    preserved. The two paths agree exactly where they overlap (a uniform direction has
-    `xₘ - xᵢ = Δm·Δ` and constant `Δₘ`). Directions are decided independently, so a grid that is
-    uniform in `x` but stretched in `z` uses the fast path for `x` and the node-distance path for
-    `z`.
+    preserved. Past a `Bounded` wall the stencil continues with cells as wide as the boundary
+    cell, so `:edge` and constant padding weight each padded value by its distance from the
+    current cell. The two paths agree exactly where they overlap (a uniform direction has
+    `xₘ - xᵢ = Δm·Δ` and constant `Δₘ`), for every boundary policy. Directions are decided
+    independently, so a grid that is uniform in `x` but stretched in `z` uses the fast path for `x`
+    and the node-distance path for `z`.
 
 `N` is the **total number of grid points used by the filter stencil** along each filtered
 direction — i.e. how many cells contribute to a single filtered output value. `N` must be an
