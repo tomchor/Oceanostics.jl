@@ -23,6 +23,13 @@ random_stratified_b(x, y, z) = 1e-2 * z + 1e-3 * randn()
 # buoyancy, borrowed through `ProfileLookup` so the tests can build the same `z✶ˡ` by hand.
 shared_lookup(model) = ProfileLookup(reference_height(model, method=VerticalSort()))
 
+# Filters that are neither a `BoxFilter` nor a `GaussianFilter`: three-point means along z and along x,
+# written as plain kernels, which the diagnostics can only recognize by trying them on a probe field.
+@inline z_mean(i, j, k, grid, ψ) = @inbounds (ψ[i, j, k-1] + ψ[i, j, k] + ψ[i, j, k+1]) / 3
+@inline x_mean(i, j, k, grid, ψ) = @inbounds (ψ[i-1, j, k] + ψ[i, j, k] + ψ[i+1, j, k]) / 3
+z_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(z_mean, ψ.grid, ψ)
+x_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(x_mean, ψ.grid, ψ)
+
 #+++ Test functions
 # eₐˡ = eₐ(b̄, z): the local APE kernel evaluated on the reference height of the filtered buoyancy,
 # looked up in the shared profile. Built by hand from `AvailablePotentialEnergy` on that `z✶ˡ`.
@@ -284,6 +291,19 @@ function test_filtered_ape_rejects_vertical_filters(grid, filt, vertical_filters
                        FilteredAvailablePotentialEnergyDissipationRate, FilteredAvailablePotentialToKineticEnergyConversion),
         dims in ((1, 2, 3), (3,))
         @test_throws "acts in the horizontal" diagnostic(model; σ=0.1, dims)
+    end
+
+    # A filter of another kind is tried on a probe field wherever the diagnostic is handed the filter
+    # itself: the mean along z is refused, and the mean along x is accepted. A prebuilt `z✶ˡ` or `upsilon`
+    # carries no filter to try, so those paths recognize only `BoxFilter` and `GaussianFilter`.
+    for diagnostic in (FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDisplacementPotential,
+                       FilteredAvailablePotentialEnergyDissipationRate, AvailablePotentialEnergyCrossScaleFlux,
+                       FilteredAvailablePotentialToKineticEnergyConversion)
+        @test_throws "acts in the horizontal" diagnostic(model, z_mean_filter; method=lookup)
+        @test diagnostic(model, x_mean_filter; method=lookup) isa diagnostic
+    end
+    for diagnostic in (FilteredAvailablePotentialEnergyDissipationRate, AvailablePotentialEnergyCrossScaleFlux)
+        @test_throws "acts in the horizontal" diagnostic(model, z_mean_filter, z✶ˡ)
     end
     return nothing
 end

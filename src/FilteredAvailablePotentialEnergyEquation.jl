@@ -31,22 +31,32 @@ using ..AvailablePotentialEnergyEquation: AvailablePotentialEnergy, AvailablePot
                                           AvailablePotentialEnergyDissipationRate, local_ape_ccc, upsilon_ccc,
                                           validate_reference_height_grid
 # `GaussianFilter` builds the convenience methods' filter; `BoxFilter` is imported only so its docstring
-# `@ref` resolves in-module; `filtered_dims` reads which way a filter cuts.
-using ..SpatialFilters: GaussianFilter, BoxFilter, filtered_dims
+# `@ref` resolves in-module; `filtered_dims` and `mixes_vertical_levels` tell which way a filter cuts.
+using ..SpatialFilters: GaussianFilter, BoxFilter, filtered_dims, mixes_vertical_levels
 using ..FlowDiagnostics: validate_dims, subfilter_covariance, to_center
 
 #+++ Horizontal filters only
 # With a filter that has a vertical component the current implementation cannot guarantee a non-negative
 # APE (`test_subfilter_ape_resting_fluid` shows a case), so every filtered and subfilter APE diagnostic
-# rejects such a filter. `filtered_dims` reads the directions off the operation the filter builds, so the
-# check runs on `filter(ψ)` before any `Field` computes it. It recognizes `BoxFilter` and `GaussianFilter`
-# however they are wrapped; a filter of another kind cannot be inspected and passes unchecked.
+# rejects such a filter, before any `Field` computes it. Two checks share the error. The first walks the
+# operations a filter built (`filtered_dims`): it names the directions of a `BoxFilter` or `GaussianFilter`
+# exactly and computes nothing, and it is the only check available for a prebuilt `z✶ˡ` or `upsilon`,
+# which carry those operations but not the filter. The second tries the filter itself on a probe field
+# (`mixes_vertical_levels`), which recognizes a filter of any kind.
+throw_vertical_filter_error(diagnostic, what_it_does) =
+    throw(ArgumentError("`$diagnostic` takes only a filter that acts in the horizontal, but got one that \
+                         $what_it_does. With such a filter the current implementation cannot guarantee a \
+                         non-negative APE. Filter along x and y only, e.g. with `dims = (1, 2)`."))
+
 function validate_filter_is_horizontal(diagnostic, filtered)
     dims = filtered_dims(filtered)
-    3 in dims && throw(ArgumentError("`$diagnostic` takes only a filter that acts in the horizontal, but got one that \
-                                      averages along z (it filters dims $dims). With such a filter the current \
-                                      implementation cannot guarantee a non-negative APE. Filter along x and y only, \
-                                      e.g. with `dims = (1, 2)`."))
+    3 in dims && throw_vertical_filter_error(diagnostic, "averages along z (it filters dims $dims)")
+    return nothing
+end
+
+function validate_filter_is_horizontal(diagnostic, filter, grid)
+    mixes_vertical_levels(filter, grid) &&
+        throw_vertical_filter_error(diagnostic, "mixes values from different vertical levels")
     return nothing
 end
 #---
@@ -86,6 +96,7 @@ function filtered_buoyancy_and_lookup(diagnostic, model, filter, method, geopote
     b = buoyancy_field(model, model.buoyancy, geopotential_height)
     filtered_b = filter(b)
     validate_filter_is_horizontal(diagnostic, filtered_b)
+    validate_filter_is_horizontal(diagnostic, filter, model.grid)
     b̄ = Field(filtered_b)
     lookup = shared_profile_lookup(diagnostic, b, method)
     return b, b̄, lookup
@@ -145,13 +156,14 @@ horizontal filter `eₐˢ ≥ 0` pointwise
 A second method, `FilteredAvailablePotentialEnergy(model, z✶ˡ)`, takes a reference height you built
 yourself from a filtered buoyancy, `z✶ˡ = reference_height(Field(filter(b)); method=ProfileLookup(…))`,
 which is how a single lookup is shared with [`FilteredAvailablePotentialEnergyDissipationRate`](@ref).
-The filtered buoyancy is read off `z✶ˡ` itself, so no `filter` is needed there, and the filter it was
-made with is checked the same way.
+The filtered buoyancy is read off `z✶ˡ` itself, so no `filter` is needed there. Since that method
+never sees the filter, it can only recognize a vertical component in the one `z✶ˡ` was made with if
+that filter is a `BoxFilter` or `GaussianFilter`.
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
-[`GaussianFilter`](@ref) or [`BoxFilter`](@ref) over `dims = (1, 2)`. The direction check recognizes
-those two however they are wrapped; a filter of another kind cannot be inspected, and keeping it
-horizontal is up to the caller. The filtered buoyancy is materialized as a `Field` internally (so the
+[`GaussianFilter`](@ref) or [`BoxFilter`](@ref) over `dims = (1, 2)`. A filter of any kind is checked
+for a vertical component: it is applied to a field that is nonzero on a single level, and the result
+has to stay on that level. The filtered buoyancy is materialized as a `Field` internally (so the
 separable filter takes its fast staged path), and the returned object is a lazy operation over it and
 the reference height, ready for `Field`, `Integral` and `OutputWriter`s. It lives at
 `(Center, Center, Center)`, per unit mass (units `m² s⁻²`):
@@ -359,7 +371,8 @@ a reference height you built from the filtered buoyancy (see [`FilteredAvailable
 so one lookup can serve both diagnostics; `upsilon` takes a `Υˡ` you already have (a `Field` of
 [`FilteredAvailablePotentialEnergyDisplacementPotential`](@ref)), so writing both out costs one `Υˡ`
 rather than two. `filter` is still needed there, to filter the fluxes. The filter is checked there
-too, and so are the ones `z✶ˡ` and `upsilon` were built with.
+too, and so are the ones `z✶ˡ` and `upsilon` were built with, if they are a `BoxFilter` or
+`GaussianFilter`.
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The filtered fluxes, the filtered buoyancy and `Υˡ`
@@ -415,6 +428,7 @@ function FilteredAvailablePotentialEnergyDissipationRate(model, filter, z✶ˡ::
     # Checked before anything is materialized: the filter on the fluxes, and the one the filtered
     # buoyancy behind `z✶ˡ` (or behind a `Υˡ` handed over through `upsilon`) was made with.
     validate_filter_is_horizontal("FilteredAvailablePotentialEnergyDissipationRate", (filtered_fluxes, z✶ˡ, upsilon))
+    validate_filter_is_horizontal("FilteredAvailablePotentialEnergyDissipationRate", filter, model.grid)
 
     Υˡ = isnothing(upsilon) ? Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, z✶ˡ)) : upsilon
     q̄₁, q̄₂, q̄₃ = map(Field, filtered_fluxes)
@@ -547,6 +561,7 @@ function AvailablePotentialEnergyCrossScaleFlux(model, filter, z✶ˡ::SortedRef
     # directions `filter` averages along; `z✶ˡ` (or a `Υˡ` handed over through `upsilon`) carries the
     # filter `b̄` was made with.
     validate_filter_is_horizontal("AvailablePotentialEnergyCrossScaleFlux", (filter(b), z✶ˡ, upsilon))
+    validate_filter_is_horizontal("AvailablePotentialEnergyCrossScaleFlux", filter, model.grid)
 
     Υˡ = isnothing(upsilon) ? Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, z✶ˡ)) : upsilon
     τ = subfilter_buoyancy_flux(filter, b, b̄, model.velocities, dims)

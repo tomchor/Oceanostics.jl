@@ -24,6 +24,11 @@ random_stratified_b(x, y, z) = 1e-2 * z + 1e-3 * randn()
 # evaluate it inside a GPU kernel.
 wavy_stratified_b(x, y, z) = 1e-2 * z + 1e-3 * sinpi(2x) * cospi(2y) * sinpi(4z)
 
+# A filter that is neither a `BoxFilter` nor a `GaussianFilter`: a three-point mean along z, written as a
+# plain kernel, which the diagnostics can only recognize by trying it on a probe field.
+@inline z_mean(i, j, k, grid, ψ) = @inbounds (ψ[i, j, k-1] + ψ[i, j, k] + ψ[i, j, k+1]) / 3
+z_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(z_mean, ψ.grid, ψ)
+
 #+++ Test functions
 # eₐˢ = filter(eₐ) - eₐˡ must equal the hand-built difference, with both terms measured against one
 # shared reference profile: the full and the filtered buoyancy each looked up in the same VerticalSort
@@ -235,8 +240,8 @@ function test_subfilter_ape_errors(grid, filt)
 end
 
 # A filter that averages along z makes eₐˢ negative even for a fluid at rest (the resting-fluid tests
-# above), so every subfilter diagnostic refuses one, whether it comes as a filter object, as a closure or
-# through the convenience methods' `dims`.
+# above), so every subfilter diagnostic refuses one, whether it comes as a filter object, as a closure,
+# as a hand-written kernel or through the convenience methods' `dims`.
 function test_subfilter_ape_rejects_vertical_filters(grid, vertical_filters)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
     set!(model, b=random_stratified_b)
@@ -373,10 +378,11 @@ end
     grid = RectilinearGrid(arch, size=(8, 8, 8), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
     filt = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1)   # the diagnostics take only filters that act in the horizontal
 
-    # Filters with a vertical component, in the three forms a caller can hand one over: a filter object, a
-    # closure over the one-step form, and a `BoxFilter` that cuts along y and z.
+    # Filters with a vertical component, in the forms a caller can hand one over: a filter object, a
+    # closure over the one-step form, a `BoxFilter` that cuts along y and z, and a hand-written kernel.
     filt_vertical = ψ -> GaussianFilter(ψ; dims=(3,), σ=0.1, boundary=:edge)
-    vertical_filters = (GaussianFilter(; dims=(1, 2, 3), σ=0.1, boundary=:edge), filt_vertical, BoxFilter(; dims=(2, 3), N=3))
+    vertical_filters = (GaussianFilter(; dims=(1, 2, 3), σ=0.1, boundary=:edge), filt_vertical, BoxFilter(; dims=(2, 3), N=3),
+                        z_mean_filter)
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
     set!(model, b=random_stratified_b)
