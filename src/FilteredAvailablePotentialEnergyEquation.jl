@@ -14,7 +14,7 @@ export reference_height, reference_buoyancy, VerticalSort, ProfileLookup
 
 using Oceananigans: NonhydrostaticModel
 using Oceananigans.AbstractOperations: KernelFunctionOperation, ∂x, ∂y, ∂z
-using Oceananigans.Fields: Field
+using Oceananigans.Fields: Field, location
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Models: model_geopotential_height
 using Oceananigans.Operators
@@ -31,17 +31,17 @@ using ..AvailablePotentialEnergyEquation: AvailablePotentialEnergy, AvailablePot
                                           AvailablePotentialEnergyDissipationRate, local_ape_ccc, upsilon_ccc,
                                           validate_reference_height_grid
 # `GaussianFilter` builds the convenience methods' filter; `BoxFilter` is imported only so its docstring
-# `@ref` resolves in-module; `filtered_dims` and `mixes_vertical_levels` tell which way a filter cuts.
+# `@ref` resolves in-module; `filtered_dims` and `mixes_vertical_levels` tell which way a filter acts.
 using ..SpatialFilters: GaussianFilter, BoxFilter, filtered_dims, mixes_vertical_levels
 using ..FlowDiagnostics: validate_dims, subfilter_covariance, to_center
 
 #+++ Horizontal filters only
 # With a filter that has a vertical component the current implementation cannot guarantee a non-negative
 # APE (`test_subfilter_ape_resting_fluid` shows a case), so every filtered and subfilter APE diagnostic
-# rejects such a filter, before any `Field` computes it. Two checks share the error. The first walks the
-# operations a filter built (`filtered_dims`): it names the directions of a `BoxFilter` or `GaussianFilter`
-# exactly and computes nothing, and it is the only check available for a prebuilt `z✶ˡ` or `upsilon`,
-# which carry those operations but not the filter. The second tries the filter itself on a probe field
+# rejects such a filter. Two checks share the error. The first walks the operations a filter built
+# (`filtered_dims`): it names the directions of a `BoxFilter` or `GaussianFilter` exactly and computes
+# nothing, and it is the only check available for a prebuilt `z✶ˡ` or `upsilon`, which carry those
+# operations but not the filter. The second tries the filter itself on a probe field
 # (`mixes_vertical_levels`), which recognizes a filter of any kind.
 throw_vertical_filter_error(diagnostic, what_it_does) =
     throw(ArgumentError("`$diagnostic` takes only a filter that acts in the horizontal, but got one that \
@@ -54,10 +54,34 @@ function validate_filter_is_horizontal(diagnostic, filtered)
     return nothing
 end
 
-function validate_filter_is_horizontal(diagnostic, filter, grid)
-    mixes_vertical_levels(filter, grid) &&
-        throw_vertical_filter_error(diagnostic, "mixes values from different vertical levels")
-    return nothing
+# Every constructor that is handed a `filter` wraps it in a `CheckedFilter` on entry and applies only the
+# wrapper, so each field the diagnostic filters is checked before the result is materialized: the
+# operation the filter builds is walked, and the first time the filter meets a field of a given location
+# and kind (stored `Field` or lazy operation) it is also tried on a probe of that location and kind. A
+# filter that would act along z on any of those fields is caught, including one whose directions depend
+# on the field it is given. Wrapping a `CheckedFilter` again returns it unchanged, so a constructor that
+# delegates to another keeps one wrapper: its own name in the error, and each probe run once.
+struct CheckedFilter{F}
+    diagnostic :: String
+    filter :: F
+    probed :: Set{Any}
+end
+
+CheckedFilter(diagnostic, filter) = CheckedFilter(diagnostic, filter, Set{Any}())
+CheckedFilter(diagnostic, filter::CheckedFilter) = filter
+
+function (checked::CheckedFilter)(ψ)
+    filtered = checked.filter(ψ)
+    validate_filter_is_horizontal(checked.diagnostic, filtered)
+    loc, lazy = location(ψ), !(ψ isa Field)
+    if (loc, lazy) ∉ checked.probed
+        kind = lazy ? "a lazy operation" : "a Field"
+        mixes_vertical_levels(checked.filter, ψ.grid, loc; lazy) &&
+            throw_vertical_filter_error(checked.diagnostic, "mixes values from different vertical levels when \
+                                                             applied to $kind at $loc")
+        push!(checked.probed, (loc, lazy))
+    end
+    return filtered
 end
 #---
 
@@ -90,14 +114,11 @@ shared_profile_lookup(diagnostic, b, method) =
 # flow. `SubFilterAvailablePotentialEnergyEquation` builds its full-field reference height from the same
 # three pieces, which is what guarantees the two states share one profile, and
 # `AvailablePotentialEnergyCrossScaleFlux` shares the one `b̄` between its reference height and its
-# subfilter buoyancy flux. Every filtered and subfilter APE diagnostic built from a `filter` comes through
-# here, so this is where a filter with a vertical component is turned away.
+# subfilter buoyancy flux. `filter` arrives as the caller's `CheckedFilter`, which checks the buoyancy
+# before `Field` filters it.
 function filtered_buoyancy_and_lookup(diagnostic, model, filter, method, geopotential_height)
     b = buoyancy_field(model, model.buoyancy, geopotential_height)
-    filtered_b = filter(b)
-    validate_filter_is_horizontal(diagnostic, filtered_b)
-    validate_filter_is_horizontal(diagnostic, filter, model.grid)
-    b̄ = Field(filtered_b)
+    b̄ = Field(filter(b))
     lookup = shared_profile_lookup(diagnostic, b, method)
     return b, b̄, lookup
 end
@@ -162,11 +183,12 @@ that filter is a `BoxFilter` or `GaussianFilter`.
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref) over `dims = (1, 2)`. A filter of any kind is checked
-for a vertical component: it is applied to a field that is nonzero on a single level, and the result
-has to stay on that level. The filtered buoyancy is materialized as a `Field` internally (so the
-separable filter takes its fast staged path), and the returned object is a lazy operation over it and
-the reference height, ready for `Field`, `Integral` and `OutputWriter`s. It lives at
-`(Center, Center, Center)`, per unit mass (units `m² s⁻²`):
+for a vertical component, at each location and for each kind of field (stored or lazy) the diagnostic
+filters: it is applied to a field that is nonzero on a single level, and the result has to stay on
+that level. The filtered buoyancy is materialized as a `Field` internally (so the separable filter
+takes its fast staged path), and the returned object is a lazy operation over it and the reference
+height, ready for `Field`, `Integral` and `OutputWriter`s. It lives at `(Center, Center, Center)`, per
+unit mass (units `m² s⁻²`):
 
 ```jldoctest
 using Oceananigans, Oceanostics
@@ -193,6 +215,7 @@ as in [`reference_height`](@ref).
 """
 function FilteredAvailablePotentialEnergy(model, filter; method = ProfileLookup(),
                                           geopotential_height = model_geopotential_height(model))
+    filter = CheckedFilter("FilteredAvailablePotentialEnergy", filter)
     validate_gravity_is_z_aligned("FilteredAvailablePotentialEnergy", model)
     z✶ˡ = filtered_reference_height("FilteredAvailablePotentialEnergy", model, filter, method, geopotential_height)
     return FilteredAvailablePotentialEnergy(model, z✶ˡ)
@@ -295,6 +318,7 @@ exactly as in [`reference_height`](@ref).
 """
 function FilteredAvailablePotentialEnergyDisplacementPotential(model, filter; method = ProfileLookup(),
                                                                geopotential_height = model_geopotential_height(model))
+    filter = CheckedFilter("FilteredAvailablePotentialEnergyDisplacementPotential", filter)
     validate_gravity_is_z_aligned("FilteredAvailablePotentialEnergyDisplacementPotential", model)
     z✶ˡ = filtered_reference_height("FilteredAvailablePotentialEnergyDisplacementPotential", model, filter, method,
                                     geopotential_height)
@@ -404,6 +428,7 @@ builds the Gaussian `filter` for you along `dims`, `(1, 2)` by default, from a s
 """
 function FilteredAvailablePotentialEnergyDissipationRate(model, filter; method = ProfileLookup(),
                                                          geopotential_height = model_geopotential_height(model))
+    filter = CheckedFilter("FilteredAvailablePotentialEnergyDissipationRate", filter)
     validate_gravity_is_z_aligned("FilteredAvailablePotentialEnergyDissipationRate", model)
     z✶ˡ = filtered_reference_height("FilteredAvailablePotentialEnergyDissipationRate", model, filter, method,
                                     geopotential_height)
@@ -411,27 +436,23 @@ function FilteredAvailablePotentialEnergyDissipationRate(model, filter; method =
 end
 
 function FilteredAvailablePotentialEnergyDissipationRate(model, filter, z✶ˡ::SortedReferenceHeightField; upsilon = nothing)
+    filter = CheckedFilter("FilteredAvailablePotentialEnergyDissipationRate", filter)
     validate_buoyancy_is_a_diffused_tracer("FilteredAvailablePotentialEnergyDissipationRate", model)
     validate_closure_supplies_a_flux("FilteredAvailablePotentialEnergyDissipationRate", model)
     validate_gravity_is_z_aligned("FilteredAvailablePotentialEnergyDissipationRate", model)
     validate_reference_height_grid("FilteredAvailablePotentialEnergyDissipationRate", model, z✶ˡ)
+    validate_filter_is_horizontal("FilteredAvailablePotentialEnergyDissipationRate", (z✶ˡ, upsilon))   # no filter to probe
+
+    Υˡ = isnothing(upsilon) ? Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, z✶ˡ)) : upsilon
 
     # q̄ᵢ = filter(qᵢ(b)): the closure's diffusive fluxes of the FULL buoyancy, each low-pass filtered and
     # materialized at its staggered location. The flux operation reads the live model fields, so the
     # filtered fluxes refresh when the diagnostic is recomputed.
     flux_args = buoyancy_diffusive_flux_arguments(model)
-    filtered_flux(f, LX, LY, LZ) = filter(KernelFunctionOperation{LX, LY, LZ}(f, model.grid, flux_args...))
-    filtered_fluxes = (filtered_flux(diffusive_flux_x, Face,   Center, Center),
-                       filtered_flux(diffusive_flux_y, Center, Face,   Center),
-                       filtered_flux(diffusive_flux_z, Center, Center, Face))
-
-    # Checked before anything is materialized: the filter on the fluxes, and the one the filtered
-    # buoyancy behind `z✶ˡ` (or behind a `Υˡ` handed over through `upsilon`) was made with.
-    validate_filter_is_horizontal("FilteredAvailablePotentialEnergyDissipationRate", (filtered_fluxes, z✶ˡ, upsilon))
-    validate_filter_is_horizontal("FilteredAvailablePotentialEnergyDissipationRate", filter, model.grid)
-
-    Υˡ = isnothing(upsilon) ? Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, z✶ˡ)) : upsilon
-    q̄₁, q̄₂, q̄₃ = map(Field, filtered_fluxes)
+    filtered_flux(f, LX, LY, LZ) = Field(filter(KernelFunctionOperation{LX, LY, LZ}(f, model.grid, flux_args...)))
+    q̄₁ = filtered_flux(diffusive_flux_x, Face,   Center, Center)
+    q̄₂ = filtered_flux(diffusive_flux_y, Center, Face,   Center)
+    q̄₃ = filtered_flux(diffusive_flux_z, Center, Center, Face)
 
     return KernelFunctionOperation{Center, Center, Center}(filtered_ape_dissipation_rate_ccc, model.grid, Υˡ, q̄₁, q̄₂, q̄₃)
 end
@@ -538,6 +559,7 @@ among them: the default filters along `x` and `y` and sums over all three direct
 """
 function AvailablePotentialEnergyCrossScaleFlux(model, filter; dims = (1, 2, 3), method = ProfileLookup(),
                                                 geopotential_height = model_geopotential_height(model))
+    filter = CheckedFilter("AvailablePotentialEnergyCrossScaleFlux", filter)
     validate_gravity_is_z_aligned("AvailablePotentialEnergyCrossScaleFlux", model)
     z✶ˡ = filtered_reference_height("AvailablePotentialEnergyCrossScaleFlux", model, filter, method,
                                     geopotential_height)
@@ -547,23 +569,19 @@ end
 function AvailablePotentialEnergyCrossScaleFlux(model, filter, z✶ˡ::SortedReferenceHeightField;
                                                 upsilon = nothing, dims = (1, 2, 3),
                                                 geopotential_height = model_geopotential_height(model))
+    filter = CheckedFilter("AvailablePotentialEnergyCrossScaleFlux", filter)
     validate_dims(dims)
     validate_gravity_is_z_aligned("AvailablePotentialEnergyCrossScaleFlux", model)
     validate_reference_height_grid("AvailablePotentialEnergyCrossScaleFlux", model, z✶ˡ)
+    validate_filter_is_horizontal("AvailablePotentialEnergyCrossScaleFlux", (z✶ˡ, upsilon))   # no filter to probe
+
+    Υˡ = isnothing(upsilon) ? Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, z✶ˡ)) : upsilon
 
     # The filtered buoyancy is `z✶ˡ`'s own (the field the caller filtered and looked up), so the one `b̄`
     # serves both the reference height — and so `Υˡ` — and the subfilter buoyancy flux: the buoyancy is
     # filtered once per compute rather than once for the lookup and again for the flux.
     b = buoyancy_field(model, model.buoyancy, geopotential_height)
     b̄ = reference_buoyancy(z✶ˡ.operand)
-
-    # Checked before anything is materialized. `filter(b)` only assembles an operation, which carries the
-    # directions `filter` averages along; `z✶ˡ` (or a `Υˡ` handed over through `upsilon`) carries the
-    # filter `b̄` was made with.
-    validate_filter_is_horizontal("AvailablePotentialEnergyCrossScaleFlux", (filter(b), z✶ˡ, upsilon))
-    validate_filter_is_horizontal("AvailablePotentialEnergyCrossScaleFlux", filter, model.grid)
-
-    Υˡ = isnothing(upsilon) ? Field(FilteredAvailablePotentialEnergyDisplacementPotential(model, z✶ˡ)) : upsilon
     τ = subfilter_buoyancy_flux(filter, b, b̄, model.velocities, dims)
 
     ∂ᵢ = (∂x, ∂y, ∂z)   # the τ(uᵢ, b) are already at cell centers, so only the gradient needs collocating
@@ -652,6 +670,7 @@ builds the Gaussian `filter` for you along `dims`, `(1, 2)` by default, from a s
 """
 function FilteredAvailablePotentialToKineticEnergyConversion(model, filter; method = ProfileLookup(),
                                                              geopotential_height = model_geopotential_height(model))
+    filter = CheckedFilter("FilteredAvailablePotentialToKineticEnergyConversion", filter)
     validate_gravity_is_z_aligned("FilteredAvailablePotentialToKineticEnergyConversion", model)
 
     # The lookup's profile is the *unfiltered* reference state, which is what `b✶(z)` is read from; `b̄`

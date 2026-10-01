@@ -896,6 +896,14 @@ function test_mixes_vertical_levels()
     @test mixes_vertical_levels(GaussianFilter(; dims=(1, 2, 3), σ=0.1), grid)
     @test mixes_vertical_levels(BoxFilter(; dims=3, N=3), grid)
     @test mixes_vertical_levels(z_mean_filter, grid)
+
+    # The probe takes the location and the kind of the field being filtered, so a filter that treats
+    # fields differently is judged by what it does to each kind.
+    lazy_only_z_mean_filter(ψ) = ψ isa Field ? x_mean_filter(ψ) : z_mean_filter(ψ)
+    @test mixes_vertical_levels(BoxFilter(; dims=3, N=3), grid, (Center, Center, Face))
+    @test !mixes_vertical_levels(GaussianFilter(; dims=(1, 2), σ=0.1), grid, (Face, Center, Center))
+    @test !mixes_vertical_levels(lazy_only_z_mean_filter, grid)
+    @test mixes_vertical_levels(lazy_only_z_mean_filter, grid; lazy=true)
     return nothing
 end
 #---

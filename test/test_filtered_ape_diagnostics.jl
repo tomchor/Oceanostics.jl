@@ -30,6 +30,12 @@ shared_lookup(model) = ProfileLookup(reference_height(model, method=VerticalSort
 z_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(z_mean, ψ.grid, ψ)
 x_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(x_mean, ψ.grid, ψ)
 
+# Filters whose direction depends on the field they are given: along z for fields on z faces, or for lazy
+# operations, and along x otherwise. Both act horizontally on the buoyancy, so only a diagnostic that
+# also filters such a field can catch them.
+z_faces_z_mean_filter(ψ) = location(ψ)[3] === Face ? z_mean_filter(ψ) : x_mean_filter(ψ)
+lazy_z_mean_filter(ψ) = ψ isa Field ? x_mean_filter(ψ) : z_mean_filter(ψ)
+
 #+++ Test functions
 # eₐˡ = eₐ(b̄, z): the local APE kernel evaluated on the reference height of the filtered buoyancy,
 # looked up in the shared profile. Built by hand from `AvailablePotentialEnergy` on that `z✶ˡ`.
@@ -304,6 +310,34 @@ function test_filtered_ape_rejects_vertical_filters(grid, filt, vertical_filters
     end
     for diagnostic in (FilteredAvailablePotentialEnergyDissipationRate, AvailablePotentialEnergyCrossScaleFlux)
         @test_throws "acts in the horizontal" diagnostic(model, z_mean_filter, z✶ˡ)
+    end
+    return nothing
+end
+
+# The filter is checked on every field a diagnostic applies it to, so a filter that acts along z only on
+# some kinds of field is refused exactly by the diagnostics that filter such a field: the fluxes of εₐˡ
+# are lazy operations and one of them lives on z faces, Πₐ filters the velocities as lazy
+# interpolations, and the conversion filters `w`, a `Field` on z faces. The others filter only stored,
+# centred fields, on which both filters act along x.
+function test_filtered_ape_checks_every_filtered_field(grid)
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
+    set!(model, b=random_stratified_b)
+    lookup = shared_lookup(model)
+
+    # (diagnostic, refuses `z_faces_z_mean_filter`, refuses `lazy_z_mean_filter`)
+    cases = ((FilteredAvailablePotentialEnergy,                      false, false),
+             (FilteredAvailablePotentialEnergyDisplacementPotential, false, false),
+             (FilteredAvailablePotentialEnergyDissipationRate,       true,  true),
+             (AvailablePotentialEnergyCrossScaleFlux,                false, true),
+             (FilteredAvailablePotentialToKineticEnergyConversion,   true,  false))
+
+    for (diagnostic, refuses_z_faces, refuses_lazy) in cases,
+        (filt, refuses) in ((z_faces_z_mean_filter, refuses_z_faces), (lazy_z_mean_filter, refuses_lazy))
+        if refuses
+            @test_throws "acts in the horizontal" diagnostic(model, filt; method=lookup)
+        else
+            @test diagnostic(model, filt; method=lookup) isa diagnostic
+        end
     end
     return nothing
 end
@@ -621,6 +655,7 @@ end
 
     @info "    Filters with a vertical component are rejected"
     test_filtered_ape_rejects_vertical_filters(grid, filt, vertical_filters)
+    test_filtered_ape_checks_every_filtered_field(grid)
 
     @info "    Module re-exports and aliases"
     test_filtered_ape_module_reexports()

@@ -24,10 +24,18 @@ random_stratified_b(x, y, z) = 1e-2 * z + 1e-3 * randn()
 # evaluate it inside a GPU kernel.
 wavy_stratified_b(x, y, z) = 1e-2 * z + 1e-3 * sinpi(2x) * cospi(2y) * sinpi(4z)
 
-# A filter that is neither a `BoxFilter` nor a `GaussianFilter`: a three-point mean along z, written as a
-# plain kernel, which the diagnostics can only recognize by trying it on a probe field.
+# Filters that are neither a `BoxFilter` nor a `GaussianFilter`: three-point means along z and along x,
+# written as plain kernels, which the diagnostics can only recognize by trying them on a probe field.
 @inline z_mean(i, j, k, grid, ψ) = @inbounds (ψ[i, j, k-1] + ψ[i, j, k] + ψ[i, j, k+1]) / 3
+@inline x_mean(i, j, k, grid, ψ) = @inbounds (ψ[i-1, j, k] + ψ[i, j, k] + ψ[i+1, j, k]) / 3
 z_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(z_mean, ψ.grid, ψ)
+x_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(x_mean, ψ.grid, ψ)
+
+# Filters whose direction depends on the field they are given: along z for fields on z faces, or for lazy
+# operations, and along x otherwise. Both act horizontally on the buoyancy, so only a diagnostic that
+# also filters such a field can catch them.
+z_faces_z_mean_filter(ψ) = location(ψ)[3] === Face ? z_mean_filter(ψ) : x_mean_filter(ψ)
+lazy_z_mean_filter(ψ) = ψ isa Field ? x_mean_filter(ψ) : z_mean_filter(ψ)
 
 #+++ Test functions
 # eₐˢ = filter(eₐ) - eₐˡ must equal the hand-built difference, with both terms measured against one
@@ -257,6 +265,30 @@ function test_subfilter_ape_rejects_vertical_filters(grid, vertical_filters)
     return nothing
 end
 
+# The filter is checked on every field a diagnostic applies it to, so a filter that acts along z only on
+# some kinds of field is refused exactly by the diagnostics that filter such a field: εₐˢ filters the
+# fluxes, which are lazy operations and one of which lives on z faces, and τˡ(w, bᵣ) filters `w`, a
+# `Field` on z faces. eₐˢ filters only stored, centred fields, on which both filters act along x.
+function test_subfilter_ape_checks_every_filtered_field(grid)
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(κ=1e-4))
+    set!(model, b=random_stratified_b)
+
+    # (diagnostic, refuses `z_faces_z_mean_filter`, refuses `lazy_z_mean_filter`)
+    cases = ((SubFilterAvailablePotentialEnergy,                    false, false),
+             (SubFilterAvailablePotentialEnergyDissipationRate,     true,  true),
+             (SubFilterAvailablePotentialToKineticEnergyConversion, true,  false))
+
+    for (diagnostic, refuses_z_faces, refuses_lazy) in cases,
+        (filt, refuses) in ((z_faces_z_mean_filter, refuses_z_faces), (lazy_z_mean_filter, refuses_lazy))
+        if refuses
+            @test_throws "acts in the horizontal" diagnostic(model, filt)
+        else
+            @test diagnostic(model, filt) isa diagnostic
+        end
+    end
+    return nothing
+end
+
 # The module re-exports the filtered-flow APE and its dissipation (the "ˡ" halves of both splits) from
 # `FilteredAvailablePotentialEnergyEquation`, aliases its own dissipation rate as `DissipationRate`,
 # and re-exports the reference-profile machinery so it can be used on its own.
@@ -439,6 +471,7 @@ end
 
     @info "    Filters with a vertical component are rejected"
     test_subfilter_ape_rejects_vertical_filters(grid, vertical_filters)
+    test_subfilter_ape_checks_every_filtered_field(grid)
 
     @info "    Subfilter APE to KE conversion τˡ(w, bᵣ)"
     # The shared model is buoyancy-only, and the conversion is carried by the vertical velocity, so

@@ -34,7 +34,7 @@ using ..FilteredAvailablePotentialEnergyEquation: FilteredAvailablePotentialEner
                                                   AvailablePotentialEnergyCrossScaleFlux,
                                                   FilteredAvailablePotentialToKineticEnergyConversion,
                                                   filtered_ape_to_ke_conversion_ccc,
-                                                  filtered_buoyancy_and_lookup
+                                                  filtered_buoyancy_and_lookup, CheckedFilter
 # `GaussianFilter` builds the convenience methods' filter; `BoxFilter` is imported only so its docstring
 # `@ref` resolves in-module.
 using ..SpatialFilters: GaussianFilter, BoxFilter
@@ -128,6 +128,7 @@ as in [`reference_height`](@ref).
 """
 function SubFilterAvailablePotentialEnergy(model, filter; method = ProfileLookup(),
                                            geopotential_height = model_geopotential_height(model))
+    filter = CheckedFilter("SubFilterAvailablePotentialEnergy", filter)
     validate_gravity_is_z_aligned("SubFilterAvailablePotentialEnergy", model)
     z✶, z✶ˡ = subfilter_reference_heights("SubFilterAvailablePotentialEnergy", model, filter, method, geopotential_height)
 
@@ -210,6 +211,7 @@ builds the Gaussian `filter` for you along `dims`, `(1, 2)` by default, from a s
 """
 function SubFilterAvailablePotentialEnergyDissipationRate(model, filter; method = ProfileLookup(),
                                                           geopotential_height = model_geopotential_height(model))
+    filter = CheckedFilter("SubFilterAvailablePotentialEnergyDissipationRate", filter)
     validate_buoyancy_is_a_diffused_tracer("SubFilterAvailablePotentialEnergyDissipationRate", model)
     validate_closure_supplies_a_flux("SubFilterAvailablePotentialEnergyDissipationRate", model)
     validate_gravity_is_z_aligned("SubFilterAvailablePotentialEnergyDissipationRate", model)
@@ -291,6 +293,7 @@ builds the Gaussian `filter` for you along `dims`, `(1, 2)` by default, from a s
 """
 function SubFilterAvailablePotentialToKineticEnergyConversion(model, filter; method = ProfileLookup(),
                                                               geopotential_height = model_geopotential_height(model))
+    filter = CheckedFilter("SubFilterAvailablePotentialToKineticEnergyConversion", filter)
     validate_gravity_is_z_aligned("SubFilterAvailablePotentialToKineticEnergyConversion", model)
     b, b̄, lookup = filtered_buoyancy_and_lookup("SubFilterAvailablePotentialToKineticEnergyConversion", model, filter,
                                                 method, geopotential_height)

@@ -526,19 +526,27 @@ filtered_dims(op) = Tuple(sort!(collect(_collect_filtered_dims!(Set{Int}(), Base
 # (a constant boundary pad, for instance), and for a filter that acts only in the horizontal it vanishes
 # exactly on every level other than `k₀`. Only `k₀` and its neighbours are computed, through windowed
 # `Field`s. The test assumes the filter is linear up to such a constant, as a low-pass filter is.
-using Oceananigans.Fields: CenterField, interior
+#
+# A filter may treat fields differently depending on where they live or what they are, so the probe can
+# take the location `loc` of the field being filtered, and with `lazy = true` it is handed to the filter
+# as a lazy operation rather than as a stored `Field`.
+using Oceananigans.Fields: interior
+using Oceananigans.Grids: Center
 
-function mixes_vertical_levels(filter, grid)
-    Nz = size(grid, 3)
+@inline read_probe(i, j, k, grid, probe) = @inbounds probe[i, j, k]
+
+function mixes_vertical_levels(filter, grid, loc = (Center, Center, Center); lazy = false)
+    probe = Field{loc...}(grid)
+    Nz = size(probe, 3)   # one more than the grid's on z faces of a bounded direction
     Nz > 1 || return false
     k₀ = Nz ÷ 2 + 1
     window = max(1, k₀ - 1):min(Nz, k₀ + 1)
 
-    probe = CenterField(grid)
-    zero_response = Field(filter(probe); indices = (:, :, window))   # computed now, while `probe` is all zeros
+    operand = lazy ? KernelFunctionOperation{loc...}(read_probe, grid, probe) : probe
+    zero_response = Field(filter(operand); indices = (:, :, window))   # computed now, while `probe` is all zeros
     view(interior(probe), :, :, k₀:k₀) .= 1
     fill_halo_regions!(probe)
-    slab_response = Field(filter(probe); indices = (:, :, window))
+    slab_response = Field(filter(operand); indices = (:, :, window))
 
     # The largest response on each level, reduced on the device and brought to the host.
     response = interior(slab_response) .- interior(zero_response)
