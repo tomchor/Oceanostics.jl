@@ -496,11 +496,11 @@ function test_filtered_ape_ke_conversion_vanishes_without_motion(grid, filt)
 end
 
 """
-b_rˡ = b̄ − b✶(z) measures the filtered buoyancy against the *unfiltered* reference profile, which is
-what differentiating eₐˡ produces; it is not filter(b_r) = b̄ − filter(b✶(z)), which filters the
-reference too. The two differ once the filter acts in the vertical and coincide for a purely horizontal
-one, since b✶ is a function of z alone — exactly the distinction this term is defined by. The diagnostic
-itself takes only the horizontal kind, so the vertical filter here is applied to the fields directly.
+b_rˡ = b̄ − b✶(z) is what differentiating eₐˡ = eₐ(b̄, z) produces, with b✶ the reference profile eₐˡ
+is measured against. For a horizontal filter b✶ depends on z alone and passes through the filter
+unchanged, so b_rˡ is also the filtered anomaly filter(b_r) = b̄ − filter(b✶(z)); a filter that acts in
+the vertical smooths b✶ as well, and the two differ. The diagnostic itself takes only the horizontal
+kind, so the vertical filter here is applied to the fields directly.
 """
 function test_filtered_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt_horizontal)
 

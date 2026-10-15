@@ -98,11 +98,16 @@ with
 ```
 
 Term by term this is the full-field budget evaluated on the filtered state plus extra terms
-related to the filter (``\Pi_a`` and ``-\partial_j\Upsilon^l \tau(u_i, b)``). ``\Pi_a`` reappears
+related to the filter (``\Pi_a`` and ``-\partial_i(\Upsilon^l \tau(u_i, b))``). ``\Pi_a`` reappears
 with the opposite sign in the [Subfilter available potential energy equation](@ref), which makes
 it a transfer across the filter scale rather than a source or a sink, and the conversion
 ``\bar w \, b_r^l`` likewise reappears with the opposite sign in the
-[filtered kinetic energy](@ref "Filtered kinetic energy equation") budget.
+[filtered kinetic energy](@ref "Filtered kinetic energy equation") budget. That holds when the
+kinetic energy budget measures its pressure from the hydrostatic pressure ``p^\star`` of the
+reference profile, ``\partial_z p^\star = b^\star``. With the model's own pressure the filtered kinetic
+energy budget carries ``\bar w \, \bar b`` instead, and the two differ by
+``\bar w \, b^\star(z) = \partial_i(\bar u_i \, p^\star)``, a divergence that integrates to zero over a
+domain periodic in the horizontal.
 
 Importantly, while ``R`` integrates to zero in a closed domain ([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X)),
 ``R^l`` does not inherit that property. Given its subfilter counterpart ``R^s = \overline{R} - R^l``

@@ -318,11 +318,11 @@ function test_subfilter_ape_ke_conversion_vanishes_without_motion(grid, filt)
     return nothing
 end
 
-# Both halves measure the buoyancy against the *unfiltered* reference profile, so the filtered half uses
-# b_rˡ = b̄ - b✶(z) rather than filter(bᵣ) = filter(b - b✶(z)), which filters the reference too. The two
-# differ once the filter acts in the vertical and coincide for a purely horizontal one, b✶ being a
-# function of z alone — the convention that makes the two halves an exact decomposition. The diagnostic
-# itself takes only the horizontal kind, so the vertical filter here is applied to the fields directly.
+# The filtered half uses b_rˡ = b̄ - b✶(z), the anomaly against the reference profile eₐˡ is measured
+# against. For a horizontal filter b✶ depends on z alone and passes through the filter unchanged, so
+# b_rˡ is also filter(bᵣ) = filter(b - b✶(z)) and τˡ(w, bᵣ) is the subfilter covariance of w and bᵣ; a
+# filter that acts in the vertical smooths b✶ as well, and the two differ. The diagnostic itself takes
+# only the horizontal kind, so the vertical filter here is applied to the fields directly.
 function test_subfilter_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt_horizontal)
     lookup = ProfileLookup(reference_height(model, method=VerticalSort()))
     b   = model.tracers.b

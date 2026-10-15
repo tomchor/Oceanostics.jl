@@ -253,11 +253,10 @@ enters this budget as
 ([`SubFilterKineticEnergy`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy))
 as `+τˡ(w, bᵣ)`, so it is a reversible exchange rather than a source or a sink.
 
-The reference profile is **not** filtered in either half — `b_rˡ` is `b̄ - b✶(z)`, not `filter(bᵣ)`,
-which would filter the reference along with the buoyancy. That is what makes the two halves an exact
-decomposition; [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref) gives the reason. The two
-choices coincide for the horizontal filters this diagnostic accepts, since `b✶` is a function of `z`
-alone.
+For the horizontal filters this diagnostic accepts, `b✶` depends on `z` alone and passes through the
+filter unchanged, so `b_rˡ = filter(bᵣ)` and `τˡ(w, bᵣ) = filter(w bᵣ) - w̄ filter(bᵣ)` is the
+subfilter covariance of `w` and `bᵣ`. The reference profile then cancels between its two terms, which
+leaves the subfilter buoyancy flux `τˡ(w, bᵣ) = filter(w b) - w̄ b̄`.
 
 `method` has to be a [`ProfileLookup`](@ref), for the reason
 [`SubFilterAvailablePotentialEnergy`](@ref) gives, and both halves are built on the one profile it
@@ -295,8 +294,8 @@ function SubFilterAvailablePotentialToKineticEnergyConversion(model, filter; met
     b, b̄, lookup = filtered_buoyancy_and_lookup("SubFilterAvailablePotentialToKineticEnergyConversion", model, filter,
                                                 method, geopotential_height)
 
-    # Both halves are the same contraction — a vertical velocity against a buoyancy anomaly measured from
-    # the *unfiltered* reference profile — so they go through one kernel, the filtered conversion's,
+    # Both halves are the same contraction, a vertical velocity against a buoyancy anomaly measured from
+    # the one reference profile `b✶(z)`, so they go through one kernel, the filtered conversion's,
     # differing only in whether they read the full or the filtered fields. Sharing the kernel and the one
     # `b✶(z)` is what leaves `filter(wbᵣ) = w̄b_rˡ + τˡ(w, bᵣ)` a decomposition of one discretization
     # rather than a difference of two.

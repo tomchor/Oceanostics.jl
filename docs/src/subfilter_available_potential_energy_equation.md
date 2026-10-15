@@ -90,13 +90,15 @@ half of the split whose filtered half is
 [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion),
 the two summing to ``\overline{w b_r}``. It enters this budget as ``-\tau^l(w, b_r)`` and the
 [Subfilter kinetic energy equation](@ref) as ``+\tau^l(w, b_r)``, so it is a reversible exchange rather
-than a source or a sink. The reference profile is not filtered in either half, which is what
-distinguishes it from a plain `subfilter_covariance` of ``w`` and ``b_r``.
+than a source or a sink. For the horizontal filters accepted here ``b^\star`` depends on ``z``
+alone, so ``b_r^l = \overline{b_r}`` and ``\tau^l(w, b_r)`` is the subfilter covariance of ``w`` and
+``b_r``. The reference profile cancels between its two terms, which leaves the subfilter buoyancy
+flux, ``\tau^l(w, b_r) = \overline{w b} - \bar w \, \bar b``.
 
 ```@docs
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion
 ```
 
-The one term of the ``e_a^s`` budget still without a diagnostic is the reference-tendency correction
-that appears when the reference profile evolves in time; with a fixed reference profile it vanishes
-identically.
+The terms of the ``e_a^s`` budget still without a diagnostic are the transport divergences and the
+reference-tendency correction ``R^s = \overline{R} - R^l`` that appears when the reference profile
+evolves in time; with a fixed reference profile the correction vanishes identically.
