@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Turbulent kinetic energy equation · Oceanostics.jl</title><meta name="title" content="Turbulent kinetic energy equation · Oceanostics.jl"/><meta property="og:title" content="Turbulent kinetic energy equation · Oceanostics.jl"/><meta property="twitter:title" content="Turbulent kinetic energy equation · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox" checked/><label class="tocitem" for="menuitem-2"><span class="docs-label">Budget equations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../tracer_equation/">Tracer equation</a></li><li><a class="tocitem" href="../momentum_equation/">Momentum equation</a></li><li><a class="tocitem" href="../kinetic_energy_equation/">Kinetic energy equation</a></li><li class="is-active"><a class="tocitem" href>Turbulent kinetic energy equation</a><ul class="internal"><li><a class="tocitem" href="#Example"><span>Example</span></a></li><li><a class="tocitem" href="#Turbulent-kinetic-energy"><span>Turbulent kinetic energy</span></a></li><li><a class="tocitem" href="#Isotropic-dissipation-rate"><span>Isotropic dissipation rate</span></a></li><li><a class="tocitem" href="#Shear-production-rates"><span>Shear production rates</span></a></li></ul></li><li><a class="tocitem" href="../tracer_variance_equation/">Tracer variance equation</a></li><li><a class="tocitem" href="../potential_energy_equation/">Potential energy equation</a></li></ul></li><li><a class="tocitem" href="../flow_diagnostics/">Flow diagnostics</a></li><li><a class="tocitem" href="../progress_messengers/">Progress messengers</a></li><li><a class="tocitem" href="../filters/">Filters</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox"/><label class="tocitem" for="menuitem-6"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../generated/two_dimensional_turbulence/">Two-dimensional turbulence</a></li><li><a class="tocitem" href="../generated/kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li><a class="tocitem" href="../generated/tilted_bottom_boundary_layer/">Tilted bottom boundary layer</a></li><li><a class="tocitem" href="../generated/spatial_filtering/">Spatial filtering</a></li></ul></li><li><a class="tocitem" href="../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Budget equations</a></li><li class="is-active"><a href>Turbulent kinetic energy equation</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Turbulent kinetic energy equation</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/src/turbulent_kinetic_energy_equation.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Turbulent-kinetic-energy-equation"><a class="docs-heading-anchor" href="#Turbulent-kinetic-energy-equation">Turbulent kinetic energy equation</a><a id="Turbulent-kinetic-energy-equation-1"></a><a class="docs-heading-anchor-permalink" href="#Turbulent-kinetic-energy-equation" title="Permalink"></a></h1><p>The <code>TurbulentKineticEnergyEquation</code> module provides diagnostics for the turbulent kinetic energy (TKE) budget. While the <code>KineticEnergyEquation</code> module deals with the total (resolved) kinetic energy, this module focuses on the kinetic energy of velocity perturbations relative to a specified mean flow. TKE is defined as</p><p class="math-container">\[e = \tfrac{1}{2} u_i&#39; u_i&#39;\]</p><p>where <span>$u_i&#39; = u_i - U_i$</span> is the velocity perturbation from the mean <span>$U_i$</span>. Mean velocities default to zero (in which case TKE reduces to KE) and can be set via the <code>U</code>, <code>V</code>, <code>W</code> keyword arguments.</p><p>A key term in the TKE budget is the shear production rate, which quantifies the transfer of kinetic energy from the mean flow to the turbulence through Reynolds stresses acting on the mean shear:</p><p class="math-container">\[P = -u_i&#39; u_j&#39; \partial_j U_i\]</p><p>The module provides both directional components (<span>$P_x$</span>, <span>$P_y$</span>, <span>$P_z$</span>) and the total shear production. It also provides an isotropic dissipation rate diagnostic that computes <span>$\varepsilon = 2\nu S&#39;_{ij} S&#39;_{ij}$</span> using the perturbation strain rate tensor.</p><p>All diagnostics are computed at <code>(Center, Center, Center)</code>.</p><h2 id="Example"><a class="docs-heading-anchor" href="#Example">Example</a><a id="Example-1"></a><a class="docs-heading-anchor-permalink" href="#Example" title="Permalink"></a></h2><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
+
+julia&gt; tke = TurbulentKineticEnergyEquation.TurbulentKineticEnergy(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;)
+
+julia&gt; SP = TurbulentKineticEnergyEquation.ShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;)</code></pre><h2 id="Turbulent-kinetic-energy"><a class="docs-heading-anchor" href="#Turbulent-kinetic-energy">Turbulent kinetic energy</a><a id="Turbulent-kinetic-energy-1"></a><a class="docs-heading-anchor-permalink" href="#Turbulent-kinetic-energy" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergy"><a class="docstring-binding" href="#Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergy"><code>Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergy</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">TurbulentKineticEnergy(model, u, v, w; U, V, W, location)
+</code></pre><p>Calculate the turbulent kinetic energy of <code>model</code>.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; TKE = TurbulentKineticEnergyEquation.TurbulentKineticEnergy(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/5b144ed918fb36b2c56b0906cd69cfe517b56613/src/TurbulentKineticEnergyEquation.jl#L34-L52">source</a></section></details></article><h2 id="Isotropic-dissipation-rate"><a class="docs-heading-anchor" href="#Isotropic-dissipation-rate">Isotropic dissipation rate</a><a id="Isotropic-dissipation-rate-1"></a><a class="docs-heading-anchor-permalink" href="#Isotropic-dissipation-rate" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate"><a class="docstring-binding" href="#Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate"><code>Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyIsotropicDissipationRate</code></a> — <span class="docstring-category">Function</span></summary><section><div><pre><code class="language-julia hljs">TurbulentKineticEnergyIsotropicDissipationRate(
+    u,
+    v,
+    w,
+    args;
+    U,
+    V,
+    W,
+    location
+)
+</code></pre><p>Calculate the Turbulent Kinetic Energy Isotropic Dissipation Rate, defined as</p><pre><code class="language-julia hljs">ε = 2 ν S&#39;ᵢⱼS&#39;ᵢⱼ,</code></pre><p>where S&#39;ᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a turbulence closure where ν (eddy or not) is the same for all directions.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(ν=1e-4));
+
+julia&gt; TurbulentKineticEnergyEquation.IsotropicDissipationRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;NamedTuple&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/5b144ed918fb36b2c56b0906cd69cfe517b56613/src/TurbulentKineticEnergyEquation.jl#L63-L86">source</a></section></details></article><h2 id="Shear-production-rates"><a class="docs-heading-anchor" href="#Shear-production-rates">Shear production rates</a><a id="Shear-production-rates-1"></a><a class="docs-heading-anchor-permalink" href="#Shear-production-rates" title="Permalink"></a></h2><article><details class="docstring" open="true"><summary id="Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate"><a class="docstring-binding" href="#Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate"><code>Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyXShearProductionRate</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">TurbulentKineticEnergyXShearProductionRate(
+    u′,
+    v′,
+    w′,
+    U,
+    V,
+    W;
+    grid,
+    location
+)
+</code></pre><p>Calculate the shear production rate in the <code>model</code>&#39;s <code>x</code> direction:</p><pre><code class="language-julia hljs">XSHEAR = uᵢ′u′∂x(Uᵢ)</code></pre><p>where <code>uᵢ′</code> is the velocity perturbation in the <code>i</code> direction, <code>u′</code> is the velocity perturbation in the <code>x</code> direction, <code>Uᵢ</code> is the background velocity in the <code>i</code> direction, and <code>∂x</code> is the horizontal derivative.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; XSHEAR = TurbulentKineticEnergyEquation.XShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_x_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/5b144ed918fb36b2c56b0906cd69cfe517b56613/src/TurbulentKineticEnergyEquation.jl#L120-L143">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate"><a class="docstring-binding" href="#Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate"><code>Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyYShearProductionRate</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">TurbulentKineticEnergyYShearProductionRate(
+    u′,
+    v′,
+    w′,
+    U,
+    V,
+    W;
+    grid,
+    location
+)
+</code></pre><p>Calculate the shear production rate in the <code>model</code>&#39;s <code>y</code> direction:</p><pre><code class="language-julia hljs">YSHEAR = uᵢ′v′∂y(Uᵢ)</code></pre><p>where <code>uᵢ′</code> is the velocity perturbation in the <code>i</code> direction, <code>v′</code> is the velocity perturbation in the <code>y</code> direction, <code>Uᵢ</code> is the background velocity in the <code>i</code> direction, and <code>∂y</code> is the vertical derivative.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; YSHEAR = TurbulentKineticEnergyEquation.YShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_y_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/5b144ed918fb36b2c56b0906cd69cfe517b56613/src/TurbulentKineticEnergyEquation.jl#L181-L204">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate"><a class="docstring-binding" href="#Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate"><code>Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyZShearProductionRate</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">TurbulentKineticEnergyZShearProductionRate(
+    u′,
+    v′,
+    w′,
+    U,
+    V,
+    W;
+    grid,
+    location
+)
+</code></pre><p>Calculate the shear production rate in the <code>model</code>&#39;s <code>z</code> direction:</p><pre><code class="language-julia hljs">ZSHEAR = uᵢ′w′∂z(Uᵢ)</code></pre><p>where <code>uᵢ′</code> is the velocity perturbation in the <code>i</code> direction, <code>w′</code> is the vertical velocity perturbation, <code>Uᵢ</code> is the background velocity in the <code>i</code> direction, and <code>∂z</code> is the vertical derivative.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; ZSHEAR = TurbulentKineticEnergyEquation.ZShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_z_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/5b144ed918fb36b2c56b0906cd69cfe517b56613/src/TurbulentKineticEnergyEquation.jl#L241-L264">source</a></section></details></article><article><details class="docstring" open="true"><summary id="Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyShearProductionRate"><a class="docstring-binding" href="#Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyShearProductionRate"><code>Oceanostics.TurbulentKineticEnergyEquation.TurbulentKineticEnergyShearProductionRate</code></a> — <span class="docstring-category">Type</span></summary><section><div><pre><code class="language-julia hljs">TurbulentKineticEnergyShearProductionRate(
+    u′,
+    v′,
+    w′,
+    U,
+    V,
+    W;
+    grid,
+    location
+)
+</code></pre><p>Calculate the total shear production rate (sum of the shear production rates in the <code>model</code>&#39;s <code>x</code>, <code>y</code> and <code>z</code> directions):</p><pre><code class="language-julia hljs">SHEAR = XSHEAR + YSHEAR + ZSHEAR = uᵢ′uⱼ′∂ⱼ(Uᵢ)</code></pre><p>where <code>XSHEAR</code>, <code>YSHEAR</code> and <code>ZSHEAR</code> are the shear production rates in the <code>x</code>, <code>y</code> and <code>z</code> directions, respectively, <code>uᵢ′</code> and <code>uⱼ′</code> are the velocity perturbations in the <code>i</code> and <code>j</code> directions, respectively, and <code>∂ⱼ</code> is the derivative in the <code>j</code> direction.</p><pre><code class="language-julia-repl hljs">julia&gt; using Oceananigans, Oceanostics
+
+julia&gt; grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia&gt; model = NonhydrostaticModel(grid);
+
+julia&gt; SHEAR = TurbulentKineticEnergyEquation.ShearProductionRate(model)
+KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: shear_production_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;Field&quot;, &quot;Field&quot;, &quot;Field&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;, &quot;Oceananigans.Fields.ZeroField&quot;)</code></pre></div><a class="docs-sourcelink" target="_blank" href="https://github.com/tomchor/Oceanostics.jl/blob/5b144ed918fb36b2c56b0906cd69cfe517b56613/src/TurbulentKineticEnergyEquation.jl#L289-L312">source</a></section></details></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../kinetic_energy_equation/">« Kinetic energy equation</a><a class="docs-footer-nextpage" href="../tracer_variance_equation/">Tracer variance equation »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Tuesday 2 June 2026 23:34">Tuesday 2 June 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
