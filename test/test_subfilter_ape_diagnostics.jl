@@ -9,6 +9,8 @@ using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialE
                    AvailablePotentialEnergyCrossScaleFlux, FilteredAvailablePotentialToKineticEnergyConversion
 using Oceanostics: SubFilterAvailablePotentialToKineticEnergyConversion, AvailablePotentialToKineticEnergyConversion,
                    reference_buoyancy_at_height
+using Oceanostics: SubFilterAvailablePotentialEnergyReferenceTendency, FilteredAvailablePotentialEnergyReferenceTendency,
+                   AvailablePotentialEnergyReferenceTendency
 using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate,
                    reference_height, reference_buoyancy, VerticalSort, ProfileLookup, HeavisideIntegral,
                    GaussianFilter, BoxFilter
@@ -254,6 +256,50 @@ function test_subfilter_ape_rejects_vertical_filters(grid, vertical_filters)
             @test_throws "acts in the horizontal" diagnostic(model; σ=0.1, dims)
         end
     end
+
+    # Rˢ takes the profile tendency besides the filter, so it gets its own calls
+    ∂ₜb✶ = CenterField(reference_height(model, method=VerticalSort()).grid)
+    for vertical in vertical_filters
+        @test_throws "acts in the horizontal" SubFilterAvailablePotentialEnergyReferenceTendency(model, vertical, ∂ₜb✶)
+    end
+    for dims in ((1, 2, 3), (3,))
+        @test_throws "acts in the horizontal" SubFilterAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶; σ=0.1, dims)
+    end
+    return nothing
+end
+
+# Rˢ = filter(R) - Rˡ, both halves integrating one profile tendency, so the two have to add back up to
+# the filtered full-field reference tendency. The tendency here is the profile itself, which keeps both
+# halves away from zero (see `test_reference_tendency` in the full-field suite). An identity-scale
+# filter makes the two halves equal, so Rˢ vanishes to the bit.
+function test_subfilter_ape_reference_tendency(model, filt)
+    column = reference_height(model, method=VerticalSort())
+    lookup = ProfileLookup(column)
+    ∂ₜb✶ = CenterField(column.grid)
+    interior(∂ₜb✶) .= interior(reference_buoyancy(column))
+
+    Rˢ = SubFilterAvailablePotentialEnergyReferenceTendency(model, filt, ∂ₜb✶; method=lookup)
+    @test location(Rˢ) == (Center, Center, Center)
+    @test Rˢ isa SubFilterAvailablePotentialEnergyReferenceTendency
+    @test occursin("SubFilterAvailablePotentialEnergyReferenceTendency", sprint(show, Rˢ))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), Rˢ))
+
+    z✶ = reference_height(model.tracers.b; method=lookup)
+    Rˡ = Field(FilteredAvailablePotentialEnergyReferenceTendency(model, filt, ∂ₜb✶; method=lookup))
+    filtered_R = Field(filt(Field(AvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶))))
+    @test maximum(abs, interior(Field(Rˢ))) > 0   # otherwise the sum below would hold trivially
+    @test interior(filtered_R) ≈ interior(Rˡ) .+ interior(Field(Rˢ))
+
+    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=1e-4, N=3)
+    Rˢ_identity = Field(SubFilterAvailablePotentialEnergyReferenceTendency(model, identity_filter, ∂ₜb✶; method=lookup))
+    @test all(interior(Rˢ_identity) .== 0)
+
+    σ = 0.12
+    gaussian = ψ -> GaussianFilter(ψ; dims=(1, 2), σ, boundary=:shrink)   # the convenience defaults
+    @test interior(Field(SubFilterAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶; σ, method=lookup))) ≈
+          interior(Field(SubFilterAvailablePotentialEnergyReferenceTendency(model, gaussian, ∂ₜb✶; method=lookup)))
+
+    @test_throws "ProfileLookup" SubFilterAvailablePotentialEnergyReferenceTendency(model, filt, ∂ₜb✶; method=HeavisideIntegral())
     return nothing
 end
 
@@ -429,6 +475,9 @@ end
 
     @info "    Subfilter APE dissipation εₐˢ = filter(εₐ) - εₐˡ basics"
     test_subfilter_ape_dissipation_basics(model, filt)
+
+    @info "    Subfilter APE reference tendency Rˢ = filter(R) - Rˡ"
+    test_subfilter_ape_reference_tendency(model, filt)
 
     @info "    eₐˢ and εₐˢ recompute as the flow evolves"
     test_subfilter_ape_recomputes(model, filt)              # mutates model; keep after the other `model` tests

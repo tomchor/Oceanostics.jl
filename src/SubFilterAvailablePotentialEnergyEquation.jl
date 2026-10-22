@@ -12,6 +12,7 @@ export FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDissipa
 # re-exported from the same module.
 export AvailablePotentialEnergyCrossScaleFlux
 export SubFilterAvailablePotentialToKineticEnergyConversion
+export SubFilterAvailablePotentialEnergyReferenceTendency
 # The shared reference profile both states are measured against is built with
 # `BackgroundPotentialEnergyEquation`'s machinery, so the pieces needed to construct and share one are
 # re-exported here and this module can be used on its own.
@@ -28,11 +29,13 @@ using ..PotentialEnergyEquation: validate_buoyancy_is_a_diffused_tracer, validat
                                  validate_gravity_is_z_aligned
 using ..BackgroundPotentialEnergyEquation: reference_height, reference_buoyancy, reference_buoyancy_at_height,
                                            VerticalSort, ProfileLookup
-using ..AvailablePotentialEnergyEquation: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate
+using ..AvailablePotentialEnergyEquation: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate,
+                                          AvailablePotentialEnergyReferenceTendency, reference_tendency_field
 using ..FilteredAvailablePotentialEnergyEquation: FilteredAvailablePotentialEnergy,
                                                   FilteredAvailablePotentialEnergyDissipationRate,
                                                   AvailablePotentialEnergyCrossScaleFlux,
                                                   FilteredAvailablePotentialToKineticEnergyConversion,
+                                                  FilteredAvailablePotentialEnergyReferenceTendency,
                                                   filtered_ape_to_ke_conversion_ccc,
                                                   filtered_buoyancy_and_lookup
 # `GaussianFilter` builds the convenience methods' filter; `BoxFilter` is imported only so its docstring
@@ -310,6 +313,79 @@ end
 
 SubFilterAvailablePotentialToKineticEnergyConversion(model; σ, dims = (1, 2), boundary = :shrink, N = nothing, kwargs...) =
     SubFilterAvailablePotentialToKineticEnergyConversion(model, GaussianFilter(; dims, σ, boundary, N); kwargs...)
+#---
+
+#+++ Subfilter available potential energy reference tendency
+# Rˢ = filter(R) - Rˡ, the same wrapper trick as the diagnostics above. Both halves integrate one `Ψ̇`,
+# built from the same `∂ₜb✶`, and differ only in the reference height they start from.
+@inline subfilter_ape_reference_tendency_ccc(i, j, k, grid, Rˢ) = @inbounds Rˢ[i, j, k]
+
+const SubFilterAvailablePotentialEnergyReferenceTendency = CustomKFO{<:typeof(subfilter_ape_reference_tendency_ccc)}
+
+"""
+    $(SIGNATURES)
+
+Return the subfilter-scale (SFS) reference tendency of the available potential energy `Rˢ`, the share
+of the evolving reference profile's effect on the APE that falls on the scales a low-pass `filter`
+removes:
+
+```
+    Rˢ = filter(R) - Rˡ ,   R = ∫_{z✶(b)}^{z} ∂ₜb✶(z̃) dz̃ ,   Rˡ = ∫_{z✶(b̄)}^{z} ∂ₜb✶(z̃) dz̃
+```
+
+where `R` is the reference tendency of the full field
+([`AvailablePotentialEnergyReferenceTendency`](@ref)) and `Rˡ` that of the filtered buoyancy
+([`FilteredAvailablePotentialEnergyReferenceTendency`](@ref)), both built on one time derivative
+`∂ₜb✶` of the shared reference profile; the full-field docstring shows how to build it and keep it
+current. `Rˢ` enters the budget of [`SubFilterAvailablePotentialEnergy`](@ref) as `+Rˢ`. `R`
+integrates to zero over a closed or periodic domain and `Rˡ` does not, so for a filter that preserves
+volume integrals `∫Rˢ dV = -∫Rˡ dV`: an evolving reference profile moves APE across the filter scale.
+
+`method` has to be a [`ProfileLookup`](@ref), for the reason [`SubFilterAvailablePotentialEnergy`](@ref)
+gives. Passing `ProfileLookup(z✶_column)`, with the column `∂ₜb✶` differentiates, shares that column's
+sort. `filter` has to act only in the horizontal, since the current implementation cannot guarantee a
+non-negative APE with a filter that has a vertical component; such a filter throws an `ArgumentError`.
+The result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`):
+
+```jldoctest
+using Oceananigans, Oceanostics
+
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+
+z✶_column = reference_height(model, method=VerticalSort())
+∂ₜb✶ = TimeDerivative(reference_buoyancy(z✶_column))
+filter = GaussianFilter(; dims=(1, 2), σ=0.1)
+SubFilterAvailablePotentialEnergyReferenceTendency(model, filter, ∂ₜb✶; method=ProfileLookup(z✶_column))
+
+# output
+
+SubFilterAvailablePotentialEnergyReferenceTendency KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: subfilter_ape_reference_tendency_ccc (generic function with 1 method)
+└── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
+└── computes: subfilter available potential energy reference tendency  filter(R) - Rˡ
+```
+
+A convenience method `SubFilterAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶; σ, dims, boundary, N)`
+builds the Gaussian `filter` for you along `dims`, `(1, 2)` by default, from a standard deviation `σ`
+(with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
+"""
+function SubFilterAvailablePotentialEnergyReferenceTendency(model, filter, ∂ₜb✶; method = ProfileLookup(),
+                                                            geopotential_height = model_geopotential_height(model))
+    diagnostic = "SubFilterAvailablePotentialEnergyReferenceTendency"
+    validate_gravity_is_z_aligned(diagnostic, model)
+    z✶, z✶ˡ = subfilter_reference_heights(diagnostic, model, filter, method, geopotential_height)
+
+    R  = reference_tendency_field(diagnostic, model, ∂ₜb✶, z✶)    # from the full field's reference height
+    Rˡ = reference_tendency_field(diagnostic, model, ∂ₜb✶, z✶ˡ)   # from the filtered field's
+    Rˢ = Field(filter(R)) - Rˡ
+
+    return KernelFunctionOperation{Center, Center, Center}(subfilter_ape_reference_tendency_ccc, model.grid, Rˢ)
+end
+
+SubFilterAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶; σ, dims = (1, 2), boundary = :shrink, N = nothing, kwargs...) =
+    SubFilterAvailablePotentialEnergyReferenceTendency(model, GaussianFilter(; dims, σ, boundary, N), ∂ₜb✶; kwargs...)
 #---
 
 end # module

@@ -7,6 +7,7 @@ export FilteredAvailablePotentialEnergyDisplacementPotential, DisplacementPotent
 export FilteredAvailablePotentialEnergyDissipationRate, DissipationRate
 export AvailablePotentialEnergyCrossScaleFlux, CrossScaleFlux
 export FilteredAvailablePotentialToKineticEnergyConversion
+export FilteredAvailablePotentialEnergyReferenceTendency
 # The reference profile the filtered buoyancy is measured against is built with
 # `BackgroundPotentialEnergyEquation`'s machinery, so the pieces needed to construct and share one are
 # re-exported here and this module can be used on its own.
@@ -29,7 +30,9 @@ using ..BackgroundPotentialEnergyEquation: SortedReferenceHeightField, reference
                                            buoyancy_field
 using ..AvailablePotentialEnergyEquation: AvailablePotentialEnergy, AvailablePotentialEnergyDisplacementPotential,
                                           AvailablePotentialEnergyDissipationRate, local_ape_ccc, upsilon_ccc,
-                                          validate_reference_height_grid
+                                          validate_reference_height_grid,
+                                          AvailablePotentialEnergyReferenceTendency, ape_reference_tendency_ccc,
+                                          reference_tendency_field
 # `GaussianFilter` builds the convenience methods' filter; `BoxFilter` is imported only so its docstring
 # `@ref` resolves in-module; `filtered_dims` and `mixes_vertical_levels` tell which way a filter cuts.
 using ..SpatialFilters: GaussianFilter, BoxFilter, filtered_dims, mixes_vertical_levels
@@ -666,6 +669,85 @@ end
 
 FilteredAvailablePotentialToKineticEnergyConversion(model; σ, dims = (1, 2), boundary = :shrink, N = nothing, kwargs...) =
     FilteredAvailablePotentialToKineticEnergyConversion(model, GaussianFilter(; dims, σ, boundary, N); kwargs...)
+#---
+
+#+++ Filtered available potential energy reference tendency
+# Rˡ = Ψ̇(z) - Ψ̇(z✶ˡ): the full-field reference tendency measured from the reference height of the
+# filtered buoyancy. The profile and its time derivative are the full field's, so only the lower limit
+# changes, and the kernel forwards to the full-field one under its own name, as `filtered_ape_ccc` does.
+@inline filtered_ape_reference_tendency_ccc(i, j, k, grid, args...) = ape_reference_tendency_ccc(i, j, k, grid, args...)
+
+const FilteredAvailablePotentialEnergyReferenceTendency = CustomKFO{<:typeof(filtered_ape_reference_tendency_ccc)}
+
+"""
+    $(SIGNATURES)
+
+Return the reference tendency of the available potential energy of the filtered buoyancy field `Rˡ`,
+the rate at which the evolving reference profile changes the APE of the scales a low-pass `filter`
+keeps:
+
+```
+    Rˡ = ∫_{z✶(b̄)}^{z} ∂ₜb✶(z̃) dz̃ ,   b̄ = filter(b)
+```
+
+It is the full-field reference tendency `R` ([`AvailablePotentialEnergyReferenceTendency`](@ref))
+measured from the reference height of the filtered buoyancy, and it enters the budget of
+[`FilteredAvailablePotentialEnergy`](@ref) as `+Rˡ`. The reference profile is the full field's, so
+`∂ₜb✶` is the same time derivative `R` takes; that docstring shows how to build it and keep it current.
+Unlike `R`, `Rˡ` does not integrate to zero over a closed domain, so an evolving reference profile also
+moves APE across the filter scale, to the subfilter reference tendency `Rˢ = filter(R) - Rˡ`
+([`SubFilterAvailablePotentialEnergyReferenceTendency`](@ref Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyReferenceTendency)).
+
+`method` has to be a [`ProfileLookup`](@ref), for the reason [`FilteredAvailablePotentialEnergy`](@ref)
+gives. Passing `ProfileLookup(z✶_column)`, with the column `∂ₜb✶` differentiates, shares that column's
+sort. `filter` has to act only in the horizontal, since the current implementation cannot guarantee a
+non-negative APE with a filter that has a vertical component; such a filter throws an `ArgumentError`.
+
+A second method, `FilteredAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶ˡ)`, takes a
+reference height you built from the filtered buoyancy (see [`FilteredAvailablePotentialEnergy`](@ref)),
+so no `filter` is needed there. The result lives at `(Center, Center, Center)`, per unit mass (units
+`m² s⁻³`):
+
+```jldoctest
+using Oceananigans, Oceanostics
+
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+
+z✶_column = reference_height(model, method=VerticalSort())
+∂ₜb✶ = TimeDerivative(reference_buoyancy(z✶_column))
+filter = GaussianFilter(; dims=(1, 2), σ=0.1)
+FilteredAvailablePotentialEnergyReferenceTendency(model, filter, ∂ₜb✶; method=ProfileLookup(z✶_column))
+
+# output
+
+FilteredAvailablePotentialEnergyReferenceTendency KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: filtered_ape_reference_tendency_ccc (generic function with 1 method)
+└── arguments: ("Field",)
+└── computes: available potential energy reference tendency of the filtered buoyancy  ∫∂ₜb✶(z̃)dz̃ from z✶(b̄) to z
+```
+
+A convenience method `FilteredAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶; σ, dims, boundary, N)`
+builds the Gaussian `filter` for you along `dims`, `(1, 2)` by default, from a standard deviation `σ`
+(with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
+"""
+function FilteredAvailablePotentialEnergyReferenceTendency(model, filter, ∂ₜb✶; method = ProfileLookup(),
+                                                           geopotential_height = model_geopotential_height(model))
+    validate_gravity_is_z_aligned("FilteredAvailablePotentialEnergyReferenceTendency", model)
+    z✶ˡ = filtered_reference_height("FilteredAvailablePotentialEnergyReferenceTendency", model, filter, method,
+                                    geopotential_height)
+    return FilteredAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶ˡ)
+end
+
+function FilteredAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶ˡ::SortedReferenceHeightField)
+    validate_filter_is_horizontal("FilteredAvailablePotentialEnergyReferenceTendency", z✶ˡ)
+    Rˡ = reference_tendency_field("FilteredAvailablePotentialEnergyReferenceTendency", model, ∂ₜb✶, z✶ˡ)
+    return KernelFunctionOperation{Center, Center, Center}(filtered_ape_reference_tendency_ccc, model.grid, Rˡ)
+end
+
+FilteredAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶; σ, dims = (1, 2), boundary = :shrink, N = nothing, kwargs...) =
+    FilteredAvailablePotentialEnergyReferenceTendency(model, GaussianFilter(; dims, σ, boundary, N), ∂ₜb✶; kwargs...)
 #---
 
 end # module

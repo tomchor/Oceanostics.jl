@@ -8,6 +8,7 @@ using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialE
 using Oceanostics: FilteredAvailablePotentialEnergyDisplacementPotential
 using Oceanostics: AvailablePotentialEnergyCrossScaleFlux, subfilter_covariance
 using Oceanostics: FilteredAvailablePotentialToKineticEnergyConversion
+using Oceanostics: FilteredAvailablePotentialEnergyReferenceTendency, AvailablePotentialEnergyReferenceTendency
 using Oceanostics.BackgroundPotentialEnergyEquation: reference_buoyancy_at_height
 using Oceanostics.AvailablePotentialEnergyEquation: DisplacementPotential
 using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate,
@@ -22,6 +23,15 @@ random_stratified_b(x, y, z) = 1e-2 * z + 1e-3 * randn()
 # The shared profile the filtered buoyancy is looked up in: a column sorted from the model's own
 # buoyancy, borrowed through `ProfileLookup` so the tests can build the same `z✶ˡ` by hand.
 shared_lookup(model) = ProfileLookup(reference_height(model, method=VerticalSort()))
+
+# A stand-in for `TimeDerivative(reference_buoyancy(column))`: a field on the sorted column holding the
+# profile itself, which makes a reference tendency the profile part of its APE (Euler's theorem; see
+# `test_reference_tendency` in the full-field suite).
+function profile_as_tendency(column)
+    ∂ₜb✶ = CenterField(column.grid)
+    interior(∂ₜb✶) .= interior(reference_buoyancy(column))
+    return ∂ₜb✶
+end
 
 # Filters that are neither a `BoxFilter` nor a `GaussianFilter`: three-point means along z and along x,
 # written as plain kernels, which the diagnostics can only recognize by trying them on a probe field.
@@ -305,6 +315,55 @@ function test_filtered_ape_rejects_vertical_filters(grid, filt, vertical_filters
     for diagnostic in (FilteredAvailablePotentialEnergyDissipationRate, AvailablePotentialEnergyCrossScaleFlux)
         @test_throws "acts in the horizontal" diagnostic(model, z_mean_filter, z✶ˡ)
     end
+
+    # Rˡ takes the profile tendency besides the filter, so it gets its own calls
+    Rˡ = FilteredAvailablePotentialEnergyReferenceTendency
+    ∂ₜb✶ = profile_as_tendency(lookup.profile)
+    for vertical in (vertical_filters..., z_mean_filter)
+        @test_throws "acts in the horizontal" Rˡ(model, vertical, ∂ₜb✶; method=lookup)
+    end
+    for vertical in vertical_filters
+        z✶ˡ_vertical = reference_height(Field(vertical(b)); method=lookup)
+        @test_throws "acts in the horizontal" Rˡ(model, ∂ₜb✶, z✶ˡ_vertical)
+    end
+    for dims in ((1, 2, 3), (3,))
+        @test_throws "acts in the horizontal" Rˡ(model, ∂ₜb✶; σ=0.1, dims)
+    end
+    @test Rˡ(model, x_mean_filter, ∂ₜb✶; method=lookup) isa Rˡ
+    return nothing
+end
+
+# Rˡ is R measured from the reference height of the filtered buoyancy, so Euler's theorem holds for it
+# as it does for R: with the profile itself as the tendency, Rˡ = eₐˡ - Υˡb̄ exactly. An identity filter
+# makes it R to the bit, and the low-level form on a prebuilt z✶ˡ matches the high-level one.
+function test_filtered_ape_reference_tendency(model, filt)
+    lookup = shared_lookup(model)
+    ∂ₜb✶ = profile_as_tendency(lookup.profile)
+
+    Rˡ = FilteredAvailablePotentialEnergyReferenceTendency(model, filt, ∂ₜb✶; method=lookup)
+    @test location(Rˡ) == (Center, Center, Center)
+    @test Rˡ isa FilteredAvailablePotentialEnergyReferenceTendency
+    @test occursin("FilteredAvailablePotentialEnergyReferenceTendency", sprint(show, Rˡ))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), Rˡ))
+
+    b̄   = Field(filt(model.tracers.b))
+    z✶ˡ = reference_height(b̄; method=lookup)
+    eₐˡ = Field(FilteredAvailablePotentialEnergy(model, z✶ˡ))
+    Υˡ  = Field(DisplacementPotential(model, z✶ˡ))
+    @test interior(Field(Rˡ)) ≈ interior(eₐˡ) .- interior(Υˡ) .* interior(b̄)
+    @test interior(Field(FilteredAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶ˡ))) == interior(Field(Rˡ))
+
+    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=1e-4, N=3)
+    z✶ = reference_height(model.tracers.b; method=lookup)
+    @test interior(Field(FilteredAvailablePotentialEnergyReferenceTendency(model, identity_filter, ∂ₜb✶; method=lookup))) ==
+          interior(Field(AvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶)))
+
+    σ = 0.12
+    gaussian = ψ -> GaussianFilter(ψ; dims=(1, 2), σ, boundary=:shrink)   # the convenience defaults
+    @test interior(Field(FilteredAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶; σ, method=lookup))) ≈
+          interior(Field(FilteredAvailablePotentialEnergyReferenceTendency(model, gaussian, ∂ₜb✶; method=lookup)))
+
+    @test_throws "ProfileLookup" FilteredAvailablePotentialEnergyReferenceTendency(model, filt, ∂ₜb✶; method=HeavisideIntegral())
     return nothing
 end
 
@@ -611,6 +670,9 @@ end
 
     @info "    Filtered APE dissipation εₐˡ = -q̄ᵢ∂ᵢΥˡ basics and shared Υˡ"
     test_filtered_ape_dissipation_basics(model, filt)
+
+    @info "    Filtered APE reference tendency Rˡ"
+    test_filtered_ape_reference_tendency(model, filt)
 
     @info "    eₐˡ and εₐˡ recompute as the flow evolves"
     test_filtered_ape_recomputes(model, filt)              # mutates model; keep after the other `model` tests

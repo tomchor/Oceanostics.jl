@@ -91,18 +91,19 @@ export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 
 #+++ AvailablePotentialEnergyEquation exports
 export AvailablePotentialEnergy, AvailablePotentialEnergyDisplacementPotential, AvailablePotentialEnergyDissipationRate
-export ReferenceBuoyancyAnomaly, AvailablePotentialToKineticEnergyConversion
+export ReferenceBuoyancyAnomaly, AvailablePotentialToKineticEnergyConversion, AvailablePotentialEnergyReferenceTendency
 #---
 
 #+++ FilteredAvailablePotentialEnergyEquation exports
 export FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDisplacementPotential
 export FilteredAvailablePotentialEnergyDissipationRate
 export AvailablePotentialEnergyCrossScaleFlux, FilteredAvailablePotentialToKineticEnergyConversion
+export FilteredAvailablePotentialEnergyReferenceTendency
 #---
 
 #+++ SubFilterAvailablePotentialEnergyEquation exports
 export SubFilterAvailablePotentialEnergy, SubFilterAvailablePotentialEnergyDissipationRate
-export SubFilterAvailablePotentialToKineticEnergyConversion
+export SubFilterAvailablePotentialToKineticEnergyConversion, SubFilterAvailablePotentialEnergyReferenceTendency
 #---
 
 #+++ ProgressMessengers
@@ -492,6 +493,7 @@ end
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  -qᵢ∂ᵢΥ"
 @diagnostic_show AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly                "ReferenceBuoyancyAnomaly"                "reference buoyancy anomaly  b - b✶(z)"
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion "AvailablePotentialToKineticEnergyConversion" "available potential to kinetic energy conversion  wbᵣ"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyReferenceTendency "AvailablePotentialEnergyReferenceTendency" "available potential energy reference tendency  ∫∂ₜb✶(z̃)dz̃ from z✶ to z"
 #---
 
 #+++ FilteredAvailablePotentialEnergyEquation
@@ -500,12 +502,14 @@ end
 @diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyDissipationRate "FilteredAvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate of the filtered buoyancy  -q̄ᵢ∂ᵢΥˡ"
 @diagnostic_show FilteredAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux            "AvailablePotentialEnergyCrossScaleFlux"            "cross-scale available potential energy flux  -τ(uᵢ, b)∂ᵢΥˡ"
 @diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion "FilteredAvailablePotentialToKineticEnergyConversion" "filtered APE to filtered KE conversion  w̄(b̄ - b✶(z))"
+@diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyReferenceTendency "FilteredAvailablePotentialEnergyReferenceTendency" "available potential energy reference tendency of the filtered buoyancy  ∫∂ₜb✶(z̃)dz̃ from z✶(b̄) to z"
 #---
 
 #+++ SubFilterAvailablePotentialEnergyEquation
 @diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy                "SubFilterAvailablePotentialEnergy"                "subfilter available potential energy  filter(eₐ) - eₐˡ"
 @diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate "SubFilterAvailablePotentialEnergyDissipationRate" "subfilter available potential energy dissipation rate  filter(εₐ) - εₐˡ"
 @diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion "SubFilterAvailablePotentialToKineticEnergyConversion" "subfilter APE to KE conversion  filter(wbᵣ) - w̄b_rˡ"
+@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyReferenceTendency "SubFilterAvailablePotentialEnergyReferenceTendency" "subfilter available potential energy reference tendency  filter(R) - Rˡ"
 #---
 
 #+++ FlowDiagnostics

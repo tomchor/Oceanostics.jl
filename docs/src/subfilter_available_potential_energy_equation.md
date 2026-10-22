@@ -97,6 +97,51 @@ distinguishes it from a plain `subfilter_covariance` of ``w`` and ``b_r``.
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion
 ```
 
-The one term of the ``e_a^s`` budget still without a diagnostic is the reference-tendency correction
-that appears when the reference profile evolves in time; with a fixed reference profile it vanishes
-identically.
+## The subfilter reference tendency
+
+An evolving reference profile changes the APE of a parcel that neither moves nor changes its
+buoyancy. The share of that change carried by the subfilter scales is
+
+```math
+R^s = \overline{R} - R^l ,
+\qquad
+R = \int_{z^\star(b)}^{z} \partial_t b^\star(\tilde z, t) \, \mathrm{d}\tilde z ,
+\qquad
+R^l = \int_{z^\star(\bar b)}^{z} \partial_t b^\star(\tilde z, t) \, \mathrm{d}\tilde z ,
+```
+
+computed by [`SubFilterAvailablePotentialEnergyReferenceTendency`](@ref). ``R`` integrates to zero
+over a closed or periodic domain and ``R^l`` does not, so for a filter that preserves volume integrals
+``\int R^s \, \mathrm{d}V = -\int R^l \, \mathrm{d}V``: an evolving reference profile moves APE across
+the filter scale. With a reference profile held fixed in time, all three vanish.
+
+```@docs
+Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyReferenceTendency
+```
+
+## Terms and diagnostics
+
+Filtering the [local APE budget](@ref "Deriving the local available potential energy equation") and
+subtracting the [filtered one](@ref "Deriving the filtered available potential energy equation")
+gives the budget of ``e_a^s``:
+
+```math
+\partial_t e_a^s = \underbrace{-\partial_i\left(\overline{u_i e_a} - \bar u_i e_a^l\right)}_{\text{advection}}
+                   \underbrace{-\,\tau^l(w, b_r)}_{\text{APE to KE conversion}}
+                   \underbrace{+\,\Pi_a}_{\text{cross-scale flux}}
+                   \underbrace{-\,\partial_i\left[\overline{\Upsilon q_i} - \Upsilon^l \left(\tau(u_i, b) + \bar q_i\right)\right]}_{\text{subfilter and diffusive transport}}
+                   \underbrace{-\,\varepsilon_a^s}_{\text{dissipation}}
+                   + \underbrace{R^s}_{\text{reference tendency}} .
+```
+
+Five of the quantities in it have diagnostics; the two transport divergences have none.
+
+| Quantity | Expression | Diagnostic |
+|:---|:---|:---|
+| Subfilter available potential energy | ``e_a^s = \overline{e_a} - e_a^l`` | [`SubFilterAvailablePotentialEnergy`](@ref) |
+| Advection | ``\partial_i(\overline{u_i e_a} - \bar u_i e_a^l)`` | not implemented |
+| APE to KE conversion | ``\tau^l(w, b_r) = \overline{w b_r} - \bar w \, b_r^l`` | [`SubFilterAvailablePotentialToKineticEnergyConversion`](@ref) |
+| Cross-scale flux | ``\Pi_a = -\tau(u_i, b) \, \partial_i \Upsilon^l`` | [`AvailablePotentialEnergyCrossScaleFlux`](@ref Oceanostics.FilteredAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux) |
+| Subfilter and diffusive transport | ``\partial_i[\overline{\Upsilon q_i} - \Upsilon^l (\tau(u_i, b) + \bar q_i)]`` | not implemented |
+| Dissipation | ``\varepsilon_a^s = \overline{\varepsilon_a} - \varepsilon_a^l`` | [`SubFilterAvailablePotentialEnergyDissipationRate`](@ref) |
+| Reference tendency | ``R^s = \overline{R} - R^l`` | [`SubFilterAvailablePotentialEnergyReferenceTendency`](@ref) |
