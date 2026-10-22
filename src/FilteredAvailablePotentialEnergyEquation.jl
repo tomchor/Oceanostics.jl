@@ -581,7 +581,7 @@ end
 #---
 
 #+++ Filtered available-potential-to-kinetic-energy conversion
-# w̄ filter(bᵣ), the term the filtered APE and the filtered KE budgets exchange. The filtered anomaly is
+# w̄ b̄ᵣ, the term the filtered APE and the filtered KE budgets exchange. The filtered anomaly `b̄ᵣ` is
 # formed as `b̄ - b✶(z)`, the filtered buoyancy measured against the reference profile at the parcel's
 # own height (the profile `eₐˡ = eₐ(b̄, z)` itself is measured against), which is `filter(bᵣ)` because a
 # horizontal filter leaves `b✶(z)` unchanged. `w̄` lives on the z face, so the product is formed there
@@ -599,23 +599,23 @@ const FilteredAvailablePotentialToKineticEnergyConversion = CustomKFO{<:typeof(f
     $(SIGNATURES)
 
 Return the conversion of filtered available potential energy into filtered kinetic energy
-`w̄ filter(bᵣ)`, the rate at which the scales a low-pass `filter` keeps release their APE to the
+`w̄ b̄ᵣ`, the rate at which the scales a low-pass `filter` keeps release their APE to the
 filtered flow:
 
 ```
-    w̄ filter(bᵣ) = w̄ (b̄ - b✶(z)) ,   bᵣ = b - b✶(z) ,   b̄ = filter(b)
+    w̄ b̄ᵣ = w̄ (b̄ - b✶(z)) ,   bᵣ = b - b✶(z) ,   b̄ = filter(b)
 ```
 
 Here `bᵣ` is the buoyancy anomaly against the reference state
 ([`ReferenceBuoyancyAnomaly`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly)),
 with `b✶(z)` the reference profile read at the parcel's **own height** `z` rather than at the reference
 height `z✶` its buoyancy would take it to (`reference_buoyancy_at_height`). The filter acts at fixed
-`z` and `b✶` depends on `z` alone, so `filter(bᵣ) = b̄ - b✶(z)`, which is how the diagnostic forms it.
-It is the term the filtered APE budget carries as `-w̄ filter(bᵣ)` and the filtered kinetic energy
-budget as `+w̄ filter(bᵣ)`, which is what makes it a reversible exchange rather than a source or a
-sink; `w̄ filter(bᵣ) > 0` converts filtered APE into filtered KE.
+`z` and `b✶` depends on `z` alone, so `b̄ᵣ = filter(bᵣ) = b̄ - b✶(z)`, which is how the diagnostic
+forms it. It is the term the filtered APE budget carries as `-w̄ b̄ᵣ` and the filtered kinetic energy
+budget as `+w̄ b̄ᵣ`, which is what makes it a reversible exchange rather than a source or a sink;
+`w̄ b̄ᵣ > 0` converts filtered APE into filtered KE.
 
-The kinetic energy budget that carries `+w̄ filter(bᵣ)` measures its pressure from the hydrostatic
+The kinetic energy budget that carries `+w̄ b̄ᵣ` measures its pressure from the hydrostatic
 pressure `p✶` of the reference profile (`∂p✶/∂z = b✶`), as for
 [`AvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion).
 With the model's own pressure the filtered kinetic energy budget carries `w̄b̄` instead, and the two
@@ -653,7 +653,7 @@ FilteredAvailablePotentialToKineticEnergyConversion KernelFunctionOperation at (
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: filtered_ape_to_ke_conversion_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
-└── computes: filtered APE to filtered KE conversion  w̄ filter(bᵣ)
+└── computes: filtered APE to filtered KE conversion  w̄ b̄ᵣ
 ```
 
 A convenience method `FilteredAvailablePotentialToKineticEnergyConversion(model; σ, dims, boundary, N)`

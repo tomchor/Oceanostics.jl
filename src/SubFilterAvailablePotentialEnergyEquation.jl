@@ -246,16 +246,16 @@ subfilter flow:
 ```
 
 It is the subfilter half of the split whose filtered half is
-[`FilteredAvailablePotentialToKineticEnergyConversion`](@ref) `w̄ filter(bᵣ)`: the two sum to
+[`FilteredAvailablePotentialToKineticEnergyConversion`](@ref) `w̄ b̄ᵣ`: the two sum to
 `filter(w bᵣ)`, so the subfilter and filtered budgets between them exchange exactly what the full
 field converts. It enters this budget as `-τ(w, bᵣ)` and the subfilter kinetic energy budget
 ([`SubFilterKineticEnergy`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy))
 as `+τ(w, bᵣ)`, so it is a reversible exchange rather than a source or a sink.
 
 It is the subfilter covariance of `w` and `bᵣ`. For the horizontal filters this diagnostic accepts,
-`b✶` depends on `z` alone and passes through the filter unchanged, so `filter(bᵣ) = b̄ - b✶(z)`, which
-is how the diagnostic forms it, and the reference profile cancels between the two terms, which leaves
-the subfilter buoyancy flux `τ(w, bᵣ) = filter(w b) - w̄ b̄`.
+`b✶` depends on `z` alone and passes through the filter unchanged, so the `b̄ᵣ = b̄ - b✶(z)` the
+diagnostic forms is `filter(bᵣ)`, and the reference profile cancels between the two terms, which
+leaves the subfilter buoyancy flux `τ(w, bᵣ) = filter(w b) - w̄ b̄`.
 
 `method` has to be a [`ProfileLookup`](@ref), for the reason
 [`SubFilterAvailablePotentialEnergy`](@ref) gives, and both halves are built on the one profile it
@@ -280,7 +280,7 @@ SubFilterAvailablePotentialToKineticEnergyConversion KernelFunctionOperation at 
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ape_to_ke_conversion_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
-└── computes: subfilter APE to KE conversion  filter(wbᵣ) - w̄ filter(bᵣ)
+└── computes: subfilter APE to KE conversion  filter(wbᵣ) - w̄ b̄ᵣ
 ```
 
 A convenience method `SubFilterAvailablePotentialToKineticEnergyConversion(model; σ, dims, boundary, N)`

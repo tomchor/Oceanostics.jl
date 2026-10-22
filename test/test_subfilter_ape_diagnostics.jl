@@ -318,11 +318,11 @@ function test_subfilter_ape_ke_conversion_vanishes_without_motion(grid, filt)
     return nothing
 end
 
-# The filtered half forms the anomaly as b̄ - b✶(z), which is filter(bᵣ) = filter(b - b✶(z)) for a
-# horizontal filter, since b✶ depends on z alone and passes through the filter unchanged, so τ(w, bᵣ) is
-# the subfilter covariance of w and bᵣ; a filter that acts in the vertical smooths b✶ as well, and the
-# two differ. The diagnostic itself takes only the horizontal kind, so the vertical filter here is
-# applied to the fields directly.
+# The filtered half forms the anomaly as b̄ᵣ = b̄ - b✶(z), which is filter(bᵣ) = filter(b - b✶(z)) for
+# a horizontal filter, since b✶ depends on z alone and passes through the filter unchanged, so
+# τ(w, bᵣ) is the subfilter covariance of w and bᵣ; a filter that acts in the vertical smooths b✶ as
+# well, and the two differ. The diagnostic itself takes only the horizontal kind, so the vertical
+# filter here is applied to the fields directly.
 function test_subfilter_ape_ke_conversion_filtered_anomaly(model, filt_vertical, filt_horizontal)
     lookup = ProfileLookup(reference_height(model, method=VerticalSort()))
     b   = model.tracers.b

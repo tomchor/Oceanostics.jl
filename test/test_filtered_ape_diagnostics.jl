@@ -496,10 +496,10 @@ function test_filtered_ape_ke_conversion_vanishes_without_motion(grid, filt)
 end
 
 """
-The diagnostic forms the filtered anomaly as b̄ − b✶(z), which is filter(bᵣ) = filter(b − b✶(z)) for a
-horizontal filter, since b✶ depends on z alone and passes through the filter unchanged; a filter that
-acts in the vertical smooths b✶ as well, and the two differ. The diagnostic itself takes only the
-horizontal kind, so the vertical filter here is applied to the fields directly.
+The diagnostic forms the filtered anomaly as b̄ᵣ = b̄ − b✶(z), which is filter(bᵣ) = filter(b − b✶(z))
+for a horizontal filter, since b✶ depends on z alone and passes through the filter unchanged; a
+filter that acts in the vertical smooths b✶ as well, and the two differ. The diagnostic itself
+takes only the horizontal kind, so the vertical filter here is applied to the fields directly.
 """
 function test_filtered_ape_ke_conversion_filtered_anomaly(model, filt_vertical, filt_horizontal)
 
@@ -624,7 +624,7 @@ end
     @info "    Module re-exports and aliases"
     test_filtered_ape_module_reexports()
 
-    @info "  Testing the filtered APE to filtered KE conversion w̄ filter(bᵣ)"
+    @info "  Testing the filtered APE to filtered KE conversion w̄ b̄ᵣ"
     test_filtered_ape_ke_conversion_matches_manual(model, filt)
     test_filtered_ape_ke_conversion_filtered_anomaly(model, filt_vertical, filt)
     test_filtered_ape_ke_conversion_convenience(model)
@@ -639,6 +639,6 @@ end
     test_ape_cross_scale_flux_vanishes_without_motion(grid, filt)
     test_ape_cross_scale_flux_errors(grid, filt)
 
-    @info "    w̄ filter(bᵣ) recomputes as the flow evolves"
+    @info "    w̄ b̄ᵣ recomputes as the flow evolves"
     test_filtered_ape_ke_conversion_recomputes(model, filt)   # mutates model; keep last
 end
