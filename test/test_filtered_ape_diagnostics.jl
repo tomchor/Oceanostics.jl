@@ -494,9 +494,9 @@ function test_ape_cross_scale_flux_errors(grid, filt)
 end
 
 """
-w̄b_rˡ = w̄(b̄ − b✶(z)) rebuilt by hand from the filtered vertical velocity, the filtered buoyancy and the
-reference profile read at each cell's own height. The product is formed on the `w` face and only then
-interpolated to the center, so the manual construction pins that co-location too.
+w̄ b̄ᵣ = w̄(b̄ − b✶(z)) rebuilt by hand from the filtered vertical velocity, the filtered buoyancy
+and the reference profile read at each cell's own height. The product is formed on the `w` face and
+only then interpolated to the center, so the manual construction pins that co-location too.
 """
 function test_filtered_ape_ke_conversion_matches_manual(model, filt)
 
@@ -504,8 +504,8 @@ function test_filtered_ape_ke_conversion_matches_manual(model, filt)
     b✶z = reference_buoyancy_at_height(model.grid, lookup.profile)
     w̄  = Field(filt(model.velocities.w))
     b̄  = Field(filt(model.tracers.b))
-    b_rˡ_ccf = Field(@at (Center, Center, Face) Field(b̄ - b✶z))
-    manual = Field(@at (Center, Center, Center) (w̄ * b_rˡ_ccf))
+    b̄ᵣ_ccf = Field(@at (Center, Center, Face) Field(b̄ - b✶z))
+    manual = Field(@at (Center, Center, Center) (w̄ * b̄ᵣ_ccf))
 
     conversion = FilteredAvailablePotentialToKineticEnergyConversion(model, filt; method = lookup)
     @test location(conversion) == (Center, Center, Center)
@@ -519,9 +519,9 @@ end
 
 """
 The reference profile is read at the parcel's own height, so a horizontally uniform stable
-stratification is its own reference state: b✶(z) = b(z) cell by cell, hence b_rˡ ≡ 0 and no energy is
-converted however vigorous the vertical velocity. This is the sharp check on the lookup, since a
-half-slot error in b✶(z) would show up here as an O(N²Δz) anomaly rather than as roundoff.
+stratification is its own reference state: b✶(z) = b(z) cell by cell, hence b̄ᵣ ≡ 0 and no
+energy is converted however vigorous the vertical velocity. This is the sharp check on the lookup,
+since a half-slot error in b✶(z) would show up here as an O(N²Δz) anomaly rather than as roundoff.
 """
 function test_filtered_ape_ke_conversion_uniform_stratification_vanishes(grid, filt)
 
@@ -538,8 +538,8 @@ end
 
 """
 The conversion is a flux carried by the filtered vertical velocity, so it vanishes identically with no
-motion however sharp the buoyancy — the check a stray sign or a leftover term would break, since b_rˡ
-is nowhere near zero here.
+motion however sharp the buoyancy — the check a stray sign or a leftover term would break, since
+b̄ᵣ is nowhere near zero here.
 """
 function test_filtered_ape_ke_conversion_vanishes_without_motion(grid, filt)
 
@@ -547,30 +547,29 @@ function test_filtered_ape_ke_conversion_vanishes_without_motion(grid, filt)
     set!(model, b = random_stratified_b)   # velocities left at zero
 
     lookup = shared_lookup(model)
-    b_rˡ = Field(Field(filt(model.tracers.b)) - reference_buoyancy_at_height(grid, lookup.profile))
-    @test maximum(abs, interior(b_rˡ)) > 0   # otherwise the assertion below would hold trivially
+    b̄ᵣ = Field(Field(filt(model.tracers.b)) - reference_buoyancy_at_height(grid, lookup.profile))
+    @test maximum(abs, interior(b̄ᵣ)) > 0   # otherwise the assertion below would hold trivially
     @test maximum(abs, interior(Field(FilteredAvailablePotentialToKineticEnergyConversion(model, filt; method = lookup)))) == 0
 
     return nothing
 end
 
 """
-b_rˡ = b̄ − b✶(z) measures the filtered buoyancy against the *unfiltered* reference profile, which is
-what differentiating eₐˡ produces; it is not filter(b_r) = b̄ − filter(b✶(z)), which filters the
-reference too. The two differ once the filter acts in the vertical and coincide for a purely horizontal
-one, since b✶ is a function of z alone — exactly the distinction this term is defined by. The diagnostic
-itself takes only the horizontal kind, so the vertical filter here is applied to the fields directly.
+The diagnostic forms the filtered anomaly as b̄ᵣ = b̄ − b✶(z), which is filter(bᵣ) = filter(b − b✶(z))
+for a horizontal filter, since b✶ depends on z alone and passes through the filter unchanged; a
+filter that acts in the vertical smooths b✶ as well, and the two differ. The diagnostic itself
+takes only the horizontal kind, so the vertical filter here is applied to the fields directly.
 """
-function test_filtered_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt_horizontal)
+function test_filtered_ape_ke_conversion_filtered_anomaly(model, filt_vertical, filt_horizontal)
 
     lookup = shared_lookup(model)
     b = model.tracers.b
 
     for (filter, coincide) in ((filt_vertical, false), (filt_horizontal, true))
         b✶z = reference_buoyancy_at_height(model.grid, lookup.profile)
-        b_rˡ         = Field(Field(filter(b)) - b✶z)     # filtered buoyancy, unfiltered reference
-        filtered_b_r = Field(filter(Field(b - b✶z)))     # filters the reference too
-        @test (interior(b_rˡ) ≈ interior(filtered_b_r)) == coincide
+        b̄ᵣ          = Field(Field(filter(b)) - b✶z)     # as the diagnostic forms it
+        filtered_bᵣ = Field(filter(Field(b - b✶z)))     # filter(bᵣ) literally
+        @test (interior(b̄ᵣ) ≈ interior(filtered_bᵣ)) == coincide
     end
 
     return nothing
@@ -687,9 +686,9 @@ end
     @info "    Module re-exports and aliases"
     test_filtered_ape_module_reexports()
 
-    @info "  Testing the filtered APE to filtered KE conversion w̄b_rˡ"
+    @info "  Testing the filtered APE to filtered KE conversion w̄ b̄ᵣ"
     test_filtered_ape_ke_conversion_matches_manual(model, filt)
-    test_filtered_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt)
+    test_filtered_ape_ke_conversion_filtered_anomaly(model, filt_vertical, filt)
     test_filtered_ape_ke_conversion_convenience(model)
     test_filtered_ape_ke_conversion_uniform_stratification_vanishes(grid, filt)
     test_filtered_ape_ke_conversion_vanishes_without_motion(grid, filt)
@@ -702,6 +701,6 @@ end
     test_ape_cross_scale_flux_vanishes_without_motion(grid, filt)
     test_ape_cross_scale_flux_errors(grid, filt)
 
-    @info "    w̄b_rˡ recomputes as the flow evolves"
+    @info "    w̄ b̄ᵣ recomputes as the flow evolves"
     test_filtered_ape_ke_conversion_recomputes(model, filt)   # mutates model; keep last
 end
