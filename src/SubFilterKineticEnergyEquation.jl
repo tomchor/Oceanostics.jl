@@ -137,7 +137,7 @@ SubFilterKineticEnergyDissipationRate(model, filter)
 SubFilterKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ke_dissipation_rate_ccc (generic function with 1 method)
-└── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
+└── arguments: ("BinaryOperation",)
 └── computes: subfilter kinetic energy dissipation rate  filter(εₖ) - εₖˡ
 ```
 
