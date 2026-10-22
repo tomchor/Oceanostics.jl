@@ -229,7 +229,7 @@ SubFilterAvailablePotentialEnergyDissipationRate(model; σ, dims = (1, 2), bound
 #---
 
 #+++ Subfilter available-potential-to-kinetic-energy conversion
-# τ(w, bᵣ) = filter(wbᵣ) - w̄ filter(bᵣ), the same wrapper trick as the two diagnostics above.
+# τ(w, bᵣ) = filter(wbᵣ) - w̄ b̄ᵣ, the same wrapper trick as the two diagnostics above.
 @inline subfilter_ape_to_ke_conversion_ccc(i, j, k, grid, wbᵣˢ) = @inbounds wbᵣˢ[i, j, k]
 
 const SubFilterAvailablePotentialToKineticEnergyConversion = CustomKFO{<:typeof(subfilter_ape_to_ke_conversion_ccc)}
@@ -242,7 +242,7 @@ Return the subfilter-scale (SFS) conversion of available potential energy into k
 subfilter flow:
 
 ```
-    τ(w, bᵣ) = filter(w bᵣ) - w̄ filter(bᵣ) ,   bᵣ = b - b✶(z) ,   filter(bᵣ) = b̄ - b✶(z)
+    τ(w, bᵣ) = filter(w bᵣ) - w̄ b̄ᵣ ,   bᵣ = b - b✶(z) ,   b̄ᵣ = b̄ - b✶(z)
 ```
 
 It is the subfilter half of the split whose filtered half is
