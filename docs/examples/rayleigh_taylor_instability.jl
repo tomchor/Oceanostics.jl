@@ -255,6 +255,7 @@ b_arr = ds["b"][:, 1, :, :]
 Π_arr = ds["Πₖ"][:, 1, :, :]
 eₐˢ_arr = ds["eₐˢ"][:, 1, :, :]
 eₖˢ_arr = ds["eₖˢ"][:, 1, :, :]
+nothing #hide
 
 # Every record carries both tendencies and their budget terms at the same time. The first record has
 # no earlier state to difference against and is written as zero, so the budgets start from the second.
