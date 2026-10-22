@@ -117,7 +117,7 @@ SubFilterAvailablePotentialEnergy(model, filter)
 SubFilterAvailablePotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ape_ccc (generic function with 1 method)
-└── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
+└── arguments: ("BinaryOperation",)
 └── computes: subfilter available potential energy  filter(eₐ) - eₐˡ
 ```
 
@@ -200,7 +200,7 @@ SubFilterAvailablePotentialEnergyDissipationRate(model, filter)
 SubFilterAvailablePotentialEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ape_dissipation_rate_ccc (generic function with 1 method)
-└── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
+└── arguments: ("BinaryOperation",)
 └── computes: subfilter available potential energy dissipation rate  filter(εₐ) - εₐˡ
 ```
 
@@ -279,7 +279,7 @@ SubFilterAvailablePotentialToKineticEnergyConversion(model, filter)
 SubFilterAvailablePotentialToKineticEnergyConversion KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ape_to_ke_conversion_ccc (generic function with 1 method)
-└── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
+└── arguments: ("BinaryOperation",)
 └── computes: subfilter APE to KE conversion  filter(wbᵣ) - w̄ b̄ᵣ
 ```
 
