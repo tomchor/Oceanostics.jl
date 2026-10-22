@@ -218,24 +218,22 @@ Rˢ   = SubFilterAvailablePotentialEnergyReferenceTendency(model, gfilter, ∂�
 
 # ## Output
 #
-# We use two NetCDF writers. A snapshot writer stores vertical (`x`–`z`) slices of the buoyancy `b`,
-# the cross-scale flux `Πₖ` and the two subfilter energies `eₐˢ` and `eₖˢ`, at a fixed `y` index (the
-# flow is periodic and statistically homogeneous in `y`, so the particular plane makes no difference),
-# while a budget writer stores only the integrated scalars. Both run on `TimeInterval(τ/5)`.
+# A single NetCDF writer stores, every `τ/5`, vertical (`x`–`z`) slices of the buoyancy `b`, the
+# cross-scale flux `Πₖ` and the two subfilter energies `eₐˢ` and `eₖˢ` at a fixed `y` index (the flow is
+# periodic and statistically homogeneous in `y`, so the particular plane makes no difference), together
+# with the tendencies and volume integrals of the two budgets. The `indices` that cut the slices leave
+# the volume integrals whole, since those have no spatial dimension left to slice.
 
 using NCDatasets
 filename = joinpath(@__DIR__, "rayleigh_taylor_instability")
 
-simulation.output_writers[:fields] = NetCDFWriter(model, (; b, Πₖ, eₐˢ, eₖˢ),
-                                                  filename = filename,
-                                                  schedule = TimeInterval(τ / 5),
-                                                  indices = (:, 1, :),
-                                                  overwrite_files = true)
+outputs = (; b, Πₖ, eₐˢ, eₖˢ, ∂ₜ∫eₖˢ, ∫wbᵣˢ, ∫Πₖ, ∫εₖˢ, ∂ₜ∫eₐˢ, ∫Πₐ, ∫εₐˢ, ∫Rˢ)
 
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∂ₜ∫eₖˢ, ∫wbᵣˢ, ∫Πₖ, ∫εₖˢ, ∂ₜ∫eₐˢ, ∫Πₐ, ∫εₐˢ, ∫Rˢ),
-                                                  filename = filename * "_budget",
-                                                  schedule = TimeInterval(τ / 5),
-                                                  overwrite_files = true)
+simulation.output_writers[:nc] = NetCDFWriter(model, outputs,
+                                              filename = filename,
+                                              schedule = TimeInterval(τ / 5),
+                                              indices = (:, 1, :),
+                                              overwrite_files = true)
 
 # ## Run the simulation and process results
 #
@@ -249,7 +247,7 @@ run!(simulation)
 
 using CairoMakie
 
-ds = NCDataset(simulation.output_writers[:fields].filepath)
+ds = NCDataset(simulation.output_writers[:nc].filepath)
 times = ds["time"][:]
 x_caa = ds["x_caa"][:]
 z_aac = ds["z_aac"][:]
@@ -257,26 +255,22 @@ b_arr = ds["b"][:, 1, :, :]
 Π_arr = ds["Πₖ"][:, 1, :, :]
 eₐˢ_arr = ds["eₐˢ"][:, 1, :, :]
 eₖˢ_arr = ds["eₖˢ"][:, 1, :, :]
+
+# Every record carries both tendencies and their budget terms at the same time. The first record has
+# no earlier state to difference against and is written as zero, so the budgets start from the second.
+# The residuals measure how well the two subfilter budgets close.
+
+nb       = 2:length(times)
+t_bud    = times[nb]
+deₖˢdt   = ds["∂ₜ∫eₖˢ"][nb]
+wbᵣˢ_bud = ds["∫wbᵣˢ"][nb]
+Πₖ_bud   = ds["∫Πₖ"][nb]
+εₖˢ_bud  = ds["∫εₖˢ"][nb]
+deₐˢdt   = ds["∂ₜ∫eₐˢ"][nb]
+Πₐ_bud   = ds["∫Πₐ"][nb]
+εₐˢ_bud  = ds["∫εₐˢ"][nb]
+Rˢ_bud   = ds["∫Rˢ"][nb]
 close(ds)
-
-# Every budget record carries both tendencies and their budget terms at the same time. The first
-# record has no earlier state to difference against and is written as zero, so the budgets start from
-# the second. The residuals measure how well the two subfilter budgets close.
-
-bud_filepath = simulation.output_writers[:budget].filepath
-ds_bud = NCDataset(bud_filepath)
-nb     = 2:length(ds_bud["time"])
-
-t_bud    = ds_bud["time"][nb]
-deₖˢdt   = ds_bud["∂ₜ∫eₖˢ"][nb]
-wbᵣˢ_bud = ds_bud["∫wbᵣˢ"][nb]
-Πₖ_bud   = ds_bud["∫Πₖ"][nb]
-εₖˢ_bud  = ds_bud["∫εₖˢ"][nb]
-deₐˢdt   = ds_bud["∂ₜ∫eₐˢ"][nb]
-Πₐ_bud   = ds_bud["∫Πₐ"][nb]
-εₐˢ_bud  = ds_bud["∫εₐˢ"][nb]
-Rˢ_bud   = ds_bud["∫Rˢ"][nb]
-close(ds_bud)
 
 # Residuals in sum-to-zero form: the negative tendency plus the right-hand side, so the plotted curves
 # add to it
