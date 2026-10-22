@@ -68,7 +68,7 @@ integrated over a closed or periodic domain. The two local exchange terms are
 
 The buoyancy production ``\bar w\,\bar b`` converts between filtered kinetic and potential energy.
 With the pressure measured from the hydrostatic pressure of a reference profile instead of the
-model's own, it becomes the ``\bar w \, b_r^l`` of the
+model's own, it becomes the ``\bar w \, \overline{b_r}`` of the
 [Filtered available potential energy equation](@ref), the two differing by a divergence; that page
 has the details.
 ``\Pi_k`` ([`KineticEnergyCrossScaleFlux`](@ref)) is the cross-scale kinetic energy flux:

@@ -229,7 +229,7 @@ SubFilterAvailablePotentialEnergyDissipationRate(model; σ, dims = (1, 2), bound
 #---
 
 #+++ Subfilter available-potential-to-kinetic-energy conversion
-# τ(w, bᵣ) = filter(wbᵣ) - w̄b_rˡ, the same wrapper trick as the two diagnostics above.
+# τ(w, bᵣ) = filter(wbᵣ) - w̄ filter(bᵣ), the same wrapper trick as the two diagnostics above.
 @inline subfilter_ape_to_ke_conversion_ccc(i, j, k, grid, wbᵣˢ) = @inbounds wbᵣˢ[i, j, k]
 
 const SubFilterAvailablePotentialToKineticEnergyConversion = CustomKFO{<:typeof(subfilter_ape_to_ke_conversion_ccc)}
@@ -242,21 +242,20 @@ Return the subfilter-scale (SFS) conversion of available potential energy into k
 subfilter flow:
 
 ```
-    τ(w, bᵣ) = filter(w bᵣ) - w̄ b_rˡ ,   bᵣ = b - b✶(z) ,   b_rˡ = b̄ - b✶(z)
+    τ(w, bᵣ) = filter(w bᵣ) - w̄ filter(bᵣ) ,   bᵣ = b - b✶(z) ,   filter(bᵣ) = b̄ - b✶(z)
 ```
 
 It is the subfilter half of the split whose filtered half is
-[`FilteredAvailablePotentialToKineticEnergyConversion`](@ref) `w̄b_rˡ`: the two sum to `filter(w bᵣ)`,
-so the subfilter and filtered budgets between them exchange exactly what the full field converts. It
-enters this budget as
-`-τ(w, bᵣ)` and the subfilter kinetic energy budget
+[`FilteredAvailablePotentialToKineticEnergyConversion`](@ref) `w̄ filter(bᵣ)`: the two sum to
+`filter(w bᵣ)`, so the subfilter and filtered budgets between them exchange exactly what the full
+field converts. It enters this budget as `-τ(w, bᵣ)` and the subfilter kinetic energy budget
 ([`SubFilterKineticEnergy`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy))
 as `+τ(w, bᵣ)`, so it is a reversible exchange rather than a source or a sink.
 
-For the horizontal filters this diagnostic accepts, `b✶` depends on `z` alone and passes through the
-filter unchanged, so `b_rˡ = filter(bᵣ)` and `τ(w, bᵣ) = filter(w bᵣ) - w̄ filter(bᵣ)` is the
-subfilter covariance of `w` and `bᵣ`. The reference profile then cancels between its two terms, which
-leaves the subfilter buoyancy flux `τ(w, bᵣ) = filter(w b) - w̄ b̄`.
+It is the subfilter covariance of `w` and `bᵣ`. For the horizontal filters this diagnostic accepts,
+`b✶` depends on `z` alone and passes through the filter unchanged, so `filter(bᵣ) = b̄ - b✶(z)`, which
+is how the diagnostic forms it, and the reference profile cancels between the two terms, which leaves
+the subfilter buoyancy flux `τ(w, bᵣ) = filter(w b) - w̄ b̄`.
 
 `method` has to be a [`ProfileLookup`](@ref), for the reason
 [`SubFilterAvailablePotentialEnergy`](@ref) gives, and both halves are built on the one profile it
@@ -281,7 +280,7 @@ SubFilterAvailablePotentialToKineticEnergyConversion KernelFunctionOperation at 
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ape_to_ke_conversion_ccc (generic function with 1 method)
 └── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
-└── computes: subfilter APE to KE conversion  filter(wbᵣ) - w̄b_rˡ
+└── computes: subfilter APE to KE conversion  filter(wbᵣ) - w̄ filter(bᵣ)
 ```
 
 A convenience method `SubFilterAvailablePotentialToKineticEnergyConversion(model; σ, dims, boundary, N)`
@@ -297,8 +296,8 @@ function SubFilterAvailablePotentialToKineticEnergyConversion(model, filter; met
     # Both halves are the same contraction, a vertical velocity against a buoyancy anomaly measured from
     # the one reference profile `b✶(z)`, so they go through one kernel, the filtered conversion's,
     # differing only in whether they read the full or the filtered fields. Sharing the kernel and the one
-    # `b✶(z)` is what leaves `filter(wbᵣ) = w̄b_rˡ + τ(w, bᵣ)` a decomposition of one discretization
-    # rather than a difference of two.
+    # `b✶(z)` is what leaves `filter(wbᵣ) = w̄ filter(bᵣ) + τ(w, bᵣ)` a decomposition of one
+    # discretization rather than a difference of two.
     b✶ᶻ = reference_buoyancy_at_height(model.grid, lookup.profile)
     w_bᵣ(w, b) = KernelFunctionOperation{Center, Center, Center}(filtered_ape_to_ke_conversion_ccc, model.grid, w, b, b✶ᶻ)
 

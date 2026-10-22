@@ -80,11 +80,11 @@ Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentia
 ## The subfilter conversion to kinetic energy
 
 ```math
-\tau(w, b_r) = \overline{w b_r} - \bar w \, b_r^l ,
+\tau(w, b_r) = \overline{w b_r} - \bar w \, \overline{b_r} ,
 \qquad
 b_r = b - b^\star(z) ,
 \qquad
-b_r^l = \bar b - b^\star(z)
+\overline{b_r} = \bar b - b^\star(z)
 ```
 
 is the rate at which the subfilter scales release their available potential energy to the subfilter
@@ -93,10 +93,10 @@ half of the split whose filtered half is
 [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion),
 the two summing to ``\overline{w b_r}``. It enters this budget as ``-\tau(w, b_r)`` and the
 [Subfilter kinetic energy equation](@ref) as ``+\tau(w, b_r)``, so it is a reversible exchange rather
-than a source or a sink. For the horizontal filters accepted here ``b^\star`` depends on ``z``
-alone, so ``b_r^l = \overline{b_r}`` and ``\tau(w, b_r)`` is the subfilter covariance of ``w`` and
-``b_r``. The reference profile cancels between its two terms, which leaves the subfilter buoyancy
-flux, ``\tau(w, b_r) = \overline{w b} - \bar w \, \bar b``.
+than a source or a sink. It is the subfilter covariance of ``w`` and ``b_r``; for the horizontal
+filters accepted here ``b^\star`` depends on ``z`` alone, so ``\overline{b_r} = \bar b - b^\star(z)``
+and the reference profile cancels between the two terms, which leaves the subfilter buoyancy flux,
+``\tau(w, b_r) = \overline{w b} - \bar w \, \bar b``.
 
 ```@docs
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion
