@@ -42,7 +42,7 @@ grid = RectilinearGrid(size=(N, N÷2, N), x=(-H/2, H/2), y=(-H/4, H/4), z=(-H/2,
 #
 # We model the stresses with a Large Eddy Simulation (LES) closure:
 
-closure = SmagorinskyLilly(C=0.3) # A large C increases eddy viscosity, keeping this very coarse example well behaved
+closure = SmagorinskyLilly(C=0.3) # A large C increases eddy viscosity, keeping this very coarse example well-resolved
 
 # We build a `NonhydrostaticModel` with a fourth-order centered advection scheme, a third-order
 # Runge-Kutta timestepper, and a buoyancy `b` as the active tracer. A centered scheme is non-dissipative
@@ -99,11 +99,11 @@ add_callback!(simulation, progress, IterationInterval(100))
 # scales the filter removes,
 #
 # ```math
-# e_k^s = \tfrac{1}{2}\,\tau_{ii} , \qquad
-# \tau_{ij} = \overline{u_i u_j} - \overline{u}_i\,\overline{u}_j ,
+# e_k^s = \tfrac{1}{2}\,\tau(u_i, u_i) , \qquad
+# \tau(u_i, u_j) = \overline{u_i u_j} - \overline{u}_i\,\overline{u}_j ,
 # ```
 #
-# where ``\tau_{ij}`` is the subfilter stress ([`subfilter_stress_tensor`](@ref)), so ``e_k^s`` itself
+# where ``\tau(u_i, u_j)`` is the subfilter stress ([`subfilter_stress_tensor`](@ref)), so ``e_k^s`` itself
 # is computed by [`SubFilterKineticEnergy`](@ref). We apply a Gaussian
 # filter of width `ℓ` in the two horizontal directions, which are statistically
 # homogeneous; the vertical direction is left unfiltered.
@@ -120,7 +120,7 @@ add_callback!(simulation, progress, IterationInterval(100))
 #
 # with two sources and one sink:
 #
-# - ``\Pi_k = -\tau_{ij}\overline{S}_{ij}`` is the cross-scale kinetic-energy flux
+# - ``\Pi_k = -\tau(u_i, u_j)\overline{S}_{ij}`` is the cross-scale kinetic-energy flux
 #   ([`KineticEnergyCrossScaleFlux`](@ref)), the rate at which the filtered scales hand kinetic energy
 #   down to the subfilter scales.
 # - ``\tau(w, b) = \overline{wb} - \overline{w}\,\overline{b}`` is the subfilter buoyancy flux (a
@@ -173,7 +173,7 @@ wbˢ = subfilter_covariance(w, b, gfilter)          # subfilter buoyancy flux τ
 #
 # ```math
 # \frac{d}{dt} \int e_a^s\, \mathrm{d}V
-#   = - \int \tau^l(w, b_r)\, \mathrm{d}V
+#   = - \int \tau(w, b_r)\, \mathrm{d}V
 #   + \int \Pi_a\, \mathrm{d}V
 #   - \int \varepsilon_a^s\, \mathrm{d}V
 #   + \int R^s\, \mathrm{d}V ,
@@ -181,7 +181,7 @@ wbˢ = subfilter_covariance(w, b, gfilter)          # subfilter buoyancy flux τ
 #
 # where
 #
-# - ``\tau^l(w, b_r) = \overline{w b_r} - \overline{w}\, b_r^l`` converts subfilter APE into subfilter
+# - ``\tau(w, b_r) = \overline{w b_r} - \overline{w}\, \overline{b_r}`` converts subfilter APE into subfilter
 #   kinetic energy ([`SubFilterAvailablePotentialToKineticEnergyConversion`](@ref)); it is the
 #   ``\tau(w, b)`` that feeds ``e_k^s`` above.
 # - ``\Pi_a`` is the cross-scale APE flux ([`AvailablePotentialEnergyCrossScaleFlux`](@ref)), the rate at
