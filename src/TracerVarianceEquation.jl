@@ -62,7 +62,7 @@ julia> χ = TracerVarianceEquation.TracerVarianceTendency(model, :b)
 TracerVarianceTendency KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 1×1×3 halo
 ├── kernel_function: c∂ₜcᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("Val", "Val", "Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Clock", "Returns")
+└── arguments: ("Val", "Val", "Centered", "Nothing", "Nothing", "Nothing", "Nothing", "BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Clock", "Returns")
 └── computes: tracer variance tendency  2c ∂ₜc
 ```
 """
@@ -122,7 +122,7 @@ julia> DIFF = TracerVarianceEquation.TracerVarianceDiffusion(model, :b)
 TracerVarianceDiffusion KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: c∇_dot_qᶜ (generic function with 1 method)
-└── arguments: ("Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+└── arguments: ("Smagorinsky", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
 └── computes: tracer variance diffusion  2c ∂ⱼqᶜⱼ
 ```
 """
@@ -192,7 +192,7 @@ julia> χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)
 TracerVarianceDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
-└── arguments: ("Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
+└── arguments: ("Smagorinsky", "NamedTuple", "Val", "Field", "Clock", "NamedTuple", "Nothing")
 └── computes: tracer variance dissipation rate  -2 ∂ⱼc·qᶜⱼ
 
 julia> b̄ = Field(Average(model.tracers.b, dims=(1,2)));
@@ -203,7 +203,7 @@ julia> χb = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b, tra
 TracerVarianceDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
-└── arguments: ("Oceananigans.TurbulenceClosures.Smagorinskys.Smagorinsky", "NamedTuple", "Val", "Oceananigans.AbstractOperations.BinaryOperation", "Clock", "NamedTuple", "Nothing")
+└── arguments: ("Smagorinsky", "NamedTuple", "Val", "BinaryOperation", "Clock", "NamedTuple", "Nothing")
 └── computes: tracer variance dissipation rate  -2 ∂ⱼc·qᶜⱼ
 ```
 """

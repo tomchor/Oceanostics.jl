@@ -49,19 +49,21 @@ R^l = \int_{z^\star(\bar b)}^{z} \partial_t b^\star(\tilde z, t) \, \mathrm{d}\t
 We can then evaluate the partial derivatives above from the definition of ``e_a^l``, similarly to the
 ``e_a`` derivation. In the first we get an "empty" integral from ``z^\star`` to ``z``, which produces
 the displacement potential of the filtered buoyancy ``\Upsilon^l``. The second simplifies to the integrand of ``e_a^l``, producing
-the buoyancy anomaly ``b_r^l``:
+the filtered buoyancy anomaly ``\overline{b_r}``:
 
 ```math
 \left.\frac{\partial e_a^l}{\partial \bar b}\right|_{z} = z^\star(\bar b, t) - z = \Upsilon^l ,
 \qquad
-\left.\frac{\partial e_a^l}{\partial z}\right|_{\bar b} = b^\star(z, t) - \bar b = -b_r^l .
+\left.\frac{\partial e_a^l}{\partial z}\right|_{\bar b} = b^\star(z, t) - \bar b = -\overline{b_r} .
 ```
 
 Note that ``\Upsilon^l`` is different from ``\Upsilon`` since it includes ``z^\star(\bar b, t)`` and *not*
 ``z^\star(b, t)``. The former is the reference height of the filtered buoyancy: the height at which a parcel
-of the _filtered_ buoyancy would sit in the reference profile _unfiltered_ buoyancy.
-Similarly, the buoyancy anomaly ``b_r^l`` is measured against the reference profile of the full, unfiltered
-buoyancy ``b^\star(z, t)`` -- the reference profile of the _filtered_ buoyancy does not appear anywhere in this equation.
+of the _filtered_ buoyancy would sit in the reference profile of the _unfiltered_ buoyancy.
+The anomaly is the filtered ``b_r = b - b^\star(z, t)`` of
+[the available potential energy equation](available_potential_energy_equation.md): the filter acts at
+fixed ``z`` and ``b^\star`` depends on ``z`` alone, so ``\bar b - b^\star(z, t) = \overline{b_r}``. The
+reference profile of the _filtered_ buoyancy does not appear anywhere in this equation.
 
 The material derivative of the filtered buoyancy comes from filtering
 [the tracer equation](tracer_equation.md) of ``b`` (the filter commutes with derivatives) and
@@ -82,7 +84,7 @@ preserves incompressibility), the filtered APE budget is
 
 ```math
 \partial_t e_a^l = \underbrace{-\partial_i(\bar u_i e_a^l)}_{\text{advection}}
-                   \underbrace{-\,\bar w \, b_r^l}_{\text{APE to KE conversion}}
+                   \underbrace{-\,\bar w \, \overline{b_r}}_{\text{APE to KE conversion}}
                    \underbrace{-\,\Pi_a}_{\text{cross-scale flux}}
                    \underbrace{-\,\partial_i\!\left[\Upsilon^l \left(\tau(u_i, b) + \bar q_i\right)\right]}_{\text{subfilter and diffusive transport}}
                    \underbrace{-\,\varepsilon_a^l}_{\text{dissipation}}
@@ -98,11 +100,16 @@ with
 ```
 
 Term by term this is the full-field budget evaluated on the filtered state plus extra terms
-related to the filter (``\Pi_a`` and ``-\partial_j\Upsilon^l \tau(u_i, b)``). ``\Pi_a`` reappears
+related to the filter (``\Pi_a`` and ``-\partial_i(\Upsilon^l \tau(u_i, b))``). ``\Pi_a`` reappears
 with the opposite sign in the [Subfilter available potential energy equation](@ref), which makes
 it a transfer across the filter scale rather than a source or a sink, and the conversion
-``\bar w \, b_r^l`` likewise reappears with the opposite sign in the
-[filtered kinetic energy](@ref "Filtered kinetic energy equation") budget.
+``\bar w \, \overline{b_r}`` likewise reappears with the opposite sign in the
+[filtered kinetic energy](@ref "Filtered kinetic energy equation") budget. That holds when the
+kinetic energy budget measures its pressure from the hydrostatic pressure ``p^\star`` of the
+reference profile, ``\partial_z p^\star = b^\star``. With the model's own pressure the filtered kinetic
+energy budget carries ``\bar w \, \bar b`` instead, and the two differ by
+``\bar w \, b^\star(z) = \partial_i(\bar u_i \, p^\star)``, a divergence that integrates to zero over a
+domain periodic in the horizontal.
 
 Importantly, while ``R`` integrates to zero in a closed domain ([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X)),
 ``R^l`` does not inherit that property. Given its subfilter counterpart ``R^s = \overline{R} - R^l``
@@ -114,16 +121,17 @@ holding plain arrays) ``R^l`` vanishes identically.
 
 ## Terms and diagnostics
 
-Five of the quantities above have diagnostics; the two transport divergences, the anomaly
-``b_r^l``, and the reference tendency have none.
+Five of the quantities above have their own diagnostics, and the filtered anomaly is the full-field
+[`ReferenceBuoyancyAnomaly`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly)
+passed through `filter`; the two transport divergences and the reference tendency have none.
 
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
 | Filtered available potential energy | ``e_a^l = e_a(\bar b, z)`` | [`FilteredAvailablePotentialEnergy`](@ref) |
 | Displacement potential | ``\Upsilon^l = z^\star(\bar b) - z`` | [`FilteredAvailablePotentialEnergyDisplacementPotential`](@ref) |
 | Advection | ``\partial_i(\bar u_i e_a^l)`` | not implemented |
-| Buoyancy anomaly | ``b_r^l = \bar b - b^\star(z, t)`` | not implemented |
-| APE to KE conversion | ``\bar w \, b_r^l`` | [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref) |
+| Filtered buoyancy anomaly | ``\overline{b_r} = \bar b - b^\star(z, t)`` | `filter` of [`ReferenceBuoyancyAnomaly`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly) |
+| APE to KE conversion | ``\bar w \, \overline{b_r}`` | [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref) |
 | Cross-scale flux | ``\Pi_a = -\tau(u_i, b) \, \partial_i \Upsilon^l`` | [`AvailablePotentialEnergyCrossScaleFlux`](@ref) |
 | Subfilter and diffusive transport | ``\partial_i\left[\Upsilon^l (\tau(u_i, b) + \bar q_i)\right]`` | not implemented |
 | Dissipation | ``\varepsilon_a^l = -\bar q_i \, \partial_i \Upsilon^l`` | [`FilteredAvailablePotentialEnergyDissipationRate`](@ref) |
