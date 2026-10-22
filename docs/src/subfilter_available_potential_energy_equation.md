@@ -134,7 +134,8 @@ gives the budget of ``e_a^s``:
                    + \underbrace{R^s}_{\text{reference tendency}} .
 ```
 
-Five of the quantities in it have diagnostics; the two transport divergences have none.
+Five of the quantities in it have diagnostics; the two transport divergences have none. The
+[Lock release](@ref lock_release_example) example closes the volume-integrated budget.
 
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|

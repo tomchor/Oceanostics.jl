@@ -4,7 +4,8 @@
 # energy and kinetic energy evolve. Along the way we build the reference profile
 # with each of the four methods Oceanostics provides and close
 # the volume-integrated available potential energy and kinetic energy budgets against the two dissipation
-# rates and the buoyancy production that connects them.
+# rates and the buoyancy production that connects them. Finally, we split the available potential energy
+# across the scale of a horizontal filter and close the budget of its subfilter part.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -113,9 +114,11 @@ eₖ           = KineticEnergy(model)
 # \frac{d}{dt}\int e_a\, \mathrm{d}V = -\int w b_r\, \mathrm{d}V - \int \varepsilon_a\, \mathrm{d}V .
 # ```
 #
-# Advection and the pressure gradient integrate to zero for an incompressible flow in a closed box, and
-# the walls are free-slip and insulating, so the viscous and diffusive fluxes leave nothing at the
-# boundary either. What survives is the exchange between the two reservoirs and the two sinks.
+# Advection and the pressure gradient integrate to zero for an incompressible flow in a closed box, as
+# does the reference tendency ``R`` of the
+# [local APE budget](@ref "Deriving the local available potential energy equation"), and the walls are
+# free-slip and insulating, so the viscous and diffusive fluxes leave nothing at the boundary either.
+# What survives is the exchange between the two reservoirs and the two sinks.
 #
 # Note that the exchange term is written ``w b_r`` ([`AvailablePotentialToKineticEnergyConversion`](@ref))
 # in both budgets, not ``wb`` ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion)),
@@ -155,6 +158,53 @@ wb = PotentialToKineticEnergyConversion(model)
 ∫εₖ  = Integral(εₖ)
 ∫εₐ  = Integral(εₐ)
 
+# ### Subfilter available potential energy budget
+#
+# A horizontal filter splits ``e_a`` into the APE of the filtered buoyancy, ``e_a^l``, and the subfilter
+# remainder ``e_a^s = \overline{e_a} - e_a^l`` ([`SubFilterAvailablePotentialEnergy`](@ref)), both
+# measured against the reference profile of the full buoyancy. Volume integrated, the budget of
+# ``e_a^s`` reads
+#
+# ```math
+# \frac{d}{dt}\int e_a^s\, \mathrm{d}V = -\int \tau^l(w, b_r)\, \mathrm{d}V + \int \Pi_a\, \mathrm{d}V
+#                                       - \int \varepsilon_a^s\, \mathrm{d}V + \int R^s\, \mathrm{d}V ,
+# ```
+#
+# with the subfilter conversion to kinetic energy
+# ``\tau^l(w, b_r) = \overline{w b_r} - \overline{w}\, b_r^l``
+# ([`SubFilterAvailablePotentialToKineticEnergyConversion`](@ref)), the cross-scale flux ``\Pi_a``
+# that the filtered scales hand down ([`AvailablePotentialEnergyCrossScaleFlux`](@ref)), the subfilter
+# dissipation ``\varepsilon_a^s = \overline{\varepsilon_a} - \varepsilon_a^l``
+# ([`SubFilterAvailablePotentialEnergyDissipationRate`](@ref)), and the subfilter reference tendency
+# ``R^s = \overline{R} - R^l`` ([`SubFilterAvailablePotentialEnergyReferenceTendency`](@ref)). Unlike
+# ``R``, ``R^s`` does not integrate to zero: as mixing reshapes the reference profile, it moves APE
+# between the filtered and the subfilter scales.
+#
+# We filter along `x` with a running mean over 17 cells, about an eighth of the depth.
+
+xfilter = BoxFilter(; dims=(1,), N=17)
+
+# The terms are all measured against the sorted column built above, which `ProfileLookup` shares
+# between them, and ``R^s`` integrates the time derivative of its profile. Reading a `TimeDerivative`
+# does not update it, so a callback does, on the iteration before each output and at the output: the
+# same step over which the budget writer differences ``\int e_a^s\, \mathrm{d}V``.
+
+lookup = ProfileLookup(z✶_column)
+
+∂ₜb✶ = TimeDerivative(b✶_column)
+simulation.callbacks[:∂ₜb✶] = Callback(∂ₜb✶, PrecedingIterations(TimeInterval(0.5)))
+
+eₐˢ  = SubFilterAvailablePotentialEnergy(model, xfilter; method = lookup)
+wbᵣˢ = SubFilterAvailablePotentialToKineticEnergyConversion(model, xfilter; method = lookup)
+Πₐ   = AvailablePotentialEnergyCrossScaleFlux(model, xfilter; dims = (1, 3), method = lookup)
+εₐˢ  = SubFilterAvailablePotentialEnergyDissipationRate(model, xfilter; method = lookup)
+Rˢ   = SubFilterAvailablePotentialEnergyReferenceTendency(model, xfilter, ∂ₜb✶; method = lookup)
+
+∫wbᵣˢ = Integral(wbᵣˢ)
+∫Πₐ   = Integral(Πₐ)
+∫εₐˢ  = Integral(εₐˢ)
+∫Rˢ   = Integral(Rˢ)
+
 using NCDatasets
 filename = "lock_release"
 
@@ -173,14 +223,15 @@ simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
 # The ``e_a`` differenced here is `∫eₐ_heaviside`, the one that pairs with ``\varepsilon_a``, since the
 # two come off the same sort.
 
-∂ₜ∫eₖ = TimeDerivative(∫eₖ)
-∂ₜ∫eₐ = TimeDerivative(∫eₐ_heaviside)
+∂ₜ∫eₖ  = TimeDerivative(∫eₖ)
+∂ₜ∫eₐ  = TimeDerivative(∫eₐ_heaviside)
+∂ₜ∫eₐˢ = TimeDerivative(Integral(eₐˢ))
 
-# The *budget* writer carries only the volume integrals and those two tendencies, all cheap next to the
+# The *budget* writer carries only the volume integrals and those tendencies, all cheap next to the
 # maps, on the same `TimeInterval(0.5)` as the fields writer.
 
 integrals = (; ∫e_b, ∫eₖ, ∫eₐ, ∫eₐ_heaviside, ∫eₐ_lookup, ∫eₐ_column, ∫wb, ∫wbᵣ, ∫εₖ, ∫εₐ,
-               ∂ₜ∫eₖ, ∂ₜ∫eₐ)
+               ∫wbᵣˢ, ∫Πₐ, ∫εₐˢ, ∫Rˢ, ∂ₜ∫eₖ, ∂ₜ∫eₐ, ∂ₜ∫eₐˢ)
 
 simulation.output_writers[:budget] = NetCDFWriter(model, integrals,
                                                   filename = joinpath(@__DIR__, filename * "_budget"),
@@ -616,4 +667,49 @@ set_theme!() #hide
 nothing #hide
 
 # ![](lock_release_conversion.png)
+
+# ## Closing the subfilter budget
 #
+# The subfilter APE budget comes off the same budget file, in the same sum-to-zero form as the two
+# budgets above.
+
+ds = NCDataset(simulation.output_writers[:budget].filepath)
+deₐˢdt   = ds["∂ₜ∫eₐˢ"][nb]
+wbᵣˢ_bud = ds["∫wbᵣˢ"][nb]
+Πₐ_bud   = ds["∫Πₐ"][nb]
+εₐˢ_bud  = ds["∫εₐˢ"][nb]
+Rˢ_bud   = ds["∫Rˢ"][nb]
+close(ds)
+
+eₐˢ_resid = @. -deₐˢdt - wbᵣˢ_bud + Πₐ_bud - εₐˢ_bud + Rˢ_bud
+
+@test rms(eₐˢ_resid) < 0.05 * rms(deₐˢdt)                                                  #hide
+## the sharp one: without ∫Rˢ dV the residual would be an order of magnitude larger         #hide
+@test rms(eₐˢ_resid) < 0.1 * rms(eₐˢ_resid .- Rˢ_bud)                                       #hide
+## and ∫Rˢ dV is a source throughout, which the discussion below rests on                   #hide
+@test all(Rˢ_bud .> 0);                                                                      #hide
+
+set_theme!(Theme(fontsize = 20)) #hide
+fig6 = Figure(size = (900, 300))
+
+ax_eₐˢ_bud = Axis(fig6[1, 1]; title = "Volume-integrated subfilter available potential energy budget", budget_kwargs...)
+lines!(ax_eₐˢ_bud, t_bud, -deₐˢdt,   label = "-d(∫eₐˢ)/dt")
+lines!(ax_eₐˢ_bud, t_bud, -wbᵣˢ_bud, label = "-∫τˡ(w, bᵣ) dV")
+lines!(ax_eₐˢ_bud, t_bud, Πₐ_bud,    label = "∫Πₐ dV")
+lines!(ax_eₐˢ_bud, t_bud, -εₐˢ_bud,  label = "-∫εₐˢ dV")
+lines!(ax_eₐˢ_bud, t_bud, Rˢ_bud,    label = "∫Rˢ dV")
+lines!(ax_eₐˢ_bud, t_bud, eₐˢ_resid; label = "residual", color = :black, linestyle = :dash)
+Legend(fig6[1, 2], ax_eₐˢ_bud; labelsize = 12, framevisible = false)
+
+resize_to_layout!(fig6)
+save("lock_release_subfilter_budget.png", fig6)
+set_theme!() #hide
+nothing #hide
+
+# ![](lock_release_subfilter_budget.png)
+#
+# The cross-scale flux `∫Πₐ dV` feeds the subfilter APE for almost the whole run, and the conversion
+# `∫τˡ(w, bᵣ) dV` passes most of it on to subfilter kinetic energy. `∫Rˢ dV` is a source throughout:
+# as mixing reshapes the reference profile, it moves APE from the filtered to the subfilter scales. The
+# residual stays at a few percent of `d(∫eₐˢ)/dt`, and leaving `∫Rˢ dV` out would make it an order of
+# magnitude larger.
