@@ -28,7 +28,10 @@ e_a(b, z) = \int_{z^\star(b)}^{z} \left[b^\star(\tilde z) - b\right] \mathrm{d}\
 ```
 
 computed by [`SubFilterAvailablePotentialEnergy`](@ref); ``e_a(\bar b, z)`` is
-[`FilteredAvailablePotentialEnergy`](@ref).
+[`FilteredAvailablePotentialEnergy`](@ref). Since the filter acts at fixed ``z``, this is also
+``e_a^s = \overline{e_a(b, z^\star(\bar b))}``: the average over the filter of the APE each parcel
+holds between its own reference height ``z^\star(b)`` and the one the filtered buoyancy would assign
+it, ``z^\star(\bar b)``.
 
 Because ``e_a`` is convex in buoyancy, a filter that averages at fixed ``z`` keeps ``e_a^s \geq 0``
 pointwise, by Jensen's inequality. A filter with a vertical component mixes heights as well as
@@ -77,7 +80,7 @@ Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentia
 ## The subfilter conversion to kinetic energy
 
 ```math
-\tau^l(w, b_r) = \overline{w b_r} - \bar w \, b_r^l ,
+\tau(w, b_r) = \overline{w b_r} - \bar w \, b_r^l ,
 \qquad
 b_r = b - b^\star(z) ,
 \qquad
@@ -88,12 +91,12 @@ is the rate at which the subfilter scales release their available potential ener
 flow, computed by [`SubFilterAvailablePotentialToKineticEnergyConversion`](@ref). It is the subfilter
 half of the split whose filtered half is
 [`FilteredAvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion),
-the two summing to ``\overline{w b_r}``. It enters this budget as ``-\tau^l(w, b_r)`` and the
-[Subfilter kinetic energy equation](@ref) as ``+\tau^l(w, b_r)``, so it is a reversible exchange rather
+the two summing to ``\overline{w b_r}``. It enters this budget as ``-\tau(w, b_r)`` and the
+[Subfilter kinetic energy equation](@ref) as ``+\tau(w, b_r)``, so it is a reversible exchange rather
 than a source or a sink. For the horizontal filters accepted here ``b^\star`` depends on ``z``
-alone, so ``b_r^l = \overline{b_r}`` and ``\tau^l(w, b_r)`` is the subfilter covariance of ``w`` and
+alone, so ``b_r^l = \overline{b_r}`` and ``\tau(w, b_r)`` is the subfilter covariance of ``w`` and
 ``b_r``. The reference profile cancels between its two terms, which leaves the subfilter buoyancy
-flux, ``\tau^l(w, b_r) = \overline{w b} - \bar w \, \bar b``.
+flux, ``\tau(w, b_r) = \overline{w b} - \bar w \, \bar b``.
 
 ```@docs
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion

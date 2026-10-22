@@ -267,7 +267,7 @@ function test_subfilter_ape_module_reexports()
     @test :FilteredAvailablePotentialEnergy in names(SubFilterAvailablePotentialEnergyEquation)
     @test :FilteredAvailablePotentialEnergyDissipationRate in names(SubFilterAvailablePotentialEnergyEquation)
     @test :AvailablePotentialEnergyCrossScaleFlux in names(SubFilterAvailablePotentialEnergyEquation)
-    # τˡ(w, bᵣ) is a source of the subfilter KE budget too, so that module re-exports it from here
+    # τ(w, bᵣ) is a source of the subfilter KE budget too, so that module re-exports it from here
     @test SubFilterKineticEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion === SubFilterAvailablePotentialToKineticEnergyConversion
     @test :SubFilterAvailablePotentialToKineticEnergyConversion in names(SubFilterKineticEnergyEquation)
     @test SubFilterAvailablePotentialEnergyEquation.DissipationRate === SubFilterAvailablePotentialEnergyDissipationRate
@@ -279,7 +279,7 @@ function test_subfilter_ape_module_reexports()
 end
 #---
 
-# τˡ(w, bᵣ) is defined as filter(wbᵣ) - w̄b_rˡ, so the two halves have to add back up to the filtered
+# τ(w, bᵣ) is defined as filter(wbᵣ) - w̄b_rˡ, so the two halves have to add back up to the filtered
 # full-field conversion. That is the decomposition claim, and it pins the shared b✶(z) and the shared
 # discretization: were either half built against a different reference or collocated differently, the
 # sum would drift from filter(wbᵣ).
@@ -320,7 +320,7 @@ end
 
 # The filtered half uses b_rˡ = b̄ - b✶(z), the anomaly against the reference profile eₐˡ is measured
 # against. For a horizontal filter b✶ depends on z alone and passes through the filter unchanged, so
-# b_rˡ is also filter(bᵣ) = filter(b - b✶(z)) and τˡ(w, bᵣ) is the subfilter covariance of w and bᵣ; a
+# b_rˡ is also filter(bᵣ) = filter(b - b✶(z)) and τ(w, bᵣ) is the subfilter covariance of w and bᵣ; a
 # filter that acts in the vertical smooths b✶ as well, and the two differ. The diagnostic itself takes
 # only the horizontal kind, so the vertical filter here is applied to the fields directly.
 function test_subfilter_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt_horizontal)
@@ -440,7 +440,7 @@ end
     @info "    Filters with a vertical component are rejected"
     test_subfilter_ape_rejects_vertical_filters(grid, vertical_filters)
 
-    @info "    Subfilter APE to KE conversion τˡ(w, bᵣ)"
+    @info "    Subfilter APE to KE conversion τ(w, bᵣ)"
     # The shared model is buoyancy-only, and the conversion is carried by the vertical velocity, so
     # without this every assertion below would hold trivially on a field of zeros.
     set!(model, u=(x, y, z) -> 1e-2 * randn(), w=(x, y, z) -> 1e-2 * randn())
