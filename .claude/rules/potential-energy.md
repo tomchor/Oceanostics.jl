@@ -33,6 +33,8 @@ A diagnostic that is a map on the model grid (Υ, bᵣ, wbᵣ, εₐ) rejects `V
 `AvailablePotentialToKineticEnergyConversion` (wbᵣ) forms its product on the same face as `PotentialToKineticEnergyConversion` (wb), which is what makes wb = wbᵣ + wb✶ hold cell by cell; keep a new conversion on that discretization.
 
 ## Filtered and subfilter APE
+The filtered and subfilter APE diagnostics cover horizontal filters only (#318), so their docs and tests describe that case alone, with no text on how a filter with vertical extent would be supported; the formulas are those of arXiv:2605.15879 §2.5.
+The notation holds only for a horizontal filter: `filter(bᵣ)` for the filtered anomaly, `τ(w, bᵣ)` for the subfilter conversion and `eₐˡ = eₐ(b̄, z)` against the unfiltered profile all rely on `b✶(z)` passing through the filter unchanged, so none of it carries over to a filter with vertical extent.
 The filtered buoyancy is looked up in a profile it did not produce, so `method` must be a `ProfileLookup`; `shared_profile_lookup` turns the default into a `VerticalSort` column of the model's buoyancy.
 Build `z✶` and `z✶ˡ` against one lookup (`filtered_buoyancy_and_lookup`, `subfilter_reference_heights`); with two lookups `filter(eₐ) − eₐˡ` is a difference of unrelated quantities, not a decomposition.
 The filtered anomaly `filter(bᵣ)` is formed as `b̄ − b✶(z)`, which is −∂eₐˡ/∂z and equals it for a horizontal filter since `b✶` depends on z alone, so `τ(w, bᵣ) = filter(wbᵣ) − w̄ filter(bᵣ)` is the plain subfilter covariance and reduces to `τ(w, b)`; both halves share one `b✶(z)` and one kernel so the split holds on one discretization.
