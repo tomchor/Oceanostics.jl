@@ -435,7 +435,7 @@ function test_ape_cross_scale_flux_errors(grid, filt)
 end
 
 """
-w̄ filter(bᵣ) = w̄(b̄ − b✶(z)) rebuilt by hand from the filtered vertical velocity, the filtered buoyancy
+w̄ b̄ᵣ = w̄(b̄ − b✶(z)) rebuilt by hand from the filtered vertical velocity, the filtered buoyancy
 and the reference profile read at each cell's own height. The product is formed on the `w` face and
 only then interpolated to the center, so the manual construction pins that co-location too.
 """
@@ -460,7 +460,7 @@ end
 
 """
 The reference profile is read at the parcel's own height, so a horizontally uniform stable
-stratification is its own reference state: b✶(z) = b(z) cell by cell, hence filter(bᵣ) ≡ 0 and no
+stratification is its own reference state: b✶(z) = b(z) cell by cell, hence b̄ᵣ ≡ 0 and no
 energy is converted however vigorous the vertical velocity. This is the sharp check on the lookup,
 since a half-slot error in b✶(z) would show up here as an O(N²Δz) anomaly rather than as roundoff.
 """
@@ -480,7 +480,7 @@ end
 """
 The conversion is a flux carried by the filtered vertical velocity, so it vanishes identically with no
 motion however sharp the buoyancy — the check a stray sign or a leftover term would break, since
-filter(bᵣ) is nowhere near zero here.
+b̄ᵣ is nowhere near zero here.
 """
 function test_filtered_ape_ke_conversion_vanishes_without_motion(grid, filt)
 

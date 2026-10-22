@@ -296,7 +296,7 @@ function SubFilterAvailablePotentialToKineticEnergyConversion(model, filter; met
     # Both halves are the same contraction, a vertical velocity against a buoyancy anomaly measured from
     # the one reference profile `b✶(z)`, so they go through one kernel, the filtered conversion's,
     # differing only in whether they read the full or the filtered fields. Sharing the kernel and the one
-    # `b✶(z)` is what leaves `filter(wbᵣ) = w̄ filter(bᵣ) + τ(w, bᵣ)` a decomposition of one
+    # `b✶(z)` is what leaves `filter(wbᵣ) = w̄ b̄ᵣ + τ(w, bᵣ)` a decomposition of one
     # discretization rather than a difference of two.
     b✶ᶻ = reference_buoyancy_at_height(model.grid, lookup.profile)
     w_bᵣ(w, b) = KernelFunctionOperation{Center, Center, Center}(filtered_ape_to_ke_conversion_ccc, model.grid, w, b, b✶ᶻ)

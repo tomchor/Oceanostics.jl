@@ -279,7 +279,7 @@ function test_subfilter_ape_module_reexports()
 end
 #---
 
-# τ(w, bᵣ) is defined as filter(wbᵣ) - w̄ filter(bᵣ), so the two halves have to add back up to the
+# τ(w, bᵣ) is defined as filter(wbᵣ) - w̄ b̄ᵣ, so the two halves have to add back up to the
 # filtered full-field conversion. That is the decomposition claim, and it pins the shared b✶(z) and the
 # shared discretization: were either half built against a different reference or collocated
 # differently, the sum would drift from filter(wbᵣ).
