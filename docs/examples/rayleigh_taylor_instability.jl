@@ -140,8 +140,8 @@ add_callback!(simulation, progress, IterationInterval(100))
 #
 # In the code below, ``e_k^s``, ``\Pi_k`` and ``\varepsilon_k^s`` are written `eₖˢ`, `Πₖ` and `εₖˢ`.
 
-ℓ  = 8 * Δx                          # filter scale (full width at half maximum of the Gaussian kernel)
-σℓ = ℓ / (2 * sqrt(2 * log(2)))      # corresponding Gaussian standard deviation
+ℓ  = 0.2                         # filter scale (full width at half maximum of the Gaussian kernel)
+σℓ = ℓ / (2 * sqrt(2 * log(2)))  # corresponding Gaussian standard deviation
 gfilter = GaussianFilter(dims=(1, 2), σ=σℓ)
 
 b = model.tracers.b
