@@ -79,7 +79,7 @@ set!(model, b=bᵢ)
 # layer accelerates:
 
 Δx = minimum_xspacing(grid)
-simulation = Simulation(model, Δt = 0.1 * Δx / U, stop_time = 7τ)
+simulation = Simulation(model, Δt = 0.1 * Δx / U, stop_time = 8τ)
 conjure_time_step_wizard!(simulation, IterationInterval(2), cfl=0.8, max_change=1.1)
 
 # ## Model diagnostics
@@ -218,16 +218,17 @@ Rˢ   = SubFilterAvailablePotentialEnergyReferenceTendency(model, gfilter, ∂�
 
 # ## Output
 #
-# A single NetCDF writer stores, every `τ/5`, vertical (`x`–`z`) slices of the buoyancy `b`, the
-# cross-scale flux `Πₖ` and the two subfilter energies `eₐˢ` and `eₖˢ` at a fixed `y` index (the flow is
-# periodic and statistically homogeneous in `y`, so the particular plane makes no difference), together
-# with the tendencies and volume integrals of the two budgets. The `indices` that cut the slices leave
-# the volume integrals whole, since those have no spatial dimension left to slice.
+# A single NetCDF writer stores, every `τ/5`, vertical (`x`–`z`) slices at a fixed `y` index (the flow
+# is periodic and statistically homogeneous in `y`, so the particular plane makes no difference) of the
+# buoyancy `b` and of five budget terms: the two cross-scale fluxes `Πₖ` and `Πₐ`, the two subfilter
+# dissipations `εₖˢ` and `εₐˢ`, and the reference tendency `Rˢ`. It also stores the tendencies and
+# volume integrals of the two budgets. The `indices` that cut the slices leave the volume integrals
+# whole, since those have no spatial dimension left to slice.
 
 using NCDatasets
 filename = joinpath(@__DIR__, "rayleigh_taylor_instability")
 
-outputs = (; b, Πₖ, eₐˢ, eₖˢ, ∂ₜ∫eₖˢ, ∫wbᵣˢ, ∫Πₖ, ∫εₖˢ, ∂ₜ∫eₐˢ, ∫Πₐ, ∫εₐˢ, ∫Rˢ)
+outputs = (; b, Πₖ, εₖˢ, Rˢ, Πₐ, εₐˢ, ∂ₜ∫eₖˢ, ∫wbᵣˢ, ∫Πₖ, ∫εₖˢ, ∂ₜ∫eₐˢ, ∫Πₐ, ∫εₐˢ, ∫Rˢ)
 
 simulation.output_writers[:nc] = NetCDFWriter(model, outputs,
                                               filename = filename,
@@ -241,7 +242,7 @@ simulation.output_writers[:nc] = NetCDFWriter(model, outputs,
 
 run!(simulation)
 
-# We read the four field slices, and their `x`–`z` coordinates, back with `NCDataset` (all of them live
+# We read the six field slices, and their `x`–`z` coordinates, back with `NCDataset` (all of them live
 # at cell centers, so their coordinates are `x_caa` and `z_aac`); the singleton `y` dimension of the
 # slice is dropped:
 
@@ -251,10 +252,12 @@ ds = NCDataset(simulation.output_writers[:nc].filepath)
 times = ds["time"][:]
 x_caa = ds["x_caa"][:]
 z_aac = ds["z_aac"][:]
-b_arr = ds["b"][:, 1, :, :]
-Π_arr = ds["Πₖ"][:, 1, :, :]
-eₐˢ_arr = ds["eₐˢ"][:, 1, :, :]
-eₖˢ_arr = ds["eₖˢ"][:, 1, :, :]
+b_arr   = ds["b"][:, 1, :, :]
+Πₖ_arr  = ds["Πₖ"][:, 1, :, :]
+εₖˢ_arr = ds["εₖˢ"][:, 1, :, :]
+Rˢ_arr  = ds["Rˢ"][:, 1, :, :]
+Πₐ_arr  = ds["Πₐ"][:, 1, :, :]
+εₐˢ_arr = ds["εₐˢ"][:, 1, :, :]
 nothing #hide
 
 # Every record carries both tendencies and their budget terms at the same time. The first record has
@@ -290,48 +293,37 @@ ape_scale = rms(@. abs(wbᵣˢ_bud) + abs(Πₐ_bud) + abs(εₐˢ_bud) + abs(R�
 
 # ## Plotting
 #
-# We build the figure in four rows: the vertical slices of the buoyancy `b` (the spikes and bubbles) and
-# of the cross-scale flux `Πₖ` on top; the two subfilter energies `eₐˢ` and `eₖˢ` in the middle; and the
-# two volume-integrated subfilter budgets at the bottom.
+# We build the figure in four rows. The top two hold vertical slices, three panels each: the buoyancy
+# `b` (the spikes and bubbles) and the KE terms `Πₖ` and `εₖˢ` in the first row, and the APE terms
+# `Rˢ`, `Πₐ` and `εₐˢ` in the second. The bottom two rows hold the two volume-integrated subfilter
+# budgets.
 
 set_theme!(Theme(fontsize=18))
-fig = Figure(size=(1000, 1500))
+fig = Figure(size=(1500, 1600))
 
 n = Observable(1)
 
-axb = Axis(fig[2, 1]; title="buoyancy, b", xlabel="x", ylabel="z", aspect=1)
-axΠ = Axis(fig[2, 3]; title="cross-scale kinetic energy flux, Πₖ", xlabel="x", ylabel="z", aspect=1)
+# Every slice gets a diverging colormap centred on zero. The two cross-scale fluxes share one colour
+# range, and so do the two dissipations, so the KE and APE terms stacked in each column compare
+# directly; the buoyancy and `Rˢ` get ranges of their own.
 
 blim = 0.8 * maximum(abs, b_arr[:, :, 1])
-Πlim = 0.5 * maximum(abs, Π_arr)
+Rlim = 0.5 * maximum(abs, Rˢ_arr)
+Πlim = 0.5 * max(maximum(abs, Πₖ_arr), maximum(abs, Πₐ_arr))
+εlim = 0.5 * max(maximum(abs, εₖˢ_arr), maximum(abs, εₐˢ_arr))
 
-bₙ = @lift b_arr[:, :, $n]
-Πₙ = @lift Π_arr[:, :, $n]
+panels = [(1, 1, b_arr,   "buoyancy, b",                      blim),
+          (1, 2, Πₖ_arr,  "cross-scale KE flux, Πₖ",          Πlim),
+          (1, 3, εₖˢ_arr, "subfilter KE dissipation, εₖˢ",    εlim),
+          (2, 1, Rˢ_arr,  "subfilter reference tendency, Rˢ", Rlim),
+          (2, 2, Πₐ_arr,  "cross-scale APE flux, Πₐ",         Πlim),
+          (2, 3, εₐˢ_arr, "subfilter APE dissipation, εₐˢ",   εlim)]
 
-hmb = heatmap!(axb, x_caa, z_aac, bₙ; colormap=:balance, colorrange=(-blim, blim))
-Colorbar(fig[2, 2], hmb)
-
-hmΠ = heatmap!(axΠ, x_caa, z_aac, Πₙ; colormap=:balance, colorrange=(-Πlim, Πlim))
-Colorbar(fig[2, 4], hmΠ)
-
-# The middle row shows the two subfilter energies whose budgets the bottom panels close: the available
-# potential energy `eₐˢ` on the left and the kinetic energy `eₖˢ` on the right. Both are non-negative,
-# so they get a sequential colormap, each with its own colour scale.
-
-axeₐˢ = Axis(fig[3, 1]; title="subfilter available potential energy, eₐˢ", xlabel="x", ylabel="z", aspect=1)
-axeₖˢ = Axis(fig[3, 3]; title="subfilter kinetic energy, eₖˢ", xlabel="x", ylabel="z", aspect=1)
-
-eₐˢlim = maximum(eₐˢ_arr)
-eₖˢlim = maximum(eₖˢ_arr)
-
-eₐˢₙ = @lift eₐˢ_arr[:, :, $n]
-eₖˢₙ = @lift eₖˢ_arr[:, :, $n]
-
-hmeₐˢ = heatmap!(axeₐˢ, x_caa, z_aac, eₐˢₙ; colormap=:magma, colorrange=(0, eₐˢlim))
-Colorbar(fig[3, 2], hmeₐˢ)
-
-hmeₖˢ = heatmap!(axeₖˢ, x_caa, z_aac, eₖˢₙ; colormap=:magma, colorrange=(0, eₖˢlim))
-Colorbar(fig[3, 4], hmeₖˢ)
+for (row, column, data, label, lim) in panels
+    ax = Axis(fig[row + 1, 2column - 1]; title=label, xlabel="x", ylabel="z", aspect=1)
+    hm = heatmap!(ax, x_caa, z_aac, @lift(data[:, :, $n]); colormap=:balance, colorrange=(-lim, lim))
+    Colorbar(fig[row + 1, 2column], hm)
+end
 
 # The fourth row shows the volume-integrated subfilter-scale kinetic-energy budget. We plot the
 # negative tendency `−d(∫eₖˢ)/dt` together with the two sources that feed it, the subfilter buoyancy
@@ -339,36 +331,36 @@ Colorbar(fig[3, 4], hmeₖˢ)
 # single sink that drains it, the subfilter dissipation `−∫εₖˢ dV`. With the tendency negated, the four
 # curves sum to the residual.
 
-ax_bud = Axis(fig[4, 1:4]; xlabel="time [free-fall units]", title="Subfilter kinetic energy budget")
+ax_bud = Axis(fig[4, 1:6]; xlabel="time [free-fall units]", title="Subfilter kinetic energy budget")
 lines!(ax_bud, t_bud ./ τ, -deₖˢdt,   label="−d(∫eₖˢ)/dt")
 lines!(ax_bud, t_bud ./ τ, wbᵣˢ_bud,  label="∫τ(w,bᵣ) dV  (conversion from subfilter APE)")
 lines!(ax_bud, t_bud ./ τ, Πₖ_bud,    label="∫Πₖ dV  (flux from filtered scales)")
 lines!(ax_bud, t_bud ./ τ, -εₖˢ_bud,  label="−∫εₖˢ dV  (subfilter dissipation)")
 lines!(ax_bud, t_bud ./ τ, eₖˢ_resid, label="residual", color=:black, linestyle=:dash)
-axislegend(ax_bud; position=:lt, labelsize=10)
+axislegend(ax_bud; position=:lt, labelsize=12)
 
 # The bottom row shows the subfilter APE budget in the same form: the negative tendency
 # `−d(∫eₐˢ)/dt`, the conversion `−∫τ(w,bᵣ) dV` into subfilter kinetic energy, the cross-scale flux
 # `∫Πₐ dV`, the subfilter dissipation `−∫εₐˢ dV` and the reference tendency `∫Rˢ dV`.
 
-ax_ape = Axis(fig[5, 1:4]; xlabel="time [free-fall units]", title="Subfilter available potential energy budget")
+ax_ape = Axis(fig[5, 1:6]; xlabel="time [free-fall units]", title="Subfilter available potential energy budget")
 lines!(ax_ape, t_bud ./ τ, -deₐˢdt,   label="−d(∫eₐˢ)/dt")
 lines!(ax_ape, t_bud ./ τ, -wbᵣˢ_bud, label="−∫τ(w,bᵣ) dV  (conversion to subfilter KE)")
 lines!(ax_ape, t_bud ./ τ, Πₐ_bud,    label="∫Πₐ dV  (flux from filtered scales)")
 lines!(ax_ape, t_bud ./ τ, -εₐˢ_bud,  label="−∫εₐˢ dV  (subfilter dissipation)")
 lines!(ax_ape, t_bud ./ τ, Rˢ_bud,    label="∫Rˢ dV  (reference tendency)")
 lines!(ax_ape, t_bud ./ τ, eₐˢ_resid, label="residual", color=:black, linestyle=:dash)
-axislegend(ax_ape; position=:lt, labelsize=10)
+axislegend(ax_ape; position=:lt, labelsize=12)
 
 for ax in (ax_bud, ax_ape)
     vlines!(ax, @lift(times[$n] / τ), color=:black, linestyle=:dash)
 end
 
 title = @lift "Rayleigh-Taylor instability, t = " * string(round(times[$n] / τ, digits=2)) * " τ"
-fig[1, 1:4] = Label(fig, title, fontsize=22, tellwidth=false)
+fig[1, 1:6] = Label(fig, title, fontsize=22, tellwidth=false)
 
 @info "Animating..."
-record(fig, "rayleigh_taylor_instability.mp4", 1:length(times), framerate=12) do i
+record(fig, "rayleigh_taylor_instability.mp4", 1:length(times), framerate=11) do i
     n[] = i
 end
 
