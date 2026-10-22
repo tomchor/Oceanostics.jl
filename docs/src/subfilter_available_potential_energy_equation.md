@@ -134,7 +134,9 @@ gives the budget of ``e_a^s``:
                    + \underbrace{R^s}_{\text{reference tendency}} .
 ```
 
-Five of the quantities in it have diagnostics; the two transport divergences have none.
+Five of the quantities in it have diagnostics; the two transport divergences have none. The
+[Rayleigh-Taylor instability](@ref rayleigh_taylor_example) example closes the volume-integrated
+budget.
 
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
