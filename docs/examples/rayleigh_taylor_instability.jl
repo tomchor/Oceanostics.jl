@@ -242,39 +242,44 @@ simulation.output_writers[:nc] = NetCDFWriter(model, outputs,
 
 run!(simulation)
 
-# We read the six field slices, and their `x`–`z` coordinates, back with `NCDataset` (all of them live
-# at cell centers, so their coordinates are `x_caa` and `z_aac`); the singleton `y` dimension of the
-# slice is dropped:
+# We load the output back as `FieldTimeSeries`. Each snapshot of a slice, such as `b_ts[n]`, is a
+# `Field` that carries its grid and location, so it plots directly as an `x`–`z` heatmap:
 
 using CairoMakie
+using Logging                                   #hide
+## the NetCDF reader warns on every series that it does not read boundary conditions back #hide
+Logging.disable_logging(Logging.Warn)           #hide
 
-ds = NCDataset(simulation.output_writers[:nc].filepath)
-times = ds["time"][:]
-x_caa = ds["x_caa"][:]
-z_aac = ds["z_aac"][:]
-b_arr   = ds["b"][:, 1, :, :]
-Πₖ_arr  = ds["Πₖ"][:, 1, :, :]
-εₖˢ_arr = ds["εₖˢ"][:, 1, :, :]
-Rˢ_arr  = ds["Rˢ"][:, 1, :, :]
-Πₐ_arr  = ds["Πₐ"][:, 1, :, :]
-εₐˢ_arr = ds["εₐˢ"][:, 1, :, :]
+filepath = simulation.output_writers[:nc].filepath
+
+b_ts   = FieldTimeSeries(filepath, "b")
+Πₖ_ts  = FieldTimeSeries(filepath, "Πₖ")
+εₖˢ_ts = FieldTimeSeries(filepath, "εₖˢ")
+Rˢ_ts  = FieldTimeSeries(filepath, "Rˢ")
+Πₐ_ts  = FieldTimeSeries(filepath, "Πₐ")
+εₐˢ_ts = FieldTimeSeries(filepath, "εₐˢ")
+times  = b_ts.times
 nothing #hide
 
 # Every record carries both tendencies and their budget terms at the same time. The first record has
 # no earlier state to difference against and is written as zero, so the budgets start from the second.
-# The residuals measure how well the two subfilter budgets close.
+# Each volume integral comes back as a `FieldTimeSeries` of a single point, which `interior` turns into
+# a vector over those records. The residuals measure how well the two subfilter budgets close.
 
-nb       = 2:length(times)
-t_bud    = times[nb]
-deₖˢdt   = ds["∂ₜ∫eₖˢ"][nb]
-wbᵣˢ_bud = ds["∫wbᵣˢ"][nb]
-Πₖ_bud   = ds["∫Πₖ"][nb]
-εₖˢ_bud  = ds["∫εₖˢ"][nb]
-deₐˢdt   = ds["∂ₜ∫eₐˢ"][nb]
-Πₐ_bud   = ds["∫Πₐ"][nb]
-εₐˢ_bud  = ds["∫εₐˢ"][nb]
-Rˢ_bud   = ds["∫Rˢ"][nb]
-close(ds)
+nb    = 2:length(times)
+t_bud = times[nb]
+budget_term(name) = interior(FieldTimeSeries(filepath, name), 1, 1, 1, nb)
+
+deₖˢdt   = budget_term("∂ₜ∫eₖˢ")
+wbᵣˢ_bud = budget_term("∫wbᵣˢ")
+Πₖ_bud   = budget_term("∫Πₖ")
+εₖˢ_bud  = budget_term("∫εₖˢ")
+deₐˢdt   = budget_term("∂ₜ∫eₐˢ")
+Πₐ_bud   = budget_term("∫Πₐ")
+εₐˢ_bud  = budget_term("∫εₐˢ")
+Rˢ_bud   = budget_term("∫Rˢ")
+Logging.disable_logging(Logging.BelowMinLevel)  #hide
+nothing #hide
 
 # Residuals in sum-to-zero form: the negative tendency plus the right-hand side, so the plotted curves
 # add to it
@@ -307,21 +312,21 @@ n = Observable(1)
 # range, and so do the two dissipations, so the KE and APE terms stacked in each column compare
 # directly; the buoyancy and `Rˢ` get ranges of their own.
 
-blim = 0.8 * maximum(abs, b_arr[:, :, 1])
-Rlim = 0.5 * maximum(abs, Rˢ_arr)
-Πlim = 0.5 * max(maximum(abs, Πₖ_arr), maximum(abs, Πₐ_arr))
-εlim = 0.5 * max(maximum(abs, εₖˢ_arr), maximum(abs, εₐˢ_arr))
+blim = 0.8 * maximum(abs, b_ts[1])
+Rlim = 0.5 * maximum(abs, Rˢ_ts)
+Πlim = 0.5 * max(maximum(abs, Πₖ_ts), maximum(abs, Πₐ_ts))
+εlim = 0.5 * max(maximum(abs, εₖˢ_ts), maximum(abs, εₐˢ_ts))
 
-panels = [(1, 1, b_arr,   "buoyancy, b",                      blim),
-          (1, 2, Πₖ_arr,  "cross-scale KE flux, Πₖ",          Πlim),
-          (1, 3, εₖˢ_arr, "subfilter KE dissipation, εₖˢ",    εlim),
-          (2, 1, Rˢ_arr,  "subfilter reference tendency, Rˢ", Rlim),
-          (2, 2, Πₐ_arr,  "cross-scale APE flux, Πₐ",         Πlim),
-          (2, 3, εₐˢ_arr, "subfilter APE dissipation, εₐˢ",   εlim)]
+panels = [(1, 1, b_ts,   "buoyancy, b",                      blim),
+          (1, 2, Πₖ_ts,  "cross-scale KE flux, Πₖ",          Πlim),
+          (1, 3, εₖˢ_ts, "subfilter KE dissipation, εₖˢ",    εlim),
+          (2, 1, Rˢ_ts,  "subfilter reference tendency, Rˢ", Rlim),
+          (2, 2, Πₐ_ts,  "cross-scale APE flux, Πₐ",         Πlim),
+          (2, 3, εₐˢ_ts, "subfilter APE dissipation, εₐˢ",   εlim)]
 
-for (row, column, data, label, lim) in panels
+for (row, column, series, label, lim) in panels
     ax = Axis(fig[row + 1, 2column - 1]; title=label, xlabel="x", ylabel="z", aspect=1)
-    hm = heatmap!(ax, x_caa, z_aac, @lift(data[:, :, $n]); colormap=:balance, colorrange=(-lim, lim))
+    hm = heatmap!(ax, @lift(series[$n]); colormap=:balance, colorrange=(-lim, lim))
     Colorbar(fig[row + 1, 2column], hm)
 end
 
