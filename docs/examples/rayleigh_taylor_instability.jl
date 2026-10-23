@@ -261,23 +261,31 @@ Rˢ_ts  = FieldTimeSeries(filepath, "Rˢ")
 times  = b_ts.times
 nothing #hide
 
-# Every record carries both tendencies and their budget terms at the same time. The first record has
-# no earlier state to difference against and is written as zero, so the budgets start from the second.
-# Each volume integral comes back as a `FieldTimeSeries` of a single point, which `interior` turns into
-# a vector over those records. The residuals measure how well the two subfilter budgets close.
+# Every record carries both tendencies and their budget terms at the same time, and each volume
+# integral comes back as a `FieldTimeSeries` of a single point. The four that the budget plots show as
+# stored, `∫τ(w,bᵣ) dV`, `∫Πₖ dV`, `∫Πₐ dV` and `∫Rˢ dV`, go to `lines!` as they are. The negated curves
+# and the residuals need arithmetic, which a `FieldTimeSeries` does not support, so `interior` turns
+# each term into a vector over the records from the second on: the first record of a tendency has no
+# earlier state to difference against and is written as zero. The residuals measure how well the two
+# subfilter budgets close.
+
+∫wbᵣˢ_ts = FieldTimeSeries(filepath, "∫wbᵣˢ")
+∫Πₖ_ts   = FieldTimeSeries(filepath, "∫Πₖ")
+∫Πₐ_ts   = FieldTimeSeries(filepath, "∫Πₐ")
+∫Rˢ_ts   = FieldTimeSeries(filepath, "∫Rˢ")
 
 nb    = 2:length(times)
 t_bud = times[nb]
-budget_term(name) = interior(FieldTimeSeries(filepath, name), 1, 1, 1, nb)
+budget_term(series) = interior(series, 1, 1, 1, nb)
 
-deₖˢdt   = budget_term("∂ₜ∫eₖˢ")
-wbᵣˢ_bud = budget_term("∫wbᵣˢ")
-Πₖ_bud   = budget_term("∫Πₖ")
-εₖˢ_bud  = budget_term("∫εₖˢ")
-deₐˢdt   = budget_term("∂ₜ∫eₐˢ")
-Πₐ_bud   = budget_term("∫Πₐ")
-εₐˢ_bud  = budget_term("∫εₐˢ")
-Rˢ_bud   = budget_term("∫Rˢ")
+deₖˢdt   = budget_term(FieldTimeSeries(filepath, "∂ₜ∫eₖˢ"))
+wbᵣˢ_bud = budget_term(∫wbᵣˢ_ts)
+Πₖ_bud   = budget_term(∫Πₖ_ts)
+εₖˢ_bud  = budget_term(FieldTimeSeries(filepath, "∫εₖˢ"))
+deₐˢdt   = budget_term(FieldTimeSeries(filepath, "∂ₜ∫eₐˢ"))
+Πₐ_bud   = budget_term(∫Πₐ_ts)
+εₐˢ_bud  = budget_term(FieldTimeSeries(filepath, "∫εₐˢ"))
+Rˢ_bud   = budget_term(∫Rˢ_ts)
 Logging.disable_logging(Logging.BelowMinLevel)  #hide
 nothing #hide
 
@@ -337,11 +345,11 @@ end
 # curves sum to the residual.
 
 ax_bud = Axis(fig[4, 1:6]; xlabel="time [free-fall units]", title="Subfilter kinetic energy budget")
-lines!(ax_bud, t_bud ./ τ, -deₖˢdt,   label="−d(∫eₖˢ)/dt")
-lines!(ax_bud, t_bud ./ τ, wbᵣˢ_bud,  label="∫τ(w,bᵣ) dV  (conversion from subfilter APE)")
-lines!(ax_bud, t_bud ./ τ, Πₖ_bud,    label="∫Πₖ dV  (flux from filtered scales)")
-lines!(ax_bud, t_bud ./ τ, -εₖˢ_bud,  label="−∫εₖˢ dV  (subfilter dissipation)")
-lines!(ax_bud, t_bud ./ τ, eₖˢ_resid, label="residual", color=:black, linestyle=:dash)
+lines!(ax_bud, t_bud, -deₖˢdt,   label="−d(∫eₖˢ)/dt")
+lines!(ax_bud, ∫wbᵣˢ_ts,         label="∫τ(w,bᵣ) dV  (conversion from subfilter APE)")
+lines!(ax_bud, ∫Πₖ_ts,           label="∫Πₖ dV  (flux from filtered scales)")
+lines!(ax_bud, t_bud, -εₖˢ_bud,  label="−∫εₖˢ dV  (subfilter dissipation)")
+lines!(ax_bud, t_bud, eₖˢ_resid, label="residual", color=:black, linestyle=:dash)
 axislegend(ax_bud; position=:lt, labelsize=12)
 
 # The bottom row shows the subfilter APE budget in the same form: the negative tendency
@@ -349,16 +357,16 @@ axislegend(ax_bud; position=:lt, labelsize=12)
 # `∫Πₐ dV`, the subfilter dissipation `−∫εₐˢ dV` and the reference tendency `∫Rˢ dV`.
 
 ax_ape = Axis(fig[5, 1:6]; xlabel="time [free-fall units]", title="Subfilter available potential energy budget")
-lines!(ax_ape, t_bud ./ τ, -deₐˢdt,   label="−d(∫eₐˢ)/dt")
-lines!(ax_ape, t_bud ./ τ, -wbᵣˢ_bud, label="−∫τ(w,bᵣ) dV  (conversion to subfilter KE)")
-lines!(ax_ape, t_bud ./ τ, Πₐ_bud,    label="∫Πₐ dV  (flux from filtered scales)")
-lines!(ax_ape, t_bud ./ τ, -εₐˢ_bud,  label="−∫εₐˢ dV  (subfilter dissipation)")
-lines!(ax_ape, t_bud ./ τ, Rˢ_bud,    label="∫Rˢ dV  (reference tendency)")
-lines!(ax_ape, t_bud ./ τ, eₐˢ_resid, label="residual", color=:black, linestyle=:dash)
+lines!(ax_ape, t_bud, -deₐˢdt,   label="−d(∫eₐˢ)/dt")
+lines!(ax_ape, t_bud, -wbᵣˢ_bud, label="−∫τ(w,bᵣ) dV  (conversion to subfilter KE)")
+lines!(ax_ape, ∫Πₐ_ts,           label="∫Πₐ dV  (flux from filtered scales)")
+lines!(ax_ape, t_bud, -εₐˢ_bud,  label="−∫εₐˢ dV  (subfilter dissipation)")
+lines!(ax_ape, ∫Rˢ_ts,           label="∫Rˢ dV  (reference tendency)")
+lines!(ax_ape, t_bud, eₐˢ_resid, label="residual", color=:black, linestyle=:dash)
 axislegend(ax_ape; position=:lt, labelsize=12)
 
 for ax in (ax_bud, ax_ape)
-    vlines!(ax, @lift(times[$n] / τ), color=:black, linestyle=:dash)
+    vlines!(ax, @lift(times[$n]), color=:black, linestyle=:dash)
 end
 
 title = @lift "Rayleigh-Taylor instability, t = " * string(round(times[$n] / τ, digits=2)) * " τ"
