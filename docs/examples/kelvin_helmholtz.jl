@@ -213,7 +213,7 @@ Rˡ  = FilteredAvailablePotentialEnergyReferenceTendency(model, bfilter, ∂ₜb
 using NCDatasets
 filename = "kelvin_helmholtz"
 
-simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b, w̄b̄, Πₖ, εₖˡ),
+simulation.output_writers[:nc] = NetCDFWriter(model, (; Q, Πₖ, εₖˡ, Ri, Πₐ, εₐˡ),
                                               filename=joinpath(@__DIR__, filename),
                                               schedule=TimeInterval(1),
                                               overwrite_files=true)
@@ -233,12 +233,12 @@ run!(simulation)
 # Now we'll read the snapshot fields using `FieldTimeSeries`
 
 filepath = simulation.output_writers[:nc].filepath
-Ri_t = FieldTimeSeries(filepath, "Ri")
-Q_t  = FieldTimeSeries(filepath, "Q")
-b_t  = FieldTimeSeries(filepath, "b")
-w̄b̄_t  = FieldTimeSeries(filepath, "w̄b̄")
+Q_t   = FieldTimeSeries(filepath, "Q")
 Πₖ_t  = FieldTimeSeries(filepath, "Πₖ")
 εₖˡ_t = FieldTimeSeries(filepath, "εₖˡ")
+Ri_t  = FieldTimeSeries(filepath, "Ri")
+Πₐ_t  = FieldTimeSeries(filepath, "Πₐ")
+εₐˡ_t = FieldTimeSeries(filepath, "εₐˡ")
 
 ds = NCDataset(filepath)
 times = ds["time"][:]
@@ -279,94 +279,70 @@ rms(x) = √(sum(abs2, x) / length(x))    #hide
 
 # ## Plotting
 #
-# We now use Makie to create the figure and its axes
+# We build the figure in four rows, as in the
+# [Rayleigh-Taylor instability](@ref rayleigh_taylor_example) example. The top two hold snapshots,
+# three panels each: `Q` and the kinetic-energy terms `Πₖ` and `εₖˡ` in the first row, and `Ri` and
+# the APE terms `Πₐ` and `εₐˡ` in the second. The bottom two rows hold the two volume-integrated
+# filtered budgets.
 
 using CairoMakie
 
-set_theme!(Theme(fontsize=24))
-fig = Figure()
-
-kwargs = (xlabel="x", ylabel="z", height=150, width=250)
-ax1 = Axis(fig[2, 1]; title="Ri", kwargs...)
-ax2 = Axis(fig[2, 2]; title="Q", kwargs...)
-ax3 = Axis(fig[2, 3]; title="b", kwargs...);
-
-# Next we use `Observable`s to lift the values and plot heatmaps and their colorbars
+set_theme!(Theme(fontsize=18))
+fig = Figure(size=(1500, 1300))
 
 n = Observable(1)
 
-Riₙ = @lift Ri_t[$n]
-hm1 = heatmap!(ax1, Riₙ; colormap=:bwr, colorrange=(-1, +1))
-Colorbar(fig[3, 1], hm1, vertical=false, height=8)
+# `Q` and `Ri` keep colormaps of their own. The budget terms get a diverging colormap centered on
+# zero, and the two cross-scale fluxes share one color range, as do the two dissipations, so the
+# kinetic-energy and APE terms stacked in each column compare directly.
 
-Qₙ  = @lift Q_t[$n]
-hm2 = heatmap!(ax2, Qₙ; colormap=:inferno, colorrange=(0, 0.2))
-Colorbar(fig[3, 2], hm2, vertical=false, height=8)
+Πlim = 0.5 * max(maximum(abs, Πₖ_t), maximum(abs, Πₐ_t))
+εlim = 0.5 * max(maximum(abs, εₖˡ_t), maximum(abs, εₐˡ_t))
 
-bₙ = @lift b_t[$n]
-hm3 = heatmap!(ax3, bₙ; colormap=:balance, colorrange=(-B₀, +B₀))
-Colorbar(fig[3, 3], hm3, vertical=false, height=8);
+panels = [(1, 1, Q_t,   "velocity gradient invariant, Q",  :inferno, (0, 0.2)),
+          (1, 2, Πₖ_t,  "cross-scale KE flux, Πₖ",         :balance, (-Πlim, Πlim)),
+          (1, 3, εₖˡ_t, "filtered KE dissipation, εₖˡ",    :balance, (-εlim, εlim)),
+          (2, 1, Ri_t,  "gradient Richardson number, Ri",  :bwr,     (-1, 1)),
+          (2, 2, Πₐ_t,  "cross-scale APE flux, Πₐ",        :balance, (-Πlim, Πlim)),
+          (2, 3, εₐˡ_t, "filtered APE dissipation, εₐˡ",   :balance, (-εlim, εlim))]
 
-# The second row shows the (local) budget terms as 2D fields: the buoyancy production `w̄b̄`, the
-# cross-scale kinetic-energy flux `Πₖ`, and the filtered dissipation `εₖˡ`. Each gets a symmetric
-# (or, for the sign-definite `εₖˡ`, one-sided) color range set from its own peak magnitude over the run.
+for (row, column, series, label, colormap, colorrange) in panels
+    ax = Axis(fig[row + 1, 2column - 1]; title=label, xlabel="x", ylabel="z", aspect=DataAspect())
+    hm = heatmap!(ax, @lift(series[$n]); colormap, colorrange)
+    Colorbar(fig[row + 1, 2column], hm)
+end
 
-maxabs(fts) = maximum(maximum(abs, interior(fts[k])) for k in 1:length(times))
-wb_lim = maxabs(w̄b̄_t)
-Π_lim  = maxabs(Πₖ_t)
-ε_lim  = maxabs(εₖˡ_t)
-
-ax4 = Axis(fig[4, 1]; title="w̄b̄", kwargs...)
-ax5 = Axis(fig[4, 2]; title="Πₖ", kwargs...)
-ax6 = Axis(fig[4, 3]; title="εₖˡ", kwargs...)
-
-w̄b̄ₙ = @lift w̄b̄_t[$n]
-hm4 = heatmap!(ax4, w̄b̄ₙ; colormap=:balance, colorrange=(-wb_lim, wb_lim))
-Colorbar(fig[5, 1], hm4, vertical=false, height=8)
-
-Πₖₙ = @lift Πₖ_t[$n]
-hm5 = heatmap!(ax5, Πₖₙ; colormap=:balance, colorrange=(-Π_lim, Π_lim))
-Colorbar(fig[5, 2], hm5, vertical=false, height=8)
-
-εₖˡₙ = @lift εₖˡ_t[$n]
-hm6 = heatmap!(ax6, εₖˡₙ; colormap=:magma, colorrange=(0, ε_lim))
-Colorbar(fig[5, 3], hm6, vertical=false, height=8);
-
-# The next panel shows the volume-integrated filtered kinetic-energy budget. We plot the negative
+# The third row shows the volume-integrated filtered kinetic-energy budget. We plot the negative
 # tendency `−d(∫eₖˡ)/dt` together with its three sources: buoyancy production `∫w̄b̄ dV`, the cross-scale
 # flux `−∫Πₖ dV`, and the filtered dissipation `−∫εₖˡ dV`. With the tendency negated, the four curves
-# sum to the residual. The bottom panel does the same for the filtered APE budget, whose reference
+# sum to the residual. The bottom row does the same for the filtered APE budget, whose reference
 # tendency `∫Rˡ dV` is a fourth source.
 
-ax_bud = Axis(fig[6, 1:3]; xlabel="Time", title="Filtered kinetic energy budget", height=140)
+ax_bud = Axis(fig[4, 1:6]; xlabel="Time", title="Filtered kinetic energy budget")
 lines!(ax_bud, t_bud, -deₖˡdt, label="−d(∫eₖˡ)/dt")
 lines!(ax_bud, t_bud, w̄b̄_bud, label="∫w̄b̄ dV")
 lines!(ax_bud, t_bud, -Πₖ_bud, label="−∫Πₖ dV")
 lines!(ax_bud, t_bud, -εₖˡ_bud, label="−∫εₖˡ dV")
 lines!(ax_bud, t_bud, eₖˡ_resid, label="residual", color=:black, linestyle=:dash)
-axislegend(ax_bud; position=:lb, labelsize=10)
+axislegend(ax_bud; position=:lb, labelsize=12)
 
-ax_ape = Axis(fig[7, 1:3]; xlabel="Time", title="Filtered available potential energy budget", height=140)
+ax_ape = Axis(fig[5, 1:6]; xlabel="Time", title="Filtered available potential energy budget")
 lines!(ax_ape, t_bud, -deₐˡdt, label="−d(∫eₐˡ)/dt")
 lines!(ax_ape, t_bud, -w̄b̄ᵣ_bud, label="−∫w̄b̄ᵣ dV")
 lines!(ax_ape, t_bud, -Πₐ_bud, label="−∫Πₐ dV")
 lines!(ax_ape, t_bud, -εₐˡ_bud, label="−∫εₐˡ dV")
 lines!(ax_ape, t_bud, Rˡ_bud, label="∫Rˡ dV")
 lines!(ax_ape, t_bud, eₐˡ_resid, label="residual", color=:black, linestyle=:dash)
-axislegend(ax_ape; position=:lb, labelsize=10, nbanks=2)
+axislegend(ax_ape; position=:lb, labelsize=12, nbanks=2)
 
-# Now we mark the time by placing a vertical line in both budget panels and adding a helpful title
+# Finally, we mark the time with a vertical line in both budget panels, add a title and record a movie
 
-tₙ = @lift times[$n]
-vlines!(ax_bud, tₙ, color=:black, linestyle=:dash)
-vlines!(ax_ape, tₙ, color=:black, linestyle=:dash)
+for ax in (ax_bud, ax_ape)
+    vlines!(ax, @lift(times[$n]), color=:black, linestyle=:dash)
+end
 
-title = @lift "Time = " * string(round(times[$n], digits=2))
-fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);
-
-# Finally, we adjust the figure dimensions to fit all the panels and record a movie
-
-resize_to_layout!(fig)
+title = @lift "Kelvin-Helmholtz instability, t = " * string(round(times[$n], digits=2))
+fig[1, 1:6] = Label(fig, title, fontsize=22, tellwidth=false)
 
 @info "Animating..."
 record(fig, filename * ".mp4", 1:length(times), framerate=10) do i
@@ -384,10 +360,10 @@ end
 # The bottom panel shows the filtered APE budget, whose conversion is that of the kinetic-energy
 # budget with the opposite sign. The filtered APE passes energy on to the subfilter scales throughout
 # the run (`∫Πₐ dV ≥ 0`), so after `t ≈ 40` kinetic energy moves up across the filter scale while APE
-# keeps moving down. The diffusive sink `∫εₐˡ dV` is mostly smaller than `∫Πₐ dV` and peaks later. As
-# the billows mix, the reference profile changes and `∫Rˡ dV` removes filtered APE at a rate comparable
-# to `∫εₐˡ dV`, with both peaking around `t ≈ 70`. Since the full-field `∫R dV` vanishes, the subfilter
-# scales gain what `∫Rˡ dV` removes.
+# keeps moving down. The diffusive sink `∫εₐˡ dV` is mostly smaller than `∫Πₐ dV` and peaks later.
+# As the billows mix, the reference profile changes and `∫Rˡ dV` removes filtered APE at a rate
+# comparable to `∫εₐˡ dV`, with both peaking around `t ≈ 70`. Since the full-field `∫R dV` vanishes,
+# the subfilter scales gain what `∫Rˡ dV` removes.
 #
 # In both panels the residual (dashed), the sum of the negative tendency and the source terms, stays
 # small. As in the [Two-dimensional turbulence example](@ref two_d_turbulence_example), the
