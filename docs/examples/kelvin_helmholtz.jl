@@ -1,7 +1,8 @@
 # # [Kelvin-Helmholtz instability](@id kelvin_helmholtz_example)
 #
 # In this example we simulate a simple 2D Kelvin-Helmholtz instability and then use
-# Oceanostics to close the volume-integrated kinetic-energy budget of the filtered flow.
+# Oceanostics to close the volume-integrated kinetic and available potential energy budgets of the
+# filtered flow.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -107,8 +108,9 @@ Q = QVelocityGradientTensorInvariant(model)
 # Kelvin-Helmholtz billows draw kinetic energy from the mean shear and pass it down to ever-smaller
 # scales, so this is a natural flow in which to look at a *filtered* kinetic-energy
 # budget in the spirit of [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1). We define a
-# box filter whose width is comparable to the shear-layer half-width `h` and use it to build every
-# term in the budget of the filtered kinetic energy ``e_k^l = \tfrac{1}{2}\overline{u}_i\overline{u}_i``.
+# horizontal box filter whose width is comparable to the shear-layer half-width `h` and use it to
+# build every term in the budget of the filtered kinetic energy
+# ``e_k^l = \tfrac{1}{2}\overline{u}_i\overline{u}_i``.
 # Volume-integrated — advection and pressure work integrate to zero, since the flow is periodic in `x`
 # and `w = 0` with free slip at the `z` walls — that budget reads
 #
@@ -129,17 +131,16 @@ Q = QVelocityGradientTensorInvariant(model)
 using Oceananigans.AbstractOperations: @at
 
 # A box filter is specified by its stencil size `N` in grid points rather than by a physical width, so
-# we pick the odd `N` whose stencil spans roughly the shear-layer half-width `h`. The grid is slightly
-# anisotropic here (`Δx ≈ 0.11 h`, `Δz ≈ 0.078 h`), so no single `N` matches `h` exactly in both
-# directions; `N = 11` brackets it, spanning `11Δx ≈ 1.2 h` in `x` and `11Δz ≈ 0.86 h` in `z`.
+# we pick the odd `N` whose stencil spans roughly the shear-layer half-width `h`: `N = 19` spans
+# `19Δx ≈ 1.05 h`. The filter acts along `x` only, since the filtered APE diagnostics below accept
+# only horizontal filters.
 
-bfilter = BoxFilter(; dims=(1, 3), N=11, boundary=:shrink)  # stencil ≈ h wide, the shear-layer half-width
+bfilter = BoxFilter(; dims=1, N=19)  # stencil ≈ h wide, the shear-layer half-width
 
 u, w = model.velocities.u, model.velocities.w
 b = model.tracers.b
-## Materialize each filtered field so the multi-direction filter takes its fast staged (separable)
-## path; composing the raw `bfilter(u)` into `ū^2 + w̄^2` below would instead run it fused (see the
-## filter performance notes and `check_filter_staging`).
+## Materialize each filtered field, so the filter runs once per compute rather than inside every term
+## built from it below.
 ū, w̄, b̄ = Field(bfilter(u)), Field(bfilter(w)), Field(bfilter(b))
 
 eₖˡ = @at (Center, Center, Center) (ū^2 + w̄^2) / 2   # filtered kinetic energy ½ūᵢūᵢ
@@ -156,6 +157,46 @@ w̄b̄  = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy producti
 
 ∂ₜ∫eₖˡ = TimeDerivative(∫eₖˡ)
 
+# ### Filtered available potential energy budget
+#
+# The same filter gives the available potential energy (APE) of the filtered buoyancy,
+# ``e_a^l = e_a(\bar b, z)`` ([`FilteredAvailablePotentialEnergy`](@ref)). Its transport terms
+# integrate to zero as well, since the walls carry no buoyancy flux either, so its volume-integrated
+# budget reads
+#
+# ```math
+# \frac{d}{dt} \int e_a^l\, \mathrm{d}V
+#   = -\int \overline{w}\,\overline{b_r}\, \mathrm{d}V
+#   - \int \Pi_a\, \mathrm{d}V
+#   - \int \varepsilon_a^l\, \mathrm{d}V ,
+# ```
+#
+# with the conversion to filtered kinetic energy ``\overline{w}\,\overline{b_r}``
+# ([`FilteredAvailablePotentialToKineticEnergyConversion`](@ref)), the cross-scale APE flux ``\Pi_a``
+# ([`AvailablePotentialEnergyCrossScaleFlux`](@ref)) and the filtered dissipation ``\varepsilon_a^l``
+# ([`FilteredAvailablePotentialEnergyDissipationRate`](@ref)), derived in the
+# [Filtered available potential energy equation](@ref). The conversion has the same volume integral
+# as the ``\overline{w}\,\overline{b}`` of the kinetic-energy budget, since ``\overline{w}`` has zero
+# horizontal mean at every height. A reference profile that evolves with the flow would add a
+# reference tendency ``R^l``, which has no diagnostic. We therefore hold the profile fixed at the
+# initial stratification, which is already sorted, sampled finely so that ``z^\star(\bar b)`` is
+# smooth:
+
+z✶_profile = collect(range(-Lz/2, Lz/2, length=100N))   # 100 slots per grid cell
+b✶_profile = stratification.(0, z✶_profile)
+fixed_profile = ProfileLookup(b✶_profile, z✶_profile)
+
+eₐˡ = FilteredAvailablePotentialEnergy(model, bfilter; method=fixed_profile)
+w̄b̄ᵣ = FilteredAvailablePotentialToKineticEnergyConversion(model, bfilter; method=fixed_profile)
+Πₐ  = AvailablePotentialEnergyCrossScaleFlux(model, bfilter; dims=(1, 3), method=fixed_profile)
+εₐˡ = FilteredAvailablePotentialEnergyDissipationRate(model, bfilter; method=fixed_profile)
+
+∫w̄b̄ᵣ = Integral(w̄b̄ᵣ)
+∫Πₐ  = Integral(Πₐ)
+∫εₐˡ = Integral(εₐˡ)
+
+∂ₜ∫eₐˡ = TimeDerivative(Integral(eₐˡ))
+
 
 # We use two NetCDF writers. A *snapshot* writer stores the 2D fields and a *budget* writer only the
 # integrated scalars, both on `TimeInterval(1)`.
@@ -168,7 +209,7 @@ simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b, w̄b̄, Πₖ,
                                               schedule=TimeInterval(1),
                                               overwrite_files=true)
 
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∂ₜ∫eₖˡ, ∫w̄b̄, ∫Πₖ, ∫εₖˡ),
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∂ₜ∫eₖˡ, ∫w̄b̄, ∫Πₖ, ∫εₖˡ, ∂ₜ∫eₐˡ, ∫w̄b̄ᵣ, ∫Πₐ, ∫εₐˡ),
                                                   filename=joinpath(@__DIR__, filename * "_budget"),
                                                   schedule=TimeInterval(1),
                                                   overwrite_files=true)
@@ -194,7 +235,7 @@ ds = NCDataset(filepath)
 times = ds["time"][:]
 close(ds)
 
-# Every budget record carries the tendency and the three source terms at the same time. The first
+# Every budget record carries both tendencies and their source terms at the same time. The first
 # record has no earlier state to difference against and is written as zero, so the budget starts from
 # the second.
 
@@ -207,14 +248,22 @@ deₖˡdt   = ds_bud["∂ₜ∫eₖˡ"][nb]
 w̄b̄_bud   = ds_bud["∫w̄b̄"][nb]
 Πₖ_bud   = ds_bud["∫Πₖ"][nb]
 εₖˡ_bud  = ds_bud["∫εₖˡ"][nb]
+deₐˡdt   = ds_bud["∂ₜ∫eₐˡ"][nb]
+w̄b̄ᵣ_bud  = ds_bud["∫w̄b̄ᵣ"][nb]
+Πₐ_bud   = ds_bud["∫Πₐ"][nb]
+εₐˡ_bud  = ds_bud["∫εₐˡ"][nb]
 close(ds_bud)
 
-# Residual in sum-to-zero form: the negative tendency plus the three sources, so the plotted curves add to it
-resid = @. -deₖˡdt + w̄b̄_bud - Πₖ_bud - εₖˡ_bud
+# Residuals in sum-to-zero form: each negative tendency plus its three sources, so the plotted curves
+# add to it
+eₖˡ_resid = @. -deₖˡdt + w̄b̄_bud - Πₖ_bud - εₖˡ_bud
+eₐˡ_resid = @. -deₐˡdt - w̄b̄ᵣ_bud - Πₐ_bud - εₐˡ_bud
 
 using Test                              #hide
 rms(x) = √(sum(abs2, x) / length(x))    #hide
-@test rms(resid) < 0.06 * rms(deₖˡdt);   #hide
+@test rms(eₖˡ_resid) < 0.06 * rms(deₖˡdt)   #hide
+@test rms(eₐˡ_resid) < 0.02 * rms(deₐˡdt)   #hide
+@test w̄b̄ᵣ_bud ≈ w̄b̄_bud rtol=1e-6;          #hide
 
 
 # ## Plotting
@@ -272,23 +321,32 @@ Colorbar(fig[5, 2], hm5, vertical=false, height=8)
 hm6 = heatmap!(ax6, εₖˡₙ; colormap=:magma, colorrange=(0, ε_lim))
 Colorbar(fig[5, 3], hm6, vertical=false, height=8);
 
-# The bottom panel shows the volume-integrated filtered kinetic-energy budget. We plot the negative
+# The next panel shows the volume-integrated filtered kinetic-energy budget. We plot the negative
 # tendency `−d(∫eₖˡ)/dt` together with its three sources: buoyancy production `∫w̄b̄ dV`, the cross-scale
 # flux `−∫Πₖ dV`, and the filtered dissipation `−∫εₖˡ dV`. With the tendency negated, the four curves
-# sum to the residual.
+# sum to the residual. The bottom panel does the same for the filtered APE budget.
 
 ax_bud = Axis(fig[6, 1:3]; xlabel="Time", title="Filtered kinetic energy budget", height=140)
 lines!(ax_bud, t_bud, -deₖˡdt, label="−d(∫eₖˡ)/dt")
 lines!(ax_bud, t_bud, w̄b̄_bud, label="∫w̄b̄ dV")
 lines!(ax_bud, t_bud, -Πₖ_bud, label="−∫Πₖ dV")
 lines!(ax_bud, t_bud, -εₖˡ_bud, label="−∫εₖˡ dV")
-lines!(ax_bud, t_bud, resid, label="residual", color=:black, linestyle=:dash)
+lines!(ax_bud, t_bud, eₖˡ_resid, label="residual", color=:black, linestyle=:dash)
 axislegend(ax_bud; position=:lb, labelsize=10)
 
-# Now we mark the time by placing a vertical line in the bottom panel and adding a helpful title
+ax_ape = Axis(fig[7, 1:3]; xlabel="Time", title="Filtered available potential energy budget", height=140)
+lines!(ax_ape, t_bud, -deₐˡdt, label="−d(∫eₐˡ)/dt")
+lines!(ax_ape, t_bud, -w̄b̄ᵣ_bud, label="−∫w̄b̄ᵣ dV")
+lines!(ax_ape, t_bud, -Πₐ_bud, label="−∫Πₐ dV")
+lines!(ax_ape, t_bud, -εₐˡ_bud, label="−∫εₐˡ dV")
+lines!(ax_ape, t_bud, eₐˡ_resid, label="residual", color=:black, linestyle=:dash)
+axislegend(ax_ape; position=:lb, labelsize=10)
+
+# Now we mark the time by placing a vertical line in both budget panels and adding a helpful title
 
 tₙ = @lift times[$n]
 vlines!(ax_bud, tₙ, color=:black, linestyle=:dash)
+vlines!(ax_ape, tₙ, color=:black, linestyle=:dash)
 
 title = @lift "Time = " * string(round(times[$n], digits=2))
 fig[1, 1:3] = Label(fig, title, fontsize=24, tellwidth=false);
@@ -304,10 +362,19 @@ end
 
 # ![](kelvin_helmholtz.mp4)
 #
-# The bottom panel shows the volume-integrated filtered kinetic-energy budget. As the billows
-# grow and overturn, the filtered flow mostly loses kinetic energy to potential energy (`∫w̄b̄ dV < 0`) and
-# feeds the subfilter scales through the cross-scale flux (`−∫Πₖ dV`), while the filtered viscous
-# dissipation `∫εₖˡ dV` stays comparatively small at this Reynolds number. The residual (dashed), the
-# sum of the negative tendency `−d(∫eₖˡ)/dt` and the three source terms, stays small. As in the
-# [Two-dimensional turbulence example](@ref two_d_turbulence_example), the centered scheme contributes no
-# numerical dissipation of its own, so the budget closes against the explicit `∫εₖˡ dV` alone with a negligible residual.
+# The first budget panel shows the volume-integrated filtered kinetic-energy budget. As the billows
+# grow and overturn, the filtered flow mostly loses kinetic energy to potential energy
+# (`∫w̄b̄ dV < 0`). The cross-scale flux sends kinetic energy to the subfilter scales while the
+# billows grow (`∫Πₖ dV > 0`) and turns mostly inverse once they have overturned, after `t ≈ 40`.
+# The filtered viscous dissipation `∫εₖˡ dV` stays comparatively small at this Reynolds number.
+#
+# The bottom panel shows the filtered APE budget, whose conversion is that of the kinetic-energy
+# budget with the opposite sign. The filtered APE passes energy on to the subfilter scales throughout
+# the run (`∫Πₐ dV > 0`), so after `t ≈ 40` kinetic energy moves up across the filter scale while APE
+# keeps moving down. The diffusive sink `∫εₐˡ dV` is smaller than `∫Πₐ dV` and peaks later, around
+# `t ≈ 65`.
+#
+# In both panels the residual (dashed), the sum of the negative tendency and the three source terms,
+# stays small. As in the [Two-dimensional turbulence example](@ref two_d_turbulence_example), the
+# centered scheme contributes no numerical dissipation of its own, so both budgets close against the
+# explicit dissipation rates alone.
