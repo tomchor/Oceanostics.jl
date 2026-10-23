@@ -117,13 +117,15 @@ appears in the [Subfilter available potential energy equation](@ref), we get tha
 ``\int R^l \, \mathrm{d}V = -\int R^s \, \mathrm{d}V``. Thus, interestingly, an evolving reference profile
 redistributes APE across the filter scale as well as in space. With a reference profile held
 fixed in time (implemented here with a [`ProfileLookup`](@ref Oceanostics.BackgroundPotentialEnergyEquation.ProfileLookup)
-holding plain arrays) ``R^l`` vanishes identically.
+holding plain arrays) ``R^l`` vanishes identically. ``R^l`` integrates the same
+``\partial_t b^\star`` as ``R``, the time derivative of the full field's reference profile, and only
+starts from a different height.
 
 ## Terms and diagnostics
 
-Five of the quantities above have their own diagnostics, and the filtered anomaly is the full-field
+Six of the quantities above have their own diagnostics, and the filtered anomaly is the full-field
 [`ReferenceBuoyancyAnomaly`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly)
-passed through `filter`; the two transport divergences and the reference tendency have none.
+passed through `filter`; the two transport divergences have none.
 
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
@@ -135,7 +137,7 @@ passed through `filter`; the two transport divergences and the reference tendenc
 | Cross-scale flux | ``\Pi_a = -\tau(u_i, b) \, \partial_i \Upsilon^l`` | [`AvailablePotentialEnergyCrossScaleFlux`](@ref) |
 | Subfilter and diffusive transport | ``\partial_i\left[\Upsilon^l (\tau(u_i, b) + \bar q_i)\right]`` | not implemented |
 | Dissipation | ``\varepsilon_a^l = -\bar q_i \, \partial_i \Upsilon^l`` | [`FilteredAvailablePotentialEnergyDissipationRate`](@ref) |
-| Reference tendency | ``R^l = \int_{z^\star(\bar b)}^{z} \partial_t b^\star(\tilde z, t) \, \mathrm{d}\tilde z`` | not implemented |
+| Reference tendency | ``R^l = \int_{z^\star(\bar b)}^{z} \partial_t b^\star(\tilde z, t) \, \mathrm{d}\tilde z`` | [`FilteredAvailablePotentialEnergyReferenceTendency`](@ref) |
 
 ``\Upsilon^l`` also answers to `DisplacementPotential`, and ``\varepsilon_a^l`` to `DissipationRate`.
 Both aliases are scoped to this module, as their full-field namesakes are to
@@ -151,4 +153,5 @@ Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialE
 Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion
 Oceanostics.FilteredAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux
 Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyDissipationRate
+Oceanostics.FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyReferenceTendency
 ```

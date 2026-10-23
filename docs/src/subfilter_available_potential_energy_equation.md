@@ -117,15 +117,19 @@ the same choice the [Filtered kinetic energy equation](@ref) makes for the visco
 The flux ``F^s_i`` gathers the subfilter advection of ``e_a``, the filtered diffusive transport of the
 full field and, with the opposite sign, the transport of the filtered budget. Its divergence
 redistributes ``e_a^s`` in space and carries no APE across the filter scale. ``R^s`` is the subfilter
-part of the reference tendency. It satisfies ``\int R^s \, \mathrm{d}V = -\int R^l \, \mathrm{d}V``, as
-the [Filtered available potential energy equation](@ref) explains, and vanishes identically when the
+part of the reference tendency, computed by
+[`SubFilterAvailablePotentialEnergyReferenceTendency`](@ref). It satisfies
+``\int R^s \, \mathrm{d}V = -\int R^l \, \mathrm{d}V``, as the
+[Filtered available potential energy equation](@ref) explains, and vanishes identically when the
 reference profile is held fixed in time.
 
 ## Terms and diagnostics
 
-Four of the quantities above have diagnostics: three are defined in this module, and the cross-scale
+Five of the quantities above have diagnostics: four are defined in this module, and the cross-scale
 flux is defined in the [Filtered available potential energy equation](@ref) and re-exported here. The
-advection, the subfilter transport and the reference tendency have none.
+advection and the subfilter transport have none. The
+[Rayleigh-Taylor instability](@ref rayleigh_taylor_example) example closes the volume-integrated
+budget.
 
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
@@ -135,7 +139,7 @@ advection, the subfilter transport and the reference tendency have none.
 | Cross-scale flux | ``\Pi_a = -\tau(u_i, b) \, \partial_i \Upsilon^l`` | [`AvailablePotentialEnergyCrossScaleFlux`](@ref Oceanostics.FilteredAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux) |
 | Subfilter transport | ``\partial_i F^s_i`` | not implemented |
 | Dissipation | ``\varepsilon_a^s = \overline{\varepsilon_a} - \varepsilon_a^l`` | [`SubFilterAvailablePotentialEnergyDissipationRate`](@ref) |
-| Reference tendency | ``R^s = \overline{R} - R^l`` | not implemented |
+| Reference tendency | ``R^s = \overline{R} - R^l`` | [`SubFilterAvailablePotentialEnergyReferenceTendency`](@ref) |
 
 ``\varepsilon_a^s`` also answers to `DissipationRate`. Like its full-field and filtered namesakes, the
 alias is scoped to its module: `using Oceanostics.SubFilterAvailablePotentialEnergyEquation` brings it
@@ -154,4 +158,5 @@ Oceanostics.SubFilterAvailablePotentialEnergyEquation.AvailablePotentialEnergyCr
 
 ```@docs
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate
+Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyReferenceTendency
 ```
