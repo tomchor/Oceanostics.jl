@@ -146,5 +146,6 @@ in, `using Oceanostics` does not.
 ```@docs
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion
+Oceanostics.SubFilterAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux
 Oceanostics.SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate
 ```

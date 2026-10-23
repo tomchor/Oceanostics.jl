@@ -52,9 +52,9 @@ the displacement potential of the filtered buoyancy ``\Upsilon^l``. The second s
 the filtered buoyancy anomaly ``\overline{b_r}``:
 
 ```math
-\left.\frac{\partial e_a^l}{\partial \bar b}\right|_{z} = z^\star(\bar b, t) - z = \Upsilon^l ,
+\left.\frac{\partial e_a^l}{\partial \bar b}\right|_{z,t} = z^\star(\bar b, t) - z = \Upsilon^l ,
 \qquad
-\left.\frac{\partial e_a^l}{\partial z}\right|_{\bar b} = b^\star(z, t) - \bar b = -\overline{b_r} .
+\left.\frac{\partial e_a^l}{\partial z}\right|_{\bar b,t} = b^\star(z, t) - \bar b = -\overline{b_r} .
 ```
 
 Note that ``\Upsilon^l`` is different from ``\Upsilon`` since it includes ``z^\star(\bar b, t)`` and *not*
