@@ -168,32 +168,41 @@ w̄b̄  = @at (Center, Center, Center) (w̄ * b̄)           # buoyancy producti
 # \frac{d}{dt} \int e_a^l\, \mathrm{d}V
 #   = -\int \overline{w}\,\overline{b_r}\, \mathrm{d}V
 #   - \int \Pi_a\, \mathrm{d}V
-#   - \int \varepsilon_a^l\, \mathrm{d}V ,
+#   - \int \varepsilon_a^l\, \mathrm{d}V
+#   + \int R^l\, \mathrm{d}V ,
 # ```
 #
 # with the conversion to filtered kinetic energy ``\overline{w}\,\overline{b_r}``
 # ([`FilteredAvailablePotentialToKineticEnergyConversion`](@ref)), the cross-scale APE flux ``\Pi_a``
-# ([`AvailablePotentialEnergyCrossScaleFlux`](@ref)) and the filtered dissipation ``\varepsilon_a^l``
-# ([`FilteredAvailablePotentialEnergyDissipationRate`](@ref)), derived in the
+# ([`AvailablePotentialEnergyCrossScaleFlux`](@ref)), the filtered dissipation ``\varepsilon_a^l``
+# ([`FilteredAvailablePotentialEnergyDissipationRate`](@ref)) and the reference tendency ``R^l``
+# ([`FilteredAvailablePotentialEnergyReferenceTendency`](@ref)), derived in the
 # [Filtered available potential energy equation](@ref). The conversion has the same volume integral
 # as the ``\overline{w}\,\overline{b}`` of the kinetic-energy budget, since ``\overline{w}`` has zero
-# horizontal mean at every height. A reference profile that evolves with the flow would add a
-# reference tendency ``R^l``, which has no diagnostic. We therefore hold the profile fixed at the
-# initial stratification, which is already sorted, sampled finely so that ``z^\star(\bar b)`` is
-# smooth:
+# horizontal mean at every height. ``R^l`` is the rate at which the sorted profile ``b^\star``, which
+# mixing reshapes, changes the filtered APE. Unlike its full-field counterpart it does not integrate
+# to zero.
+#
+# These diagnostics share one sorted column of the buoyancy through `ProfileLookup`, and ``R^l``
+# integrates the time derivative of its profile. Reading a `TimeDerivative` does not update it, so a
+# callback does, on the iteration before each output and at the output:
 
-z✶_profile = collect(range(-Lz/2, Lz/2, length=100N))   # 100 slots per grid cell
-b✶_profile = stratification.(0, z✶_profile)
-fixed_profile = ProfileLookup(b✶_profile, z✶_profile)
+z✶_column = reference_height(model, method=VerticalSort())
+lookup    = ProfileLookup(z✶_column)
 
-eₐˡ = FilteredAvailablePotentialEnergy(model, bfilter; method=fixed_profile)
-w̄b̄ᵣ = FilteredAvailablePotentialToKineticEnergyConversion(model, bfilter; method=fixed_profile)
-Πₐ  = AvailablePotentialEnergyCrossScaleFlux(model, bfilter; dims=(1, 3), method=fixed_profile)
-εₐˡ = FilteredAvailablePotentialEnergyDissipationRate(model, bfilter; method=fixed_profile)
+∂ₜb✶ = TimeDerivative(reference_buoyancy(z✶_column))
+simulation.callbacks[:∂ₜb✶] = Callback(∂ₜb✶, PrecedingIterations(TimeInterval(1)))
+
+eₐˡ = FilteredAvailablePotentialEnergy(model, bfilter; method=lookup)
+w̄b̄ᵣ = FilteredAvailablePotentialToKineticEnergyConversion(model, bfilter; method=lookup)
+Πₐ  = AvailablePotentialEnergyCrossScaleFlux(model, bfilter; dims=(1, 3), method=lookup)
+εₐˡ = FilteredAvailablePotentialEnergyDissipationRate(model, bfilter; method=lookup)
+Rˡ  = FilteredAvailablePotentialEnergyReferenceTendency(model, bfilter, ∂ₜb✶; method=lookup)
 
 ∫w̄b̄ᵣ = Integral(w̄b̄ᵣ)
 ∫Πₐ  = Integral(Πₐ)
 ∫εₐˡ = Integral(εₐˡ)
+∫Rˡ  = Integral(Rˡ)
 
 ∂ₜ∫eₐˡ = TimeDerivative(Integral(eₐˡ))
 
@@ -209,7 +218,7 @@ simulation.output_writers[:nc] = NetCDFWriter(model, (; Ri, Q, b, w̄b̄, Πₖ,
                                               schedule=TimeInterval(1),
                                               overwrite_files=true)
 
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∂ₜ∫eₖˡ, ∫w̄b̄, ∫Πₖ, ∫εₖˡ, ∂ₜ∫eₐˡ, ∫w̄b̄ᵣ, ∫Πₐ, ∫εₐˡ),
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∂ₜ∫eₖˡ, ∫w̄b̄, ∫Πₖ, ∫εₖˡ, ∂ₜ∫eₐˡ, ∫w̄b̄ᵣ, ∫Πₐ, ∫εₐˡ, ∫Rˡ),
                                                   filename=joinpath(@__DIR__, filename * "_budget"),
                                                   schedule=TimeInterval(1),
                                                   overwrite_files=true)
@@ -252,17 +261,19 @@ deₐˡdt   = ds_bud["∂ₜ∫eₐˡ"][nb]
 w̄b̄ᵣ_bud  = ds_bud["∫w̄b̄ᵣ"][nb]
 Πₐ_bud   = ds_bud["∫Πₐ"][nb]
 εₐˡ_bud  = ds_bud["∫εₐˡ"][nb]
+Rˡ_bud   = ds_bud["∫Rˡ"][nb]
 close(ds_bud)
 
-# Residuals in sum-to-zero form: each negative tendency plus its three sources, so the plotted curves
-# add to it
+# Residuals in sum-to-zero form: each negative tendency plus its sources, so the plotted curves add
+# to it
 eₖˡ_resid = @. -deₖˡdt + w̄b̄_bud - Πₖ_bud - εₖˡ_bud
-eₐˡ_resid = @. -deₐˡdt - w̄b̄ᵣ_bud - Πₐ_bud - εₐˡ_bud
+eₐˡ_resid = @. -deₐˡdt - w̄b̄ᵣ_bud - Πₐ_bud - εₐˡ_bud + Rˡ_bud
 
 using Test                              #hide
 rms(x) = √(sum(abs2, x) / length(x))    #hide
 @test rms(eₖˡ_resid) < 0.06 * rms(deₖˡdt)   #hide
 @test rms(eₐˡ_resid) < 0.02 * rms(deₐˡdt)   #hide
+@test rms(Rˡ_bud) > 5 * rms(eₐˡ_resid)      #hide
 @test w̄b̄ᵣ_bud ≈ w̄b̄_bud rtol=1e-6;          #hide
 
 
@@ -324,7 +335,8 @@ Colorbar(fig[5, 3], hm6, vertical=false, height=8);
 # The next panel shows the volume-integrated filtered kinetic-energy budget. We plot the negative
 # tendency `−d(∫eₖˡ)/dt` together with its three sources: buoyancy production `∫w̄b̄ dV`, the cross-scale
 # flux `−∫Πₖ dV`, and the filtered dissipation `−∫εₖˡ dV`. With the tendency negated, the four curves
-# sum to the residual. The bottom panel does the same for the filtered APE budget.
+# sum to the residual. The bottom panel does the same for the filtered APE budget, whose reference
+# tendency `∫Rˡ dV` is a fourth source.
 
 ax_bud = Axis(fig[6, 1:3]; xlabel="Time", title="Filtered kinetic energy budget", height=140)
 lines!(ax_bud, t_bud, -deₖˡdt, label="−d(∫eₖˡ)/dt")
@@ -339,8 +351,9 @@ lines!(ax_ape, t_bud, -deₐˡdt, label="−d(∫eₐˡ)/dt")
 lines!(ax_ape, t_bud, -w̄b̄ᵣ_bud, label="−∫w̄b̄ᵣ dV")
 lines!(ax_ape, t_bud, -Πₐ_bud, label="−∫Πₐ dV")
 lines!(ax_ape, t_bud, -εₐˡ_bud, label="−∫εₐˡ dV")
+lines!(ax_ape, t_bud, Rˡ_bud, label="∫Rˡ dV")
 lines!(ax_ape, t_bud, eₐˡ_resid, label="residual", color=:black, linestyle=:dash)
-axislegend(ax_ape; position=:lb, labelsize=10)
+axislegend(ax_ape; position=:lb, labelsize=10, nbanks=2)
 
 # Now we mark the time by placing a vertical line in both budget panels and adding a helpful title
 
@@ -370,11 +383,13 @@ end
 #
 # The bottom panel shows the filtered APE budget, whose conversion is that of the kinetic-energy
 # budget with the opposite sign. The filtered APE passes energy on to the subfilter scales throughout
-# the run (`∫Πₐ dV > 0`), so after `t ≈ 40` kinetic energy moves up across the filter scale while APE
-# keeps moving down. The diffusive sink `∫εₐˡ dV` is smaller than `∫Πₐ dV` and peaks later, around
-# `t ≈ 65`.
+# the run (`∫Πₐ dV ≥ 0`), so after `t ≈ 40` kinetic energy moves up across the filter scale while APE
+# keeps moving down. The diffusive sink `∫εₐˡ dV` is mostly smaller than `∫Πₐ dV` and peaks later. As
+# the billows mix, the reference profile changes and `∫Rˡ dV` removes filtered APE at a rate comparable
+# to `∫εₐˡ dV`, with both peaking around `t ≈ 70`. Since the full-field `∫R dV` vanishes, the subfilter
+# scales gain what `∫Rˡ dV` removes.
 #
-# In both panels the residual (dashed), the sum of the negative tendency and the three source terms,
-# stays small. As in the [Two-dimensional turbulence example](@ref two_d_turbulence_example), the
+# In both panels the residual (dashed), the sum of the negative tendency and the source terms, stays
+# small. As in the [Two-dimensional turbulence example](@ref two_d_turbulence_example), the
 # centered scheme contributes no numerical dissipation of its own, so both budgets close against the
 # explicit dissipation rates alone.
