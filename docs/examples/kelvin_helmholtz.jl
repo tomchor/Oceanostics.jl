@@ -207,21 +207,18 @@ Rˡ  = FilteredAvailablePotentialEnergyReferenceTendency(model, bfilter, ∂ₜb
 ∂ₜ∫eₐˡ = TimeDerivative(Integral(eₐˡ))
 
 
-# We use two NetCDF writers. A *snapshot* writer stores the 2D fields and a *budget* writer only the
-# integrated scalars, both on `TimeInterval(1)`.
+# A single NetCDF writer stores, every time unit, the six fields the movie shows and the tendencies
+# and volume integrals of the two budgets:
 
 using NCDatasets
 filename = "kelvin_helmholtz"
 
-simulation.output_writers[:nc] = NetCDFWriter(model, (; Q, Πₖ, εₖˡ, Ri, Πₐ, εₐˡ),
+outputs = (; Q, Πₖ, εₖˡ, Ri, Πₐ, εₐˡ, ∂ₜ∫eₖˡ, ∫w̄b̄, ∫Πₖ, ∫εₖˡ, ∂ₜ∫eₐˡ, ∫w̄b̄ᵣ, ∫Πₐ, ∫εₐˡ, ∫Rˡ)
+
+simulation.output_writers[:nc] = NetCDFWriter(model, outputs,
                                               filename=joinpath(@__DIR__, filename),
                                               schedule=TimeInterval(1),
                                               overwrite_files=true)
-
-simulation.output_writers[:budget] = NetCDFWriter(model, (; ∂ₜ∫eₖˡ, ∫w̄b̄, ∫Πₖ, ∫εₖˡ, ∂ₜ∫eₐˡ, ∫w̄b̄ᵣ, ∫Πₐ, ∫εₐˡ, ∫Rˡ),
-                                                  filename=joinpath(@__DIR__, filename * "_budget"),
-                                                  schedule=TimeInterval(1),
-                                                  overwrite_files=true)
 
 
 # ## Run the simulation and process results
@@ -230,7 +227,7 @@ simulation.output_writers[:budget] = NetCDFWriter(model, (; ∂ₜ∫eₖˡ, ∫
 
 run!(simulation)
 
-# Now we'll read the snapshot fields using `FieldTimeSeries`
+# Now we'll read the output back as `FieldTimeSeries`
 
 filepath = simulation.output_writers[:nc].filepath
 Q_t   = FieldTimeSeries(filepath, "Q")
@@ -239,30 +236,26 @@ Q_t   = FieldTimeSeries(filepath, "Q")
 Ri_t  = FieldTimeSeries(filepath, "Ri")
 Πₐ_t  = FieldTimeSeries(filepath, "Πₐ")
 εₐˡ_t = FieldTimeSeries(filepath, "εₐˡ")
+times = Q_t.times
 
-ds = NCDataset(filepath)
-times = ds["time"][:]
-close(ds)
+# Every record carries both tendencies and their source terms at the same time, and each volume
+# integral comes back as a `FieldTimeSeries` of a single point, which `interior` turns into a vector.
+# The first record of a tendency has no earlier state to difference against and is written as zero,
+# so the budget starts from the second.
 
-# Every budget record carries both tendencies and their source terms at the same time. The first
-# record has no earlier state to difference against and is written as zero, so the budget starts from
-# the second.
+nb    = 2:length(times)
+t_bud = times[nb]
+budget_term(name) = interior(FieldTimeSeries(filepath, name), 1, 1, 1, nb)
 
-bud_filepath = simulation.output_writers[:budget].filepath
-ds_bud = NCDataset(bud_filepath)
-nb     = 2:length(ds_bud["time"])
-
-t_bud    = ds_bud["time"][nb]
-deₖˡdt   = ds_bud["∂ₜ∫eₖˡ"][nb]
-w̄b̄_bud   = ds_bud["∫w̄b̄"][nb]
-Πₖ_bud   = ds_bud["∫Πₖ"][nb]
-εₖˡ_bud  = ds_bud["∫εₖˡ"][nb]
-deₐˡdt   = ds_bud["∂ₜ∫eₐˡ"][nb]
-w̄b̄ᵣ_bud  = ds_bud["∫w̄b̄ᵣ"][nb]
-Πₐ_bud   = ds_bud["∫Πₐ"][nb]
-εₐˡ_bud  = ds_bud["∫εₐˡ"][nb]
-Rˡ_bud   = ds_bud["∫Rˡ"][nb]
-close(ds_bud)
+deₖˡdt  = budget_term("∂ₜ∫eₖˡ")
+w̄b̄_bud  = budget_term("∫w̄b̄")
+Πₖ_bud  = budget_term("∫Πₖ")
+εₖˡ_bud = budget_term("∫εₖˡ")
+deₐˡdt  = budget_term("∂ₜ∫eₐˡ")
+w̄b̄ᵣ_bud = budget_term("∫w̄b̄ᵣ")
+Πₐ_bud  = budget_term("∫Πₐ")
+εₐˡ_bud = budget_term("∫εₐˡ")
+Rˡ_bud  = budget_term("∫Rˡ")
 
 # Residuals in sum-to-zero form: each negative tendency plus its sources, so the plotted curves add
 # to it
