@@ -4,7 +4,7 @@ using DocStringExtensions
 export BoxFilter, GaussianFilter, check_filter_staging
 
 using Oceananigans: location
-using Oceananigans.Grids: topology, Periodic,
+using Oceananigans.Grids: topology, Periodic, instantiate,
                           minimum_xspacing, minimum_yspacing, minimum_zspacing,
                           xspacings, yspacings, zspacings,
                           xnode, ynode, znode
@@ -51,6 +51,30 @@ struct ConstantBoundary{T} <: AbstractBoundaryPolicy
     ConstantBoundary{T}(l, r) where {T} = new{T}(l, r)
 end
 ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), typeof(right))}(promote(left, right)...)
+
+"""
+    SizedBoundary(policy, N)
+
+Internal. A boundary policy paired with the operand's extent `N` along the direction it
+governs.
+
+The extent has to be attached here, on the host, because it cannot be recovered inside a
+kernel. `stencil_length` derives it from `location(ψ)`, and on a GPU the `ψ` a kernel sees is
+the *adapted* operand, which carries no location: `location(ψ)[d]` comes back `Nothing`, and
+Oceananigans' `length(::Nothing, topo, N)` is `1`. Every filtered direction then looks one
+cell long, and the failure is silent in two ways at once — `wrap_periodic_index(i, 1) == i-1`
+displaces the whole field by a cell, and `ShrinkBoundary` keeps only the single tap at index
+1. Neither is visible on a constant field, which is why CPU-only CI never caught it.
+"""
+struct SizedBoundary{P <: AbstractBoundaryPolicy, I} <: AbstractBoundaryPolicy
+    policy::P
+    N::I
+end
+
+# The extent the kernels filter over, and the underlying policy for dispatch.
+@inline stencil_extent(sb::SizedBoundary) = sb.N
+@inline unwrap_policy(sb::SizedBoundary) = sb.policy
+@inline unwrap_policy(p::AbstractBoundaryPolicy) = p
 #---
 
 #+++ Stencil value readers
@@ -64,6 +88,15 @@ ConstantBoundary(left, right) = ConstantBoundary{promote_type(typeof(left), type
 # `x/y/z_stencil_call`  evaluate a kernel function `f` at the adjusted index.
 
 @inline wrap_periodic_index(i, N) = i + N * (i < 1) - N * (i > N)
+
+# Unwrap a `SizedBoundary` so the readers below keep dispatching on the underlying policy.
+@inline x_stencil_fetch(sb::SizedBoundary, ψ, i, j, k, N) = x_stencil_fetch(sb.policy, ψ, i, j, k, N)
+@inline y_stencil_fetch(sb::SizedBoundary, ψ, i, j, k, N) = y_stencil_fetch(sb.policy, ψ, i, j, k, N)
+@inline z_stencil_fetch(sb::SizedBoundary, ψ, i, j, k, N) = z_stencil_fetch(sb.policy, ψ, i, j, k, N)
+
+@inline x_stencil_call(sb::SizedBoundary, f, i, j, k, N, grid, fargs...) = x_stencil_call(sb.policy, f, i, j, k, N, grid, fargs...)
+@inline y_stencil_call(sb::SizedBoundary, f, i, j, k, N, grid, fargs...) = y_stencil_call(sb.policy, f, i, j, k, N, grid, fargs...)
+@inline z_stencil_call(sb::SizedBoundary, f, i, j, k, N, grid, fargs...) = z_stencil_call(sb.policy, f, i, j, k, N, grid, fargs...)
 
 @inline x_stencil_fetch(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[wrap_periodic_index(i, N), j, k], 1)
 @inline y_stencil_fetch(::PeriodicBoundary, ψ, i, j, k, N) = (@inbounds ψ[i, wrap_periodic_index(j, N), k], 1)
@@ -116,6 +149,19 @@ end
 end
 #---
 
+#+++ Operand extent along a filtered direction
+# Filtering does not move a field off its location, so a kernel iterates the operand's own index
+# space, whose length along direction `d` is Oceananigans' `length(loc, topo, N)`: `N` cells, but
+# `N + 1` faces when the direction is `Bounded` (under `Periodic` the wrap identifies face `N + 1`
+# with face `1`, so `Face` and `Center` coincide at `N`). `size(grid, d)` alone under-counts by one
+# exactly there, which would make every boundary policy treat the last face as out of range:
+# `:shrink` would drop the point's own weight at the top face (a bias toward the interior, or `0/0`
+# for a stencil whose off-center weights vanish) and `:edge` would read the face below instead. The
+# operand is the last argument at every level of the fused recursion, so the recursive kernel
+# methods read it from `fargs[end]`; everything here is singleton types, so the lookup constant-folds.
+@inline stencil_length(grid, d, ψ) = length(instantiate(location(ψ)[d]), instantiate(topology(grid, d)), size(grid, d))
+#---
+
 #+++ Shared filter infrastructure
 function resolve_filter_policies(ψ, dims, boundary)
     validate_dims(dims)
@@ -139,13 +185,17 @@ function resolve_filter_policies(ψ, dims, boundary)
         per_user_dim_specs[user_idx]
     end, length(sorted_dims))
 
+    # Each policy carries the operand's extent along its own direction, measured here where
+    # `location(ψ)` is still available. See `SizedBoundary` for why this cannot be deferred
+    # to the kernel.
     policies = ntuple(i -> begin
         d = sorted_dims[i]
-        if topology(grid, d) === Periodic
+        base = if topology(grid, d) === Periodic
             PeriodicBoundary()
         else
             parse_boundary_spec(sorted_specs[i])
         end
+        SizedBoundary(base, stencil_length(grid, d, ψ))
     end, length(sorted_dims))
 
     return grid, loc, sorted_dims, policies
@@ -197,7 +247,7 @@ validate_N(N) = throw(ArgumentError("`N` must be an odd integer ≥ 3; got $(typ
 
 function validate_periodic_widths(grid, sorted_dims, policies, widths)
     for (i, (d, policy)) in enumerate(zip(sorted_dims, policies))
-        if policy isa PeriodicBoundary
+        if unwrap_policy(policy) isa PeriodicBoundary
             Nd_grid = size(grid, d)
             N = 2 * widths[i] + 1
             N <= 2 * Nd_grid + 1 ||
@@ -428,6 +478,74 @@ function check_filter_staging(op; warn=true)
             "documentation, section \"Performance notes\", for details.")
     end
     return all_staged
+end
+#---
+
+#+++ Filtered directions
+# The direction a filter averages along is the type parameter `D` of its 1D kernels, which a filter
+# operation carries as its kernel function and among its arguments (see `build_filter_kfo`).
+# `filtered_dims` walks an operation tree the way `check_filter_staging` does and returns, sorted, every
+# direction that a `BoxFilter` or `GaussianFilter` in it averages along. Reading the directions off the
+# operation rather than off the filter object gives the same answer for `GaussianFilter(; dims, σ)` and
+# for a closure `ψ -> GaussianFilter(ψ; dims, σ)`. Filters of any other kind are not recognized.
+const FilterKernel = Union{BoxFilterKernel, AbstractGaussianFilterKernel}
+
+filtered_dim(::BoxFilterKernel{D}) where {D} = D
+filtered_dim(::AbstractGaussianFilterKernel{D}) where {D} = D
+
+function _collect_filtered_dims!(found, seen, node)
+    (node in seen) && return found
+    push!(seen, node)
+
+    if node isa Field
+        op = node.operand
+        op === nothing || _collect_filtered_dims!(found, seen, op)
+        return found
+    end
+
+    if node isa KernelFunctionOperation
+        for f in (node.kernel_function, node.arguments...)
+            f isa FilterKernel && push!(found, filtered_dim(f))
+        end
+    end
+
+    for child in _operation_children(node)
+        _collect_filtered_dims!(found, seen, child)
+    end
+    return found
+end
+
+filtered_dims(op) = Tuple(sort!(collect(_collect_filtered_dims!(Set{Int}(), Base.IdSet{Any}(), op))))
+#---
+
+#+++ Vertical-mixing probe
+# Whether `filter` mixes values from different vertical levels, found by applying it rather than by
+# inspecting it, so it works for a filter of any kind and not only for `BoxFilter` and `GaussianFilter`.
+# The filter is applied to a field that is one on a middle level `k₀` and zero elsewhere, and to a field
+# of zeros. The difference of the two results cancels whatever a filter adds independently of its input
+# (a constant boundary pad, for instance), and for a filter that acts only in the horizontal it vanishes
+# exactly on every level other than `k₀`. Only `k₀` and its neighbours are computed, through windowed
+# `Field`s. The test assumes the filter is linear up to such a constant, as a low-pass filter is.
+using Oceananigans.Fields: CenterField, interior
+
+function mixes_vertical_levels(filter, grid)
+    Nz = size(grid, 3)
+    Nz > 1 || return false
+    k₀ = Nz ÷ 2 + 1
+    window = max(1, k₀ - 1):min(Nz, k₀ + 1)
+
+    probe = CenterField(grid)
+    zero_response = Field(filter(probe); indices = (:, :, window))   # computed now, while `probe` is all zeros
+    view(interior(probe), :, :, k₀:k₀) .= 1
+    fill_halo_regions!(probe)
+    slab_response = Field(filter(probe); indices = (:, :, window))
+
+    # The largest response on each level, reduced on the device and brought to the host.
+    response = interior(slab_response) .- interior(zero_response)
+    level_maxima = vec(Array(maximum(abs, response; dims = (1, 2))))
+    on_level  = level_maxima[k₀ - first(window) + 1]
+    off_level = maximum(level_maxima[k - first(window) + 1] for k in window if k != k₀)
+    return off_level > sqrt(eps(eltype(grid))) * on_level
 end
 #---
 

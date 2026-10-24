@@ -2,7 +2,7 @@ module BackgroundPotentialEnergyEquation
 
 using DocStringExtensions
 
-export BackgroundPotentialEnergy, reference_height, reference_buoyancy
+export BackgroundPotentialEnergy, reference_height, reference_buoyancy, reference_buoyancy_at_height
 export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation
@@ -29,6 +29,11 @@ import Oceananigans.Fields: compute!
 # `ImmersedBoundaryGrid` yet; a stretched grid breaks only the first, so every method but
 # `HeavisideIntegral` additionally needs uniform cell volumes. See `validate_grid_for_method` further
 # down, once the method types exist.
+#
+# The profile arrays live on the same architecture as the field, so nothing here reads or writes a
+# single element from the host: one element is set with a one-element broadcast
+# (`@views faces[1:1] .= x`) and ordering is checked with `is_nondecreasing`, since `setindex!` and
+# `issorted` are scalar indexing on a GPU.
 
 #+++ Buoyancy as a single materialized `Field`
 # The sorting below needs the buoyancy of every cell as plain data, and the `BackgroundPotentialEnergy`
@@ -178,7 +183,11 @@ it:
     whatever they are built from rather than staying fixed.
 
 Like [`HeavisideIntegral`](@ref) this makes `z✶` a function of buoyancy alone, so it is constant on
-isopycnals: a tied run is placed at the mid-height of the band it fills, exactly as that method does.
+isopycnals: a tied run is placed at the mid-height of the band it fills, exactly as that method does. A
+buoyancy that matches no entry of the profile (which only an external profile can produce, e.g. a
+filtered field looked up in the full field's profile) is assigned to the nearest buoyancy class and
+placed at that class's mid-height, so a value off the profile by roundoff lands exactly where an exact
+match would.
 
 !!! warning "Non-negativity needs a profile that resolves the field"
     `eₐ ≥ 0` rests on a parcel carrying `b = b✶(z✶)` exactly, which holds when the profile contains the
@@ -337,7 +346,7 @@ function slot_faces(s::SortedReferenceState, ΔV)
     N     = length(ΔV)
     Δz    = ΔV ./ s.horizontal_area                  # slot thickness, sorted order
     faces = similar(Δz, N + 1)
-    faces[1] = s.bottom_height
+    @views faces[1:1] .= s.bottom_height
     cumsum!(view(faces, 2:N+1), Δz);  view(faces, 2:N+1) .+= s.bottom_height
 
     return faces
@@ -356,7 +365,7 @@ function reference_potential_function(faces, b)
 
     N     = length(b)
     Ψface = similar(faces)                           # Ψ evaluated at the slot faces
-    Ψface[1] = zero(eltype(faces))
+    @views Ψface[1:1] .= zero(eltype(faces))
     cumsum!(view(Ψface, 2:N+1), b .* diff(faces))
 
     ## Ψ inside slot k is Ψface[k] + b✶[k](z - faces[k]); `searchsortedlast` locates the slot
@@ -491,16 +500,19 @@ between neighbouring `z✶`, closed off by the bottom and top of the domain, so 
 exactly however the profile is spaced. For a profile of equal-volume slots (what [`VerticalSort`](@ref)
 produces) this recovers their boundaries exactly.
 """
-function profile_slot_faces(s::SortedReferenceState, z)
+function profile_slot_faces(bottom_height, top_height, z)
 
     M     = length(z)
     faces = similar(z, M + 1)
-    faces[1]     = s.bottom_height
-    faces[M + 1] = s.bottom_height + sum(s.cell_volume) / s.horizontal_area
+    @views faces[1:1]         .= bottom_height
+    @views faces[M + 1:M + 1] .= top_height
     @views @. faces[2:M] = (z[1:M-1] + z[2:M]) / 2
 
     return faces
 end
+
+profile_slot_faces(s::SortedReferenceState, z) =
+    profile_slot_faces(s.bottom_height, s.bottom_height + sum(s.cell_volume) / s.horizontal_area, z)
 
 """
     $(SIGNATURES)
@@ -517,23 +529,45 @@ function lookup_profile(s::SortedReferenceState, method::ProfileLookup{Nothing})
     return b✶, slot_centers!(similar(ΔV), s, ΔV), slot_faces(s, ΔV)
 end
 
-function lookup_profile(s::SortedReferenceState, method::ProfileLookup)
+# `issorted` walks its argument element by element, which is scalar indexing when the profile lives
+# on a GPU. This is the same predicate written as a broadcast plus a reduction, so it runs on device.
+@inline is_nondecreasing(v) = all(diff(v) .>= 0)
 
-    reshape(s.workspace, size(s.buoyancy)) .= interior(s.buoyancy)   # what `rank_by_buoyancy!` would leave, unsorted
-    b✶, z✶ = profile_arrays(method.profile)
+"""
+    $(SIGNATURES)
+
+Check that `(b✶, z✶)` describes a reference profile: a non-empty pairing of buoyancies with the heights
+they sit at, both running from the densest fluid at the bottom to the lightest at the top. Every reader
+of an externally supplied profile validates it here, since a profile that fails any of these is not
+caught downstream: a length mismatch or a height that steps back down leaves the slot faces out of
+order, and `searchsortedlast` then returns whatever slot it likes, silently.
+"""
+function validate_reference_profile(b✶, z✶)
 
     length(b✶) == length(z✶) ||
         throw(ArgumentError("`ProfileLookup` was given a profile whose buoyancy and height have different \
                              lengths ($(length(b✶)) and $(length(z✶)))."))
-    issorted(b✶) ||
+    isempty(b✶) &&
+        throw(ArgumentError("`ProfileLookup` was given an empty reference profile; it needs at least one \
+                             buoyancy and the height it sits at."))
+    is_nondecreasing(b✶) ||
         throw(ArgumentError("`ProfileLookup` needs a reference profile ordered from the densest fluid up, \
                              but the buoyancy it was given is not non-decreasing."))
     # `profile_slot_faces` reads the slot faces off the midpoints between neighbouring heights, so a
     # height that steps back down would leave them out of order and silently corrupt `Ψ`.
-    issorted(z✶) ||
+    is_nondecreasing(z✶) ||
         throw(ArgumentError("`ProfileLookup` needs the heights paired with `b✶` to rise with it, but the \
                              heights it was given are not non-decreasing. A reference profile runs from the \
                              densest fluid at the bottom to the lightest at the top."))
+
+    return nothing
+end
+
+function lookup_profile(s::SortedReferenceState, method::ProfileLookup)
+
+    reshape(s.workspace, size(s.buoyancy)) .= interior(s.buoyancy)   # what `rank_by_buoyancy!` would leave, unsorted
+    b✶, z✶ = profile_arrays(method.profile)
+    validate_reference_profile(b✶, z✶)
 
     return b✶, z✶, profile_slot_faces(s, z✶)
 end
@@ -541,24 +575,28 @@ end
 
 function assign_reference_height!(z✶_field, s::SortedReferenceState, method::ProfileLookup)
     sz = size(z✶_field)
-    b✶, z✶_slot, faces = lookup_profile(s, method)
+    b✶, _, faces = lookup_profile(s, method)   # the slot centres are not needed: every cell takes a run mid-height
     b = s.workspace   # the model-ordered buoyancy, which `lookup_profile` leaves in place
     M = length(b✶)
 
-    # `b✶` is non-decreasing, so a cell's own buoyancy brackets a run of slots `[lo, hi]` by binary
-    # search. Its reference height is the mid-height of the band that run fills, which is what
-    # `HeavisideIntegral` assigns and what leaves `∫e_b dV` independent of the method; taking the run's
-    # first slot instead would drag every tied layer down to its own floor. A single-slot run reduces to
-    # that slot's own centre, so a field without ties is unaffected.
-    lo  = clamp.(searchsortedfirst.(Ref(b✶), b), 1, M)
-    hi  = clamp.(searchsortedlast.(Ref(b✶), b), 1, M)
-    loₗ = max.(lo .- 1, 1)
+    # `b✶` is non-decreasing, so binary search brackets a cell's own buoyancy between two slots, and a
+    # value that matches no slot — which only an externally supplied profile can produce, e.g. a filtered
+    # buoyancy that is off the profile by roundoff — is assigned to the nearer of the two buoyancy
+    # classes. A cell's reference height is then the mid-height of the band its class's run of slots
+    # `[run_first, run_last]` fills, which is what `HeavisideIntegral` assigns and what leaves `∫e_b dV`
+    # independent of the method; taking the run's first slot instead would drag every tied layer down to
+    # its own floor. Placing near-matches by the same rule as exact ones is what keeps `z✶` a function of
+    # buoyancy alone with no seams at roundoff: sending them to the nearest *slot* would put a filtered
+    # buoyancy that is `b(1 + ε)` at the top or the bottom of its level's run depending on the sign of
+    # `ε`, and `∇Υ` of the filtered field would pick up a ±half-cell comb where the full field's is zero.
+    # A single-slot run reduces to that slot's own centre, so a field without ties is unaffected.
+    lo  = clamp.(searchsortedfirst.(Ref(b✶), b), 1, M)   # first slot with b✶ ≥ b (b itself, on an exact match)
+    loₗ = max.(lo .- 1, 1)                                 # the slot below it, the other bracket
+    b_class = ifelse.(abs.(view(b✶, loₗ) .- b) .< abs.(view(b✶, lo) .- b), view(b✶, loₗ), view(b✶, lo))
 
-    run_mid = (faces[lo] .+ faces[hi .+ 1]) ./ 2
-    # A value that matches no slot has no run, which only an externally supplied profile can produce.
-    # There the nearer of the two bracketing slots stands in.
-    nearest = ifelse.(abs.(view(b✶, loₗ) .- b) .< abs.(view(b✶, lo) .- b), view(z✶_slot, loₗ), view(z✶_slot, lo))
-    z✶ = ifelse.(view(b✶, lo) .== b, run_mid, nearest)
+    run_first = searchsortedfirst.(Ref(b✶), b_class)   # `b_class` is an entry of `b✶`, so both land in 1:M
+    run_last  = searchsortedlast.(Ref(b✶), b_class)
+    z✶ = (faces[run_first] .+ faces[run_last .+ 1]) ./ 2
 
     interior(z✶_field) .= reshape(z✶, sz)
     # `z✶` is already in the model's ordering, so `Ψ` is evaluated directly rather than scattered
@@ -606,6 +644,122 @@ function compute!(z✶_field::SortedReferenceHeightField, time=nothing)
     return z✶_field
 end
 
+#+++ Reference buoyancy at a parcel's own height
+"""
+    $(SIGNATURES)
+
+The reference profile the last sort left behind, as `(faces, b✶)`: the slot faces from the bottom of
+the domain up, and the piecewise-constant buoyancy each slot holds. This is the same profile
+`reference_potential_function` integrates into `Ψ`, so a buoyancy read off it and the `Ψ` the available
+potential energy is built from describe one profile rather than two.
+
+Every method that ranks the field leaves that ranking in `s.permutation`, so the profile is gathered
+through it rather than sorted a second time. Only a [`ProfileLookup`](@ref) carrying a profile of its
+own was never sorted here, and that one is read back the way `assign_reference_height!` reads it.
+"""
+reference_profile(s::SortedReferenceState) = reference_profile(s, s.method)
+
+reference_profile(s::SortedReferenceState, ::AbstractReferenceHeightMethod) = sorted_profile(s)
+
+# The profile-less lookup ranks the field itself, exactly as the stacking methods do, so its profile is
+# in `s.permutation` too and rebuilding it through `lookup_profile` would repeat the whole `O(N log N)`
+# sort that `compute!` has just done.
+reference_profile(s::SortedReferenceState, ::ProfileLookup{Nothing}) = sorted_profile(s)
+
+function reference_profile(s::SortedReferenceState, method::ProfileLookup)
+    b✶, _, faces = lookup_profile(s, method)
+
+    return faces, b✶
+end
+
+# `s.workspace` holds whatever the sort left there, which is scratch by now; every caller that needs it
+# re-fills it first, as this does.
+function sorted_profile(s::SortedReferenceState)
+    work = s.workspace
+    reshape(work, size(s.buoyancy)) .= interior(s.buoyancy)
+
+    return slot_faces(s, s.cell_volume[s.permutation]), work[s.permutation]
+end
+
+"""
+    $(SIGNATURES)
+
+Build `b✶(z)`, the buoyancy the reference profile holds at a height `z`, from the profile's slot
+`faces` and the buoyancies `b` it carries, and return it as a callable. `b✶` is piecewise constant on
+the slots, which is exactly the profile `reference_potential_function` integrates, so this is the
+derivative of that `Ψ` rather than an independent reconstruction of the same thing.
+"""
+function reference_buoyancy_function(faces, b)
+    N = length(b)
+
+    return z -> (k = clamp(searchsortedlast(faces, z), 1, N); @inbounds b[k])
+end
+
+"""
+    $(TYPEDEF)
+
+Operand of the `Field` [`reference_buoyancy_at_height`](@ref) returns. It carries the reference height
+the profile is read off, so that `compute!` sorts that first and then samples it, the way
+[`SortedBuoyancyState`](@ref) makes the sorted column's buoyancy depend on its parent.
+"""
+struct ReferenceBuoyancyAtHeightState{Z}
+    reference_height :: Z
+end
+
+Base.summary(s::ReferenceBuoyancyAtHeightState) =
+    string("ReferenceBuoyancyAtHeightState of ", summary(s.reference_height))
+
+const ReferenceBuoyancyAtHeightField = Field{<:Any, <:Any, <:Any, <:ReferenceBuoyancyAtHeightState}
+
+# Where each cell of the output sits: its own height on the model grid, and the height its parcel came
+# from on a `VerticalSort` column, which is the same choice `fill_reference_potential!` makes.
+profile_heights(s::SortedReferenceState, ::Nothing) = s.source_height
+profile_heights(s::SortedReferenceState, sorted_height) = s.source_height[s.permutation]
+
+function compute!(b✶ᶻ::ReferenceBuoyancyAtHeightField, time=nothing)
+    z✶ = b✶ᶻ.operand.reference_height
+
+    # Status-gated, so a `z✶` already sorted at this `time` is not sorted twice, and the profile below
+    # is the one that sort produced.
+    compute_at!(z✶, time)
+    s = z✶.operand
+
+    faces, b✶ = reference_profile(s)
+    interior(b✶ᶻ) .= reshape(reference_buoyancy_function(faces, b✶).(profile_heights(s, sorted_height(s))), size(b✶ᶻ))
+
+    fill_halo_regions!(b✶ᶻ)
+    set_status!(b✶ᶻ.status, time)
+
+    return b✶ᶻ
+end
+
+"""
+    $(SIGNATURES)
+
+Return a `Field` holding `b✶(z)`, the buoyancy the adiabatically sorted reference profile carries at
+each cell's **own** height. It is what a parcel would have to be to sit where it does without any
+available potential energy, so the difference from the buoyancy it actually carries is the anomaly
+[`ReferenceBuoyancyAnomaly`](@ref Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly)
+returns.
+
+This is a different quantity from [`reference_buoyancy`](@ref), which pairs the profile with the
+reference height `z✶` instead: `b✶(z✶)` is the parcel's own buoyancy, and on the model grid
+`reference_buoyancy` hands back the buoyancy field itself.
+
+The returned field recomputes itself, so it is safe to hand straight to an output writer: computing it
+sorts the parent `z✶` if that has not already happened at this time, and then reads the profile off
+that sort rather than repeating it. It answers on the grid `z✶` lives on, which for
+[`VerticalSort`](@ref) is the sorted column rather than the model grid.
+
+This method reads the profile a reference height already produced. The `(grid, profile)` method below
+takes the profile itself instead, and reads it onto any grid, which is what a diagnostic measuring one
+field against another field's reference state needs.
+"""
+reference_buoyancy_at_height(z✶::SortedReferenceHeightField) =
+    compute!(Field{Center, Center, Center}(z✶.grid; operand = ReferenceBuoyancyAtHeightState(z✶),
+                                           status = FieldStatus()))
+#---
+
 """
     $(SIGNATURES)
 
@@ -624,8 +778,8 @@ set!(model, b = (x, y, z) -> z)
 
 z✶ = reference_height(model)                  # sort the domain once
 e_b = BackgroundPotentialEnergy(model, z✶)    # and reuse it for both diagnostics
-e_a = AvailablePotentialEnergy(model, z✶)
-e_b.grid === e_a.grid === grid
+eₐ = AvailablePotentialEnergy(model, z✶)
+e_b.grid === eₐ.grid === grid
 
 # output
 
@@ -836,6 +990,81 @@ end
 #---
 #---
 
+#+++ The reference profile at a parcel's own height
+"""
+    $(TYPEDEF)
+
+Operand of the `Field` [`reference_buoyancy_at_height`](@ref) returns. It carries the reference profile
+to read, the height of every cell of the grid to read it at, and the domain's vertical bounds. Like
+[`SortedReferenceState`](@ref) this hooks a whole-field computation into `compute!` — here a lookup
+rather than a sort — so a profile that tracks the flow is re-read whenever the diagnostic is written out.
+"""
+struct ReferenceProfileAtHeight{P, S, FT}
+    profile :: P
+    source_height :: S
+    bottom_height :: FT
+    top_height :: FT
+end
+
+Base.summary(s::ReferenceProfileAtHeight) = string("ReferenceProfileAtHeight of ", summary(s.profile))
+
+const ReferenceProfileAtHeightField = Field{<:Any, <:Any, <:Any, <:ReferenceProfileAtHeight}
+
+function compute!(b✶z::ReferenceProfileAtHeightField, time=nothing)
+    s = b✶z.operand
+    refresh_profile_source!(s.profile, time)   # a borrowed column is re-sorted before it is read
+
+    b✶, z✶ = profile_arrays(s.profile)
+    validate_reference_profile(b✶, z✶)   # nothing downstream would catch a malformed profile
+    faces  = profile_slot_faces(s.bottom_height, s.top_height, z✶)
+    M      = length(b✶)
+
+    # The profile is a stack of slots, each holding one buoyancy; a cell reads the slot its own height
+    # falls in. `faces` are the midpoints between neighbouring `z✶`, so this is also the nearest slot.
+    slot = clamp.(searchsortedlast.(Ref(faces), s.source_height), 1, M)
+    interior(b✶z) .= reshape(view(b✶, slot), size(b✶z))
+
+    fill_halo_regions!(b✶z)
+    set_status!(b✶z.status, time)
+
+    return b✶z
+end
+
+"""
+    $(SIGNATURES)
+
+Return a `Field` holding `b✶(z)`: the buoyancy the adiabatically resorted reference state carries at
+each cell's **own height**, rather than at the reference height [`reference_height`](@ref) sends that
+cell's buoyancy to. It is the inverse of that map, `b✶` being defined implicitly by `z✶(b✶(z)) = z`,
+and it is what turns a buoyancy into an anomaly against the reference state, `b_r = b - b✶(z)`.
+
+`profile` is the reference profile to read, in any of the forms [`ProfileLookup`](@ref) accepts a
+profile in: a reference height built with [`VerticalSort`](@ref), which is recomputed first so the
+profile tracks the flow, or a `(b✶, z✶)` pair of arrays held fixed. Handed a reference height on the
+model grid instead, use the single-argument method above, which reads the profile off that sort
+directly and needs no slot geometry rebuilt from it. The profile is a stack of slots,
+each holding one buoyancy class, and a cell reads the slot its own height falls in.
+
+The result lives at `(Center, Center, Center)` on `grid`, in units of buoyancy (`m s⁻²`). Being a
+lookup rather than a sort it is `O(N log M)` per `compute!`, cheaper than the reference height itself.
+"""
+function reference_buoyancy_at_height(grid, profile)
+
+    validate_not_immersed(grid)
+
+    FT       = eltype(grid)
+    arch     = architecture(grid)
+    z_bottom = convert(FT, znode(1, 1, 1, on_architecture(CPU(), grid), Center(), Center(), Face()))
+
+    # A host `Vector` profile would be broadcast against on-architecture workspaces; move it once here,
+    # exactly as `build_sorting_method` does for `ProfileLookup`.
+    operand = ReferenceProfileAtHeight(on_architecture_profile(arch, profile), flat_grid_metric(grid, Zᶜᶜᶜ),
+                                       z_bottom, convert(FT, z_bottom + grid.Lz))
+
+    return compute!(Field{Center, Center, Center}(grid; operand, status = FieldStatus()))
+end
+#---
+
 #+++ Background potential energy
 @inline minus_bz✶_ccc(i, j, k, grid, b, z✶) = @inbounds -b[i, j, k] * z✶[i, j, k]
 
@@ -881,7 +1110,7 @@ BackgroundPotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: minus_bz✶_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field")
-└── computes: background potential energy per unit volume  e_b = -bz✶
+└── computes: background potential energy per unit mass  -bz✶
 ```
 """
 function BackgroundPotentialEnergy(model; method = ThreeDimensionalSort(), geopotential_height = model_geopotential_height(model), location = (Center, Center, Center))

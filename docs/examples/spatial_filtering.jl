@@ -9,7 +9,7 @@
 # ```
 #
 # where the overbar denotes a Gaussian-weighted local average.
-# Beyond visualization, filtering lets us build *subfilter* (sub-filter-scale) diagnostics such as the
+# Beyond visualization, filtering lets us build *subfilter* (subfilter-scale) diagnostics such as the
 # subfilter tracer flux ``\tau_i = \overline{u_i c} - \bar{u}_i \bar{c}``, which represents the
 # transport carried by scales smaller than the filter width. We close the example with the *cross-scale
 # kinetic energy flux*, which measures the energy exchanged between the filtered and subfilter scales.
@@ -127,8 +127,8 @@ fig_ω
 # ## Filter-width sweep
 #
 # The amount of structure that survives depends on ``\sigma``: the wider the kernel, the more scales
-# are averaged away. We filter the vorticity at three increasing widths — ``2\Delta``, ``4\Delta``
-# and ``8\Delta`` — and plot each result as it is computed.
+# are averaged away. We filter the vorticity at three increasing widths — ``4\Delta``, ``8\Delta``
+# and ``16\Delta`` — and plot each result as it is computed.
 
 σ_sweep = (4Δ, 8Δ, 16Δ)
 ω̄_sweep = [GaussianFilter(ω; dims=(1, 2), σ=s) for s in σ_sweep]   # one filter per width, applied to ω
@@ -143,7 +143,7 @@ end
 resize_to_layout!(fig_sweep)
 fig_sweep
 
-# Wider kernels (``\sigma = 2\Delta \to 8\Delta``) progressively erase smaller scales.
+# Wider kernels (``\sigma = 4\Delta \to 16\Delta``) progressively erase smaller scales.
 
 # ## Subfilter tracer flux
 #
@@ -164,7 +164,7 @@ c̄  = Field(filter(c))
 
 τx = Field(filter(u * c)) - ū * c̄   # overline(u c) - ū c̄
 τy = Field(filter(v * c)) - v̄ * c̄
-τ  = √(τx^2 + τy^2)                  # subfilter flux magnitude
+τ  = √(τx^2 + τy^2)               # subfilter flux magnitude
 
 # Finally we plot the tracer, its filtered version, and the magnitude of the subfilter flux:
 
@@ -190,34 +190,34 @@ fig_τ
 # We can also calculate the kinetic energy flux across the filter scale:
 #
 # ```math
-# \Pi_K = -\tau_{ij}\,\bar{S}_{ij}, \qquad
+# \Pi_k = -\tau_{ij}\,\bar{S}_{ij}, \qquad
 # \tau_{ij} = \overline{u_i u_j} - \bar{u}_i \bar{u}_j, \qquad
 # \bar{S}_{ij} = \tfrac{1}{2}\left(\partial_j \bar{u}_i + \partial_i \bar{u}_j\right),
 # ```
 #
-# where ``\tau_{ij}`` is the subfilter (momentum) stress tensor — the tensor analogue of the subfilter
-# tracer flux above — and ``\bar{S}_{ij}`` is the strain rate of the filtered velocity. ``\Pi_K > 0``
-# is a forward (downscale) transfer from filtered to subfilter scales, while ``\Pi_K < 0`` is
+# where ``\tau_{ij}`` is the subfilter (momentum) stress tensor — the tensor analogue of the
+# subfilter tracer flux above — and ``\bar{S}_{ij}`` is the strain rate of the filtered velocity. ``\Pi_k > 0``
+# is a forward (downscale) transfer from filtered to subfilter scales, while ``\Pi_k < 0`` is
 # backscatter from small to large scales, which is prominent in two-dimensional turbulence and its
 # inverse energy cascade (see [Aluie et al. (2018)](https://doi.org/10.1175/JPO-D-17-0100.1)).
 #
 # Rather than assembling ``\tau_{ij}`` and ``\bar{S}_{ij}`` by hand as we did for the tracer flux,
 # Oceanostics packages a [`KineticEnergyCrossScaleFlux`](@ref) which accepts the same `filter` we built
-# above and returns ``\Pi_K``:
+# above and returns ``\Pi_k``:
 
 Πₖ = KineticEnergyCrossScaleFlux(model, filter; dims=(1, 2))
 
 # We show it next to the filtered kinetic energy ``\tfrac{1}{2}(\bar{u}^2 + \bar{v}^2)``, reusing the
 # filtered velocities ``\bar{u}``, ``\bar{v}`` from the previous section:
 
-Kˡ = (ū^2 + v̄^2) / 2
+eₖˡ = (ū^2 + v̄^2) / 2
 
 fig_Π = Figure()
-ax_K = Axis(fig_Π[1, 1]; title = "Filtered KE ½(ū² + v̄²)", axis_kwargs...)
-ax_Π = Axis(fig_Π[1, 3]; title = "Cross-scale flux Πₖ",    axis_kwargs...)
+ax_eₖ = Axis(fig_Π[1, 1]; title = "Filtered KE ½(ū² + v̄²)", axis_kwargs...)
+ax_Π  = Axis(fig_Π[1, 3]; title = "Cross-scale flux Πₖ",    axis_kwargs...)
 
-hm_K = heatmap!(ax_K, Kˡ; colormap = :magma)
-Colorbar(fig_Π[1, 2], hm_K)
+hm_eₖ = heatmap!(ax_eₖ, eₖˡ; colormap = :magma)
+Colorbar(fig_Π[1, 2], hm_eₖ)
 
 Πlim = 0.95 * maximum(abs, interior(Πₖ))
 hm_Π = heatmap!(ax_Π, Πₖ; colormap = :balance, colorrange = (-Πlim, Πlim))
@@ -231,24 +231,24 @@ fig_Π
 # We can also calculate the dissipation acting on the *filtered* flow using [`FilteredKineticEnergyDissipationRate`](@ref):
 #
 # ```math
-# \varepsilon^l = \frac{\partial \overline{u}_i}{\partial x_j}\,\overline{F}_{ij},
+# \varepsilon_k^l = -\frac{\partial \overline{u}_i}{\partial x_j}\,\overline{\tau}_{ij},
 # ```
 #
-# where ``\varepsilon^l`` indicates the dissipation of the filtered flow and ``\overline{F}_{ij}`` is
-# the filtered viscous stress tensor — filtered from the full flow, rather than rebuilt from
-# ``\bar{u}_i``. For the constant viscosity used here the two coincide, and ``\varepsilon^l`` reduces
+# where ``\varepsilon_k^l`` is the dissipation of the filtered flow and ``\overline{\tau}_{ij}`` is
+# the filtered viscous momentum flux — filtered from the full flow, rather than rebuilt from
+# ``\bar{u}_i``. For the constant viscosity used here the two coincide, and ``\varepsilon_k^l`` reduces
 # to ``2\nu\,\bar{S}_{ij}\bar{S}_{ij}``, the dissipation of the resolved strain:
 
-εˡ = FilteredKineticEnergyDissipationRate(model, filter)
+εₖˡ = FilteredKineticEnergyDissipationRate(model, filter)
 
 fig_ε = Figure()
-ax_ε = Axis(fig_ε[1, 1]; title = "Filtered KE dissipation εˡ", axis_kwargs...)
-hm_ε = heatmap!(ax_ε, εˡ; colormap = :magma)
+ax_ε = Axis(fig_ε[1, 1]; title = "Filtered KE dissipation εₖˡ", axis_kwargs...)
+hm_ε = heatmap!(ax_ε, εₖˡ; colormap = :magma)
 Colorbar(fig_ε[1, 2], hm_ε)
 
 resize_to_layout!(fig_ε)
 fig_ε
 
-# Red (``\Pi_K > 0``) marks forward transfer to subfilter scales and blue (``\Pi_K < 0``) marks
+# Red (``\Pi_k > 0``) marks forward transfer to subfilter scales and blue (``\Pi_k < 0``) marks
 # backscatter to larger scales. Both concentrate in the strained regions between vortices, where the
 # filtered strain ``\bar{S}_{ij}`` — and hence the scale-to-scale energy exchange — is largest.

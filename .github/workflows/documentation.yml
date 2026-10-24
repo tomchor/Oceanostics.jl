@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
         with:
-          version: '1.12'
+          version: '1'
       - uses: julia-actions/cache@v2
         with:
           # Examples run at -O2 (the default): they are runtime-bound (they step real
@@ -76,7 +76,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
         with:
-          version: '1.12'
+          version: '1'
       - uses: julia-actions/cache@v2
         with:
           # Assemble is compile-bound (doctests + rendering), so it runs at -O0 for fast

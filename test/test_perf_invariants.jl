@@ -188,16 +188,38 @@ end
 
         # The three that read `κ∇b` off the closure, so they run its `diffusive_flux_*` per cell.
         z✶ₕ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
-        Υ   = Field(AvailablePotentialEnergyEquation.BuoyancyDisplacementPotential(model, z✶ₕ))
-        test_kfo_invariants("BuoyancyDisplacementPotential", BuoyancyDisplacementPotential(model, z✶ₕ))
+        Υ   = Field(AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential(model, z✶ₕ))
+        test_kfo_invariants("AvailablePotentialEnergyDisplacementPotential", AvailablePotentialEnergyDisplacementPotential(model, z✶ₕ))
         test_kfo_invariants("AvailablePotentialEnergyDissipationRate",
                             AvailablePotentialEnergyDissipationRate(model, z✶ₕ; upsilon = Υ))
         test_kfo_invariants("DiffusiveVerticalBuoyancyFlux", DiffusiveVerticalBuoyancyFlux(model))  # short name, via `using ...PotentialEnergyEquation`
+
+        # `wbᵣ` reads its anomaly through whatever it was handed, so it is probed both ways: over a
+        # materialized `Field` and over the `ReferenceBuoyancyAnomaly` operation it builds by default,
+        # which is a `KernelFunctionOperation` indexed from inside another kernel and so the one place
+        # in this module where a nested operation could box.
+        bᵣ = Field(ReferenceBuoyancyAnomaly(model, z✶ₕ))
+        test_kfo_invariants("ReferenceBuoyancyAnomaly", ReferenceBuoyancyAnomaly(model, z✶ₕ))
+        test_kfo_invariants("AvailablePotentialToKineticEnergyConversion (shared anomaly)",
+                            AvailablePotentialToKineticEnergyConversion(model, z✶ₕ; anomaly = bᵣ))
+        test_kfo_invariants("AvailablePotentialToKineticEnergyConversion (nested anomaly)",
+                            AvailablePotentialToKineticEnergyConversion(model, z✶ₕ))
+    end
+
+    @testset "FilteredAvailablePotentialEnergyEquation" begin
+        # `filtered_ape_ccc` forwards its varargs to `local_ape_ccc`, and `filtered_ape_dissipation_rate_ccc`
+        # contracts four materialized `Field`s: both are per-cell kernels that must stay allocation-free
+        # and type-stable like the full-field ones they mirror. (The subfilter diagnostics wrap a
+        # `BinaryOperation` and only index it, so they are not probed here.)
+        gf = GaussianFilter(; dims=(1, 2), σ=2/N)   # these diagnostics take only horizontal filters
+        test_kfo_invariants("FilteredAvailablePotentialEnergy", FilteredAvailablePotentialEnergy(model, gf))
+        test_kfo_invariants("FilteredAvailablePotentialEnergyDissipationRate", FilteredAvailablePotentialEnergyDissipationRate(model, gf))
     end
 
     @testset "FlowDiagnostics" begin
         test_kfo_invariants("RossbyNumber",            RossbyNumber(model))
         test_kfo_invariants("ErtelPotentialVorticity", ErtelPotentialVorticity(model))
+        test_kfo_invariants("GradientRichardsonNumber", GradientRichardsonNumber(model))
         test_kfo_invariants("StrainRateTensorModulus", StrainRateTensorModulus(model))
 
         # Off-diagonal strain components live at edge locations (ffc/fcf/cff) and exercise the

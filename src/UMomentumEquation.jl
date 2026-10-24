@@ -13,7 +13,7 @@ using Oceananigans.StokesDrifts: x_curl_Uˢ_cross_U, ∂t_uˢ
 using Oceananigans.Operators: ∂xᶠᶜᶜ
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: explicit_barotropic_pressure_x_gradient
 
-using Oceanostics: validate_location, CustomKFO
+using Oceanostics: validate_location, CustomKFO, momentum_advection
 
 export Advection, BuoyancyAcceleration, CoriolisAcceleration, PressureGradient, BarotropicPressureGradient,
        ViscousDissipation, ImmersedViscousDissipation, TotalViscousDissipation,
@@ -31,6 +31,12 @@ export Advection, BuoyancyAcceleration, CoriolisAcceleration, PressureGradient, 
 @inline hydrostatic_pressure_gradient_x(i, j, k, grid, hydrostatic_pressure) = ∂xᶠᶜᶜ(i, j, k, grid, hydrostatic_pressure)
 @inline hydrostatic_pressure_gradient_x(i, j, k, grid, ::Nothing) = zero(grid)
 
+# Inline wrapper that evaluates the forcing at (i, j, k). Passing the forcing as a kernel argument
+# rather than as the kernel function itself gives `Forcing` diagnostics a kernel function type of
+# their own to narrow the `Forcing` alias on, like every other term (the forcing object would
+# parameterize the KFO on the user's forcing type, which cannot be aliased)
+@inline forcing_fcc(i, j, k, grid, forcing, clock, model_fields) = forcing(i, j, k, grid, clock, model_fields)
+
 # Type aliases for major functions. `Advection` is a Union so that the NH flux-form
 # (`div_𝐯u`) and the HFS vector-invariant (`U_dot_∇u`) wrappers share the same alias.
 const Advection = Union{CustomKFO{<:typeof(div_𝐯u)}, CustomKFO{<:typeof(U_dot_∇u)}}
@@ -43,7 +49,7 @@ const ImmersedViscousDissipation = CustomKFO{<:typeof(immersed_∂ⱼ_τ₁ⱼ)}
 const TotalViscousDissipation = CustomKFO{<:typeof(total_∂ⱼ_τ₁ⱼ)}
 const StokesShear = CustomKFO{<:typeof(x_curl_Uˢ_cross_U)}
 const StokesTendency = CustomKFO{<:typeof(∂t_uˢ)}
-const Forcing = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any}
+const Forcing = CustomKFO{<:typeof(forcing_fcc)}
 const Tendency = Union{CustomKFO{<:typeof(u_velocity_tendency)},
                        CustomKFO{<:typeof(hydrostatic_free_surface_u_velocity_tendency)}}
 
@@ -100,8 +106,7 @@ function Advection(model::HydrostaticFreeSurfaceModel, velocities, advection_sch
     return KernelFunctionOperation{Face, Center, Center}(U_dot_∇u, model.grid, advection_scheme, velocities)
 end
 
-Advection(model; kwargs...)                              = Advection(model, model.velocities, model.advection; kwargs...)
-Advection(model::HydrostaticFreeSurfaceModel; kwargs...) = Advection(model, model.velocities, model.advection.momentum; kwargs...)
+Advection(model; kwargs...) = Advection(model, model.velocities, momentum_advection(model); kwargs...)
 #---
 
 #+++ Buoyancy acceleration
@@ -259,7 +264,7 @@ Calculate the viscous dissipation term (excluding immersed boundaries) as
 
     VISC = ∂ⱼ τ₁ⱼ,
 
-where τ₁ⱼ is the viscous stress tensor for the x-momentum equation.
+where τ₁ⱼ is the viscous momentum flux for the x-momentum equation.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -290,7 +295,7 @@ Calculate the viscous dissipation term due to immersed boundaries as
 
     VISC = ∂ⱼ τ₁ⱼ,
 
-where τ₁ⱼ is the immersed boundary viscous stress tensor for the x-momentum equation.
+where τ₁ⱼ is the immersed boundary viscous momentum flux for the x-momentum equation.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -324,8 +329,8 @@ Calculate the total viscous dissipation term as
 
     VISC = ∂ⱼ τ₁ⱼ + ∂ⱼ τ₁ⱼ_immersed,
 
-where τ₁ⱼ is the interior viscous stress tensor and τ₁ⱼ_immersed is the immersed boundary
-viscous stress tensor for the x-momentum equation.
+where τ₁ⱼ is the interior viscous momentum flux and τ₁ⱼ_immersed is the immersed boundary
+viscous momentum flux for the x-momentum equation.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -437,18 +442,19 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 julia> model = NonhydrostaticModel(grid);
 
 julia> FORC = UMomentumEquation.Forcing(model)
-KernelFunctionOperation at (Face, Center, Center)
+UForcing KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: Returns (generic function with 1 method)
-└── arguments: ("Clock", "NamedTuple")
+├── kernel_function: forcing_fcc (generic function with 1 method)
+└── arguments: ("Returns", "Clock", "NamedTuple")
+└── computes: momentum forcing (x)  Fᵘ
 ```
 """
-function Forcing(model, forcing_func, clock, model_fields, ::Val{:u}; location = (Face, Center, Center))
+function Forcing(model, forcing, clock, model_fields; location = (Face, Center, Center))
     validate_location(location, "Forcing", (Face, Center, Center))
-    return KernelFunctionOperation{Face, Center, Center}(forcing_func, model.grid, clock, model_fields)
+    return KernelFunctionOperation{Face, Center, Center}(forcing_fcc, model.grid, forcing, clock, model_fields)
 end
 
-Forcing(model; kwargs...) = Forcing(model, model.forcing.u, model.clock, fields(model), Val(:u); kwargs...)
+Forcing(model; kwargs...) = Forcing(model, model.forcing.u, model.clock, fields(model); kwargs...)
 #---
 
 #+++ Total tendency
@@ -480,7 +486,7 @@ julia> TEND = UMomentumEquation.Tendency(model)
 UTendency KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: u_velocity_tendency (generic function with 1 method)
-└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
+└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
 └── computes: total tendency of the u-momentum equation
 ```
 """
@@ -498,9 +504,9 @@ function Tendency(model; kwargs...)
     u_immersed_bc = model.velocities.u.boundary_conditions.immersed
 
     if model isa HydrostaticFreeSurfaceModel
-        return Tendency(model, model.advection.momentum, model.coriolis, model.closure, u_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.u; kwargs...)
+        return Tendency(model, momentum_advection(model), model.coriolis, model.closure, u_immersed_bc, model.velocities, model.free_surface, model.tracers, model.buoyancy, model.closure_fields, model.pressure.pHY′, model.auxiliary_fields, model.vertical_coordinate, model.clock, model.forcing.u; kwargs...)
     else
-        return Tendency(model, model.advection, model.coriolis, model.stokes_drift, model.closure, u_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.u; kwargs...)
+        return Tendency(model, momentum_advection(model), model.coriolis, model.stokes_drift, model.closure, u_immersed_bc, model.buoyancy, model.background_fields, model.velocities, model.tracers, model.auxiliary_fields, model.closure_fields, model.pressures.pHY′, model.clock, model.forcing.u; kwargs...)
     end
 end
 #---

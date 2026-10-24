@@ -1,7 +1,7 @@
 module FlowDiagnostics
 using DocStringExtensions
 
-export RichardsonNumber, RossbyNumber
+export GradientRichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
 export StrainRateTensor, StrainRateTensorModulus, VorticityTensor, VorticityTensorModulus, Q, QVelocityGradientTensorInvariant
 export StressTensor
@@ -27,28 +27,44 @@ using SeawaterPolynomials: ρ′, BoussinesqEquationOfState
 using SeawaterPolynomials.SecondOrderSeawaterPolynomials: SecondOrderSeawaterPolynomial
 
 #+++ Richardson number
-@inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
+"""
+Derivative of a velocity component along the true vertical given by `vertical_dir`, at
+`(Center, Center, Face)`.
+"""
+@inline function ∂ẑ_û_ccf(i, j, k, grid, û, vertical_dir)
+    ∂xû = ℑzᵃᵃᶠ(i, j, k, grid, ∂xᶜᶜᶜ, û)   # F, C, C  → C, C, C → C, C, F
+    ∂yû = ℑxyzᶜᶜᶠ(i, j, k, grid, ∂yᶠᶠᶜ, û) # F, C, C  → F, F, C → C, C, F
+    ∂zû = ℑxᶜᵃᵃ(i, j, k, grid, ∂zᶠᶜᶠ, û)   # F, C, C  → F, C, F → C, C, F
+    return ∂xû * vertical_dir[1] + ∂yû * vertical_dir[2] + ∂zû * vertical_dir[3]
+end
 
-"""
-Get `w` from `û`, `v̂`, `ŵ` and based on the direction given by the unit vector `vertical_dir`.
-"""
-@inline function w²_from_u⃗_tilted_ccc(i, j, k, grid, û, v̂, ŵ, vertical_dir)
-    û = ℑxᶜᵃᵃ(i, j, k, grid, û) # F, C, C  → C, C, C
-    v̂ = ℑyᵃᶜᵃ(i, j, k, grid, v̂) # C, F, C  → C, C, C
-    ŵ = ℑzᵃᵃᶜ(i, j, k, grid, ŵ) # C, C, F  → C, C, C
-    return (û * vertical_dir[1] + v̂ * vertical_dir[2] + ŵ * vertical_dir[3])^2
+@inline function ∂ẑ_v̂_ccf(i, j, k, grid, v̂, vertical_dir)
+    ∂xv̂ = ℑxyzᶜᶜᶠ(i, j, k, grid, ∂xᶠᶠᶜ, v̂) # C, F, C  → F, F, C → C, C, F
+    ∂yv̂ = ℑzᵃᵃᶠ(i, j, k, grid, ∂yᶜᶜᶜ, v̂)   # C, F, C  → C, C, C → C, C, F
+    ∂zv̂ = ℑyᵃᶜᵃ(i, j, k, grid, ∂zᶜᶠᶠ, v̂)   # C, F, C  → C, F, F → C, C, F
+    return ∂xv̂ * vertical_dir[1] + ∂yv̂ * vertical_dir[2] + ∂zv̂ * vertical_dir[3]
+end
+
+@inline function ∂ẑ_ŵ_ccf(i, j, k, grid, ŵ, vertical_dir)
+    ∂xŵ = ℑxᶜᵃᵃ(i, j, k, grid, ∂xᶠᶜᶠ, ŵ) # C, C, F  → F, C, F → C, C, F
+    ∂yŵ = ℑyᵃᶜᵃ(i, j, k, grid, ∂yᶜᶠᶠ, ŵ) # C, C, F  → C, F, F → C, C, F
+    ∂zŵ = ℑzᵃᵃᶠ(i, j, k, grid, ∂zᶜᶜᶜ, ŵ) # C, C, F  → C, C, C → C, C, F
+    return ∂xŵ * vertical_dir[1] + ∂yŵ * vertical_dir[2] + ∂zŵ * vertical_dir[3]
 end
 
 """
     $(SIGNATURES)
 
-Return the (true) horizontal velocity magnitude.
+Return the squared vertical shear of the (true) horizontal velocity, ``|∂u⃗ₕ/∂ẑ|²``, at
+`(Center, Center, Face)`. The shear vector is formed before the norm is taken: ``∂|u⃗ₕ|/∂ẑ`` is a
+different quantity whenever the shear turns with height.
 """
-@inline function uₕ_norm_ccc(i, j, k, grid, û, v̂, ŵ, vertical_dir)
-    û² = ℑxᶜᵃᵃ(i, j, k, grid, ψ², û) # F, C, C  → C, C, C
-    v̂² = ℑyᵃᶜᵃ(i, j, k, grid, ψ², v̂) # C, F, C  → C, C, C
-    ŵ² = ℑzᵃᵃᶜ(i, j, k, grid, ψ², ŵ) # C, C, F  → C, C, C
-    return √(max(zero(grid), û² + v̂² + ŵ² - w²_from_u⃗_tilted_ccc(i, j, k, grid, û, v̂, ŵ, vertical_dir))) # clamp at 0: GPU roundoff can make the radicand slightly negative, which would throw in sqrt
+@inline function shear_squared_ccf(i, j, k, grid, û, v̂, ŵ, vertical_dir)
+    sˣ = ∂ẑ_û_ccf(i, j, k, grid, û, vertical_dir)
+    sʸ = ∂ẑ_v̂_ccf(i, j, k, grid, v̂, vertical_dir)
+    sᶻ = ∂ẑ_ŵ_ccf(i, j, k, grid, ŵ, vertical_dir)
+    sᵛ = sˣ * vertical_dir[1] + sʸ * vertical_dir[2] + sᶻ * vertical_dir[3]
+    return max(zero(grid), sˣ^2 + sʸ^2 + sᶻ^2 - sᵛ^2) # clamp at 0: roundoff can make the difference slightly negative
 end
 
 @inline function richardson_number_ccf(i, j, k, grid, û, v̂, ŵ, b, vertical_dir)
@@ -58,26 +74,23 @@ end
     dbdẑ = ∂zᶜᶜᶠ(i, j, k, grid, b) # C, C, C  → C, C, F
     dbdz = dbdx̂ * vertical_dir[1] + dbdŷ * vertical_dir[2] + dbdẑ * vertical_dir[3]
 
-    duₕdx̂ = ℑxᶜᵃᵃ(i, j, k, grid, ∂xᶠᶜᶜ, uₕ_norm_ccc, û, v̂, ŵ, vertical_dir)
-    duₕdŷ = ℑyᵃᶜᵃ(i, j, k, grid, ∂yᶜᶠᶜ, uₕ_norm_ccc, û, v̂, ŵ, vertical_dir)
-    duₕdẑ = ∂zᶜᶜᶠ(i, j, k, grid, uₕ_norm_ccc, û, v̂, ŵ, vertical_dir)
-    duₕdz = duₕdx̂ * vertical_dir[1] + duₕdŷ * vertical_dir[2] + duₕdẑ * vertical_dir[3]
-
-    return dbdz / duₕdz^2
+    return dbdz / shear_squared_ccf(i, j, k, grid, û, v̂, ŵ, vertical_dir)
 end
 
-const RichardsonNumber = CustomKFO{<:typeof(richardson_number_ccf)}
+const GradientRichardsonNumber = CustomKFO{<:typeof(richardson_number_ccf)}
 
 """
     $(SIGNATURES)
 
-Calculate the Richardson Number as
+Calculate the gradient Richardson number as
 
 ```
     Ri = (∂b/∂z) / (|∂u⃗ₕ/∂z|²)
 ```
 
-where `z` is the true vertical direction (ie anti-parallel to gravity).
+where `z` is the true vertical direction (ie anti-parallel to gravity) and the denominator is the
+squared norm of the shear *vector*, which for a `NegativeZDirection` gravity is
+`(∂u/∂z)² + (∂v/∂z)²`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -86,21 +99,21 @@ julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
 
 julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b);
 
-julia> Ri = RichardsonNumber(model)
-RichardsonNumber KernelFunctionOperation at (Center, Center, Face)
+julia> Ri = GradientRichardsonNumber(model)
+GradientRichardsonNumber KernelFunctionOperation at (Center, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: richardson_number_ccf (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Tuple")
-└── computes: Richardson number  Ri = (∂b/∂z) / |∂u⃗ₕ/∂z|²
+└── computes: Richardson number  (∂b/∂z) / |∂u⃗ₕ/∂z|²
 ```
 """
-function RichardsonNumber(model; loc = (Center, Center, Face))
-    validate_location(loc, "RichardsonNumber", (Center, Center, Face))
-    return RichardsonNumber(model, model.velocities..., buoyancy_operation(model); loc)
+function GradientRichardsonNumber(model; loc = (Center, Center, Face))
+    validate_location(loc, "GradientRichardsonNumber", (Center, Center, Face))
+    return GradientRichardsonNumber(model, model.velocities..., buoyancy_operation(model); loc)
 end
 
-function RichardsonNumber(model, u, v, w, b; loc = (Center, Center, Face))
-    validate_location(loc, "RichardsonNumber", (Center, Center, Face))
+function GradientRichardsonNumber(model, u, v, w, b; loc = (Center, Center, Face))
+    validate_location(loc, "GradientRichardsonNumber", (Center, Center, Face))
 
     if model.buoyancy.gravity_unit_vector isa NegativeZDirection
         true_vertical_direction = (0, 0, 1)
@@ -109,11 +122,11 @@ function RichardsonNumber(model, u, v, w, b; loc = (Center, Center, Face))
     else
         true_vertical_direction = .-model.buoyancy.gravity_unit_vector
     end
-    return RichardsonNumber(model, u, v, w, b, true_vertical_direction; loc = (Center, Center, Face))
+    return GradientRichardsonNumber(model, u, v, w, b, true_vertical_direction; loc = (Center, Center, Face))
 end
 
-function RichardsonNumber(model, u, v, w, b, true_vertical_direction; loc = (Center, Center, Face))
-    validate_location(loc, "RichardsonNumber", (Center, Center, Face))
+function GradientRichardsonNumber(model, u, v, w, b, true_vertical_direction; loc = (Center, Center, Face))
+    validate_location(loc, "GradientRichardsonNumber", (Center, Center, Face))
     return KernelFunctionOperation{Center, Center, Face}(richardson_number_ccf, model.grid,
                                                          u, v, w, b, true_vertical_direction)
 end
@@ -161,7 +174,7 @@ RossbyNumber KernelFunctionOperation at (Face, Face, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: rossby_number_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
-└── computes: Rossby number  Ro = ωᶻ/f
+└── computes: Rossby number  ωᶻ/f
 ```
 """
 function RossbyNumber(model; loc = (Face, Face, Face), add_background = true,
@@ -305,7 +318,7 @@ ErtelPotentialVorticity KernelFunctionOperation at (Face, Face, Face)
 ├── grid: 1×1×4 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: ertel_potential_vorticity_fff (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "Field", "Int64", "Int64", "Float64")
-└── computes: Ertel potential vorticity  q = ω⃗ₜₒₜ · ∇b
+└── computes: Ertel potential vorticity  ω⃗ₜₒₜ · ∇b
 
 julia> interior(Field(EPV))
 1×1×5 view(::Array{Float64, 3}, 1:1, 1:1, 4:8) with eltype Float64:
@@ -548,7 +561,7 @@ StrainRateTensor KernelFunctionOperation at (Face, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: Oceanostics.FlowDiagnostics.StrainRateTensorKernel{1, 3}
 └── arguments: ("Field", "Field")
-└── computes: strain-rate tensor component  Sᵢⱼ = ½(∂ⱼuᵢ + ∂ᵢuⱼ)
+└── computes: strain-rate tensor component  ½(∂ⱼuᵢ + ∂ᵢuⱼ)
 ```
 """
 StrainRateTensor(model; dims = (1, 2, 3)) = StrainRateTensor(model.grid, model.velocities...; dims)
@@ -685,7 +698,7 @@ VorticityTensor KernelFunctionOperation at (Face, Center, Face)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: Oceanostics.FlowDiagnostics.VorticityTensorKernel{1, 3}
 └── arguments: ("Field", "Field")
-└── computes: vorticity tensor component  Ωᵢⱼ = ½(∂ⱼuᵢ - ∂ᵢuⱼ)
+└── computes: vorticity tensor component  ½(∂ⱼuᵢ - ∂ᵢuⱼ)
 ```
 """
 VorticityTensor(model; dims = (1, 2, 3)) = VorticityTensor(model.grid, model.velocities...; dims)
@@ -819,7 +832,7 @@ StressTensor KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: Oceanostics.FlowDiagnostics.StressTensorKernel{1, 1, false}
 └── arguments: ("Field",)
-└── computes: stress tensor component  τᵢⱼ = uᵢuⱼ
+└── computes: stress tensor component  uᵢuⱼ
 ```
 """
 StressTensor(model; dims = (1, 2, 3), collocate_diagonals = false) =
@@ -848,6 +861,13 @@ function StressTensor(grid::AbstractGrid, u, v, w; dims = (1, 2, 3), collocate_d
 
     return (; (k => op for (k, op) in pairs(components) if op !== nothing)...)
 end
+#---
+
+#+++ Collocation helper
+# Collocate an operand at cell centers. The cross-scale fluxes (`KineticEnergyCrossScaleFlux`,
+# `AvailablePotentialEnergyCrossScaleFlux`) interpolate every factor to `(Center, Center, Center)`
+# before contracting, and both their modules already build on this one, so the helper lives here.
+to_center(ψ) = @at (Center, Center, Center) ψ
 #---
 
 #+++ Subfilter covariance (generalized second moment)
@@ -884,15 +904,21 @@ internally.
 The filtered pieces are materialized as `Field`s (so the separable filter's fast staged path fires);
 the returned object is a lazy `AbstractOperation` over those computed fields, ready for `Field`,
 `Integral`, and `OutputWriter`s.
+
+When several covariances share a factor — e.g. the subfilter buoyancy flux `τ(b, uᵢ)`, whose `b̄` is
+the same for every component — pass the pre-filtered factor as `filtered_a` (a `filter(a)` already
+co-located at `loc`, typically a materialized `Field`) and it is used in place of filtering `a` here,
+so the shared factor is filtered once rather than once per covariance.
 """
-function subfilter_covariance(a, b, filter; loc = (Center, Center, Center))
+function subfilter_covariance(a, b, filter; loc = (Center, Center, Center), filtered_a = nothing)
     # co-locate operands at `loc`
     a_loc = @at loc a
     b_loc = @at loc b
 
     # Wrap some computations in Field to make them compile more easily on GPUs
+    ā = isnothing(filtered_a) ? Field(filter(a_loc)) : filtered_a   # ⟨a⟩, possibly shared by the caller
     filtered_product = Field(filter(Field(a_loc * b_loc))) # ⟨a b⟩
-    return filtered_product - Field(filter(a_loc)) * Field(filter(b_loc))  # ⟨a b⟩ - ⟨a⟩ ⟨b⟩
+    return filtered_product - ā * Field(filter(b_loc))  # ⟨a b⟩ - ⟨a⟩ ⟨b⟩
 end
 #---
 
@@ -929,7 +955,7 @@ QVelocityGradientTensorInvariant KernelFunctionOperation at (Center, Center, Cen
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: Q_velocity_gradient_tensor_invariant_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field")
-└── computes: Q velocity-gradient invariant  Q = ½(ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)
+└── computes: Q velocity-gradient invariant  ½(ΩᵢⱼΩᵢⱼ - SᵢⱼSᵢⱼ)
 ```
 """
 function QVelocityGradientTensorInvariant(model; loc = (Center, Center, Center))

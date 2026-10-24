@@ -66,28 +66,28 @@ survives in a simulation with no explicit diffusion came from the advection sche
 
 ``\phi_d`` has no diagnostic of its own, and needs none, because it splits into two that do. Writing it
 as ``\kappa \nabla b \cdot \nabla z^\star`` and substituting ``z^\star = z + \Upsilon``, with
-``\Upsilon`` the [buoyancy displacement potential](available_potential_energy_equation.md),
+``\Upsilon`` the [displacement potential](available_potential_energy_equation.md),
 
 ```math
 \phi_d = \kappa \nabla b \cdot \nabla z^\star
-        = \underbrace{\kappa \nabla b \cdot \nabla \Upsilon}_{\varepsilon_A}
+        = \underbrace{\kappa \nabla b \cdot \nabla \Upsilon}_{\varepsilon_a}
         + \underbrace{\kappa \, \partial b / \partial z}_{\Phi} ,
 ```
 
 the [APE dissipation rate](available_potential_energy_equation.md) and the
 [diffusive vertical buoyancy flux](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux). The two split the
-mixing by what it costs the flow: ``\varepsilon_A`` is the part paid for out of available potential
+mixing by what it costs the flow: ``\varepsilon_a`` is the part paid for out of available potential
 energy, and ``\Phi`` is the part diffusion does to the reference state on its own, which carries no
 available energy with it. So
 
 ```math
-\frac{d}{dt}\int e_b \, \mathrm{d}V = \int \left(\varepsilon_A + \Phi\right) \mathrm{d}V .
+\frac{d}{dt}\int e_b \, \mathrm{d}V = \int \left(\varepsilon_a + \Phi\right) \mathrm{d}V .
 ```
 
 Neither term is sign-definite on its own; their sum is, which is the sharpest check available on either
 of them.
 
-### Terms and what is implemented
+### Terms and diagnostics
 
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
@@ -95,8 +95,8 @@ of them.
 | Reference height | ``z^\star`` | [`reference_height`](@ref Oceanostics.BackgroundPotentialEnergyEquation.reference_height) |
 | Advection | vanishes identically | not applicable |
 | Diffusive transport | ``\partial_j(z^\star q_j)`` | not implemented |
-| Diapycnal mixing rate | ``\phi_d = \kappa \nabla b \cdot \nabla z^\star = \varepsilon_A + \Phi`` | the sum of the two below |
-| APE dissipation rate | ``\varepsilon_A = \kappa \nabla b \cdot \nabla \Upsilon`` | [`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate) |
+| Diapycnal mixing rate | ``\phi_d = \kappa \nabla b \cdot \nabla z^\star = \varepsilon_a + \Phi`` | the sum of the two below |
+| APE dissipation rate | ``\varepsilon_a = \kappa \nabla b \cdot \nabla \Upsilon`` | [`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate) |
 | Diffusive buoyancy flux | ``\Phi = \kappa \, \partial b / \partial z`` | [`DiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux) |
 
 !!! note "``\partial z^\star / \partial b`` needs ``z^\star`` to be a function of ``b``"
@@ -110,8 +110,8 @@ of them.
 
 ## The reference state
 
-height ``z^\star`` is the height a parcel would occupy in a state of minimum potential energy
-that can be reached by adiabatic rearrangement flow parcels, and it
+The reference height ``z^\star`` is the height a parcel would occupy in the state of minimum potential
+energy reachable by adiabatically rearranging the parcels of the flow, and it
 is computed by [`reference_height`](@ref). Rearrangement is a nonlocal
 operation, so, unlike most other diagnostics in Oceanostics, this one is not a pointwise kernel.
 It is rearranged on each `compute!`, so writing it (or anything built on it) out during a simulation
@@ -257,6 +257,7 @@ Oceanostics.BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy
 ```@docs
 Oceanostics.BackgroundPotentialEnergyEquation.reference_height
 Oceanostics.BackgroundPotentialEnergyEquation.reference_buoyancy
+Oceanostics.BackgroundPotentialEnergyEquation.reference_buoyancy_at_height
 Oceanostics.BackgroundPotentialEnergyEquation.AbstractReferenceHeightMethod
 Oceanostics.BackgroundPotentialEnergyEquation.ThreeDimensionalSort
 Oceanostics.BackgroundPotentialEnergyEquation.HeavisideIntegral

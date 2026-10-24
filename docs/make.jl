@@ -1,5 +1,14 @@
-pushfirst!(LOAD_PATH, joinpath(@__DIR__, "..")) # add Oceanostics environment
-using Pkg; Pkg.instantiate()
+# One self-contained environment: `Oceanostics` is this repository, entered as a `[sources]` path in
+# `Project.toml` rather than reached through the package environment stacked on `LOAD_PATH`. Julia 1.13
+# precompiles an extension against the environment its *parent* package was found in and stops the
+# search there, so a trigger that lives in the other environment of the stack reads as uninstalled.
+# `ConstructionBase` resolved from the package environment, `IntervalSets` from this one, and
+# `ConstructionBaseIntervalSetsExt` failed with "Package IntervalSets is required but does not seem to
+# be installed"; extensions of `AbstractFFTs`, `StaticArrays` and `Interpolations` went the same way.
+# Makie then never precompiles and `using CairoMakie` inside an example falls back to loading it from
+# source, which dies with a world-age `UndefVarError` for `Makie.ComputePipeline` (#317).
+using Pkg
+Pkg.instantiate()
 
 using Base64
 
@@ -19,7 +28,7 @@ examples = [
     "Baroclinic adjustment"        => "baroclinic_adjustment", # PE and KE budgets, double front (~20 min)
     "Spatial filtering"            => "spatial_filtering", # Spatial filtering examples (~5 min)
     "Kelvin-Helmholtz instability" => "kelvin_helmholtz", # Filtered KE budget (~8 min)
-    "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability", # SFS budget (~6 min)
+    "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability", # Subfilter KE and APE budgets (~6 min)
     "Lock release"                 => "lock_release", # APE and reference profiles calculation (~ 5 min)
     ]
 
@@ -136,17 +145,28 @@ end
 
 
 #+++ Organize pages and HTML format
+# The kinetic and potential energy budgets and their decompositions are nested subgroups so the
+# "Budget equations" sidebar entry stays short. Within each subgroup the order follows the
+# derivation: the plain budget first, then the pages that split it into parts.
+kinetic_energy_pages = ["Kinetic energy"            => "kinetic_energy_equation.md",
+                        "Turbulent kinetic energy"  => "turbulent_kinetic_energy_equation.md",
+                        "Filtered kinetic energy"   => "filtered_kinetic_energy_equation.md",
+                        "Subfilter kinetic energy"  => "subfilter_kinetic_energy_equation.md",
+                        ]
+
+potential_energy_pages = ["Potential energy"                      => "potential_energy_equation.md",
+                          "Background potential energy"           => "background_potential_energy_equation.md",
+                          "Available potential energy"            => "available_potential_energy_equation.md",
+                          "Filtered available potential energy"   => "filtered_available_potential_energy_equation.md",
+                          "Subfilter available potential energy"  => "subfilter_available_potential_energy_equation.md",
+                          ]
+
 pages = ["Home" => "index.md",
-         "Budget equations" => ["Tracer equation"                        => "tracer_equation.md",
-                                "Tracer variance equation"               => "tracer_variance_equation.md",
-                                "Momentum equation"                      => "momentum_equation.md",
-                                "Kinetic energy equation"                => "kinetic_energy_equation.md",
-                                "Potential energy equation"              => "potential_energy_equation.md",
-                                "Filtered kinetic energy equation"       => "filtered_kinetic_energy_equation.md",
-                                "Sub-filter kinetic energy equation"     => "subfilter_kinetic_energy_equation.md",
-                                "Turbulent kinetic energy equation"      => "turbulent_kinetic_energy_equation.md",
-                                "Background potential energy equation"   => "background_potential_energy_equation.md",
-                                "Available potential energy equation"    => "available_potential_energy_equation.md",
+         "Budget equations" => ["Tracer"           => "tracer_equation.md",
+                                "Tracer variance"  => "tracer_variance_equation.md",
+                                "Momentum"         => "momentum_equation.md",
+                                "Kinetic energy"   => kinetic_energy_pages,
+                                "Potential energy" => potential_energy_pages,
                                 ],
          "Flow diagnostics" => "flow_diagnostics.md",
          "Progress messengers" => "progress_messengers.md",

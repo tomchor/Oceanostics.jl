@@ -34,9 +34,10 @@ w_front = 250.0      # [m]   width of each front
 # ## Grid
 #
 # Doubly periodic in the horizontal and bounded in the vertical. Periodicity in `y` is what the double
-# front buys us, and it is what makes the transport terms of both budgets integrate to zero. The
-# vertical coordinate is surface-intensified: a constant 2 m spacing over the top 32 m resolves the
-# mixed layer the instability lives in, and stretches below it.
+# front buys us, and it is what makes the transport terms of both budgets integrate to zero. A single
+# (Eady) front would need a uniform background buoyancy gradient, which makes the domain's potential
+# energy infinite. The vertical coordinate is surface-intensified: a constant 2 m spacing over the top
+# 32 m resolves the mixed layer the instability lives in, and stretches below it.
 #
 # The cells come out roughly 16 m by 16 m by 2 to 8 m, within an order of magnitude of isotropic. That
 # matters for the closure below: `Smagorinsky` builds its filter width from the cell volume, so it is
@@ -147,7 +148,7 @@ add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval
 # conversion, and over this domain every transport integrates away, leaving just the two conversions:
 #
 # ```math
-# \frac{d}{dt}\int e_p\, dV = -\int wb\, dV + \int \Phi\, dV ,
+# \frac{d}{dt}\int e_p\, \mathrm{d}V = -\int wb\, \mathrm{d}V + \int \Phi\, \mathrm{d}V ,
 # ```
 #
 # with ``wb``
@@ -166,7 +167,7 @@ wb = PotentialToKineticEnergyConversion(model)
 # both and carries opposite signs, so it cancels from their sum:
 #
 # ```math
-# \frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon_k\, dV .
+# \frac{d}{dt}\int e_k\, \mathrm{d}V = \int wb\, \mathrm{d}V - \int \varepsilon_k\, \mathrm{d}V .
 # ```
 
 eₖ = KineticEnergy(model)
@@ -178,35 +179,40 @@ eₖ = KineticEnergy(model)
 ∫wb = ∫dV(wb)
 ∫εₖ = ∫dV(εₖ)
 
-# For the movie we keep the surface vorticity, buoyancy, and the closure's own eddy viscosity, which
-# shows where `Smagorinsky` is actually acting:
+∂ₜ∫eₚ = TimeDerivative(∫eₚ)
+∂ₜ∫eₖ = TimeDerivative(∫eₖ)
+
+# For the movie we keep the surface vorticity, buoyancy, the closure's own eddy viscosity (which shows
+# where `Smagorinsky` is actually acting), and the mixed layer depth. Its criterion threshold is set to
+# the initial buoyancy jump across the mixed layer, `N²_ml * h`, since the default threshold assumes
+# realistic ocean stratification, well above what this coarse example reaches:
 
 u, v, w = model.velocities
 b = model.tracers.b
 ζ = ∂x(v) - ∂y(u)
 νₑ = viscosity(model)
+MLD = MixedLayerDepth(grid, model.buoyancy.formulation, (; b); criterion = BuoyancyAnomalyCriterion(threshold = -N²_ml * h))
 
 # ## Output
 #
-# A *snapshot* writer for the surface maps and a *budget* writer for the volume integrals, the latter
-# on `ConsecutiveIterations`, which takes a second sample one model step after each output time so we
-# can finite-difference `d/dt` across that step.
+# A *snapshot* writer for the surface maps and a *budget* writer for the volume integrals, both on
+# `TimeInterval(3hours)`.
 
 using NCDatasets
 filename = joinpath(@__DIR__, "baroclinic_adjustment")
 
 simulation.output_writers[:fields] =
-    NetCDFWriter(model, (; ζ, b, νₑ),
+    NetCDFWriter(model, (; ζ, b, νₑ, MLD),
                  filename = filename,
                  schedule = TimeInterval(3hours),
                  indices = (:, :, grid.Nz),
-                 overwrite_existing = true)
+                 overwrite_files = true)
 
 simulation.output_writers[:budget] =
-    NetCDFWriter(model, (; ∫eₚ, ∫Φ, ∫eₖ, ∫wb, ∫εₖ),
+    NetCDFWriter(model, (; ∂ₜ∫eₚ, ∫Φ, ∂ₜ∫eₖ, ∫wb, ∫εₖ),
                  filename = filename * "_budget",
-                 schedule = ConsecutiveIterations(TimeInterval(3hours)),
-                 overwrite_existing = true)
+                 schedule = TimeInterval(3hours),
+                 overwrite_files = true)
 
 # ## Run the simulation
 
@@ -223,114 +229,117 @@ x_caa = ds["x_caa"][:]; y_aca = ds["y_aca"][:]
 ζ_arr = ds["ζ"][:, :, 1, :]
 b_arr = ds["b"][:, :, 1, :]
 ν_arr = ds["νₑ"][:, :, 1, :]
+MLD_arr = ds["MLD"][:, :, :]   # (Center, Center, Nothing)-located: no z dimension to slice
 close(ds)
 
 ζlim = maximum(abs, ζ_arr)
 νlim = maximum(ν_arr)
 
-# The budget scalars come in consecutive-iteration pairs `(2k-1, 2k)`; a one-step finite difference
-# inside each pair gives the tendencies, and every source term is averaged over the same pair.
+# Every budget record carries both tendencies and every source term at the same time. The first record
+# has no earlier state to difference against and is written as zero, so the budgets start from the
+# second.
 
 ds_b = NCDataset(simulation.output_writers[:budget].filepath)
-t_bud    = ds_b["time"][:]
-eₚ_bud = ds_b["∫eₚ"][:]
-Φ_bud  = ds_b["∫Φ"][:]
-eₖ_bud = ds_b["∫eₖ"][:]
-wb_bud = ds_b["∫wb"][:]
-εₖ_bud = ds_b["∫εₖ"][:]
+nb   = 2:length(ds_b["time"])
+
+t_bud   = ds_b["time"][nb]
+deₚdt   = ds_b["∂ₜ∫eₚ"][nb]
+deₖdt   = ds_b["∂ₜ∫eₖ"][nb]
+Φ_bud   = ds_b["∫Φ"][nb]
+wb_bud  = ds_b["∫wb"][nb]
+εₖ_bud  = ds_b["∫εₖ"][nb]
 close(ds_b)
-
-idx1 = 1:2:length(t_bud) - 1
-idx2 = 2:2:length(t_bud)
-
-Δt_pair = t_bud[idx2] .- t_bud[idx1]
-t_pair  = @. 0.5 * (t_bud[idx1] + t_bud[idx2])
-
-deₚdt = (eₚ_bud[idx2] .- eₚ_bud[idx1]) ./ Δt_pair
-deₖdt = (eₖ_bud[idx2] .- eₖ_bud[idx1]) ./ Δt_pair
-
-pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
-
-Φ_pair  = pair_mean(Φ_bud)
-wb_pair = pair_mean(wb_bud)
-εₖ_pair = pair_mean(εₖ_bud);
 
 # Both budgets in sum-to-zero form: every curve is plotted with the sign it carries here, so each panel
 # below adds up to its residual.
 
-eₚ_resid = @. -deₚdt - wb_pair + Φ_pair
-eₖ_resid = @. -deₖdt + wb_pair - εₖ_pair
+eₚ_resid = @. -deₚdt - wb_bud + Φ_bud
+eₖ_resid = @. -deₖdt + wb_bud - εₖ_bud
 
 using Test                                                                            #hide
 using Statistics: mean                                                                #hide
 rms(x) = √(sum(abs2, x) / length(x))                                                  #hide
-eₚ_terms = (deₚdt, wb_pair, Φ_pair)                                                   #hide
-eₖ_terms = (deₖdt, wb_pair, εₖ_pair)                                                  #hide
+eₚ_terms = (deₚdt, wb_bud, Φ_bud)                                                     #hide
+eₖ_terms = (deₖdt, wb_bud, εₖ_bud)                                                    #hide
 ## Each budget closes to a small fraction of its own largest term.                                   #hide
 @test rms(eₚ_resid) < 0.03 * maximum(rms, eₚ_terms)                                   #hide
 @test rms(eₖ_resid) < 0.05 * maximum(rms, eₖ_terms)                                   #hide
 ## `wb` is the same term in both, so it cancels from their sum                        #hide
-@test rms(eₚ_resid .+ eₖ_resid) < 0.05 * rms(wb_pair)                                 #hide
+@test rms(eₚ_resid .+ eₖ_resid) < 0.05 * rms(wb_bud)                                  #hide
 ## The adjustment does what it should: the fronts slump and the potential energy they release turns  #hide
 ## into kinetic energy, so the conversion is positive on average.                                    #hide
-@test mean(wb_pair) > 0                                                               #hide
+@test mean(wb_bud) > 0                                                                #hide
 ## It leads the kinetic energy budget. It does not lead the potential energy one — with this closure #hide
 ## the diffusive term is an order of magnitude larger — but the budget resolves it far above its own #hide
 ## residual, which is the claim that matters.                                                        #hide
-@test rms(wb_pair) > 0.5 * rms(deₖdt)                                                 #hide
-@test rms(wb_pair) > 10 * rms(eₚ_resid)                                               #hide
-@test rms(Φ_pair)  > rms(wb_pair)                                                     #hide
+@test rms(wb_bud) > 0.5 * rms(deₖdt)                                                  #hide
+@test rms(wb_bud) > 10 * rms(eₚ_resid)                                                #hide
+@test rms(Φ_bud)  > rms(wb_bud)                                                       #hide
 ## The closure is active everywhere, which is what a constant-coefficient Smagorinsky does and what  #hide
 ## the Lilly-corrected one would not at this resolution.                                             #hide
-@test minimum(εₖ_pair) > 0                                                            #hide
-@test all(εₖ_pair .≥ 0);                                                              #hide
+@test minimum(εₖ_bud) > 0                                                             #hide
+@test all(εₖ_bud .≥ 0);                                                               #hide
 
 # ## Plotting
 
 set_theme!(Theme(fontsize = 18))
-fig = Figure(size = (1500, 950))
+fig = Figure(size = (1000, 1800))
 
 n = Observable(1)
 
-panel_kwargs = (xlabel = "x [m]", ylabel = "y [m]", aspect = DataAspect(), height = 240)
-axζ = Axis(fig[2, 1]; title = "vertical vorticity, ζ",  panel_kwargs...)
-axb = Axis(fig[2, 3]; title = "surface buoyancy, b",    panel_kwargs...)
-axν = Axis(fig[2, 5]; title = "eddy viscosity, νₑ",     panel_kwargs...)
+panel_kwargs = (xlabel = "x [m]", ylabel = "y [m]", aspect = DataAspect())
+axζ = Axis(fig[2, 1][1, 1]; title = "vertical vorticity, ζ",  panel_kwargs...)
+axb = Axis(fig[2, 2][1, 1]; title = "surface buoyancy, b",    panel_kwargs...)
+axν = Axis(fig[3, 1][1, 1]; title = "eddy viscosity, νₑ",     panel_kwargs...)
+axh = Axis(fig[3, 2][1, 1]; title = "mixed layer depth, MLD", panel_kwargs...)
 
 ζₙ = @lift ζ_arr[:, :, $n]
 bₙ = @lift b_arr[:, :, $n]
 νₙ = @lift ν_arr[:, :, $n]
+MLDₙ = @lift MLD_arr[:, :, $n]
 
 hmζ = heatmap!(axζ, x_faa, y_afa, ζₙ; colormap = :balance, colorrange = (-ζlim, ζlim))
-Colorbar(fig[2, 2], hmζ)
+Colorbar(fig[2, 1][1, 2], hmζ)
 
 hmb = heatmap!(axb, x_caa, y_aca, bₙ; colormap = :thermal)
-Colorbar(fig[2, 4], hmb)
+Colorbar(fig[2, 2][1, 2], hmb)
 
 hmν = heatmap!(axν, x_caa, y_aca, νₙ; colormap = :tempo, colorrange = (0, νlim))
-Colorbar(fig[2, 6], hmν)
+Colorbar(fig[3, 1][1, 2], hmν)
+
+hmh = heatmap!(axh, x_caa, y_aca, MLDₙ; colormap = :deep, colorrange = (-h, 0))
+Colorbar(fig[3, 2][1, 2], hmh)
 
 budget_kwargs = (xlabel = "time [days]", ylabel = "[m⁵ s⁻³]")
 
-ax_p = Axis(fig[3, 1:6]; title = "Volume-integrated potential energy budget", budget_kwargs...)
-lines!(ax_p, t_pair ./ day, -deₚdt,    label = "-d(∫eₚ)/dt")
-lines!(ax_p, t_pair ./ day, -wb_pair,  label = "-∫wb dV")
-lines!(ax_p, t_pair ./ day,  Φ_pair,   label = "∫Φ dV")
-lines!(ax_p, t_pair ./ day,  eₚ_resid, label = "residual", color = :black, linestyle = :dash)
-axislegend(ax_p; position = :rt, labelsize = 10, nbanks = 2)
+ax_p = Axis(fig[4, 1:2]; title = "Volume-integrated potential energy budget", budget_kwargs...)
+lines!(ax_p, t_bud ./ day, -deₚdt,    label = "-d(∫eₚ)/dt")
+lines!(ax_p, t_bud ./ day, -wb_bud,   label = "-∫wb dV")
+lines!(ax_p, t_bud ./ day,  Φ_bud,    label = "∫Φ dV")
+lines!(ax_p, t_bud ./ day,  eₚ_resid, label = "residual", color = :black, linestyle = :dash)
+axislegend(ax_p; position = :rt, labelsize = 16, nbanks = 2)
 
-ax_k = Axis(fig[4, 1:6]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
-lines!(ax_k, t_pair ./ day, -deₖdt,    label = "-d(∫eₖ)/dt")
-lines!(ax_k, t_pair ./ day,  wb_pair,  label = "∫wb dV")
-lines!(ax_k, t_pair ./ day, -εₖ_pair,  label = "-∫εₖ dV")
-lines!(ax_k, t_pair ./ day,  eₖ_resid, label = "residual", color = :black, linestyle = :dash)
-axislegend(ax_k; position = :rt, labelsize = 10, nbanks = 2)
+ax_k = Axis(fig[5, 1:2]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
+lines!(ax_k, t_bud ./ day, -deₖdt,    label = "-d(∫eₖ)/dt")
+lines!(ax_k, t_bud ./ day,  wb_bud,   label = "∫wb dV")
+lines!(ax_k, t_bud ./ day, -εₖ_bud,   label = "-∫εₖ dV")
+lines!(ax_k, t_bud ./ day,  eₖ_resid, label = "residual", color = :black, linestyle = :dash)
+axislegend(ax_k; position = :rt, labelsize = 16, nbanks = 2)
 
 vlines!(ax_p, @lift(times[$n] / day), color = :black, linestyle = :dot)
 vlines!(ax_k, @lift(times[$n] / day), color = :black, linestyle = :dot)
 
 title = @lift "Baroclinic adjustment, t = " * prettytime(times[$n])
-fig[1, 1:6] = Label(fig, title, fontsize = 22, tellwidth = false)
+fig[1, 1:2] = Label(fig, title, fontsize = 22, tellwidth = false)
+
+rowsize!(fig.layout, 1, Fixed(50))
+rowsize!(fig.layout, 2, Fixed(500))
+rowsize!(fig.layout, 3, Fixed(500))
+rowsize!(fig.layout, 4, Fixed(350))
+rowsize!(fig.layout, 5, Fixed(350))
+colsize!(fig.layout, 1, Fixed(450))
+colsize!(fig.layout, 2, Fixed(450))
+resize_to_layout!(fig)
 
 @info "Animating..."
 record(fig, "baroclinic_adjustment.mp4", 1:length(times), framerate = 8) do i

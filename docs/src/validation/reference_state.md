@@ -69,23 +69,23 @@ sorted_model = NonhydrostaticModel(column; buoyancy = BuoyancyTracer(), tracers 
 set!(sorted_model, b = reshape(repeat(collect(0:(n_layers - 1)), inner = N ÷ n_layers), 1, 1, N))
 
 ∫eₚ = volume_integral(PotentialEnergy(sorted_model))
-sorted_E_b, sorted_E_a, sorted_z✶ = Dict(), Dict(), Dict()
+sorted_E_b, sorted_Eₐ, sorted_z✶ = Dict(), Dict(), Dict()
 
 for (name, method) in methods
     z✶ = reference_height(sorted_model; method)
     sorted_E_b[name] = volume_integral(BackgroundPotentialEnergy(sorted_model, z✶))
-    sorted_E_a[name] = volume_integral(AvailablePotentialEnergy(sorted_model, z✶))
+    sorted_Eₐ[name] = volume_integral(AvailablePotentialEnergy(sorted_model, z✶))
     sorted_z✶[name]  = vec(Array(interior(z✶)))
 
     check("$name: ∫e_b = ∫eₚ on a sorted field", sorted_E_b[name], ∫eₚ; rtol = 1e-10)
-    check("$name: ∫eₐ = 0 on a sorted field",    sorted_E_a[name], 0;  atol = 1e-12)
+    check("$name: ∫eₐ = 0 on a sorted field",    sorted_Eₐ[name], 0;  atol = 1e-12)
 end
 
 @printf("exact:  ∫e_b dV = ∫eₚ dV = %+.8f,   ∫eₐ dV = 0\n\n", ∫eₚ)
 @printf("  %-22s %14s %12s %14s\n", "method", "∫e_b dV", "error", "∫eₐ dV")
 for (name, _) in methods
     @printf("  %-22s %+14.8f %11.2e %14.2e\n", name, sorted_E_b[name],
-            (sorted_E_b[name] - ∫eₚ) / abs(∫eₚ), sorted_E_a[name])
+            (sorted_E_b[name] - ∫eₚ) / abs(∫eₚ), sorted_Eₐ[name])
 end
 ```
 
@@ -214,11 +214,11 @@ for (field_name, setter) in fields, (name, method) in methods
     model = NonhydrostaticModel(box; buoyancy = BuoyancyTracer(), tracers = :b)
     set!(model, b = setter)
     z✶  = reference_height(model; method)
-    e_a = interior(Field(AvailablePotentialEnergy(model, z✶)))
-    scale = max(maximum(abs, e_a), eps(Float64))
+    eₐ = interior(Field(AvailablePotentialEnergy(model, z✶)))
+    scale = max(maximum(abs, eₐ), eps(Float64))
 
-    worst["$field_name / $name"] = minimum(e_a) / scale
-    check("$field_name / $name: eₐ ≥ 0", min(minimum(e_a) / scale, 0), 0; atol = 1e-10)
+    worst["$field_name / $name"] = minimum(eₐ) / scale
+    check("$field_name / $name: eₐ ≥ 0", min(minimum(eₐ) / scale, 0), 0; atol = 1e-10)
 end
 
 @printf("  %-22s %22s\n", "field", "worst min(eₐ)/max|eₐ|")

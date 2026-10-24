@@ -28,13 +28,13 @@ using Oceananigans.Models: ShallowWaterModel
 using Oceananigans.Operators: ℑzᵃᵃᶜ, δxᶜᵃᵃ, δyᵃᶜᵃ, δzᵃᵃᶜ, V⁻¹ᶜᶜᶜ, Axᶠᶜᶜ, Ayᶜᶠᶜ, Azᶜᶜᶠ
 using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z, ∇_dot_qᶜ
 using Oceananigans.Utils: sum_of_velocities
-using Oceanostics: validate_location, CustomKFO
+using Oceanostics: validate_location, CustomKFO, tracer_advection
 using SeawaterPolynomials: BoussinesqEquationOfState
 
 using ..KineticEnergyEquation: PotentialToKineticEnergyConversion
 
 # `uᵢbᵢ` is the source of kinetic energy and, with the sign flipped, the buoyancy conversion term of the
-# `e_p` equation. It is defined in `KineticEnergyEquation`, whose local alias `PotentialEnergyConversion`
+# `eₚ` equation. It is defined in `KineticEnergyEquation`, whose local alias `PotentialEnergyConversion`
 # names the reservoir the energy comes from; this one names where it goes. Each module names the other
 # side, so the term reads correctly whichever budget is being written. It is exported from this module
 # and from `AvailablePotentialEnergyEquation`, but not from `Oceanostics`, where unprefixed it would say
@@ -77,7 +77,7 @@ validate_gravity_is_z_aligned(diagnostic, model) =
 """
     $(SIGNATURES)
 
-Return a `KernelFunctionOperation` to compute the `PotentialEnergy` per unit volume,
+Return a `KernelFunctionOperation` to compute the `PotentialEnergy` per unit mass,
 ```math
 eₚ = \\frac{gρ}{ρ₀}z = -bz
 ```
@@ -107,7 +107,9 @@ julia> model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=(:b,
 NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── timestepper: RungeKutta3TimeStepper
-├── advection scheme: Centered(order=2)
+├── advection scheme:
+│   ├── momentum: Centered(order=2)
+│   └── b: Centered(order=2)
 ├── tracers: b
 ├── closure: Nothing
 ├── buoyancy: BuoyancyTracer with ĝ = NegativeZDirection()
@@ -118,7 +120,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("Field",)
-└── computes: potential energy per unit volume  eₚ = -bz
+└── computes: potential energy per unit mass  -bz
 ```
 
 The default behaviour of `PotentialEnergy` uses the *in-situ density* in the calculation
@@ -149,7 +151,10 @@ julia> model = NonhydrostaticModel(grid; buoyancy, tracers)
 NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── timestepper: RungeKutta3TimeStepper
-├── advection scheme: Centered(order=2)
+├── advection scheme:
+│   ├── momentum: Centered(order=2)
+│   ├── T: Centered(order=2)
+│   └── S: Centered(order=2)
 ├── tracers: (T, S)
 ├── closure: Nothing
 ├── buoyancy: SeawaterBuoyancy with g=9.80665 and BoussinesqEquationOfState{Float64} with ĝ = NegativeZDirection()
@@ -160,7 +165,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation", "NamedTuple")
-└── computes: potential energy per unit volume  eₚ = -bz
+└── computes: potential energy per unit mass  -bz
 ```
 
 To use a reference density set a constant value for the keyword argument `geopotential_height`
@@ -185,7 +190,7 @@ PotentialEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 1×1×100 RectilinearGrid{Float64, Flat, Flat, Bounded} on CPU with 0×0×3 halo
 ├── kernel_function: minus_bz_ccc (generic function with 3 methods)
 └── arguments: ("KernelFunctionOperation", "NamedTuple")
-└── computes: potential energy per unit volume  eₚ = -bz
+└── computes: potential energy per unit mass  -bz
 ```
 """
 @inline function PotentialEnergy(model; location = (Center, Center, Center),
@@ -229,7 +234,7 @@ end
 #---
 
 #+++ Buoyancy as a diffused tracer
-# `Φ` here, and `ε_A` over in `AvailablePotentialEnergyEquation`, both read `κ∇b` off the closure's own
+# `Φ` here, and `εₐ` over in `AvailablePotentialEnergyEquation`, both read `κ∇b` off the closure's own
 # diffusive flux, which needs the buoyancy to be a tracer the closure diffuses. `SeawaterBuoyancy` would
 # need the fluxes of temperature and salinity combined through the equation of state. Both helpers live
 # here because this is the module the two diagnostics have in common.
@@ -276,9 +281,9 @@ buoyancy_diffusive_flux_arguments(model) =
 
 #+++ Diffusive buoyancy flux
 # `Φ = κ ∂b/∂z = -q₃`, the vertical diffusive buoyancy flux taken upward. It is the diffusive conversion
-# term of the `e_p` equation, the only way diffusion changes the potential energy of a closed domain,
-# and it is also the second of the two parts `ε_A` is written out of. It comes off the closure's own
-# `diffusive_flux_z`, exactly as `ε_A` does, so the two always carry the same `κ`. The flux lives on the
+# term of the `eₚ` equation, the only way diffusion changes the potential energy of a closed domain,
+# and it is also the second of the two parts `εₐ` is written out of. It comes off the closure's own
+# `diffusive_flux_z`, exactly as `εₐ` does, so the two always carry the same `κ`. The flux lives on the
 # `z` face, so it is interpolated to the cell center.
 @inline diffusive_buoyancy_flux_ccc(i, j, k, grid, args...) = -ℑzᵃᵃᶜ(i, j, k, grid, diffusive_flux_z, args...)
 
@@ -295,7 +300,7 @@ Return a `KernelFunctionOperation` computing the vertical diffusive buoyancy flu
 ```
 
 which is the work diffusion does against gravity as it smooths the stratification. It is the diffusive
-conversion term of the `e_p` equation, and the only way diffusion can change the potential energy of a
+conversion term of the `eₚ` equation, and the only way diffusion can change the potential energy of a
 closed domain: the rest of the diffusive contribution is a flux divergence that integrates to zero. The
 result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
 
@@ -304,19 +309,19 @@ result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
 is written out of,
 
 ```
-    ε_A = κ (∂z✶/∂b) |∇b|² - Φ ,
+    εₐ = -(∂z✶/∂b) qᵢ ∂ᵢb - Φ ,
 ```
 
-and it is the part that carries no available energy with it: `Φ` enters the `E_p` and `E_b` budgets
-identically, so it cancels from their difference, which is `E_a`. A statically stable, horizontally
-uniform stratification is its own reference state and has `ε_A = 0` cell by cell, so there `Φ` accounts
-for the whole of the diapycnal mixing rate. Adding it back to `ε_A` recovers that rate in general, and
+and it is the part that carries no available energy with it: `Φ` enters the `Eₚ` and `E_b` budgets
+identically, so it cancels from their difference, which is `Eₐ`. A statically stable, horizontally
+uniform stratification is its own reference state and has `εₐ = 0` cell by cell, so there `Φ` accounts
+for the whole of the diapycnal mixing rate. Adding it back to `εₐ` recovers that rate in general, and
 its volume integral is the rate
 [`BackgroundPotentialEnergy`](@ref Oceanostics.BackgroundPotentialEnergyEquation.BackgroundPotentialEnergy)
 grows:
 
 ```
-    d/dt ∫e_b dV = ∫(ε_A + Φ) dV .
+    d/dt ∫e_b dV = ∫(εₐ + Φ) dV .
 ```
 
 For a **constant** `κ`, `Φ` volume-integrates to a boundary term, since no buoyancy crosses the top or
@@ -342,7 +347,7 @@ which collapses only when `κ` factors out of the sum. Under a depth-dependent d
 that computes `κ` from the flow, the integral depends on the interior arrangement and can come out with
 the opposite sign to `κ A [b(z_top) - b(z_bottom)]`, so do not reach for the boundary form as a check
 there. `Φ` is returned as a field rather than as either number, since it is the pointwise partner of
-`ε_A`.
+`εₐ`.
 
 `κ ∂b/∂z` is taken from the closure's own diffusive flux rather than from a diffusivity supplied here,
 so this follows whatever closure the model runs with, including ones that compute `κ` from the flow.
@@ -352,7 +357,7 @@ models only.
 Not to be confused with `TracerEquation.ZDiffusiveFlux(model, :b)`, which is the same closure call read
 raw: that one is `q₃` itself, down-gradient and on the `z` face. This is `-q₃`, interpolated to the cell
 center, which are the sign and the location the energy budgets want. Reach for the tracer diagnostic
-when you want the flux as a flux, and this one when you want it as a term of the `e_p` equation.
+when you want the flux as a flux, and this one when you want it as a term of the `eₚ` equation.
 
 ```jldoctest
 using Oceananigans, Oceanostics
@@ -368,7 +373,7 @@ PotentialEnergyDiffusiveVerticalBuoyancyFlux KernelFunctionOperation at (Center,
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: diffusive_buoyancy_flux_ccc (generic function with 1 method)
 └── arguments: ("ScalarDiffusivity", "Nothing", "Val", "Field", "Clock", "NamedTuple", "BuoyancyForce")
-└── computes: diffusive vertical buoyancy flux  Φ = κ ∂b/∂z = -q₃
+└── computes: diffusive vertical buoyancy flux  κ ∂b/∂z = -q₃
 ```
 """
 function DiffusiveVerticalBuoyancyFlux(model; location = (Center, Center, Center))
@@ -484,8 +489,8 @@ PotentialEnergyTendency(model)   # or `Tendency` inside the module
 PotentialEnergyTendency KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: minus_z_∂ₜb_ccc (generic function with 1 method)
-└── arguments: ("Val", "Val", "Centered", "ScalarDiffusivity", "Nothing", "BuoyancyForce", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Clock", "Returns")
-└── computes: potential energy tendency  ∂ₜeₚ = -z ∂ₜb
+└── arguments: ("Val", "Val", "Centered", "ScalarDiffusivity", "Nothing", "BuoyancyForce", "Nothing", "BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Clock", "Returns")
+└── computes: potential energy tendency  -z ∂ₜb
 ```
 """
 function PotentialEnergyTendency(model::NonhydrostaticModel; location = (Center, Center, Center))
@@ -495,7 +500,7 @@ function PotentialEnergyTendency(model::NonhydrostaticModel; location = (Center,
 
     dependencies = (buoyancy_tracer_index(model),
                     Val(:b),
-                    model.advection,
+                    tracer_advection(model, :b),
                     model.closure,
                     model.tracers.b.boundary_conditions.immersed,
                     model.buoyancy,
@@ -513,9 +518,9 @@ end
 #---
 
 #+++ Advection of eₚ
-# `∂ⱼ(uⱼeₚ)`, the transport of the potential energy itself, formed by handing `eₚ` to the model's own
-# advection scheme exactly as it would a tracer. Being a flux divergence it telescopes, so its volume
-# integral over a periodic or closed domain vanishes to roundoff rather than to truncation error.
+# `∂ⱼ(uⱼeₚ)`, the transport of the potential energy itself, formed by handing `eₚ` to the scheme the
+# model advects `b` with, exactly as it would a tracer. Being a flux divergence it telescopes, so its
+# volume integral over a periodic or closed domain vanishes to roundoff rather than to truncation error.
 @inline div_U_eₚ_ccc(i, j, k, grid, advection, U, eₚ) = div_Uc(i, j, k, grid, advection, U, eₚ)
 
 const PotentialEnergyAdvection = CustomKFO{<:typeof(div_U_eₚ_ccc)}
@@ -530,9 +535,9 @@ Return a `KernelFunctionOperation` computing the advection of the potential ener
     ADV = ∂ⱼ(uⱼeₚ) ,
 ```
 
-with `eₚ = -bz` handed to the model's own advection scheme the way a tracer would be. `uⱼ` defaults to
-the *total* velocity, perturbation plus background, which is what the model advects with; pass
-`velocities` to override it. It enters the `eₚ` equation with a minus sign, as
+with `eₚ = -bz` handed to the scheme the model advects `b` with, the way a tracer would be. `uⱼ`
+defaults to the *total* velocity, perturbation plus background, which is what the model advects
+with; pass `velocities` to override it. It enters the `eₚ` equation with a minus sign, as
 [`TracerEquation.Advection`](@ref Oceanostics.TracerEquation.Advection) does for a tracer.
 
 This is a transport and nothing else: it is a flux divergence, so over a periodic or closed domain it
@@ -570,7 +575,7 @@ function PotentialEnergyAdvection(model::NonhydrostaticModel;
     validate_gravity_is_z_aligned("PotentialEnergyAdvection", model)
 
     return KernelFunctionOperation{Center, Center, Center}(div_U_eₚ_ccc, model.grid,
-                                                           model.advection, velocities, PotentialEnergy(model))
+                                                           tracer_advection(model, :b), velocities, PotentialEnergy(model))
 end
 #---
 
@@ -630,7 +635,7 @@ function PotentialEnergyBuoyancyAdvection(model::NonhydrostaticModel;
     validate_gravity_is_z_aligned("PotentialEnergyBuoyancyAdvection", model)
 
     return KernelFunctionOperation{Center, Center, Center}(z_div_Uc_ccc, model.grid,
-                                                           model.advection, velocities, model.tracers.b)
+                                                           tracer_advection(model, :b), velocities, model.tracers.b)
 end
 #---
 
@@ -810,7 +815,7 @@ PotentialEnergyForcing(model)
 PotentialEnergyForcing KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: minus_z_Fᵇ_ccc (generic function with 1 method)
-└── arguments: ("Oceananigans.Forcings.ContinuousForcing", "Clock", "NamedTuple")
+└── arguments: ("ContinuousForcing", "Clock", "NamedTuple")
 └── computes: potential energy forcing  -z Fᵇ
 ```
 """

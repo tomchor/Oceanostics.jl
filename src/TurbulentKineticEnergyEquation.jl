@@ -34,7 +34,7 @@ const TurbulentKineticEnergy = CustomKFO{<:typeof(turbulent_kinetic_energy_ccc)}
 """
     $(SIGNATURES)
 
-Calculate the turbulent kinetic energy of `model`.
+Calculate the turbulent kinetic energy per unit mass `eₖ′ = ½uᵢ′uᵢ′` of `model`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -47,7 +47,7 @@ julia> TKE = TurbulentKineticEnergyEquation.TurbulentKineticEnergy(model)
 TurbulentKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
-└── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── arguments: ("Field", "Field", "Field", "ZeroField", "ZeroField", "ZeroField")
 └── computes: turbulent kinetic energy  ½uᵢ′uᵢ′
 ```
 """
@@ -64,12 +64,12 @@ TurbulentKineticEnergy(model; kwargs...) = TurbulentKineticEnergy(model, model.v
 """
     $(SIGNATURES)
 
-Calculate the Turbulent Kinetic Energy Isotropic Dissipation Rate, defined as
+Calculate the turbulent kinetic energy isotropic dissipation rate, defined as
 
-    ε = 2 ν S'ᵢⱼS'ᵢⱼ,
+    εₖ′ = 2 ν S′ᵢⱼS′ᵢⱼ,
 
-where S'ᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a
-turbulence closure where ν (eddy or not) is the same for all directions.
+where S′ᵢⱼ is the strain rate tensor of the velocity perturbations, for a fluid with an isotropic
+turbulence closure (i.e., a turbulence closure where ν (eddy or not) is the same for all directions).
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -83,7 +83,7 @@ KineticEnergyIsotropicDissipationRate KernelFunctionOperation at (Center, Center
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: isotropic_viscous_dissipation_rate_ccc (generic function with 1 method)
 └── arguments: ("Field", "Field", "Field", "NamedTuple")
-└── computes: isotropic kinetic energy dissipation rate  ε = 2νSᵢⱼSᵢⱼ
+└── computes: isotropic kinetic energy dissipation rate  2νSᵢⱼSᵢⱼ
 ```
 """
 @inline TurbulentKineticEnergyIsotropicDissipationRate(u, v, w, args...; U=ZeroField(), V=ZeroField(), W=ZeroField(), location = (Center, Center, Center)) =
@@ -140,7 +140,7 @@ julia> XSHEAR = TurbulentKineticEnergyEquation.XShearProductionRate(model)
 TurbulentKineticEnergyXShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_x_ccc (generic function with 1 method)
-└── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── arguments: ("Field", "Field", "Field", "ZeroField", "ZeroField", "ZeroField")
 └── computes: TKE shear production (x)  -uᵢ′u′ ∂ₓUᵢ
 ```
 """
@@ -202,7 +202,7 @@ julia> YSHEAR = TurbulentKineticEnergyEquation.YShearProductionRate(model)
 TurbulentKineticEnergyYShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_y_ccc (generic function with 1 method)
-└── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── arguments: ("Field", "Field", "Field", "ZeroField", "ZeroField", "ZeroField")
 └── computes: TKE shear production (y)  -uᵢ′v′ ∂_yUᵢ
 ```
 """
@@ -263,7 +263,7 @@ julia> ZSHEAR = TurbulentKineticEnergyEquation.ZShearProductionRate(model)
 TurbulentKineticEnergyZShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_z_ccc (generic function with 1 method)
-└── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── arguments: ("Field", "Field", "Field", "ZeroField", "ZeroField", "ZeroField")
 └── computes: TKE shear production (z)  -uᵢ′w′ ∂_zUᵢ
 ```
 """
@@ -312,7 +312,7 @@ julia> SHEAR = TurbulentKineticEnergyEquation.ShearProductionRate(model)
 TurbulentKineticEnergyShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_ccc (generic function with 1 method)
-└── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── arguments: ("Field", "Field", "Field", "ZeroField", "ZeroField", "ZeroField")
 └── computes: total TKE shear production  -uᵢ′uⱼ′ ∂ⱼUᵢ
 ```
 """
@@ -324,8 +324,10 @@ function TurbulentKineticEnergyShearProductionRate(u′, v′, w′, U, V, W;
                                                            u′, v′, w′, U, V, W)
 end
 
-@inline TurbulentKineticEnergyShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...) =
-    TurbulentKineticEnergyShearProductionRate(model.velocities..., U, V, W; kwargs...)
+function TurbulentKineticEnergyShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
+    u, v, w = model.velocities
+    return TurbulentKineticEnergyShearProductionRate(u-U, v-V, w-W, U, V, W; kwargs...)
+end
 #---
 
 end

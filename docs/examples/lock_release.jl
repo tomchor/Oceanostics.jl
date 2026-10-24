@@ -79,29 +79,29 @@ z✶_column    = reference_height(model, method = VerticalSort())
 b✶_column    = reference_buoyancy(z✶_column)
 
 # Both background and available potential energies are built from the same reference height, so we share one rather than letting each
-# diagnostic sort the domain for itself. Note that `APE` here is the *local* available potential energy
+# diagnostic sort the domain for itself. Note that `eₐ` here is the *local* available potential energy
 # (as defined by Holliday & McIntyre (1981)) and it should always be non-negative.
 #
-# We build one APE calculation per method. Three of the four answer on the model grid and give a map over the
+# We build one `eₐ` calculation per method. Three of the four answer on the model grid and give a map over the
 # domain, which is what the animation below compares. [`VerticalSort`](@ref) is given on the sorted
-# column, so its APE is ordered by rank rather than by position and is not a map of the flow; it is
+# column, so its `eₐ` is ordered by rank rather than by position and is not a map of the flow; it is
 # written anyway because the volume integral comes out the same whichever method builds the reference
 # state. [`ProfileLookup`](@ref) is that same column read back onto the model grid, matching each cell
 # to the profile through its buoyancy rather than through where it came from.
 
-APE_ranked    = AvailablePotentialEnergy(model, z✶_ranked)
-APE_heaviside = AvailablePotentialEnergy(model, z✶_heaviside)
-APE_lookup    = AvailablePotentialEnergy(model, z✶_lookup)
-APE_column    = AvailablePotentialEnergy(model, z✶_column)
-KE            = KineticEnergy(model)
+eₐ_ranked    = AvailablePotentialEnergy(model, z✶_ranked)
+eₐ_heaviside = AvailablePotentialEnergy(model, z✶_heaviside)
+eₐ_lookup    = AvailablePotentialEnergy(model, z✶_lookup)
+eₐ_column    = AvailablePotentialEnergy(model, z✶_column)
+eₖ           = KineticEnergy(model)
 
-∫BPE = Integral(BackgroundPotentialEnergy(model, z✶_ranked))
-∫KE  = Integral(KE)
+∫e_b = Integral(BackgroundPotentialEnergy(model, z✶_ranked))
+∫eₖ  = Integral(eₖ)
 
-∫APE           = Integral(APE_ranked)
-∫APE_heaviside = Integral(APE_heaviside)
-∫APE_lookup    = Integral(APE_lookup)
-∫APE_column    = Integral(APE_column)
+∫eₐ           = Integral(eₐ_ranked)
+∫eₐ_heaviside = Integral(eₐ_heaviside)
+∫eₐ_lookup    = Integral(eₐ_lookup)
+∫eₐ_column    = Integral(eₐ_column)
 
 # ## Budget terms
 #
@@ -109,26 +109,31 @@ KE            = KineticEnergy(model)
 # single term and each drains through a dissipation of its own,
 #
 # ```math
-# \frac{d}{dt}\int e_k\, dV = \int wb\, dV - \int \varepsilon_k\, dV, \qquad
-# \frac{d}{dt}\int e_a\, dV = -\int wb\, dV - \int \varepsilon_a\, dV .
+# \frac{d}{dt}\int e_k\, \mathrm{d}V = +\int w b_r\, \mathrm{d}V - \int \varepsilon_k\, \mathrm{d}V, \qquad
+# \frac{d}{dt}\int e_a\, \mathrm{d}V = -\int w b_r\, \mathrm{d}V - \int \varepsilon_a\, \mathrm{d}V .
 # ```
 #
 # Advection and the pressure gradient integrate to zero for an incompressible flow in a closed box, and
 # the walls are free-slip and insulating, so the viscous and diffusive fluxes leave nothing at the
-# boundary either. What survives is the buoyancy production ``wb``, which carries opposite signs in the
-# two budgets and so cancels from their sum, and the two sinks.
+# boundary either. What survives is the exchange between the two reservoirs and the two sinks.
 #
-# ``\varepsilon_a`` is the term this example is built around. It is the contraction of the buoyancy
-# gradient with the [`BuoyancyDisplacementPotential`](@ref) ``\Upsilon = z^\star - z``, which is
-# ``\partial e_a / \partial b`` and hence the conjugate of ``b``:
+# Note that the exchange term is written ``w b_r`` ([`AvailablePotentialToKineticEnergyConversion`](@ref))
+# in both budgets, not ``wb`` ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion)),
+# where ``b_r = b - b^\star(z)`` is the buoyancy anomaly relative to the reference profile at the
+# parcel's own height, representing an exchange between kinetic energy and _available potential_
+# energy rather than _potential_ energy. This is possible in the KE equation since ``b^\star`` is a
+# function of height alone, so the hydrostatic pressure that goes with it, ``p^\star(z)`` with
+# ``\partial p^\star/\partial z = b^\star``, has no horizontal gradient and can be absorbed into the
+# pressure term. That said, both terms are equal in an integrated sense (as we'll show below).
+#
+# The dissipation term ``\varepsilon_a`` is the contraction of the closure's diffusive buoyancy
+# flux with the gradient of the displacement potential
+# [``\Upsilon = z^\star - z``](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacementPotential):
 #
 # ```math
-# \varepsilon_a = \kappa\, \partial_i b\, \partial_i \Upsilon
-#               = \kappa \left[\frac{\partial z^\star}{\partial b} |\nabla b|^2
-#                              - \frac{\partial b}{\partial z}\right] ,
+# \varepsilon_a = -q_i\, \partial_i \Upsilon
 # ```
-# the diapycnal mixing rate of Winters et al. (1995) less the diffusion the reference state undergoes
-# on its own, which carries no available energy with it.
+# where ``q_i`` is whatever diffusive buoyancy flux the closure supplies.
 #
 # We hand ``\varepsilon_a`` the [`HeavisideIntegral`](@ref) reference height already built above rather
 # than letting it sort the domain again, and that method rather than another because
@@ -136,13 +141,19 @@ KE            = KineticEnergy(model)
 # ``z^\star`` a function of buoyancy alone, so tied cells do not spread ``z^\star`` over the depth they
 # fill and show up in ``\nabla \Upsilon`` as grid-scale noise.
 
-εₐ = AvailablePotentialEnergyDissipationRate(model, z✶_heaviside)
-εₖ = KineticEnergyDissipationRate(model)
+εₐ  = AvailablePotentialEnergyDissipationRate(model, z✶_heaviside)
+εₖ  = KineticEnergyDissipationRate(model)
+wbᵣ = AvailablePotentialToKineticEnergyConversion(model, z✶_heaviside)
+
+# Let's also calculate the exchange between kinetic and potential energy ``wb`` for comparison
+# along with integrals for all terms
+
 wb = PotentialToKineticEnergyConversion(model)
 
-∫wb = Integral(wb)
-∫εₖ = Integral(εₖ)
-∫εₐ = Integral(εₐ)
+∫wbᵣ = Integral(wbᵣ)
+∫wb  = Integral(wb)
+∫εₖ  = Integral(εₖ)
+∫εₐ  = Integral(εₐ)
 
 using NCDatasets
 filename = "lock_release"
@@ -151,26 +162,30 @@ filename = "lock_release"
 # grids they live on: the model-grid fields are written against `x` and `z`, and the column's against
 # its own `N`-cell vertical axis.
 
-outputs = (; b, KE, APE_ranked, APE_heaviside, APE_lookup, APE_column,
-             z✶_ranked, z✶_heaviside, z✶_lookup, z✶_column, b✶_column)
+outputs = (; b, eₖ, eₐ_ranked, eₐ_heaviside, eₐ_lookup, eₐ_column,
+             z✶_ranked, z✶_heaviside, z✶_lookup, z✶_column, b✶_column, wb, wbᵣ)
 
 simulation.output_writers[:fields] = NetCDFWriter(model, outputs,
                                                   filename = joinpath(@__DIR__, filename),
                                                   schedule = TimeInterval(0.5),
-                                                  overwrite_existing = true)
+                                                  overwrite_files = true)
 
-# The *budget* writer carries only the volume integrals, which are cheap next to the maps, on
-# `ConsecutiveIterations(TimeInterval(0.5))`. That schedules a second sample one model step after each
-# scheduled time, which lets us finite-difference ``d/dt`` across that step instead of accumulating it.
-# The `∫APE_heaviside` written here is the tendency term that pairs with ``\varepsilon_a``, since the
+# The ``e_a`` differenced here is `∫eₐ_heaviside`, the one that pairs with ``\varepsilon_a``, since the
 # two come off the same sort.
 
-integrals = (; ∫BPE, ∫KE, ∫APE, ∫APE_heaviside, ∫APE_lookup, ∫APE_column, ∫wb, ∫εₖ, ∫εₐ)
+∂ₜ∫eₖ = TimeDerivative(∫eₖ)
+∂ₜ∫eₐ = TimeDerivative(∫eₐ_heaviside)
+
+# The *budget* writer carries only the volume integrals and those two tendencies, all cheap next to the
+# maps, on the same `TimeInterval(0.5)` as the fields writer.
+
+integrals = (; ∫e_b, ∫eₖ, ∫eₐ, ∫eₐ_heaviside, ∫eₐ_lookup, ∫eₐ_column, ∫wb, ∫wbᵣ, ∫εₖ, ∫εₐ,
+               ∂ₜ∫eₖ, ∂ₜ∫eₐ)
 
 simulation.output_writers[:budget] = NetCDFWriter(model, integrals,
                                                   filename = joinpath(@__DIR__, filename * "_budget"),
-                                                  schedule = ConsecutiveIterations(TimeInterval(0.5)),
-                                                  overwrite_existing = true)
+                                                  schedule = TimeInterval(0.5),
+                                                  overwrite_files = true)
 
 # ## Run the simulation
 
@@ -200,6 +215,7 @@ Z3 = ds["z✶_ranked"][:, :, :]
 ZH = ds["z✶_heaviside"][:, :, :]
 Z1 = ds["z✶_column"][:, :, :]            # (1, N, time): the column keeps the model's Flat y, dropped here
 B1 = ds["b✶_column"][:, :, :]
+E1 = ds["eₐ_column"][:, :, :]           # the column's own eₐ, checked for sign below   #hide
 close(ds)
 
 ## pair a reference-height map with the buoyancy map and order by z✶
@@ -248,7 +264,7 @@ b✶_1d, z✶_1d = profiles["VerticalSort"][end]                                
 ## and the reference profile is, by construction, monotonic                               #hide
 @test issorted(b✶_1d)                                                                     #hide
 ## The three methods describe one reference state, so although their `z✶` maps differ wherever    #hide
-## cells are tied, every buoyancy-weighted integral of `z✶` has to agree — that integral is `BPE`, #hide
+## cells are tied, every buoyancy-weighted integral of `z✶` has to agree — that integral is `e_b`, #hide
 ## and its independence from the method is the precise sense in which the three reference heights  #hide
 ## are the same. Unlike the pointwise comparisons above it holds at every time, ties or not, so it #hide
 ## is checked at all four snapshots rather than only once the field has gone continuous.           #hide
@@ -332,19 +348,21 @@ nothing #hide
 # The movie sets the flow beside the energy it carries: buoyancy, kinetic energy, and the local `eₐ`
 # built from each of the three methods that answer on the model grid.
 
-KE_t   = FieldTimeSeries(filepath, "KE")
-APE3_t = FieldTimeSeries(filepath, "APE_ranked")
-APEH_t = FieldTimeSeries(filepath, "APE_heaviside")
-APEL_t = FieldTimeSeries(filepath, "APE_lookup")
+eₖ_t  = FieldTimeSeries(filepath, "eₖ")
+eₐ3_t = FieldTimeSeries(filepath, "eₐ_ranked")
+eₐH_t = FieldTimeSeries(filepath, "eₐ_heaviside")
+eₐL_t = FieldTimeSeries(filepath, "eₐ_lookup")
 
 ## the local form is non-negative everywhere, whichever method builds the reference state          #hide
-for A in (APE3_t, APEH_t, APEL_t)                                                                  #hide
+for A in (eₐ3_t, eₐH_t, eₐL_t)                                                                  #hide
     @test minimum(minimum(interior(A[n])) for n in 1:length(times)) ≥ -1e-6 * maximum(interior(A[end]))  #hide
 end                                                                                                #hide
+## and on the sorted column too, where eₐ is ordered by rank rather than by position             #hide
+@test minimum(E1) ≥ -1e-6 * maximum(E1)                                                           #hide
 ## the three model-grid methods agree cell by cell, not merely in the integral                     #hide
 for n in 1:length(times)                                                                           #hide
-    @test interior(APEH_t[n]) ≈ interior(APE3_t[n]) atol=1e-12                                     #hide
-    @test interior(APEL_t[n]) ≈ interior(APE3_t[n]) atol=1e-12                                     #hide
+    @test interior(eₐH_t[n]) ≈ interior(eₐ3_t[n]) atol=1e-12                                     #hide
+    @test interior(eₐL_t[n]) ≈ interior(eₐ3_t[n]) atol=1e-12                                     #hide
 end                                                                                                #hide
 
 fig3 = Figure(size = (900, 1010))
@@ -355,38 +373,38 @@ n = Observable(1)
 ## as wide as it is deep. The width follows from the height, rather than both being set independently.
 panel_kwargs = (ylabel = "z", height = 190, aspect = DataAspect())
 
-ax_b  = Axis(fig3[2, 1];  title = "Buoyancy b",                      panel_kwargs...)
-ax_KE = Axis(fig3[4, 1];  title = "Kinetic energy",                  panel_kwargs...)
-ax_E3 = Axis(fig3[6, 1];  title = "eₐ,  ThreeDimensionalSort",       panel_kwargs...)
-ax_EH = Axis(fig3[8, 1];  title = "eₐ,  HeavisideIntegral",          panel_kwargs...)
-ax_EL = Axis(fig3[10, 1]; title = "eₐ,  ProfileLookup", xlabel = "x", panel_kwargs...)
+ax_b   = Axis(fig3[2, 1];  title = "Buoyancy b",                      panel_kwargs...)
+ax_eₖ  = Axis(fig3[4, 1];  title = "Kinetic energy eₖ",               panel_kwargs...)
+ax_eₐ3 = Axis(fig3[6, 1];  title = "eₐ,  ThreeDimensionalSort",       panel_kwargs...)
+ax_eₐH = Axis(fig3[8, 1];  title = "eₐ,  HeavisideIntegral",          panel_kwargs...)
+ax_eₐL = Axis(fig3[10, 1]; title = "eₐ,  ProfileLookup", xlabel = "x", panel_kwargs...)
 
-bₙ  = @lift b_t[$n]
-KEₙ = @lift KE_t[$n]
-E3ₙ = @lift APE3_t[$n]
-EHₙ = @lift APEH_t[$n]
-ELₙ = @lift APEL_t[$n]
+bₙ   = @lift b_t[$n]
+eₖₙ  = @lift eₖ_t[$n]
+eₐ3ₙ = @lift eₐ3_t[$n]
+eₐHₙ = @lift eₐH_t[$n]
+eₐLₙ = @lift eₐL_t[$n]
 
-## `eₐ` and the kinetic energy are both sign-definite, so they get one-sided ranges set from their own
-## peak over the run; the buoyancy keeps the symmetric range used above.
-KE_lim = maximum(maximum(interior(KE_t[k]))   for k in 1:length(times))
-Ea_lim = maximum(maximum(interior(APE3_t[k])) for k in 1:length(times))
+## `eₐ` and the kinetic energy are both sign-definite, so they share one one-sided range, taken from
+## the `eₐ` peak over the run so that the two can be compared panel to panel; the buoyancy keeps the
+## symmetric range used above.
+eₐ_lim = maximum(maximum(interior(eₐ3_t[k])) for k in 1:length(times))
 
 hm_b  = heatmap!(ax_b,  bₙ;  colormap = :balance, colorrange = (-Δb/2, Δb/2))
 Colorbar(fig3[3, 1], hm_b;  vertical = false, height = 8)
 
-energy_options = (; colormap = :magma, colorrange = (0, 0.5Ea_lim))
-hm_KE = heatmap!(ax_KE, KEₙ; energy_options...)
-Colorbar(fig3[5, 1], hm_KE; vertical = false, height = 8)
+energy_options = (; colormap = :magma, colorrange = (0, 0.5eₐ_lim))
+hm_eₖ = heatmap!(ax_eₖ, eₖₙ; energy_options...)
+Colorbar(fig3[5, 1], hm_eₖ; vertical = false, height = 8)
 
-hm_E3 = heatmap!(ax_E3, E3ₙ; energy_options...)
-Colorbar(fig3[7, 1], hm_E3; vertical = false, height = 8)
+hm_eₐ3 = heatmap!(ax_eₐ3, eₐ3ₙ; energy_options...)
+Colorbar(fig3[7, 1], hm_eₐ3; vertical = false, height = 8)
 
-hm_EH = heatmap!(ax_EH, EHₙ; energy_options...)
-Colorbar(fig3[9, 1], hm_EH; vertical = false, height = 8)
+hm_eₐH = heatmap!(ax_eₐH, eₐHₙ; energy_options...)
+Colorbar(fig3[9, 1], hm_eₐH; vertical = false, height = 8)
 
-hm_EL = heatmap!(ax_EL, ELₙ; energy_options...)
-Colorbar(fig3[11, 1], hm_EL; vertical = false, height = 8)
+hm_eₐL = heatmap!(ax_eₐL, eₐLₙ; energy_options...)
+Colorbar(fig3[11, 1], hm_eₐL; vertical = false, height = 8)
 
 title = @lift "Lock release,  t = " * string(round(times[$n], digits = 1))
 Label(fig3[1, 1], title, fontsize = 22, tellwidth = false)
@@ -408,41 +426,41 @@ nothing #hide
 
 # ## Energetics
 #
-# The same three energies, now volume integrated, read off the budget writer. Its samples come in
-# consecutive-iteration pairs `(t₀, t₀ + Δt_model, t₀ + 0.5, t₀ + 0.5 + Δt_model, …)`, so pair `k` sits
-# at indices `(2k-1, 2k)`. The first of each pair falls on the `TimeInterval` grid and is what the
-# energy curves use; the pair as a whole is what gives `d/dt` further down.
+# The same three energies, now volume integrated, read off the budget writer, which carries them
+# alongside the two tendencies and the source terms that balance them.
 
 ds = NCDataset(simulation.output_writers[:budget].filepath)
-t_bud    = ds["time"][:]
-BPE_bud  = ds["∫BPE"][:]
-APE_bud  = ds["∫APE_heaviside"][:]
-KE_bud   = ds["∫KE"][:]
-wb_bud   = ds["∫wb"][:]
-ε_bud    = ds["∫εₖ"][:]
-ε_A_bud  = ds["∫εₐ"][:]
+t_e     = ds["time"][:]
+e_b_int = ds["∫e_b"][:]
+eₐ_int  = ds["∫eₐ_heaviside"][:]
+eₖ_int  = ds["∫eₖ"][:]
 ## all four methods integrate to the same eₐ, however they place cells of equal buoyancy  #hide
-@test ds["∫APE"][:]        ≈ APE_bud rtol=1e-8                                             #hide
-@test ds["∫APE_lookup"][:] ≈ APE_bud rtol=1e-8                                             #hide
-@test ds["∫APE_column"][:] ≈ APE_bud rtol=1e-8                                             #hide
+@test ds["∫eₐ"][:]        ≈ eₐ_int rtol=1e-8                                              #hide
+@test ds["∫eₐ_lookup"][:] ≈ eₐ_int rtol=1e-8                                              #hide
+@test ds["∫eₐ_column"][:] ≈ eₐ_int rtol=1e-8                                              #hide
+
+# The budget terms come off the same records bar the first, which has no earlier state to difference
+# against and is written as zero.
+
+nb = 2:length(t_e)
+
+t_bud   = ds["time"][nb]
+deₖdt   = ds["∂ₜ∫eₖ"][nb]
+deₐdt   = ds["∂ₜ∫eₐ"][nb]
+wb_bud  = ds["∫wb"][nb]
+wbᵣ_bud = ds["∫wbᵣ"][nb]
+εₖ_bud  = ds["∫εₖ"][nb]
+εₐ_bud  = ds["∫εₐ"][nb]
 close(ds)
 
-idx1 = 1:2:length(t_bud) - 1   # primary snapshots
-idx2 = 2:2:length(t_bud)       # consecutive-iteration snapshots
+total_int = eₖ_int .+ eₐ_int .+ e_b_int
 
-t_e     = t_bud[idx1]
-KE_int  = KE_bud[idx1]
-APE_int = APE_bud[idx1]
-BPE_int = BPE_bud[idx1]
-
-total_int = KE_int .+ APE_int .+ BPE_int
-
-@test APE_int[1] > 0                                        # a lock is pure available PE     #hide
-@test minimum(APE_int) < 0.05 * APE_int[1]                  # the collapse nearly empties it  #hide
-@test all(APE_int .≥ -1e-8)                                 # and it is never negative        #hide
-@test KE_int[1] < 1e-8 * APE_int[1]                         # the lock starts at rest         #hide
-@test BPE_int[end] > BPE_int[1]                             # mixing raised the background    #hide
-@test minimum(diff(BPE_int)) > -1e-6 * maximum(abs, BPE_int) # and only ever raised it        #hide
+@test eₐ_int[1] > 0                                          # a lock is pure available PE     #hide
+@test minimum(eₐ_int) < 0.05 * eₐ_int[1]                     # the collapse nearly empties it  #hide
+@test all(eₐ_int .≥ -1e-8)                                   # and it is never negative        #hide
+@test eₖ_int[1] < 1e-8 * eₐ_int[1]                           # the lock starts at rest         #hide
+@test e_b_int[end] > e_b_int[1]                              # mixing raised the background    #hide
+@test minimum(diff(e_b_int)) > -1e-6 * maximum(abs, e_b_int) # and only ever raised it        #hide
 @test total_int[end] < total_int[1]                          # dissipation outweighs diffusion #hide
 ## Diffusion working against gravity can feed the total back, so it need not fall monotonically. But  #hide
 ## an endpoint test alone would pass a run that spiked mid-simulation and decayed below its start, so #hide
@@ -452,9 +470,9 @@ total_int = KE_int .+ APE_int .+ BPE_int
 set_theme!(Theme(fontsize = 20)) #hide
 fig2 = Figure(size = (780, 350))
 ax = Axis(fig2[1, 1]; xlabel = "Time", ylabel = "Energy", title = "Lock-release energetics")
-lines!(ax, t_e, KE_int,  label = "∫KE dV")
-lines!(ax, t_e, APE_int, label = "∫APE dV")
-lines!(ax, t_e, BPE_int, label = "∫BPE dV")
+lines!(ax, t_e, eₖ_int,  label = "∫eₖ dV")
+lines!(ax, t_e, eₐ_int,  label = "∫eₐ dV")
+lines!(ax, t_e, e_b_int, label = "∫e_b dV")
 lines!(ax, t_e, total_int; label = "total", color = :black, linestyle = :dash)
 axislegend(ax; position = :rc, labelsize = 12)
 
@@ -463,77 +481,62 @@ nothing #hide
 
 # ![](lock_release_energetics.png)
 #
-# `BPE` never turns back, since mixing across density surfaces cannot be undone. Everything the flow
-# can still do sits in `APE`, which trades with `KE` as the box seiches, each cycle weaker than the
-# last. The dashed total is `∫KE + ∫eₚ`, and it has no reason to fall monotonically: viscosity drains it
-# at `∫εₖ` while diffusion working against gravity feeds it back at `∫κ ∂b/∂z`, and a run quiet enough
+# `e_b` never turns back, since mixing across density surfaces cannot be undone. Everything the flow
+# can still do sits in `eₐ`, which trades with `eₖ` as the box seiches, each cycle weaker than the
+# last. The dashed total is `∫eₖ + ∫eₚ`, and it has no reason to fall monotonically: viscosity drains it
+# at `∫εₖ` while the diffusive flux working against gravity feeds it back at `∫Φ dV = -∫q₃ dV`, and a run quiet enough
 # for the second to win would see the total edge back up. At `Re = 1000` the first stays the larger of
 # the two throughout, and the total ends down by about a fifth of the available energy the lock started
 # with.
 
 # ## Closing the budgets
 #
-# Now the two budgets written at the top. `d/dt` comes from a one-step finite difference inside each
-# consecutive-iteration pair, and the source terms are averaged over the same pair so that every term
-# is evaluated at the same instant.
+# Now the two budgets written at the top, in sum-to-zero form: each curve is plotted with the sign it
+# carries here, so the panels below add up to the residual.
 
-Δt_pair = t_bud[idx2] .- t_bud[idx1]
-t_pair  = @. 0.5 * (t_bud[idx1] + t_bud[idx2])
-
-dKEdt  = (KE_bud[idx2]  .- KE_bud[idx1])  ./ Δt_pair
-dAPEdt = (APE_bud[idx2] .- APE_bud[idx1]) ./ Δt_pair
-
-pair_mean(x) = @. 0.5 * (x[idx1] + x[idx2])
-
-wb_pair  = pair_mean(wb_bud);
-ε_pair   = pair_mean(ε_bud);
-ε_A_pair = pair_mean(ε_A_bud);
-
-# Both budgets are written in sum-to-zero form: each curve is plotted with the sign it carries here, so
-# the panels below add up to the residual.
-
-KE_resid  = @. -dKEdt  + wb_pair - ε_pair
-APE_resid = @. -dAPEdt - wb_pair - ε_A_pair
+eₖ_resid = @. -deₖdt + wbᵣ_bud - εₖ_bud
+eₐ_resid = @. -deₐdt - wbᵣ_bud - εₐ_bud
 
 rms(x) = √(sum(abs2, x) / length(x))                                       #hide
-@test rms(KE_resid)  < 0.01 * rms(dKEdt)                                   #hide
-@test rms(KE_resid)  < 0.02 * rms(ε_pair)                                  #hide
-@test rms(APE_resid) < 0.01 * rms(dAPEdt)                                  #hide
-## the sharp one: the APE residual is a small fraction of εₐ itself, so the budget resolves     #hide
+@test rms(eₖ_resid) < 0.01 * rms(deₖdt)                                                        #hide
+@test rms(eₖ_resid) < 0.02 * rms(εₖ_bud)                                                        #hide
+@test rms(eₐ_resid) < 0.01 * rms(deₐdt)                                                         #hide
+## the sharp one: the eₐ residual is a small fraction of εₐ itself, so the budget resolves       #hide
 ## the new term rather than closing to within its size                                           #hide
-@test rms(APE_resid) < 0.05 * rms(ε_A_pair)                                #hide
-## `wb` is the same term in both, so it cancels from the sum of the two budgets                  #hide
-@test rms(KE_resid .+ APE_resid) < 0.02 * rms(ε_pair)                      #hide
-## and εₐ takes both signs over the run, which is what the discussion below rests on            #hide
-@test minimum(ε_A_pair) < 0 < maximum(ε_A_pair);                           #hide
+@test rms(eₐ_resid) < 0.05 * rms(εₐ_bud)                                                        #hide
+## the two conversions have the same volume integral, so they cancel from the sum of the budgets #hide
+@test rms(wb_bud .- wbᵣ_bud) < 1e-8 * rms(wb_bud)                                              #hide
+@test rms(eₖ_resid .+ eₐ_resid) < 0.02 * rms(εₖ_bud)                                            #hide
+## and εₐ takes both signs over the run, which is what the discussion below rests on             #hide
+@test minimum(εₐ_bud) < 0 < maximum(εₐ_bud);                                                   #hide
 
 fig4 = Figure(size = (900, 760))
 
 budget_kwargs = (xlabel = "Time", ylabel = "Rate", height = 190, width = 560)
 
-ax_KE_bud = Axis(fig4[1, 1]; title = "Volume-integrated KE budget", budget_kwargs...)
-lines!(ax_KE_bud, t_pair, -dKEdt,   label = "-d(∫KE)/dt")
-lines!(ax_KE_bud, t_pair,  wb_pair, label = "∫wb dV")
-lines!(ax_KE_bud, t_pair, -ε_pair,  label = "-∫εₖ dV")
-lines!(ax_KE_bud, t_pair, KE_resid; label = "residual", color = :black, linestyle = :dash)
-Legend(fig4[1, 2], ax_KE_bud; labelsize = 12, framevisible = false)
+ax_eₖ_bud = Axis(fig4[1, 1]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
+lines!(ax_eₖ_bud, t_bud, -deₖdt,    label = "-d(∫eₖ)/dt")
+lines!(ax_eₖ_bud, t_bud, wbᵣ_bud,   label = "∫wbᵣ dV")
+lines!(ax_eₖ_bud, t_bud, -εₖ_bud,   label = "-∫εₖ dV")
+lines!(ax_eₖ_bud, t_bud, eₖ_resid; label = "residual", color = :black, linestyle = :dash)
+Legend(fig4[1, 2], ax_eₖ_bud; labelsize = 12, framevisible = false)
 
-ax_APE_bud = Axis(fig4[2, 1]; title = "Volume-integrated APE budget", budget_kwargs...)
-lines!(ax_APE_bud, t_pair, -dAPEdt,   label = "-d(∫eₐ)/dt")
-lines!(ax_APE_bud, t_pair, -wb_pair,  label = "-∫wb dV")
-lines!(ax_APE_bud, t_pair, -ε_A_pair, label = "-∫εₐ dV")
-lines!(ax_APE_bud, t_pair, APE_resid; label = "residual", color = :black, linestyle = :dash)
-Legend(fig4[2, 2], ax_APE_bud; labelsize = 12, framevisible = false)
+ax_eₐ_bud = Axis(fig4[2, 1]; title = "Volume-integrated available potential energy budget", budget_kwargs...)
+lines!(ax_eₐ_bud, t_bud, -deₐdt,    label = "-d(∫eₐ)/dt")
+lines!(ax_eₐ_bud, t_bud, -wbᵣ_bud,  label = "-∫wbᵣ dV")
+lines!(ax_eₐ_bud, t_bud, -εₐ_bud,   label = "-∫εₐ dV")
+lines!(ax_eₐ_bud, t_bud, eₐ_resid; label = "residual", color = :black, linestyle = :dash)
+Legend(fig4[2, 2], ax_eₐ_bud; labelsize = 12, framevisible = false)
 
 # `εₐ` is small enough next to the exchange term that it sits on top of the axis in the panel above, so
 # the third panel drops the two large terms and keeps only the two dissipations and the residuals. This
-# is the panel that says the APE budget is actually closed: the residual is not merely small next to
+# is the panel that says the `eₐ` budget is actually closed: the residual is not merely small next to
 # `d(∫eₐ)/dt`, it is small next to `∫εₐ dV`, the smallest term in the budget.
 
 ax_small = Axis(fig4[3, 1]; title = "The small terms, magnified", budget_kwargs...)
-lines!(ax_small, t_pair, -ε_A_pair, label = "-∫εₐ dV", color = Cycled(3))
-lines!(ax_small, t_pair, APE_resid, label = "APE residual", color = :black, linestyle = :dash)
-lines!(ax_small, t_pair, KE_resid,  label = "KE residual", color = :grey40, linestyle = :dot)
+lines!(ax_small, t_bud, -εₐ_bud,  label = "-∫εₐ dV", color = Cycled(3))
+lines!(ax_small, t_bud, eₐ_resid, label = "eₐ residual", color = :black, linestyle = :dash)
+lines!(ax_small, t_bud, eₖ_resid, label = "eₖ residual", color = :grey40, linestyle = :dot)
 Legend(fig4[3, 2], ax_small; labelsize = 12, framevisible = false)
 
 resize_to_layout!(fig4)
@@ -543,20 +546,74 @@ nothing #hide
 
 # ![](lock_release_budgets.png)
 #
-# `∫wb dV` is the mirror line running through both panels: the collapse converts `eₐ` into `KE` while
+# `∫wb dV` is the mirror line running through both panels: the collapse converts `eₐ` into `eₖ` while
 # the fronts accelerate, and the seiche hands it back each time the flow runs up against an end wall.
 # The two sinks are comparable in size, `εₐ` reaching about two thirds of `εₖ` at the peak of the mixing
-# around `t = 6`, but they are not the same kind of quantity. `∫εₖ dV` only ever removes `KE`. `∫εₐ dV`
+# around `t = 6`, but they are not the same kind of quantity. `∫εₖ dV` only ever removes `eₖ`. `∫εₐ dV`
 # is a sink for almost the whole run and briefly a small source around `t = 1` to `2`, which is what its
 # definition allows: at `t = 0` the lock is uniform in the vertical, the reference state has nothing to
 # diffuse along, and `εₐ` is the whole diapycnal mixing rate, but as the current lays the fluid out in
 # layers the reference state's own diffusion catches up and for a moment overtakes it. A sign-definite
-# quantity like `κ|∇b|²` cannot go negative at all, which is the practical difference between `εₐ` and
-# the buoyancy variance dissipation it is easily confused with.
+# quantity like the buoyancy variance dissipation `-2 qᵢ∂ᵢb`, which no down-gradient closure lets turn
+# negative, cannot do that at all. That is the practical difference between `εₐ` and the variance
+# dissipation it is easily confused with.
 #
-# Both residuals stay near zero. They do not vanish, and cannot: the discrete KE and `eₐ` equations are
+# Both residuals stay near zero. They do not vanish, and cannot: the discrete `eₖ` and `eₐ` equations are
 # not derived from the discrete momentum and buoyancy equations the model steps, so the two sides agree
-# only to the truncation error of a well-resolved flow. The same caveat applies to the KE budget of
+# only to the truncation error of a well-resolved flow. The same caveat applies to the `eₖ` budget of
 # [the two-dimensional turbulence example](@ref two_d_turbulence_example), with one more source of
 # discrepancy here: `Integral(eₐ)` of the local Holliday & McIntyre density samples the reference
 # profile at the model's cell centers, and that midpoint quadrature is itself second order in `Δz`.
+
+# ## Two ways of writing the exchange
+#
+# Both budgets above are closed with `∫wbᵣ dV`, and closing the KE one with `∫wb dV` instead would work
+# just as well, since the two integrals agree.
+
+wb_t  = FieldTimeSeries(filepath, "wb")
+wbᵣ_t = FieldTimeSeries(filepath, "wbᵣ")
+
+k_peak = argmax(abs.(wb_bud))              # the snapshot where the exchange is strongest
+t_peak = t_bud[k_peak]
+n_peak = argmin(abs.(times .- t_peak))
+
+∫wb_peak  = wb_bud[k_peak]                 # the same instant's volume integrals, off the budget writer
+∫wbᵣ_peak = wbᵣ_bud[k_peak]
+
+wb_map  = interior(wb_t[n_peak],  :, 1, :)
+wbᵣ_map = interior(wbᵣ_t[n_peak], :, 1, :)
+wb✶_map = wb_map .- wbᵣ_map                # `wb = wbᵣ + w b✶(z)` holds cell by cell
+
+## the two conversions are genuinely different maps, so the agreement above is about the integral #hide
+@test maximum(abs, wb✶_map) > 0.1 * maximum(abs, wb_map)                                          #hide
+## while their difference is the piece that integrates away, which is what lets either one close  #hide
+## the integrated budget: on a uniform grid that is the plain sum over the cells                   #hide
+@test abs(sum(wb✶_map)) < 1e-8 * sum(abs, wb✶_map);                                               #hide
+
+set_theme!(Theme(fontsize = 20)) #hide
+fig5 = Figure(size = (900, 470))
+
+## one range for both panels, taken over both: `wbᵣ` runs about twice as large as `wb` here, and
+## scaling each panel to itself would hide that
+lim = maximum(maximum(abs, conversion) for conversion in (wb_map, wbᵣ_map))
+conv_kwargs = (ylabel = "z", height = 150, aspect = DataAspect())
+xs, zs = xnodes(grid, Center()), znodes(grid, Center())
+
+ax_wb  = Axis(fig5[2, 1]; title = "wb,   ∫wb dV = $(round(∫wb_peak, sigdigits = 4))", conv_kwargs...)
+ax_wbᵣ = Axis(fig5[3, 1]; title = "wbᵣ,   ∫wbᵣ dV = $(round(∫wbᵣ_peak, sigdigits = 4))",
+              xlabel = "x", conv_kwargs...)
+
+hms = [heatmap!(ax, xs, zs, conversion; colormap = :balance, colorrange = (-lim, lim))
+       for (ax, conversion) in zip((ax_wb, ax_wbᵣ), (wb_map, wbᵣ_map))]
+Colorbar(fig5[4, 1], hms[1]; vertical = false, height = 8)
+
+Label(fig5[1, 1], "Conversion terms,  t = " * string(round(t_peak, digits = 1)),
+      fontsize = 22, tellwidth = false)
+
+resize_to_layout!(fig5)
+save("lock_release_conversion.png", fig5)
+set_theme!() #hide
+nothing #hide
+
+# ![](lock_release_conversion.png)
+#

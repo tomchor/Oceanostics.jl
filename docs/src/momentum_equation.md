@@ -17,9 +17,10 @@ equation for the ``i``-th velocity component ``u_i`` is
 
 where ``\hat{g}_i`` is the ``i``-th component of the gravitational unit vector, ``b`` is the
 buoyancy, ``f_j`` is the Coriolis frequency, ``p`` is the pressure, ``\tau_{ij}`` is the
-viscous/subgrid stress tensor, ``\mathbf{u}^S`` is the Stokes drift, and ``F_{u_i}`` is the
-forcing. This decomposition lets the user compute each contribution independently, build
-diagnostics like budget closure, or analyse the energetics of individual processes.
+viscous/subgrid momentum flux (minus the stress tensor, so ``\tau_{ij} = -2\nu S_{ij}`` for a constant
+viscosity), ``\mathbf{u}^S`` is the Stokes drift, and ``F_{u_i}`` is the forcing. This
+decomposition lets the user compute each contribution independently, build diagnostics like budget
+closure, or analyze the energetics of individual processes.
 
 Each module wraps the corresponding Oceananigans velocity-tendency kernel and provides
 diagnostics at the natural grid location for that velocity component:
@@ -133,7 +134,7 @@ Two caveats worth noting:
 
 ## `HydrostaticFreeSurfaceModel` caveats
 
-- `WMomentumEquation.Tendency`, `WMomentumEquation.Forcing(model, Val(:w))`, and the
+- `WMomentumEquation.Tendency`, `WMomentumEquation.Forcing(model)`, and the
   U/V/W `StokesShear` and `StokesTendency` throw an `ArgumentError` on
   `HydrostaticFreeSurfaceModel`: `w` is diagnosed from continuity rather than evolved by a
   prognostic equation, and HFS has no `stokes_drift` field.
@@ -145,22 +146,6 @@ Two caveats worth noting:
   `U_dot_∇u`/`U_dot_∇v`, whereas the NH `Advection` diagnostic returns a KFO whose kernel
   function is `div_𝐯u`/`div_𝐯v` — both pass the `isa Advection` type check via the
   `Advection` Union alias.
-
-## `Forcing` dispatch quirk
-
-`Forcing` aliases `KernelFunctionOperation` directly (no narrowing on the kernel function),
-so its constructor methods are shared across the three modules. To avoid clobbering
-`UMomentumEquation.Forcing(model)` when the V and W modules are also loaded, the V/W
-single-argument convenience form takes an explicit `Val` tag:
-
-```julia
-UMomentumEquation.Forcing(model)              # u-momentum forcing
-VMomentumEquation.Forcing(model, Val(:v))     # v-momentum forcing
-WMomentumEquation.Forcing(model, Val(:w))     # w-momentum forcing
-```
-
-The full explicit form `Forcing(model, forcing, clock, model_fields, Val(:u/:v/:w))` is
-available in all three modules.
 
 ## U-momentum
 

@@ -41,15 +41,15 @@ function test_buoyancy_diagnostics(model)
     fx, fy, fz = get_coriolis_frequency_components(model)
     if model.buoyancy != nothing && model.buoyancy.formulation isa LinearBuoyancyForce
 
-        Ri = RichardsonNumber(model)
-        @test Ri isa RichardsonNumber
+        Ri = GradientRichardsonNumber(model)
+        @test Ri isa GradientRichardsonNumber
         Ri_field = Field(Ri)
         @test Ri_field isa Field
         @test Array(interior(Ri_field))[3, 3, 3] ≈ N² / S^2
 
         b = buoyancy_operation(model)
-        Ri = RichardsonNumber(model, u, v, w, b)
-        @test Ri isa RichardsonNumber
+        Ri = GradientRichardsonNumber(model, u, v, w, b)
+        @test Ri isa GradientRichardsonNumber
         Ri_field = Field(Ri)
         @test Ri_field isa Field
         @test Array(interior(Ri_field))[3, 3, 3] ≈ N² / S^2
@@ -98,6 +98,26 @@ function test_buoyancy_diagnostics(model)
     DEPV = DirectionalErtelPotentialVorticity(model, (0, 0, 1), u, v, w, b, model.coriolis)
     @test DEPV isa DirectionalErtelPotentialVorticity
     @test Field(DEPV) isa Field
+
+    # Veering shear (#304): `u` constant and `v` linear in z turns the shear vector with height, so
+    # the vector shear is exactly S² while the shear of the speed is not. Sets velocities, so last.
+    if model.buoyancy != nothing && model.buoyancy.formulation isa LinearBuoyancyForce
+        U₀ = 1e-2
+        set!(model, u = (x, y, z) -> U₀, v = (x, y, z) -> S * z)
+
+        Ri_field = Field(GradientRichardsonNumber(model))
+        @test Array(interior(Ri_field))[3, 3, 3] ≈ N² / S^2
+
+        # Gravity along -x exercises the tilted branch: `u` is then the vertical component, so its
+        # shear must cancel out. `w` is passed as zero so `v` alone carries the horizontal shear.
+        if model.buoyancy.formulation isa BuoyancyTracer
+            A = 3S
+            set!(model, u = (x, y, z) -> A * x, v = (x, y, z) -> S * x, b = (x, y, z) -> N² * x)
+
+            Ri_tilted = GradientRichardsonNumber(model, u, v, ZFaceField(model.grid), model.tracers.b, (1, 0, 0))
+            @test Array(interior(Field(Ri_tilted)))[3, 3, 3] ≈ N² / S^2 # not N² / (A² + S²)
+        end
+    end
 
     return nothing
 end

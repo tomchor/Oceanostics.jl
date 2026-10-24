@@ -8,6 +8,8 @@ using Oceananigans.Grids: topology
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
 
 using Oceanostics
+# `DisplacementPotential` is scoped to its own module, so it is imported rather than exported here
+using Oceanostics.AvailablePotentialEnergyEquation: DisplacementPotential
 
 # Include common test utilities
 include("test_utils.jl")
@@ -48,14 +50,14 @@ function test_background_and_available_pe(model; geopotential_height = nothing, 
     z✶  = AvailablePotentialEnergyEquation.reference_height(model; method, kwargs...)
     Eₚ  = PotentialEnergyEquation.PotentialEnergy(model; kwargs...)
     E_b = AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)
-    E_a = AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)
+    Eₐ = AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)
 
     @test E_b isa AvailablePotentialEnergyEquation.BackgroundPotentialEnergy
-    @test E_a isa AvailablePotentialEnergyEquation.AvailablePotentialEnergy
+    @test Eₐ isa AvailablePotentialEnergyEquation.AvailablePotentialEnergy
 
-    Eₚ_field, E_b_field, E_a_field = Field(Eₚ), Field(E_b), Field(E_a)
+    Eₚ_field, E_b_field, Eₐ_field = Field(Eₚ), Field(E_b), Field(Eₐ)
     @test E_b_field isa Field
-    @test E_a_field isa Field
+    @test Eₐ_field isa Field
 
     grid = model.grid
     FT = eltype(grid)
@@ -63,7 +65,7 @@ function test_background_and_available_pe(model; geopotential_height = nothing, 
     # `Eₐ` is the *local* available potential energy of Holliday & McIntyre (1981), the work needed to
     # bring a parcel from its reference height to where it is. That is non-negative everywhere, which
     # `Eₚ - E_b` is not: the two agree in the volume integral, not cell by cell.
-    @test minimum(interior(E_a_field)) > -sqrt(eps(FT)) * maximum(abs, interior(Eₚ_field))
+    @test minimum(interior(Eₐ_field)) > -sqrt(eps(FT)) * maximum(abs, interior(Eₚ_field))
 
     # Sorting only rearranges cells between heights, so it moves no volume and leaves the
     # volume-weighted mean height where it was. The comparison needs an absolute tolerance because
@@ -71,8 +73,8 @@ function test_background_and_available_pe(model; geopotential_height = nothing, 
     @test volume_mean(z✶) ≈ volume_mean(height_operation(grid)) atol = sqrt(eps(FT)) * grid.Lz
 
     # The sorted state is the state of minimum potential energy, so ∫Eₐ = ∫Eₚ - ∫E_b ≥ 0
-    ∫Eₚ, ∫E_b, ∫E_a = volume_integral(Eₚ), volume_integral(E_b), volume_integral(E_a)
-    @test ∫E_a ≥ -sqrt(eps(FT)) * max(abs(∫Eₚ), abs(∫E_b))
+    ∫Eₚ, ∫E_b, ∫Eₐ = volume_integral(Eₚ), volume_integral(E_b), volume_integral(Eₐ)
+    @test ∫Eₐ ≥ -sqrt(eps(FT)) * max(abs(∫Eₚ), abs(∫E_b))
 
     return nothing
 end
@@ -112,10 +114,10 @@ function test_available_pe_vanishes_when_sorted(grid; method = ThreeDimensionalS
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = (x, y, z) -> 3z)
 
-    ∫E_a = volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model; method))
+    ∫Eₐ = volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model; method))
     ∫Eₚ  = volume_integral(PotentialEnergyEquation.PotentialEnergy(model))
 
-    @test ∫E_a ≈ 0 atol=sqrt(eps(eltype(grid))) * abs(∫Eₚ)
+    @test ∫Eₐ ≈ 0 atol=sqrt(eps(eltype(grid))) * abs(∫Eₚ)
     @test volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model; method)) ≈ ∫Eₚ
 
     return nothing
@@ -171,11 +173,11 @@ function test_sorting_methods_agree(grid)
 
         z✶  = AvailablePotentialEnergyEquation.reference_height(model; method)
         ∫E_b = volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶))
-        ∫E_a = volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶))
+        ∫Eₐ = volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶))
 
         if isnothing(reference)
-            reference = (∫E_b, ∫E_a)
-            @test ∫E_a > 0
+            reference = (∫E_b, ∫Eₐ)
+            @test ∫Eₐ > 0
             # `∫E_b + ∫Eₐ` only approaches `∫Eₚ` as the vertical grid refines — the local density
             # evaluates the reference profile at the model's cell centers rather than the sorted
             # column's. `test_local_ape_converges_to_the_winters_total` pins that convergence down;
@@ -183,7 +185,7 @@ function test_sorting_methods_agree(grid)
             # that the three methods land on the same total as each other.
         else
             @test ∫E_b ≈ reference[1]
-            @test ∫E_a ≈ reference[2]
+            @test ∫Eₐ ≈ reference[2]
         end
     end
 
@@ -247,7 +249,7 @@ function test_profile_lookup_matches_the_ranked_sort()
 
     ranked = AvailablePotentialEnergyEquation.reference_height(model, method=ThreeDimensionalSort())
     ∫E_b_expected = volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, ranked))
-    ∫E_a_expected = volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, ranked))
+    ∫Eₐ_expected = volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, ranked))
 
     # a column to borrow, and the same profile as bare vectors (kept on the model's architecture)
     column  = AvailablePotentialEnergyEquation.reference_height(model, method=VerticalSort())
@@ -259,15 +261,16 @@ function test_profile_lookup_matches_the_ranked_sort()
 
         @test interior(z✶) ≈ interior(ranked)
         @test volume_integral(AvailablePotentialEnergyEquation.BackgroundPotentialEnergy(model, z✶)) ≈ ∫E_b_expected
-        @test volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶))  ≈ ∫E_a_expected
+        @test volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶))  ≈ ∫Eₐ_expected
 
-        E_a = interior(Field(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)))
-        @test minimum(E_a) > -sqrt(eps(eltype(grid))) * max(maximum(abs, E_a), eps(eltype(grid)))
+        Eₐ = interior(Field(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)))
+        @test minimum(Eₐ) > -sqrt(eps(eltype(grid))) * max(maximum(abs, Eₐ), eps(eltype(grid)))
     end
 
     # a well-formed profile has matched lengths, buoyancy running up, and heights rising with it. Each
     # assertion matches its own message, so a profile rejected for the wrong reason still fails.
     for (msg, bad) in ("buoyancy and height have different" => ProfileLookup(b✶[1:end-1], z✶_prof),
+                       "empty reference profile"            => ProfileLookup(empty(b✶), empty(z✶_prof)),
                        "ordered from the densest fluid up"  => ProfileLookup(reverse(b✶), z✶_prof),
                        "heights paired with"                => ProfileLookup(b✶, reverse(z✶_prof)))
         @test_throws msg AvailablePotentialEnergyEquation.reference_height(model; method=bad)
@@ -482,10 +485,10 @@ function test_local_ape_is_non_negative(grid)
         for method in (ThreeDimensionalSort(), HeavisideIntegral())
             method isa HeavisideIntegral || uniform_volumes || continue
             z✶ = AvailablePotentialEnergyEquation.reference_height(model; method)
-            E_a = interior(Field(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)))
-            scale = maximum(abs, E_a)
+            Eₐ = interior(Field(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)))
+            scale = maximum(abs, Eₐ)
             # only roundoff may dip below zero, and it scales with the field, not with the grid
-            @test minimum(E_a) > -sqrt(eps(eltype(grid))) * max(scale, eps(eltype(grid)))
+            @test minimum(Eₐ) > -sqrt(eps(eltype(grid))) * max(scale, eps(eltype(grid)))
             @test volume_integral(AvailablePotentialEnergyEquation.AvailablePotentialEnergy(model, z✶)) ≥ 0
         end
     end
@@ -549,17 +552,106 @@ fixed by `z✶` and the grid alone. Checking it against that difference pins the
 thing about `Υ` a reader cannot verify from the result. Sorting moves cells between heights but no
 volume, so `Υ` also has to average to zero over the domain.
 """
-function test_buoyancy_displacement_potential(grid; method = HeavisideIntegral())
+function test_displacement_potential(grid; method = HeavisideIntegral())
 
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
     set!(model, b = grid_noise)
 
     z✶ = AvailablePotentialEnergyEquation.reference_height(model; method)
-    Υ  = BuoyancyDisplacementPotential(model, z✶)
-    @test Υ isa BuoyancyDisplacementPotential
+    Υ  = DisplacementPotential(model, z✶)
+    @test Υ isa DisplacementPotential
 
     @test interior(Field(Υ)) ≈ interior(z✶) .- interior(Field(height_operation(grid)))
     @test volume_mean(Υ) ≈ 0 atol = sqrt(eps(eltype(grid))) * grid.Lz
+
+    return nothing
+end
+
+"""
+`bᵣ` is the buoyancy a parcel carries relative to the reference profile at its *own* height, so the
+sharp check is against that profile rather than against the anomaly's own kernel: `b✶(z)` is the
+buoyancy of whichever slot of the sorted column contains `z`, which for a horizontally uniform
+stratification is the parcel's own level. Sorting cannot move fluid between levels there, so `bᵣ`
+vanishes cell by cell — the same statement `Υ = 0` makes about the displacement, in buoyancy rather
+than in height.
+"""
+function test_reference_buoyancy_anomaly(grid; method = HeavisideIntegral())
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = grid_noise)
+
+    z✶  = AvailablePotentialEnergyEquation.reference_height(model; method)
+    b✶ᶻ = BackgroundPotentialEnergyEquation.reference_buoyancy_at_height(z✶)
+    bᵣ  = ReferenceBuoyancyAnomaly(model, z✶)
+    @test bᵣ isa ReferenceBuoyancyAnomaly
+
+    @test interior(Field(bᵣ)) ≈ interior(model.tracers.b) .- interior(b✶ᶻ)
+
+    # Every cell's `b✶(z)` is one of the buoyancies the field holds, since the profile is the sorted
+    # field itself: reading it off any other profile would show up here. Both sides come to the host
+    # first: `∈` over one array inside a reduction over another is a nested reduction, which a GPU
+    # cannot run (`mapreduce cannot figure the output element type`), and a `Set` keeps it linear.
+    buoyancies = Set(Array(interior(model.tracers.b)))
+    @test all(b -> b ∈ buoyancies, Array(interior(b✶ᶻ)))
+
+    sorted = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(sorted, b = (x, y, z) -> 3z)
+    @test maximum(abs, interior(Field(ReferenceBuoyancyAnomaly(sorted; method)))) == 0
+
+    # A profile-less `ProfileLookup` ranks the field itself, so it describes the same profile the
+    # stacking methods do and has to give the same anomaly. It reaches that profile through the ranking
+    # the sort already left behind rather than repeating the sort, which is what `reference_profile`
+    # specializes on. (`ProfileLookup` stacks cells, so it needs uniform cell volumes.)
+    if !BackgroundPotentialEnergyEquation.stretched_grid(grid)
+        z✶_lookup = AvailablePotentialEnergyEquation.reference_height(model, method = ProfileLookup())
+        @test interior(Field(ReferenceBuoyancyAnomaly(model, z✶_lookup))) ≈ interior(Field(bᵣ))
+    end
+
+    return nothing
+end
+
+"""
+The `eₐ` budget converts at `w bᵣ` while the `eₚ` budget converts at `wb`, and the two differ by
+`w b✶(z)`. Both products are formed on the same face and interpolated the same way, so that difference
+is exact cell by cell rather than approximate, which is what this pins down: the conversion is fed the
+reference profile itself in place of the anomaly to compute `w b✶(z)`.
+
+`w b✶(z)` is a flux divergence, so it integrates away and leaves `∫w bᵣ dV = ∫wb dV` — the identity the
+lock release example's integrated budget rests on, and the reason `PotentialToKineticEnergyConversion`
+closes it despite not being this quantity.
+"""
+function test_ape_to_ke_conversion(grid; method = HeavisideIntegral())
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = (x, y, z) -> z + 0.3sin(6x)*cos(4y)*z, w = (x, y, z) -> 0.2sin(3x)*sin(2y)*sin(π*z/grid.Lz))
+
+    z✶  = AvailablePotentialEnergyEquation.reference_height(model; method)
+    b✶ᶻ = BackgroundPotentialEnergyEquation.reference_buoyancy_at_height(z✶)
+    bᵣ  = Field(ReferenceBuoyancyAnomaly(model, z✶))
+
+    wbᵣ = AvailablePotentialToKineticEnergyConversion(model, z✶; anomaly = bᵣ)
+    wb✶ = AvailablePotentialToKineticEnergyConversion(model, z✶; anomaly = b✶ᶻ)
+    wb  = PotentialToKineticEnergyConversion(model)
+    @test wbᵣ isa AvailablePotentialToKineticEnergyConversion
+
+    @test interior(Field(wb)) ≈ interior(Field(wbᵣ)) .+ interior(Field(wb✶))
+
+    # The two conversions are different fields, so the identity above is a statement about the split
+    # and not about them being the same thing.
+    @test !(interior(Field(wbᵣ)) ≈ interior(Field(wb)))
+
+    FT = eltype(grid)
+    scale = maximum(abs, interior(Field(wb)))
+    @test volume_mean(wb✶) ≈ 0 atol = sqrt(eps(FT)) * scale
+    @test volume_mean(wbᵣ) ≈ volume_mean(wb)
+
+    # Built without a prebuilt anomaly it has to give the same answer, sorting on its own.
+    @test interior(Field(AvailablePotentialToKineticEnergyConversion(model; method))) ≈ interior(Field(wbᵣ))
+
+    # A sorted field has no available energy to release, whatever the velocity does.
+    sorted = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(sorted, b = (x, y, z) -> 3z, w = (x, y, z) -> 0.2sin(3x)*sin(π*z/grid.Lz))
+    @test maximum(abs, interior(Field(AvailablePotentialToKineticEnergyConversion(sorted; method)))) == 0
 
     return nothing
 end
@@ -577,20 +669,20 @@ function test_ape_dissipation_matches_tracer_variance_discretization(grid)
     set!(model, b = grid_noise)
 
     z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
-    ε_A = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = model.tracers.b)
-    @test ε_A isa AvailablePotentialEnergyDissipationRate
+    εₐ = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = model.tracers.b)
+    @test εₐ isa AvailablePotentialEnergyDissipationRate
 
     χ = TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)
-    @test interior(Field(ε_A)) ≈ interior(Field(χ)) ./ 2
+    @test interior(Field(εₐ)) ≈ interior(Field(χ)) ./ 2
 
     return nothing
 end
 
 """
 A horizontally uniform, statically stable stratification is its own sorted state, so under
-[`HeavisideIntegral`](@ref) it gets `z✶ = z` and holds no available energy to destroy: `Υ` and `ε_A`
-both vanish cell by cell. `ε_A` is the sharper of the two, since the diapycnal mixing rate and the
-diffusion of the reference state have to cancel rather than each being small — `κ|∇b|²`, which `ε_A` is
+[`HeavisideIntegral`](@ref) it gets `z✶ = z` and holds no available energy to destroy: `Υ` and `εₐ`
+both vanish cell by cell. `εₐ` is the sharper of the two, since the diapycnal mixing rate and the
+diffusion of the reference state have to cancel rather than each being small — `κ|∇b|²`, which `εₐ` is
 sometimes mistaken for, would be nowhere near zero here. `χ/2` is that non-cancelling scale, so it is
 what the residual is measured against.
 """
@@ -603,14 +695,14 @@ function test_ape_dissipation_vanishes_when_sorted(grid)
     scale = maximum(abs, interior(Field(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)))) / 2
     @test scale > 0   # otherwise the assertion below would hold for any implementation
 
-    @test maximum(abs, interior(Field(BuoyancyDisplacementPotential(model)))) < sqrt(eps(FT)) * grid.Lz
+    @test maximum(abs, interior(Field(DisplacementPotential(model)))) < sqrt(eps(FT)) * grid.Lz
     @test maximum(abs, interior(Field(AvailablePotentialEnergyDissipationRate(model)))) < sqrt(eps(FT)) * scale
 
     return nothing
 end
 
 """
-`ε_A` holds `Υ`, which holds `z✶`, so a `compute!` has to refresh the whole chain rather than read a
+`εₐ` holds `Υ`, which holds `z✶`, so a `compute!` has to refresh the whole chain rather than read a
 stale displacement. A frozen `Υ` would not throw or look obviously wrong — it would just report the
 previous step's dissipation — so this moves the flow on and checks the result against a diagnostic
 built fresh from the new state.
@@ -623,27 +715,27 @@ function test_ape_dissipation_is_recomputed(grid)
     model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(ν=1e-6, κ=1e-3))
     set!(model, b = (x, y, z) -> z + 0.3 * sin(9x))
 
-    ε_A = Field(AvailablePotentialEnergyDissipationRate(model))
-    stirred = maximum(abs, interior(ε_A))
+    εₐ = Field(AvailablePotentialEnergyDissipationRate(model))
+    stirred = maximum(abs, interior(εₐ))
     @test stirred > 0
 
     set!(model, b = (x, y, z) -> 2z + 0.5 * sin(7x) * cos(5z))
-    compute!(ε_A)
+    compute!(εₐ)
 
-    @test maximum(abs, interior(ε_A)) != stirred
-    @test interior(ε_A) ≈ interior(Field(AvailablePotentialEnergyDissipationRate(model)))
+    @test maximum(abs, interior(εₐ)) != stirred
+    @test interior(εₐ) ≈ interior(Field(AvailablePotentialEnergyDissipationRate(model)))
 
     z✶ = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
-    shared = Field(BuoyancyDisplacementPotential(model, z✶))
-    @test interior(Field(AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = shared))) ≈ interior(ε_A)
+    shared = Field(DisplacementPotential(model, z✶))
+    @test interior(Field(AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = shared))) ≈ interior(εₐ)
 
     return nothing
 end
 
 """
-`ε_A` is the diapycnal mixing rate less `Φ`, so adding the two back gives that mixing rate,
+`εₐ` is the diapycnal mixing rate less `Φ`, so adding the two back gives that mixing rate,
 `κ ∇b·∇z✶`, the quantity mixing raises `E_b` by. `z✶` rises with `b`, so the sum has to be non-negative,
-and that is the sharp check: neither `ε_A` nor `Φ` is sign-definite on its own, so getting either one's
+and that is the sharp check: neither `εₐ` nor `Φ` is sign-definite on its own, so getting either one's
 sign, scaling or grid metrics wrong shows up here as a negative. Checked cell by cell, which is the
 stronger statement, and in the volume integral, which is the one the budget rests on.
 """
@@ -653,22 +745,22 @@ function test_ape_dissipation_plus_diffusive_flux_is_the_mixing_rate(grid)
     set!(model, b = (x, y, z) -> 2z + 0.4 * sin(7x) * cos(5z))
 
     z✶  = AvailablePotentialEnergyEquation.reference_height(model, method=HeavisideIntegral())
-    Υ   = Field(BuoyancyDisplacementPotential(model, z✶))
-    ε_A = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = Υ)
+    Υ   = Field(DisplacementPotential(model, z✶))
+    εₐ = AvailablePotentialEnergyDissipationRate(model, z✶; upsilon = Υ)
     Φ   = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)
 
-    mixing_rate = interior(Field(ε_A)) .+ interior(Field(Φ))
+    mixing_rate = interior(Field(εₐ)) .+ interior(Field(Φ))
     scale = maximum(abs, interior(Field(TracerVarianceEquation.TracerVarianceDissipationRate(model, :b)))) / 2
     @test scale > 0
     @test minimum(mixing_rate) > -sqrt(eps(eltype(grid))) * scale
     @test maximum(mixing_rate) > 0.01 * scale   # and it is not uniformly zero, which would pass trivially
-    @test volume_integral(ε_A) + volume_integral(Φ) > 0
+    @test volume_integral(εₐ) + volume_integral(Φ) > 0
 
     return nothing
 end
 
 """
-`ε_A` reads `κ∇b` off the closure's own diffusive flux, so the buoyancy has to be a tracer the closure
+`εₐ` reads `κ∇b` off the closure's own diffusive flux, so the buoyancy has to be a tracer the closure
 diffuses; and both diagnostics read the parcel's height off the grid `z✶` lives on, so a
 [`VerticalSort`](@ref) column — where that height *is* `z✶`, and a horizontal gradient means nothing —
 has to be rejected rather than silently returning zero.
@@ -692,12 +784,13 @@ function test_upsilon_and_ape_dissipation_errors(grid)
     set!(model, b = grid_noise)
     column = AvailablePotentialEnergyEquation.reference_height(model, method=VerticalSort())
 
-    @test_throws "model grid" BuoyancyDisplacementPotential(model, column)
+    @test_throws "model grid" DisplacementPotential(model, column)
     @test_throws "model grid" AvailablePotentialEnergyDissipationRate(model, column)
+    @test_throws "model grid" ReferenceBuoyancyAnomaly(model, column)
+    @test_throws "model grid" AvailablePotentialToKineticEnergyConversion(model, column)
 
     return nothing
 end
-#---
 
 """
 The reference state is the arrangement of the fluid with the least potential energy, which means sorting
@@ -722,8 +815,75 @@ function test_tilted_gravity_is_rejected(grid)
     z✶ = AvailablePotentialEnergyEquation.reference_height(model.tracers.b; method = HeavisideIntegral())
     @test_throws "`BackgroundPotentialEnergy`" BackgroundPotentialEnergy(model, z✶)
     @test_throws "`AvailablePotentialEnergy`" AvailablePotentialEnergy(model, z✶)
-    @test_throws "`BuoyancyDisplacementPotential`" BuoyancyDisplacementPotential(model, z✶)
+    @test_throws "`AvailablePotentialEnergyDisplacementPotential`" DisplacementPotential(model, z✶)
     @test_throws "`AvailablePotentialEnergyDissipationRate`" AvailablePotentialEnergyDissipationRate(model, z✶)
+    @test_throws "`ReferenceBuoyancyAnomaly`" ReferenceBuoyancyAnomaly(model, z✶)
+    @test_throws "`AvailablePotentialToKineticEnergyConversion`" AvailablePotentialToKineticEnergyConversion(model, z✶)
+    # `R` also checks the profile tendency it is handed, so the message is pinned to the gravity check
+    gravity_message = "`AvailablePotentialEnergyReferenceTendency` measures buoyancy against depth"
+    @test_throws gravity_message AvailablePotentialEnergyReferenceTendency(model, CenterField(grid), z✶)
+
+    return nothing
+end
+
+"""
+`eₐ` is homogeneous of degree one in buoyancy: scaling `b` and the profile `b✶` together scales `eₐ` and
+leaves `z✶` where it was. Differentiating along that scaling, the change in `b` contributes `Υb` and
+the change in the profile contributes `R` with `∂ₜb✶ = b✶`, so the two add back up to `eₐ` (Euler's
+theorem). That pins `R`'s sign, its limits and the slots it integrates over exactly, against `eₐ`'s own
+discretization rather than a reimplementation. A uniform tendency `c` then makes `R = c(z - z✶) = -cΥ`,
+which `R` has to follow when the tendency it reads changes.
+"""
+function test_reference_tendency(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = grid_noise)
+    b = model.tracers.b
+
+    column = reference_height(model, method=VerticalSort())
+    z✶ = reference_height(b; method=ProfileLookup(column))
+
+    ∂ₜb✶ = CenterField(column.grid)
+    interior(∂ₜb✶) .= interior(reference_buoyancy(column))
+    R = AvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶)
+    @test R isa AvailablePotentialEnergyReferenceTendency
+    @test occursin("computes:", sprint(show, MIME("text/plain"), R))
+
+    eₐ = Field(AvailablePotentialEnergy(model, z✶))
+    Υ  = Field(DisplacementPotential(model, z✶))
+    @test interior(Field(R)) ≈ interior(eₐ) .- interior(Υ) .* interior(b)
+
+    # the same through the `TimeDerivative` the diagnostic is ordinarily handed
+    ∂ₜb✶_derivative = TimeDerivative(reference_buoyancy(column))
+    interior(∂ₜb✶_derivative.result) .= interior(reference_buoyancy(column))
+    @test interior(Field(AvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶_derivative, z✶))) ≈ interior(Field(R))
+
+    R_field = Field(R)
+    interior(∂ₜb✶) .= 2
+    compute_at!(R_field, 1.0)
+    @test interior(R_field) ≈ -2 .* interior(Υ)
+
+    return nothing
+end
+
+"""
+`R` integrates the profile tendency over the slots of the sorted column, so it has to be handed one
+value per slot of a column that spans the model's depth: a field on the model grid, or a column of
+another depth, is refused rather than integrated over the wrong slots. The reference height it starts
+from has to live on the model grid, as for `Υ`.
+"""
+function test_reference_tendency_errors(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = grid_noise)
+
+    column = reference_height(model, method=VerticalSort())
+    z✶ = reference_height(model, method=ProfileLookup(column))
+    shallow_column = RectilinearGrid(arch, size=(1, 1, prod(size(grid))), extent=(1, 1, grid.Lz / 2))
+
+    @test_throws "sorted column" AvailablePotentialEnergyReferenceTendency(model, CenterField(grid), z✶)
+    @test_throws "sorted column" AvailablePotentialEnergyReferenceTendency(model, CenterField(shallow_column), z✶)
+    @test_throws "model grid" AvailablePotentialEnergyReferenceTendency(model, CenterField(column.grid), column)
 
     return nothing
 end
@@ -765,17 +925,21 @@ end
         @info "      Testing that the local available potential energy is non-negative"
         test_local_ape_is_non_negative(grid)
 
-        @info "      Testing the buoyancy displacement potential and the APE dissipation rate"
-        test_buoyancy_displacement_potential(grid; method = grid_method)
+        @info "      Testing the displacement potential and the APE dissipation rate"
+        test_displacement_potential(grid; method = grid_method)
+
+        @info "      Testing the reference buoyancy anomaly and the APE to KE conversion"
+        test_reference_buoyancy_anomaly(grid; method = grid_method)
+        test_ape_to_ke_conversion(grid; method = grid_method)
         test_ape_dissipation_matches_tracer_variance_discretization(grid)
         test_ape_dissipation_vanishes_when_sorted(grid)
         test_ape_dissipation_is_recomputed(grid)
         test_upsilon_and_ape_dissipation_errors(grid)
         test_tilted_gravity_is_rejected(grid)
 
-        # `Φ` itself is tested with the rest of the `e_p` equation, in `test_pe_diagnostics.jl`; what
-        # belongs here is the identity that defines `ε_A` in terms of it.
-        @info "      Testing that ε_A + Φ is the diapycnal mixing rate"
+        # `Φ` itself is tested with the rest of the `eₚ` equation, in `test_pe_diagnostics.jl`; what
+        # belongs here is the identity that defines `εₐ` in terms of it.
+        @info "      Testing that εₐ + Φ is the diapycnal mixing rate"
         test_ape_dissipation_plus_diffusive_flux_is_the_mixing_rate(grid)
 
         @info "      Testing the `ThreeDimensionalSort`, `HeavisideIntegral` and `VerticalSort` methods"
@@ -784,6 +948,11 @@ end
             test_sorting_methods_agree(grid)   # needs at least two methods to run, so regular grids only
             test_one_dimensional_sort_column(grid)
             test_reference_buoyancy_triggers_the_sort(grid)
+
+            # `R` reads its profile tendency off a `VerticalSort` column, which needs uniform cells
+            @info "      Testing the reference tendency R"
+            test_reference_tendency(grid)
+            test_reference_tendency_errors(grid)
         else
             @info "      Testing that only `HeavisideIntegral` runs on a stretched grid"
             test_stretched_grid_restrictions(grid)

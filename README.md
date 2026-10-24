@@ -14,13 +14,14 @@ companion package to [Oceananigans](https://github.com/CliMA/Oceananigans.jl), s
 first to the [Oceananigans documentation](https://clima.github.io/OceananigansDocumentation/stable/)
 before getting started with Oceanostics.
 
+GPU testing runs on hardware provided by [atdepth](https://www.atdepth.org).
 
 ## Installation
 
 To install the latest stable version from Julia:
 ```julia
 julia> ]
-(@v1.9) pkg> add Oceanostics
+(@v1.13) pkg> add Oceanostics
 ```
 
 If you want the latest developments (which may or may not be unstable) you can add the latest
@@ -28,5 +29,5 @@ version from Github in the `main` branch:
 
 ```julia
 julia> ]
-(@v1.9) pkg> add Oceanostics#main
+(@v1.13) pkg> add Oceanostics#main
 ```

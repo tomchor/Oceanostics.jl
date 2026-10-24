@@ -11,6 +11,7 @@ using Oceanostics
 using Oceanostics: BoxFilter, GaussianFilter
 # operator types are internal (not exported) — reach them through the submodule for the `isa` checks
 using Oceanostics.SpatialFilters: GaussianFilterKernel, StretchedGaussianFilterKernel, BoxFilterOperator, GaussianFilterOperator
+using Oceanostics.SpatialFilters: filtered_dims, mixes_vertical_levels
 
 arch = has_cuda_gpu() ? GPU() : CPU()
 
@@ -327,6 +328,35 @@ function test_per_dim_boundary(Ns, Filter, make_weights, fkw)
     shrink_in_x       = reference_weighted_average_shrink(ic,        (1,), width, Ns, w1d)
     edge_of_shrink_xy = reference_weighted_average_edge(shrink_in_x, (2,), width, Ns, w1d)
     @test Array(interior(cf)) ≈ edge_of_shrink_xy
+end
+
+# A Face-located operand along a Bounded direction is one cell longer than the grid there (N+1
+# faces). The kernels size their in-range test from the operand's location, so the last face is a
+# genuine interior point: under `:shrink` it keeps its own weight (a cell-count range check used to
+# drop it, biasing the top face toward the interior — or giving 0/0 when the off-center weights
+# vanish) and under `:edge` out-of-range offsets clamp to it rather than to the face below.
+function test_face_location_bounded_boundary(Ns, Filter, make_weights, fkw)
+    Nx, Ny, Nz = Ns
+    bounded_grid = make_grid(; topology=(Periodic, Periodic, Bounded))
+    w = ZFaceField(bounded_grid)
+    set!(w, (x, y, z) -> sin(2π * x) + z^2)
+    fill_halo_regions!(w)
+    iw = Array(interior(w))          # (Nx, Ny, Nz + 1): one more face than cells in z
+    Ns_face = (Nx, Ny, Nz + 1)
+
+    width = 2
+    w1d = make_weights(width)
+    for (boundary, reference) in ((:shrink, reference_weighted_average_shrink),
+                                  (:edge,   reference_weighted_average_edge))
+        wf = compute_filter(w, Filter, (3,), width; boundary, fkw...)
+        @test Array(interior(wf)) ≈ reference(iw, (3,), width, Ns_face, w1d)
+
+        # The fused (recursive-kernel) path reads the operand's extent through `fargs[end]` and must
+        # agree with the staged path on the same Face-located operand.
+        wf_staged = compute_filter(w, Filter, (1, 3), width; boundary, fkw...)
+        wf_fused  = Field(1.0 * Filter(w; dims=(1, 3), N=2*width + 1, boundary, fkw...))
+        @test Array(interior(wf_fused)) ≈ Array(interior(wf_staged))
+    end
 end
 
 function test_periodic_ignores_boundary(Filter, fkw)
@@ -663,6 +693,25 @@ end
 # everywhere except at one interior point). The output must equal the
 # normalized Gaussian kernel — this is the filter's impulse response, and
 # verifies that GaussianFilter actually applies the kernel it advertises.
+# A Gaussian with σ ≪ Δ truncated at N=3 has off-center weights that underflow to exactly zero, so the
+# filter is the identity. On a Face-located operand along a Bounded direction the last face is only
+# in range when the kernel sizes its range check from the operand (N+1 faces) rather than the grid
+# (N cells): a cell-count check drops that face's own (only non-zero) weight and returns 0/0 = NaN
+# there. Both directions of the range matter, so the first face is checked too, and the identity is
+# checked bit for bit since it is the exactness these degenerate weights promise.
+function test_gaussian_identity_on_face_field()
+    grid = make_grid(; topology=(Periodic, Periodic, Bounded))
+    w = ZFaceField(grid)
+    set!(w, (x, y, z) -> sin(2π * x) + z^2)
+    fill_halo_regions!(w)
+
+    for dims in ((3,), (1, 3), (1, 2, 3))
+        wf = Field(GaussianFilter(w; dims, σ=1e-4, N=3))
+        @test all(isfinite, interior(wf))
+        @test Array(interior(wf)) == Array(interior(w))
+    end
+end
+
 function test_gaussian_dirac_delta()
     N = 21
     grid_1d = RectilinearGrid(arch, size = (N,),
@@ -806,6 +855,51 @@ function test_check_filter_staging()
 end
 #---
 
+#+++ Filtered directions (`filtered_dims`)
+# `filtered_dims` reads the directions a `BoxFilter` or `GaussianFilter` averages along off the operation
+# the filter builds, so a filter object and a closure over the one-step form report the same directions,
+# and so does a filter materialized in a `Field`, composed into a larger operation, or stacked on another
+# filter. The filtered and subfilter APE diagnostics rely on it to turn away filters that act along z.
+function test_filtered_dims()
+    grid = make_grid()
+    c = center_field_from(grid, (x, y, z) -> sin(2π*x) + cos(2π*z))
+    gf = GaussianFilter(; dims=(1, 2), σ=0.1)
+    box_z = ψ -> BoxFilter(ψ; dims=3, N=3)
+
+    @test filtered_dims(c) == ()
+    @test filtered_dims(gf(c)) == (1, 2)
+    @test filtered_dims(GaussianFilter(; dims=(3, 1), σ=0.1)(c)) == (1, 3)   # sorted, whatever order `dims` had
+    @test filtered_dims(box_z(c)) == (3,)
+    @test filtered_dims(Field(gf(c))) == (1, 2)
+    @test filtered_dims(2 * gf(c) - c) == (1, 2)
+    @test filtered_dims(box_z(Field(gf(c)))) == (1, 2, 3)
+    return nothing
+end
+#---
+
+#+++ Vertical-mixing probe (`mixes_vertical_levels`)
+# `mixes_vertical_levels` tries a filter on a field that is nonzero on a single level, so it recognizes a
+# filter of any kind: the Oceanostics filters, a hand-written kernel, and an affine filter whose constant
+# boundary pad adds the same amount whatever the input. The filtered and subfilter APE diagnostics rely
+# on it to turn away filters that act along z.
+@inline z_mean(i, j, k, grid, ψ) = @inbounds (ψ[i, j, k-1] + ψ[i, j, k] + ψ[i, j, k+1]) / 3
+@inline x_mean(i, j, k, grid, ψ) = @inbounds (ψ[i-1, j, k] + ψ[i, j, k] + ψ[i+1, j, k]) / 3
+
+function test_mixes_vertical_levels()
+    grid = make_grid(; topology=(Bounded, Periodic, Bounded))
+    z_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(z_mean, ψ.grid, ψ)
+    x_mean_filter(ψ) = KernelFunctionOperation{location(ψ)...}(x_mean, ψ.grid, ψ)
+
+    @test !mixes_vertical_levels(GaussianFilter(; dims=(1, 2), σ=0.1), grid)
+    @test !mixes_vertical_levels(BoxFilter(; dims=1, N=3, boundary=(left=1.0, right=2.0)), grid)   # the pad cancels
+    @test !mixes_vertical_levels(x_mean_filter, grid)
+    @test mixes_vertical_levels(GaussianFilter(; dims=(1, 2, 3), σ=0.1), grid)
+    @test mixes_vertical_levels(BoxFilter(; dims=3, N=3), grid)
+    @test mixes_vertical_levels(z_mean_filter, grid)
+    return nothing
+end
+#---
+
 #+++ Run tests
 # Reference weights are computed in cells; the GaussianFilter API takes σ in
 # physical units. The shared test grid is uniform with Δ = 1/8, so a physical
@@ -843,6 +937,7 @@ filter_configs = [
                 test_edge_boundary(Ns, Filter, make_weights, fkw)
                 test_constant_pad_boundary(Ns, Filter, make_weights, fkw)
                 test_per_dim_boundary(Ns, Filter, make_weights, fkw)
+                test_face_location_bounded_boundary(Ns, Filter, make_weights, fkw)
                 test_periodic_ignores_boundary(Filter, fkw)
             end
 
@@ -872,6 +967,7 @@ filter_configs = [
     @testset "GaussianFilter-specific" begin
         test_σ_validation(make_grid())
         test_gaussian_dirac_delta()
+        test_gaussian_identity_on_face_field()
         test_gaussian_N_inferred()
         test_gaussian_N_inferred_anisotropic()
         test_gaussian_N_tuple_order()
@@ -892,6 +988,14 @@ filter_configs = [
 
     @testset "check_filter_staging (staged vs fused)" begin
         test_check_filter_staging()
+    end
+
+    @testset "filtered_dims" begin
+        test_filtered_dims()
+    end
+
+    @testset "mixes_vertical_levels" begin
+        test_mixes_vertical_levels()
     end
 end
 #---
