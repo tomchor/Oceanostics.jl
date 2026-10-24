@@ -1,5 +1,6 @@
 using Test
 using CUDA: @allowscalar
+using Oceananigans.Fields: ZeroField
 using Oceananigans.TurbulenceClosures: AbstractScalarDiffusivity, ThreeDimensionalFormulation
 
 using Oceanostics
@@ -104,6 +105,59 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     return nothing
 end
 
+# Random velocities without a depth mean, so the depth-integrated transport vanishes and with it the
+# diagnostic w of a HydrostaticFreeSurfaceModel at the top, where the flux of u would otherwise be -ν∂ₓw
+function set_velocities_without_depth_mean!(model)
+    set!(model, u=grid_noise, v=grid_noise)
+    u, v, w = model.velocities
+    set!(model, u=Field(u - Field(Average(u, dims=3))), v=Field(v - Field(Average(v, dims=3))))
+    return nothing
+end
+
+# Each velocity with a prognostic equation times the viscous term of that equation, from the momentum
+# modules, whose budgets are checked against the model's own tendencies
+function velocity_times_viscous_term(model, model_fields=fields(model))
+    u, v, w = model.velocities
+    args = (model.closure, model.closure_fields, model.clock, model_fields, model.buoyancy)
+    u∂ⱼτ₁ⱼ = Field(u * UMomentumEquation.ViscousDissipation(model, args...))
+    v∂ⱼτ₂ⱼ = Field(v * VMomentumEquation.ViscousDissipation(model, args...))
+    model isa HydrostaticFreeSurfaceModel && return Field(@at (Center, Center, Center) u∂ⱼτ₁ⱼ + v∂ⱼτ₂ⱼ)
+    w∂ⱼτ₃ⱼ = Field(w * WMomentumEquation.ViscousDissipation(model, args...))
+    return Field(@at (Center, Center, Center) u∂ⱼτ₁ⱼ + v∂ⱼτ₂ⱼ + w∂ⱼτ₃ⱼ)
+end
+
+function test_ke_stress_and_dissipation_rate_values(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1))
+    model = model_type(grid; closure, buoyancy=BuoyancyTracer(), tracers=:b)
+    set_velocities_without_depth_mean!(model)
+
+    DIFF = Field(KineticEnergyEquation.KineticEnergyStress(model))
+    @test interior(DIFF) ≈ interior(velocity_times_viscous_term(model))
+
+    # No momentum crosses the boundaries, so the transport divergence integrates to zero and the stress
+    # term and the dissipation rate have the same volume integral
+    εₖ = KineticEnergyEquation.KineticEnergyDissipationRate(model)
+    @test volume_integral(DIFF) ≈ volume_integral(εₖ)
+
+    return nothing
+end
+
+# With ThreeDimensionalFormulation the fluxes τ₁₃ and τ₂₃ contain ∂ₓw and ∂ᵧw, so on a
+# HydrostaticFreeSurfaceModel both diagnostics change if w is dropped from the fluxes as well as from
+# the sum over i
+function test_hydrostatic_fluxes_keep_w(grid)
+    model = HydrostaticFreeSurfaceModel(grid; closure=ScalarDiffusivity(ν=1), buoyancy=BuoyancyTracer(), tracers=:b)
+    set_velocities_without_depth_mean!(model)
+
+    # What both volume integrals would be with w zeroed in the fluxes
+    fields_without_w = merge(fields(model), (; w=ZeroField()))
+    ∫DIFF_without_w = volume_integral(velocity_times_viscous_term(model, fields_without_w))
+
+    @test !(volume_integral(KineticEnergyEquation.KineticEnergyStress(model)) ≈ ∫DIFF_without_w)
+    @test !(volume_integral(KineticEnergyEquation.KineticEnergyDissipationRate(model)) ≈ ∫DIFF_without_w)
+
+    return nothing
+end
+
 function test_ke_forcing_term(grid; model_type=NonhydrostaticModel)
     Fᵘ_func(x, y, z, t, u) = -u
     Fᵛ_func(x, y, z, t, v) = -v
@@ -172,6 +226,9 @@ end
                 @info "          Testing energy dissipation rate terms"
                 test_ke_dissipation_rate_terms(grid; model_type, closure)
 
+                @info "          Testing stress term and dissipation rate values"
+                test_ke_stress_and_dissipation_rate_values(grid; model_type, closure)
+
                 if model_type == NonhydrostaticModel
                     @info "          Testing advection terms"
                     test_momentum_advection_term(grid; model_type)
@@ -181,5 +238,8 @@ end
                 end
             end
         end
+
+        @info "      Testing that the HydrostaticFreeSurfaceModel stress term and dissipation rate keep w in the fluxes"
+        test_hydrostatic_fluxes_keep_w(grid)
     end
-end 
+end
