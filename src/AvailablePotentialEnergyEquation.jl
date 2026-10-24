@@ -5,6 +5,7 @@ using DocStringExtensions
 export AvailablePotentialEnergy, AvailablePotentialEnergyDisplacementPotential, DisplacementPotential
 export ReferenceBuoyancyAnomaly, AvailablePotentialToKineticEnergyConversion
 export AvailablePotentialEnergyDissipationRate, DissipationRate
+export AvailablePotentialEnergyReferenceTendency
 # `Φ` is a term of the `eₚ` equation and lives in `PotentialEnergyEquation`; re-exported here because
 # `εₐ` is defined as the diapycnal mixing rate less `Φ`, so the two are almost always wanted together.
 export PotentialEnergyDiffusiveVerticalBuoyancyFlux
@@ -16,8 +17,10 @@ export BackgroundPotentialEnergy, reference_height, reference_buoyancy, referenc
 export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceananigans.Fields: Field
-using Oceananigans.Grids: Center, Face
+using Oceananigans.Architectures: CPU, architecture, on_architecture
+using Oceananigans.BoundaryConditions: fill_halo_regions!
+using Oceananigans.Fields: Field, FieldStatus, compute_at!, interior, set_status!
+using Oceananigans.Grids: Center, Face, znode, znodes
 using Oceananigans.Models: model_geopotential_height
 using Oceananigans.BuoyancyFormulations: Zᶜᶜᶜ
 using Oceananigans.Operators
@@ -34,7 +37,10 @@ using ..BackgroundPotentialEnergyEquation: BackgroundPotentialEnergy, SortedRefe
                                            AbstractReferenceHeightMethod, reference_height,
                                            reference_buoyancy, reference_buoyancy_at_height,
                                            sorted_height, ThreeDimensionalSort,
-                                           HeavisideIntegral, VerticalSort, ProfileLookup
+                                           HeavisideIntegral, VerticalSort, ProfileLookup,
+                                           reference_potential_function, profile_vector, flat_grid_metric
+
+import Oceananigans.Fields: compute!
 
 #+++ Available potential energy
 # The local available potential energy `eₐ = ∫_{z✶}^{z} [b✶(z̃) - b] dz̃`, split into the part only the
@@ -455,6 +461,153 @@ function AvailablePotentialEnergyDissipationRate(model, z✶::SortedReferenceHei
 
     return KernelFunctionOperation{Center, Center, Center}(ape_dissipation_rate_ccc, model.grid,
                                                            Υ, buoyancy_diffusive_flux_arguments(model)...)
+end
+#---
+
+#+++ Reference tendency
+# `R = Ψ̇(z) - Ψ̇(z✶)`, where `Ψ̇(ζ)` integrates `∂ₜb✶` from the bottom of the domain up to `ζ`: the same
+# piecewise-linear integral `reference_potential_function` builds `Ψ` with, taken over the profile's
+# time derivative instead of the profile. Evaluating `Ψ̇` at a height needs a cumulative sum over the
+# whole column, so `R` is a `Field` whose `compute!` does that sum, the way `reference_height` hooks its
+# sort into `compute!`, and the diagnostic wraps the `Field` in a `KernelFunctionOperation` that reads
+# it, which gives it its own type and display.
+"""
+    $(TYPEDEF)
+
+Operand of the `Field` behind [`AvailablePotentialEnergyReferenceTendency`](@ref). It carries the time
+derivative of the reference profile, the faces of the slots that profile is stacked in, the reference
+height the integral starts from, and each cell's own height, where it ends.
+"""
+struct ReferenceTendencyState{D, F, Z, S}
+    profile_tendency :: D
+    slot_faces :: F
+    reference_height :: Z
+    source_height :: S
+end
+
+Base.summary(s::ReferenceTendencyState) = string("ReferenceTendencyState of ", summary(s.reference_height))
+
+const ReferenceTendencyField = Field{<:Any, <:Any, <:Any, <:ReferenceTendencyState}
+
+function compute!(R::ReferenceTendencyField, time=nothing)
+    s = R.operand
+    compute_at!(s.reference_height, time)
+    compute_at!(s.profile_tendency, time)   # a no-op for a `TimeDerivative`, which only its callback advances
+
+    Ψ̇ = reference_potential_function(s.slot_faces, profile_vector(s.profile_tendency))
+    interior(R) .= reshape(Ψ̇.(s.source_height) .- Ψ̇.(profile_vector(s.reference_height)), size(R))
+
+    fill_halo_regions!(R)
+    set_status!(R.status, time)
+
+    return R
+end
+
+# The profile tendency has to describe the column every reference height here is looked up in: one
+# value per slot of a column that spans the model's depth. Its slot faces are read off its own grid,
+# on the host, and moved to the column's architecture once.
+function profile_tendency_slot_faces(diagnostic, model, ∂ₜb✶)
+    column   = ∂ₜb✶.grid
+    faces    = collect(znodes(on_architecture(CPU(), column), Face()))
+    z_bottom = znode(1, 1, 1, on_architecture(CPU(), model.grid), Center(), Center(), Face())
+
+    is_a_column = size(∂ₜb✶)[1:2] == (1, 1) && length(faces) == size(∂ₜb✶, 3) + 1
+    is_a_column && first(faces) ≈ z_bottom && last(faces) ≈ z_bottom + model.grid.Lz ||
+        throw(ArgumentError("`$diagnostic` needs the time derivative of a reference profile on a sorted column \
+                             that spans the model's depth, such as `TimeDerivative(reference_buoyancy(z✶_column))` \
+                             with `z✶_column = reference_height(model, method=VerticalSort())`, but got one of \
+                             size $(size(∂ₜb✶)) spanning z ∈ [$(first(faces)), $(last(faces))]."))
+
+    return on_architecture(architecture(column), faces)
+end
+
+# The `Field` all three reference tendencies (full, filtered and subfilter) are built on, validated in
+# the name of the diagnostic that asks for it.
+function reference_tendency_field(diagnostic, model, ∂ₜb✶, z✶)
+    validate_gravity_is_z_aligned(diagnostic, model)
+    validate_reference_height_grid(diagnostic, model, z✶)
+
+    slot_faces = profile_tendency_slot_faces(diagnostic, model, ∂ₜb✶)
+    operand = ReferenceTendencyState(∂ₜb✶, slot_faces, z✶, flat_grid_metric(model.grid, Zᶜᶜᶜ))
+
+    return compute!(Field{Center, Center, Center}(model.grid; operand, status = FieldStatus()))
+end
+
+@inline ape_reference_tendency_ccc(i, j, k, grid, R) = @inbounds R[i, j, k]
+
+const AvailablePotentialEnergyReferenceTendency = CustomKFO{<:typeof(ape_reference_tendency_ccc)}
+
+"""
+    $(SIGNATURES)
+
+Return a `KernelFunctionOperation` computing the reference tendency of the local available potential
+energy,
+
+```
+    R = ∫_{z✶}^{z} ∂ₜb✶(z̃) dz̃ ,
+```
+
+the rate at which a parcel's `eₐ` changes because the reference profile `b✶` evolves, with the
+parcel's height and buoyancy held fixed: `R = ∂ₜeₐ` at fixed `b` and `z`. It enters the `eₐ` budget as
+`+R`. The reference state is a volume-preserving rearrangement of the fluid, so `R` integrates to zero
+over a closed or periodic domain in the continuum limit
+([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X)), and a reference profile held fixed
+in time makes it vanish identically.
+
+`∂ₜb✶` is the time derivative of the reference profile on its sorted column, ordinarily an
+Oceananigans `TimeDerivative` of the column's buoyancy:
+
+```julia
+z✶_column = reference_height(model, method=VerticalSort())
+∂ₜb✶ = TimeDerivative(reference_buoyancy(z✶_column))
+simulation.callbacks[:∂ₜb✶] = Callback(∂ₜb✶, PrecedingIterations(schedule))
+```
+
+Reading a `TimeDerivative` does not advance it, and an output writer advances only the ones listed
+directly among its outputs, so the callback is what keeps `∂ₜb✶` current. With `PrecedingIterations`
+of the output writer's `schedule`, it differences the profile across the time step that ends at each
+output, the same step the writer differences a budget's tendency over. Any field that holds one value
+per slot of a column spanning the model's depth is accepted, so a profile tendency computed another way
+works too.
+
+`R` is built from the profile's own time derivative rather than as `∂ₜeₐ - Υ∂ₜb`, which would give
+the same field more cheaply but would make a budget that includes `R` close by construction.
+
+`z✶` is the reference height the integral starts from, computed by [`reference_height`](@ref) on the
+model grid, so [`VerticalSort`](@ref) is rejected. Looking it up in the column `∂ₜb✶` differentiates,
+with `method = ProfileLookup(z✶_column)`, shares that column's sort with the other diagnostics. The
+result lives at `(Center, Center, Center)`, per unit mass (units `m² s⁻³`).
+
+```jldoctest
+using Oceananigans, Oceanostics
+
+grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1), topology=(Periodic, Periodic, Bounded))
+model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+
+z✶_column = reference_height(model, method=VerticalSort())
+∂ₜb✶ = TimeDerivative(reference_buoyancy(z✶_column))
+z✶ = reference_height(model, method=ProfileLookup(z✶_column))
+AvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶)
+
+# output
+
+AvailablePotentialEnergyReferenceTendency KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: ape_reference_tendency_ccc (generic function with 1 method)
+└── arguments: ("Field",)
+└── computes: available potential energy reference tendency  ∫∂ₜb✶(z̃)dz̃ from z✶ to z
+```
+"""
+function AvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶; method = HeavisideIntegral(),
+                                                   geopotential_height = model_geopotential_height(model),
+                                                   location = (Center, Center, Center))
+    validate_location(location, "AvailablePotentialEnergyReferenceTendency")
+    return AvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, reference_height(model; method, geopotential_height))
+end
+
+function AvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶::SortedReferenceHeightField)
+    R = reference_tendency_field("AvailablePotentialEnergyReferenceTendency", model, ∂ₜb✶, z✶)
+    return KernelFunctionOperation{Center, Center, Center}(ape_reference_tendency_ccc, model.grid, R)
 end
 #---
 

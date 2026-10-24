@@ -227,7 +227,7 @@ KineticEnergyCrossScaleFlux(model, filter)
 KineticEnergyCrossScaleFlux KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: cross_scale_ke_flux_ccc (generic function with 1 method)
-└── arguments: ("Oceananigans.AbstractOperations.UnaryOperation",)
+└── arguments: ("UnaryOperation",)
 └── computes: cross-scale kinetic energy flux  -τᵢⱼS̄ᵢⱼ
 ```
 
