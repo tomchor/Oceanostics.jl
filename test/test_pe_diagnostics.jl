@@ -276,6 +276,30 @@ function test_gravity_direction_validation(grid)
 end
 
 """
+`PotentialEnergyForcing`, `PotentialEnergyAdvection` and `PotentialEnergyBuoyancyAdvection` also build on
+a `HydrostaticFreeSurfaceModel` now (#282). `PotentialEnergyTendency` does not yet: it is still built
+directly on `NonhydrostaticModels.tracer_tendency`, so it still requires a `NonhydrostaticModel`. The
+last `@test_throws` here is a reminder to extend this test once `PotentialEnergyTendency` gains
+hydrostatic support too.
+"""
+function test_potential_energy_hydrostatic_support(grid)
+
+    Fᵇ(x, y, z, t) = 1e-4 * sin(2π * z)
+    model = HydrostaticFreeSurfaceModel(grid; buoyancy = BuoyancyTracer(), tracers = :b,
+                                        closure = ScalarDiffusivity(κ=1e-4),
+                                        forcing = (; b = Forcing(Fᵇ)))
+    set!(model, b = grid_noise)
+
+    for diagnostic in (PotentialEnergyForcing, PotentialEnergyAdvection, PotentialEnergyBuoyancyAdvection)
+        @test Field(diagnostic(model)) isa Field
+    end
+
+    @test_throws MethodError PotentialEnergyTendency(model)
+
+    return nothing
+end
+
+"""
 `wb` is the one term the kinetic and potential energy budgets share, so it is defined once in
 `KineticEnergyEquation` and re-exported by the two potential energy modules, where `KineticEnergyConversion`
 names the exchange rather than the side it feeds. The alias is deliberately *not* exported from
@@ -331,6 +355,9 @@ end
 
         @info "      Testing that a tilted gravity is rejected"
         test_gravity_direction_validation(grid)
+
+        @info "      Testing hydrostatic-model support for the low-hanging-fruit terms"
+        test_potential_energy_hydrostatic_support(grid)
     end
 
     @info "  Testing the `KineticEnergyConversion` alias and its export scope"
