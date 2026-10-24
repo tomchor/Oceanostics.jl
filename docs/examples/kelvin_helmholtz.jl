@@ -255,7 +255,7 @@ deₐˡdt  = budget_term("∂ₜ∫eₐˡ")
 w̄b̄ᵣ_bud = budget_term("∫w̄b̄ᵣ")
 Πₐ_bud  = budget_term("∫Πₐ")
 εₐˡ_bud = budget_term("∫εₐˡ")
-Rˡ_bud  = budget_term("∫Rˡ")
+Rˡ_bud  = budget_term("∫Rˡ");
 
 # Residuals in sum-to-zero form: each negative tendency plus its sources, so the plotted curves add
 # to it
@@ -283,7 +283,7 @@ using CairoMakie
 set_theme!(Theme(fontsize=18))
 fig = Figure(size=(1500, 1300))
 
-n = Observable(1)
+n = Observable(1);
 
 # `Q` and `Ri` keep colormaps of their own. The budget terms get a diverging colormap centered on
 # zero, and the two cross-scale fluxes share one color range, as do the two dissipations, so the
