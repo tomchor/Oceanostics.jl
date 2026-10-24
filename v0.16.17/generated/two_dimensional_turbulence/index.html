@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Two-dimensional turbulence · Oceanostics.jl</title><meta name="title" content="Two-dimensional turbulence · Oceanostics.jl"/><meta property="og:title" content="Two-dimensional turbulence · Oceanostics.jl"/><meta property="twitter:title" content="Two-dimensional turbulence · Oceanostics.jl"/><meta name="description" content="Documentation for Oceanostics.jl."/><meta property="og:description" content="Documentation for Oceanostics.jl."/><meta property="twitter:description" content="Documentation for Oceanostics.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Oceanostics.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><input class="collapse-toggle" id="menuitem-2" type="checkbox"/><label class="tocitem" for="menuitem-2"><span class="docs-label">Budget equations</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../tracer_equation/">Tracer equation</a></li><li><a class="tocitem" href="../../momentum_equation/">Momentum equation</a></li><li><a class="tocitem" href="../../kinetic_energy_equation/">Kinetic energy equation</a></li><li><a class="tocitem" href="../../turbulent_kinetic_energy_equation/">Turbulent kinetic energy equation</a></li><li><a class="tocitem" href="../../tracer_variance_equation/">Tracer variance equation</a></li><li><a class="tocitem" href="../../potential_energy_equation/">Potential energy equation</a></li></ul></li><li><a class="tocitem" href="../../flow_diagnostics/">Flow diagnostics</a></li><li><a class="tocitem" href="../../progress_messengers/">Progress messengers</a></li><li><a class="tocitem" href="../../filters/">Filters</a></li><li><input class="collapse-toggle" id="menuitem-6" type="checkbox" checked/><label class="tocitem" for="menuitem-6"><span class="docs-label">Examples</span><i class="docs-chevron"></i></label><ul class="collapsed"><li class="is-active"><a class="tocitem" href>Two-dimensional turbulence</a><ul class="internal"><li><a class="tocitem" href="#Model-and-simulation-setup"><span>Model and simulation setup</span></a></li><li><a class="tocitem" href="#Model-diagnostics"><span>Model diagnostics</span></a></li><li><a class="tocitem" href="#Run-the-simulation-and-process-results"><span>Run the simulation and process results</span></a></li><li><a class="tocitem" href="#Plotting"><span>Plotting</span></a></li></ul></li><li><a class="tocitem" href="../kelvin_helmholtz/">Kelvin-Helmholtz instability</a></li><li><a class="tocitem" href="../tilted_bottom_boundary_layer/">Tilted bottom boundary layer</a></li><li><a class="tocitem" href="../spatial_filtering/">Spatial filtering</a></li></ul></li><li><a class="tocitem" href="../../library/">Function library</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Two-dimensional turbulence</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Two-dimensional turbulence</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/tomchor/Oceanostics.jl/blob/main/docs/examples/two_dimensional_turbulence.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="two_d_turbulence_example"><a class="docs-heading-anchor" href="#two_d_turbulence_example">Two-dimensional turbulence example</a><a id="two_d_turbulence_example-1"></a><a class="docs-heading-anchor-permalink" href="#two_d_turbulence_example" title="Permalink"></a></h1><p>In this example we simulate a 2D flow initialized with random-noise velocities and a passive tracer <span>$c$</span> with a smooth sine/cosine initial condition. We then use Oceanostics to close the volume-integrated kinetic-energy and tracer-variance (<span>$c^2$</span>) budgets.</p><p>Before starting, make sure you have the required packages installed for this example, which can be done with</p><pre><code class="language-julia hljs">using Pkg
+pkg&quot;add Oceananigans, Oceanostics, CairoMakie&quot;</code></pre><h2 id="Model-and-simulation-setup"><a class="docs-heading-anchor" href="#Model-and-simulation-setup">Model and simulation setup</a><a id="Model-and-simulation-setup-1"></a><a class="docs-heading-anchor-permalink" href="#Model-and-simulation-setup" title="Permalink"></a></h2><p>We begin by creating a model with an isotropic diffusivity and a fourth-order centered advection scheme on a 256² grid, with one passive tracer <code>c</code>. Using a centered scheme avoids numerical dissipation, so the volume-integrated KE and <span>$c^2$</span> budgets reduce to purely dissipative balances and we can close them against <span>$\varepsilon$</span> and <span>$\chi$</span> alone.</p><pre><code class="language-julia hljs">using Oceananigans
+
+grid = RectilinearGrid(size=(256, 256), extent=(2π, 2π), topology=(Periodic, Periodic, Flat))
+
+model = NonhydrostaticModel(grid; timestepper = :RungeKutta3,
+                            advection = Centered(order=4),
+                            tracers = :c,
+                            closure = ScalarDiffusivity(ν=1e-4, κ=1e-3))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NonhydrostaticModel{CPU, RectilinearGrid}(time = 0 seconds, iteration = 0)
+├── grid: 256×256×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── timestepper: RungeKutta3TimeStepper
+├── advection scheme: Centered(order=4)
+├── tracers: c
+├── closure: ScalarDiffusivity{ExplicitTimeDiscretization}(ν=0.0001, κ=(c=0.001,))
+├── buoyancy: Nothing
+└── coriolis: Nothing</code></pre><p>Grid-scale white noise is not really <em>resolved</em> by the grid, so instead we build a randomized but well-resolved velocity initial condition as a sum of <code>N_blobs</code> Gaussian bumps with random centers and random amplitudes. Each bump is <span>$\sigma_b \approx 10\Delta x$</span> wide and the periodic copies of each center are summed in so the resulting field is smooth across the periodic boundary. The tracer keeps a smooth sine/cosine pattern.</p><pre><code class="language-julia hljs">using Random, Statistics
+
+u, v, w = model.velocities
+c = model.tracers.c
+
+Random.seed!(772)
+N_blobs = 32
+σ_blob  = 10 * minimum_xspacing(grid)
+xc      = grid.Lx * rand(N_blobs)
+yc      = grid.Ly * rand(N_blobs)
+amp_u   = randn(N_blobs) # random Gaussian amplitudes for u
+amp_v   = randn(N_blobs) # ... and for v</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">32-element Vector{Float64}:
+ -0.8353820358062429
+  1.7747312451395405
+ -1.9487671556166866
+  0.16949972192372834
+ -0.18212397359825486
+ -0.3390149109706559
+  0.5024285562453012
+ -0.7023462100880767
+ -0.6899087629358344
+ -1.7794241370329904
+  ⋮
+ -1.5689986344020759
+  0.48606157251275944
+ -0.043133230163655625
+  1.0790526075733167
+  1.04042304875431
+ -0.26015686321021925
+ -0.2621007538287886
+ -1.419160151826568
+  0.431663181261639</code></pre><p>Sum of blobs and their periodic images at (dx, dy) ∈ {-Lx, 0, Lx} × {-Ly, 0, Ly}</p><pre><code class="language-julia hljs">blob_sum(x, y, amp) = sum(amp[k] * exp(-((x - xc[k] - dx)^2 + (y - yc[k] - dy)^2) / σ_blob^2)
+                          for k  in 1:N_blobs,
+                              dx in (-grid.Lx, 0, grid.Lx),
+                              dy in (-grid.Ly, 0, grid.Ly))
+
+uᵢ(x, y) = blob_sum(x, y, amp_u)
+vᵢ(x, y) = blob_sum(x, y, amp_v)
+cᵢ(x, y) = sin(2x) * cos(3y) + cos(x) * sin(2y)
+
+set!(model, u=uᵢ, v=vᵢ, c=cᵢ)
+
+u .-= mean(u)
+v .-= mean(v)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">256×256×1 Field{Center, Face, Center} on RectilinearGrid on CPU
+├── grid: 256×256×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── boundary conditions: FieldBoundaryConditions
+│   └── west: Periodic, east: Periodic, south: Periodic, north: Periodic, bottom: Nothing, top: Nothing, immersed: Nothing
+└── data: 262×262×1 OffsetArray(::Array{Float64, 3}, -2:259, -2:259, 1:1) with eltype Float64 with indices -2:259×-2:259×1:1
+    └── max=0.865115, min=-1.148, mean=-3.26096e-17</code></pre><p>We use this model to create a simulation with a <code>TimeStepWizard</code> to maximize the Δt</p><pre><code class="language-julia hljs">u_max = max(maximum(abs, u), maximum(abs, v)) # peak speed magnitude (not signed max)
+Δt = 0.2 * minimum_xspacing(grid) / u_max      # Start with a conservative Δt
+simulation = Simulation(model; Δt, stop_time=80)
+
+wizard = TimeStepWizard(cfl=0.8, diffusive_cfl=0.8)
+simulation.callbacks[:wizard] = Callback(wizard, IterationInterval(5))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Callback of TimeStepWizard(cfl=0.8, max_Δt=Inf, min_Δt=0.0) on IterationInterval(5)</code></pre><h2 id="Model-diagnostics"><a class="docs-heading-anchor" href="#Model-diagnostics">Model diagnostics</a><a id="Model-diagnostics-1"></a><a class="docs-heading-anchor-permalink" href="#Model-diagnostics" title="Permalink"></a></h2><p>Up until now we have only used Oceananigans, but we can make use of Oceanostics for the first diagnostic we&#39;ll set-up: a progress messenger. Here we use a <code>BasicMessenger</code>, which, as the name suggests, displays basic information about the simulation</p><pre><code class="language-julia hljs">using Oceanostics
+
+progress = ProgressMessengers.BasicMessenger()
+simulation.callbacks[:progress] = Callback(progress, IterationInterval(100))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Callback of Oceanostics.ProgressMessengers.BasicMessenger{Oceanostics.ProgressMessengers.AbstractProgressMessenger} on IterationInterval(100)</code></pre><p>We define the visualization fields — speed, vorticity, kinetic energy <code>KE</code> — and the dissipation rates <code>ε</code> and <code>χ</code>, which we will use to close the budgets.</p><pre><code class="language-julia hljs">using Oceananigans.AbstractOperations: @at
+
+speed     = @at (Center, Center, Center) √(u^2 + v^2)
+vorticity = ∂x(v) - ∂y(u)
+KE        = KineticEnergyEquation.KineticEnergy(model)
+ε         = KineticEnergyEquation.DissipationRate(model)
+χ         = TracerVarianceEquation.TracerVarianceDissipationRate(model, :c)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">KernelFunctionOperation at (Center, Center, Center)
+├── grid: 256×256×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo
+├── kernel_function: tracer_variance_dissipation_rate_ccc (generic function with 1 method)
+└── arguments: (&quot;ScalarDiffusivity&quot;, &quot;Nothing&quot;, &quot;Val&quot;, &quot;Field&quot;, &quot;Clock&quot;, &quot;NamedTuple&quot;, &quot;Nothing&quot;)</code></pre><p>To close the budgets we also define the relevant volume integrals as scalar outputs. For a 2D periodic domain with no forcing or buoyancy, advection and pressure-redistribution terms volume-integrate to (essentially) zero by incompressibility, so the volume-integrated KE and <span>$c^2$</span> evolution equations reduce to</p><p class="math-container">\[\frac{d}{dt} \int \mathrm{KE}\, dV = -\int \varepsilon\, dV,\qquad
+\frac{d}{dt} \int c^2\, dV = -\int \chi\, dV.\]</p><p>A caveat: a discretized version of the continuum KE equation (such as the one above) is not guaranteed to exactly conserve energy at the <em>discrete</em> level. To get strict discrete conservation of energy one would have to derive a discrete KE equation directly from the discrete momentum equations — using both the current and previous time-step velocities. We are not doing that here: we compute <span>$\varepsilon$</span> from the current model state and finite-difference snapshots of <span>$\int \mathrm{KE}\, dV$</span> independently. The two relations are consistent in the continuum limit but only approximately at the discrete level, so we expect the KE budget to close only approximately.</p><pre><code class="language-julia hljs">∫KE = Integral(KE)
+∫c² = Integral(c^2)
+∫ε  = Integral(ε)
+∫χ  = Integral(χ)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Integral of BinaryOperation at (Center, Center, Center) over dims (1, 2, 3)
+└── operand: BinaryOperation at (Center, Center, Center)
+    └── grid: 256×256×1 RectilinearGrid{Float64, Periodic, Periodic, Flat} on CPU with 3×3×0 halo</code></pre><p>We use two NetCDF writers. A <em>visualization</em> writer outputs the 2D snapshot fields on a plain <code>TimeInterval(0.6)</code>. A <em>budget</em> writer outputs only the (cheap) integrated scalars on <code>ConsecutiveIterations(TimeInterval(0.6))</code> — i.e. a second sample one model step after each scheduled time — which lets us finite-difference the integrated quantities across that single step to estimate <span>$d/dt$</span> without time-integration accumulators. Separating the two avoids writing the heavy 2D fields twice per output time.</p><pre><code class="language-julia hljs">using NCDatasets
+filename = &quot;two_dimensional_turbulence&quot;
+
+simulation.output_writers[:nc] = NetCDFWriter(model, (; speed, vorticity, KE, c),
+                                              filename = joinpath(@__DIR__, filename),
+                                              schedule = TimeInterval(0.6),
+                                              overwrite_existing = true)
+
+simulation.output_writers[:budget] = NetCDFWriter(model, (; ∫KE, ∫c², ∫ε, ∫χ),
+                                                  filename = joinpath(@__DIR__, filename * &quot;_budget&quot;),
+                                                  schedule = ConsecutiveIterations(TimeInterval(0.6)),
+                                                  overwrite_existing = true)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">NetCDFWriter scheduled on ConsecutiveIterations(TimeInterval(600 ms), 1):
+├── filepath: build/generated/two_dimensional_turbulence_budget.nc
+├── dimensions: time(0), y_afa(256), x_faa(256), x_caa(256), y_aca(256)
+├── 4 outputs: (∫ε, ∫c², ∫KE, ∫χ)
+├── array_type: Array{Float32}
+├── file_splitting: NoFileSplitting
+└── file size: 34.4 KiB</code></pre><h2 id="Run-the-simulation-and-process-results"><a class="docs-heading-anchor" href="#Run-the-simulation-and-process-results">Run the simulation and process results</a><a id="Run-the-simulation-and-process-results-1"></a><a class="docs-heading-anchor-permalink" href="#Run-the-simulation-and-process-results" title="Permalink"></a></h2><p>To run the simulation:</p><pre><code class="language-julia hljs">run!(simulation)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>Initializing simulation...
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">000.00%</span>] time = <span class="sgr93">0 seconds</span>,  Δt = <span class="sgr93">3.069 ms</span>,  walltime = <span class="sgr93">23.692 seconds</span>,  advective CFL = <span class="sgr93">0.25</span>,  diffusive CFL = <span class="sgr93">0.0051</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>    ... simulation initialization complete (5.038 seconds)
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Executing initial time step...
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>    ... initial time step complete (3.007 seconds).
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">000.92%</span>] time = <span class="sgr93">735.902 ms</span>,  Δt = <span class="sgr93">10.602 ms</span>,  walltime = <span class="sgr93">33.656 seconds</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.018</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">002.32%</span>] time = <span class="sgr93">1.860 seconds</span>,  Δt = <span class="sgr93">12.110 ms</span>,  walltime = <span class="sgr93">36.972 seconds</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.02</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">003.78%</span>] time = <span class="sgr93">3.021 seconds</span>,  Δt = <span class="sgr93">10.606 ms</span>,  walltime = <span class="sgr93">40.337 seconds</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.018</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">005.02%</span>] time = <span class="sgr93">4.013 seconds</span>,  Δt = <span class="sgr93">10.075 ms</span>,  walltime = <span class="sgr93">43.072 seconds</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.017</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">006.41%</span>] time = <span class="sgr93">5.127 seconds</span>,  Δt = <span class="sgr93">12.293 ms</span>,  walltime = <span class="sgr93">46.385 seconds</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.02</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">007.93%</span>] time = <span class="sgr93">6.343 seconds</span>,  Δt = <span class="sgr93">12.454 ms</span>,  walltime = <span class="sgr93">49.688 seconds</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.021</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">009.53%</span>] time = <span class="sgr93">7.627 seconds</span>,  Δt = <span class="sgr93">13.146 ms</span>,  walltime = <span class="sgr93">53.004 seconds</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.022</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">011.18%</span>] time = <span class="sgr93">8.943 seconds</span>,  Δt = <span class="sgr93">14.071 ms</span>,  walltime = <span class="sgr93">56.376 seconds</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.023</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">013.07%</span>] time = <span class="sgr93">10.459 seconds</span>,  Δt = <span class="sgr93">15.973 ms</span>,  walltime = <span class="sgr93">1.004 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.027</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">014.96%</span>] time = <span class="sgr93">11.971 seconds</span>,  Δt = <span class="sgr93">15.045 ms</span>,  walltime = <span class="sgr93">1.062 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.025</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">016.82%</span>] time = <span class="sgr93">13.457 seconds</span>,  Δt = <span class="sgr93">13.948 ms</span>,  walltime = <span class="sgr93">1.125 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.023</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">018.52%</span>] time = <span class="sgr93">14.814 seconds</span>,  Δt = <span class="sgr93">14.067 ms</span>,  walltime = <span class="sgr93">1.180 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.023</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">020.31%</span>] time = <span class="sgr93">16.245 seconds</span>,  Δt = <span class="sgr93">15.037 ms</span>,  walltime = <span class="sgr93">1.245 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.025</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">022.21%</span>] time = <span class="sgr93">17.764 seconds</span>,  Δt = <span class="sgr93">15.116 ms</span>,  walltime = <span class="sgr93">1.300 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.025</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">024.08%</span>] time = <span class="sgr93">19.262 seconds</span>,  Δt = <span class="sgr93">15.528 ms</span>,  walltime = <span class="sgr93">1.366 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.026</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">025.99%</span>] time = <span class="sgr93">20.793 seconds</span>,  Δt = <span class="sgr93">14.938 ms</span>,  walltime = <span class="sgr93">1.422 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.025</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">027.80%</span>] time = <span class="sgr93">22.243 seconds</span>,  Δt = <span class="sgr93">14.274 ms</span>,  walltime = <span class="sgr93">1.487 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.024</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">029.52%</span>] time = <span class="sgr93">23.617 seconds</span>,  Δt = <span class="sgr93">13.491 ms</span>,  walltime = <span class="sgr93">1.543 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.022</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">031.19%</span>] time = <span class="sgr93">24.948 seconds</span>,  Δt = <span class="sgr93">13.408 ms</span>,  walltime = <span class="sgr93">1.599 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.022</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">032.86%</span>] time = <span class="sgr93">26.285 seconds</span>,  Δt = <span class="sgr93">13.473 ms</span>,  walltime = <span class="sgr93">1.656 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.022</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">034.50%</span>] time = <span class="sgr93">27.600 seconds</span>,  Δt = <span class="sgr93">13.196 ms</span>,  walltime = <span class="sgr93">1.711 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.022</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">036.13%</span>] time = <span class="sgr93">28.906 seconds</span>,  Δt = <span class="sgr93">13.213 ms</span>,  walltime = <span class="sgr93">1.777 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.022</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">037.79%</span>] time = <span class="sgr93">30.233 seconds</span>,  Δt = <span class="sgr93">13.746 ms</span>,  walltime = <span class="sgr93">1.834 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.023</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">039.53%</span>] time = <span class="sgr93">31.626 seconds</span>,  Δt = <span class="sgr93">14.253 ms</span>,  walltime = <span class="sgr93">1.889 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.024</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">041.30%</span>] time = <span class="sgr93">33.043 seconds</span>,  Δt = <span class="sgr93">14.341 ms</span>,  walltime = <span class="sgr93">1.957 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.024</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">043.10%</span>] time = <span class="sgr93">34.478 seconds</span>,  Δt = <span class="sgr93">14.727 ms</span>,  walltime = <span class="sgr93">2.015 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.024</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">044.95%</span>] time = <span class="sgr93">35.962 seconds</span>,  Δt = <span class="sgr93">15.274 ms</span>,  walltime = <span class="sgr93">2.072 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.025</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">046.85%</span>] time = <span class="sgr93">37.478 seconds</span>,  Δt = <span class="sgr93">15.403 ms</span>,  walltime = <span class="sgr93">2.139 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.026</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">048.74%</span>] time = <span class="sgr93">38.992 seconds</span>,  Δt = <span class="sgr93">15.105 ms</span>,  walltime = <span class="sgr93">2.196 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.025</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">050.58%</span>] time = <span class="sgr93">40.466 seconds</span>,  Δt = <span class="sgr93">14.727 ms</span>,  walltime = <span class="sgr93">2.262 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.024</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">052.39%</span>] time = <span class="sgr93">41.909 seconds</span>,  Δt = <span class="sgr93">14.554 ms</span>,  walltime = <span class="sgr93">2.318 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.024</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">054.19%</span>] time = <span class="sgr93">43.349 seconds</span>,  Δt = <span class="sgr93">14.895 ms</span>,  walltime = <span class="sgr93">2.382 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.025</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">056.05%</span>] time = <span class="sgr93">44.838 seconds</span>,  Δt = <span class="sgr93">15.142 ms</span>,  walltime = <span class="sgr93">2.437 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.025</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">057.92%</span>] time = <span class="sgr93">46.336 seconds</span>,  Δt = <span class="sgr93">15.077 ms</span>,  walltime = <span class="sgr93">2.501 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.025</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">059.80%</span>] time = <span class="sgr93">47.840 seconds</span>,  Δt = <span class="sgr93">15.346 ms</span>,  walltime = <span class="sgr93">2.555 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.025</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">061.66%</span>] time = <span class="sgr93">49.330 seconds</span>,  Δt = <span class="sgr93">14.308 ms</span>,  walltime = <span class="sgr93">2.618 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.024</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">063.37%</span>] time = <span class="sgr93">50.700 seconds</span>,  Δt = <span class="sgr93">13.584 ms</span>,  walltime = <span class="sgr93">2.673 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.023</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">065.04%</span>] time = <span class="sgr93">52.031 seconds</span>,  Δt = <span class="sgr93">13.446 ms</span>,  walltime = <span class="sgr93">2.727 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.022</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">066.70%</span>] time = <span class="sgr93">53.359 seconds</span>,  Δt = <span class="sgr93">13.240 ms</span>,  walltime = <span class="sgr93">2.781 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.022</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">068.28%</span>] time = <span class="sgr93">54.625 seconds</span>,  Δt = <span class="sgr93">12.375 ms</span>,  walltime = <span class="sgr93">2.846 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.021</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">069.75%</span>] time = <span class="sgr93">55.800 seconds</span>,  Δt = <span class="sgr93">11.498 ms</span>,  walltime = <span class="sgr93">2.893 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.019</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">071.18%</span>] time = <span class="sgr93">56.947 seconds</span>,  Δt = <span class="sgr93">11.736 ms</span>,  walltime = <span class="sgr93">2.948 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.019</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">072.66%</span>] time = <span class="sgr93">58.129 seconds</span>,  Δt = <span class="sgr93">12.164 ms</span>,  walltime = <span class="sgr93">3.006 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.02</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">074.25%</span>] time = <span class="sgr93">59.398 seconds</span>,  Δt = <span class="sgr93">13.889 ms</span>,  walltime = <span class="sgr93">3.062 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.023</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">076.12%</span>] time = <span class="sgr93">1.015 minutes</span>,  Δt = <span class="sgr93">16.542 ms</span>,  walltime = <span class="sgr93">3.126 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.027</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">078.16%</span>] time = <span class="sgr93">1.042 minutes</span>,  Δt = <span class="sgr93">16.072 ms</span>,  walltime = <span class="sgr93">3.192 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.027</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">080.11%</span>] time = <span class="sgr93">1.068 minutes</span>,  Δt = <span class="sgr93">15.667 ms</span>,  walltime = <span class="sgr93">3.248 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.026</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">082.02%</span>] time = <span class="sgr93">1.094 minutes</span>,  Δt = <span class="sgr93">15.622 ms</span>,  walltime = <span class="sgr93">3.313 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.026</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">083.97%</span>] time = <span class="sgr93">1.120 minutes</span>,  Δt = <span class="sgr93">16.247 ms</span>,  walltime = <span class="sgr93">3.368 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.027</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">086.05%</span>] time = <span class="sgr93">1.147 minutes</span>,  Δt = <span class="sgr93">17.709 ms</span>,  walltime = <span class="sgr93">3.431 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.029</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">088.25%</span>] time = <span class="sgr93">1.177 minutes</span>,  Δt = <span class="sgr93">18.069 ms</span>,  walltime = <span class="sgr93">3.496 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.03</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">090.47%</span>] time = <span class="sgr93">1.206 minutes</span>,  Δt = <span class="sgr93">17.994 ms</span>,  walltime = <span class="sgr93">3.562 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.03</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">092.58%</span>] time = <span class="sgr93">1.234 minutes</span>,  Δt = <span class="sgr93">16.265 ms</span>,  walltime = <span class="sgr93">3.626 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.027</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">094.50%</span>] time = <span class="sgr93">1.260 minutes</span>,  Δt = <span class="sgr93">15.147 ms</span>,  walltime = <span class="sgr93">3.683 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.025</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">096.38%</span>] time = <span class="sgr93">1.285 minutes</span>,  Δt = <span class="sgr93">15.223 ms</span>,  walltime = <span class="sgr93">3.749 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.025</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>[<span class="sgr93">098.31%</span>] time = <span class="sgr93">1.311 minutes</span>,  Δt = <span class="sgr93">16.116 ms</span>,  walltime = <span class="sgr93">3.815 minutes</span>,  advective CFL = <span class="sgr93">0.8</span>,  diffusive CFL = <span class="sgr93">0.027</span>
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulation is stopping after running for 3.489 minutes.
+<span class="sgr36"><span class="sgr1">[ Info: </span></span>Simulation time 1.333 minutes equals or exceeds stop time 1.333 minutes.</code></pre><p>Read visualization snapshots from the <code>:nc</code> writer.</p><pre><code class="language-julia hljs">snap_filepath = simulation.output_writers[:nc].filepath
+speed_t       = FieldTimeSeries(snap_filepath, &quot;speed&quot;)
+vorticity_t   = FieldTimeSeries(snap_filepath, &quot;vorticity&quot;)
+KE_t          = FieldTimeSeries(snap_filepath, &quot;KE&quot;)
+c_t           = FieldTimeSeries(snap_filepath, &quot;c&quot;)
+
+ds = NCDataset(snap_filepath)
+times = ds[&quot;time&quot;][:]
+close(ds)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">closed Dataset</code></pre><p>Read the integrated-quantity scalars from the <code>:budget</code> writer. These come in consecutive- iteration pairs: <code>(t₀, t₀+Δt_model, t₀+0.6, t₀+0.6+Δt_model, …)</code>. Pair <code>k</code> has indices <code>(2k-1, 2k)</code>; we obtain <span>$d/dt$</span> from a one-step finite difference inside each pair.</p><pre><code class="language-julia hljs">bud_filepath = simulation.output_writers[:budget].filepath
+ds_bud = NCDataset(bud_filepath)
+times_bud = ds_bud[&quot;time&quot;][:]
+∫KE_t = ds_bud[&quot;∫KE&quot;][:]
+∫c²_t = ds_bud[&quot;∫c²&quot;][:]
+∫ε_t  = ds_bud[&quot;∫ε&quot;][:]
+∫χ_t  = ds_bud[&quot;∫χ&quot;][:]
+close(ds_bud)
+
+idx1     = 1:2:length(times_bud) - 1   # primary snapshots
+idx2     = 2:2:length(times_bud)       # consecutive-iteration snapshots
+Δt_pair  = times_bud[idx2] .- times_bud[idx1]
+t_pair   = @. 0.5 * (times_bud[idx1] + times_bud[idx2])
+
+dKEdt    = (∫KE_t[idx2] .- ∫KE_t[idx1]) ./ Δt_pair
+dc²dt    = (∫c²_t[idx2] .- ∫c²_t[idx1]) ./ Δt_pair</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">134-element Vector{Float64}:
+ -0.354898904740625
+ -0.4617221626657696
+ -0.7438569497464611
+ -1.0578007294339566
+ -1.2609977148921634
+ -1.3585533075002856
+ -1.4201250020239262
+ -1.4699955056855198
+ -1.4516182558510475
+ -1.3581433652232064
+  ⋮
+ -0.0025692513638989048
+ -0.0025276220686829567
+ -0.002476650844030471
+ -0.0024325344014363135
+ -0.0023948656844364397
+ -0.0023563589462987622
+ -0.002316535045635016
+ -0.002279814327649077
+ -0.002247612257542677</code></pre><p>Source terms at the pair midpoint</p><pre><code class="language-julia hljs">ε_pair   = @. 0.5 * (∫ε_t[idx1] + ∫ε_t[idx2])
+χ_pair   = @. 0.5 * (∫χ_t[idx1] + ∫χ_t[idx2])
+
+KE_resid = @. dKEdt - (-ε_pair)
+c²_resid = @. dc²dt - (-χ_pair)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr32"><span class="sgr1">Test Passed</span></span></code></pre><h2 id="Plotting"><a class="docs-heading-anchor" href="#Plotting">Plotting</a><a id="Plotting-1"></a><a class="docs-heading-anchor-permalink" href="#Plotting" title="Permalink"></a></h2><p>We use Makie.jl, which has recipes for Oceananigans <code>Field</code>s.</p><pre><code class="language-julia hljs">using CairoMakie
+
+set_theme!(Theme(fontsize = 20))
+fig = Figure()
+
+axis_kwargs = (aspect = DataAspect(),
+               height = 250, width = 250,
+               xticksvisible = false, yticksvisible = false,
+               xticklabelsvisible = false, yticklabelsvisible = false)
+
+ax_speed = Axis(fig[2, 1]; title = &quot;Speed&quot;,          axis_kwargs...)
+ax_ω     = Axis(fig[2, 2]; title = &quot;Vorticity&quot;,      axis_kwargs...)
+ax_KE    = Axis(fig[2, 3]; title = &quot;Kinetic energy&quot;, axis_kwargs...)
+ax_c     = Axis(fig[2, 4]; title = &quot;Tracer c&quot;,       axis_kwargs...)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Makie.Axis with 0 plots:
+</code></pre><p>Each frame is one visualization snapshot.</p><pre><code class="language-julia hljs">n = Observable(1)
+
+speedₙ = @lift speed_t[$n]
+ωₙ     = @lift vorticity_t[$n]
+KEₙ    = @lift KE_t[$n]
+cₙ     = @lift c_t[$n]
+
+hm_speed = heatmap!(ax_speed, speedₙ, colormap = :magma, colorrange=(0, 1.5))
+Colorbar(fig[3, 1], hm_speed; vertical=false, height=8, ticklabelsize=12)
+
+hm_ω = heatmap!(ax_ω, ωₙ, colormap = :balance, colorrange=(-10, 10))
+Colorbar(fig[3, 2], hm_ω; vertical=false, height=8, ticklabelsize=12)
+
+hm_KE = heatmap!(ax_KE, KEₙ, colormap = :plasma, colorrange=(0, 0.5))
+Colorbar(fig[3, 3], hm_KE; vertical=false, height=8, ticklabelsize=12)
+
+hm_c = heatmap!(ax_c, cₙ, colormap = :balance, colorrange=(-1.5, 1.5))
+Colorbar(fig[3, 4], hm_c; vertical=false, height=8, ticklabelsize=12)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Makie.Colorbar()</code></pre><p>Volume-integrated KE budget — <code>d(∫KE)/dt</code> against <code>-∫ε dV</code>, with the residual.</p><pre><code class="language-julia hljs">budget_kwargs = (height = 180, width = 1080)
+
+ax_KEbud = Axis(fig[4, 1:4]; title = &quot;Volume-integrated KE budget&quot;, budget_kwargs...)
+lines!(ax_KEbud, t_pair, dKEdt,   label = &quot;d(∫KE)/dt&quot;)
+lines!(ax_KEbud, t_pair, -ε_pair, label = &quot;-∫ε dV&quot;)
+lines!(ax_KEbud, t_pair, KE_resid, label = &quot;residual&quot;, color = :black, linestyle = :dash)
+axislegend(ax_KEbud; labelsize = 10, position = :rb)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Makie.Legend()</code></pre><p>Volume-integrated c² budget — <code>d(∫c²)/dt</code> against <code>-∫χ dV</code>, with the residual.</p><pre><code class="language-julia hljs">ax_c²bud = Axis(fig[5, 1:4]; title = &quot;Volume-integrated ∫c² budget&quot;, xlabel = &quot;Time&quot;, budget_kwargs...)
+lines!(ax_c²bud, t_pair, dc²dt,   label = &quot;d(∫c²)/dt&quot;)
+lines!(ax_c²bud, t_pair, -χ_pair, label = &quot;-∫χ dV&quot;)
+lines!(ax_c²bud, t_pair, c²_resid, label = &quot;residual&quot;, color = :black, linestyle = :dash)
+axislegend(ax_c²bud; labelsize = 10, position = :rb)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Makie.Legend()</code></pre><p>Time marker on both budget panels (using the snapshot time shown in the heatmaps)</p><pre><code class="language-julia hljs">tₙ = @lift times[$n]
+vlines!(ax_KEbud, tₙ, color = :black, linestyle = :dot)
+vlines!(ax_c²bud, tₙ, color = :black, linestyle = :dot)
+
+title = @lift &quot;Time = &quot; * string(round(times[$n], digits=2))
+Label(fig[1, 1:4], title, fontsize=24, tellwidth=false);</code></pre><p>Adjust the total figure size based on our panels and record a movie.</p><pre><code class="language-julia hljs">resize_to_layout!(fig)
+@info &quot;Animating...&quot;
+record(fig, filename * &quot;.mp4&quot;, 1:length(times), framerate=24) do i
+    n[] = i
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"><span class="sgr36"><span class="sgr1">[ Info: </span></span>Animating...</code></pre><p><video src="../two_dimensional_turbulence.mp4" controls="true" title><a href="../two_dimensional_turbulence.mp4"></a></video></p><p>The two bottom panels show the volume-integrated KE and <span>$c^2$</span> budgets: <span>$d/dt$</span> of the integrated quantity is compared against <span>$-\int \varepsilon\, dV$</span> (respectively <span>$-\int \chi\, dV$</span>), the only term that survives volume-integration for a periodic incompressible flow with a centered advection scheme. The residual shows the gap between them.</p><p>Note that <code>KineticEnergyDissipationRate</code> (<code>ε</code>) and <code>TracerVarianceDissipationRate</code> (<code>χ</code>) are implemented using the same kernels as Oceananigans (and therefore use the same interpolations and discretizations).</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../filters/">« Filters</a><a class="docs-footer-nextpage" href="../kelvin_helmholtz/">Kelvin-Helmholtz instability »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Saturday 6 June 2026 23:07">Saturday 6 June 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
