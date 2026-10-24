@@ -489,7 +489,7 @@ PotentialEnergyTendency(model)   # or `Tendency` inside the module
 PotentialEnergyTendency KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: minus_z_∂ₜb_ccc (generic function with 1 method)
-└── arguments: ("Val", "Val", "Centered", "ScalarDiffusivity", "Nothing", "BuoyancyForce", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Clock", "Returns")
+└── arguments: ("Val", "Val", "Centered", "ScalarDiffusivity", "Nothing", "BuoyancyForce", "Nothing", "BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Clock", "Returns")
 └── computes: potential energy tendency  -z ∂ₜb
 ```
 """
@@ -815,7 +815,7 @@ PotentialEnergyForcing(model)
 PotentialEnergyForcing KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: minus_z_Fᵇ_ccc (generic function with 1 method)
-└── arguments: ("Oceananigans.Forcings.ContinuousForcing", "Clock", "NamedTuple")
+└── arguments: ("ContinuousForcing", "Clock", "NamedTuple")
 └── computes: potential energy forcing  -z Fᵇ
 ```
 """
