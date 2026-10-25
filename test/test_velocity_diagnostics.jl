@@ -205,6 +205,7 @@ function test_auxiliary_functions(model)
     fields_without_means = perturbation_fields(model; u=1, v=2)
     @test all(Array(interior(fields_without_means.u)) .== 0)
     @test all(Array(interior(fields_without_means.v)) .== 0)
+    @test fields_without_means.w === model.velocities.w # the diagnostic w on a HydrostaticFreeSurfaceModel
     return
 end
 #---
