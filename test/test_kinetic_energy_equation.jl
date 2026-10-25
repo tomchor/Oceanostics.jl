@@ -127,10 +127,10 @@ With `p = P₀ sin(2πx) + P₁z` prescribed, `u = U₀ sin(2πx)` and, on a non
 out on the walls, where the pressure's no-flux halo zeroes it. A hydrostatic model leaves the `z` row
 out, although the `w` it diagnoses from `u` is nonzero.
 
-The default pressure is the one the model's momentum tendencies carry on top of what the tendency
-diagnostics already include: the sum of the nonhydrostatic pressure and the hydrostatic anomaly, or the
-former alone without one, on a nonhydrostatic model. On a hydrostatic model it is the anomaly, whose
-place in the budget `test_kinetic_energy_budget` checks.
+On a nonhydrostatic model the default pressure is the total one, whose work closes the full budget
+`∂ₜeₖ = -ADV - DIFF + FORC + wb - uᵢ∂ᵢp`: the nonhydrostatic pressure plus the hydrostatic anomaly when
+the model carries one, and the nonhydrostatic pressure alone otherwise. On a hydrostatic model it is
+the anomaly, whose place in the budget `test_kinetic_energy_budget` checks.
 """
 function test_pressure_redistribution(grid; model_type)
     U₀ = 2; W₀ = 3; P₀ = 5; P₁ = 7
