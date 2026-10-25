@@ -65,10 +65,16 @@ Similar to the two divergences, ``R`` redistributes ``e_a`` and vanishes when in
 domain ([Winters et al., 1995](https://doi.org/10.1017/S002211209500125X)). See the [Lock release](@ref lock_release_example)
 example for an application of this budget.
 
+``R`` is built from the time derivative of the reference profile itself, ``\partial_t b^\star``, which
+[`AvailablePotentialEnergyReferenceTendency`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyReferenceTendency)
+takes as an Oceananigans `TimeDerivative` of the sorted column that
+[`VerticalSort`](@ref Oceanostics.BackgroundPotentialEnergyEquation.VerticalSort) builds. Reading a
+`TimeDerivative` does not advance it, so a callback has to update it on the iteration before each
+output and at the output; the docstring shows how.
 
 ## Terms and diagnostics
 
-Five of the quantities above have diagnostics; the two transport terms and ``R`` have none.
+Six of the quantities above have diagnostics; the two transport terms have none.
 
 | Quantity | Expression | Diagnostic |
 |:---|:---|:---|
@@ -79,7 +85,7 @@ Five of the quantities above have diagnostics; the two transport terms and ``R``
 | APE to KE conversion | ``w b_r`` | [`AvailablePotentialToKineticEnergyConversion`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion) |
 | Diffusive transport | ``\partial_j(\Upsilon q_j)`` | not implemented |
 | Dissipation | ``\varepsilon_a = -q_j \, \partial_j \Upsilon`` | [`AvailablePotentialEnergyDissipationRate`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate) |
-| Reference tendency | ``R = \int_{z^\star}^{z} \partial_t b^\star(\tilde z,\, t) \, \mathrm{d}\tilde z`` | not implemented |
+| Reference tendency | ``R = \int_{z^\star}^{z} \partial_t b^\star(\tilde z,\, t) \, \mathrm{d}\tilde z`` | [`AvailablePotentialEnergyReferenceTendency`](@ref Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyReferenceTendency) |
 
 ``\Upsilon`` also answers to `DisplacementPotential`, and ``\varepsilon_a`` to `DissipationRate`. Both
 aliases are scoped to this module: `using Oceanostics.AvailablePotentialEnergyEquation` brings them in,
@@ -117,4 +123,5 @@ Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDisplacemen
 Oceanostics.AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion
 Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate
+Oceanostics.AvailablePotentialEnergyEquation.AvailablePotentialEnergyReferenceTendency
 ```

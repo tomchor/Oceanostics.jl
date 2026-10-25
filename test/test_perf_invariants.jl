@@ -155,6 +155,7 @@ end
 
     @testset "KineticEnergyEquation" begin
         test_kfo_invariants("KineticEnergy",                  KineticEnergyEquation.KineticEnergy(model))
+        test_kfo_invariants("KineticEnergyStress",            KineticEnergyEquation.KineticEnergyStress(model))
         test_kfo_invariants("KineticEnergyDissipationRate",   KineticEnergyEquation.KineticEnergyDissipationRate(model))
     end
 
@@ -211,7 +212,7 @@ end
         # contracts four materialized `Field`s: both are per-cell kernels that must stay allocation-free
         # and type-stable like the full-field ones they mirror. (The subfilter diagnostics wrap a
         # `BinaryOperation` and only index it, so they are not probed here.)
-        gf = GaussianFilter(; dims=(1, 2, 3), σ=2/N)
+        gf = GaussianFilter(; dims=(1, 2), σ=2/N)   # these diagnostics take only horizontal filters
         test_kfo_invariants("FilteredAvailablePotentialEnergy", FilteredAvailablePotentialEnergy(model, gf))
         test_kfo_invariants("FilteredAvailablePotentialEnergyDissipationRate", FilteredAvailablePotentialEnergyDissipationRate(model, gf))
     end
