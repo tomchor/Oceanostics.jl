@@ -10,7 +10,6 @@ export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 
 using Oceanostics: validate_location,
-                   validate_dissipative_closure,
                    add_background_fields,
                    get_coriolis_frequency_components,
                    CustomKFO

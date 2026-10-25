@@ -171,6 +171,7 @@ end
 
     @testset "KineticEnergyEquation" begin
         test_kfo_invariants("KineticEnergy",                  KineticEnergyEquation.KineticEnergy(model))
+        test_kfo_invariants("KineticEnergyStress",            KineticEnergyEquation.KineticEnergyStress(model))
         test_kfo_invariants("KineticEnergyDissipationRate",   KineticEnergyEquation.KineticEnergyDissipationRate(model))
     end
 

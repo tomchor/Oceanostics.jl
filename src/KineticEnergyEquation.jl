@@ -36,19 +36,18 @@ using Oceanostics: validate_location, validate_dissipative_closure, perturbation
 @inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
 
 # `uᵢ` times the term `f` of the `uᵢ` equation. A row whose velocity is a `ZeroField` is skipped without
-# evaluating `f`, which is how the `w` row is dropped on a hydrostatic model (see `energy_velocities`).
+# evaluating `f`, which is how the `w` row is dropped on a hydrostatic model (see `prognostic_velocities`).
 @inline ψf(i, j, k, grid, ψ, f, args...) = @inbounds ψ[i, j, k] * f(i, j, k, grid, args...)
 @inline ψf(i, j, k, grid, ::ZeroField, f, args...) = zero(grid)
 
 const SupportedModel = Union{NonhydrostaticModel, HydrostaticFreeSurfaceModel}
 
-# A `HydrostaticFreeSurfaceModel` steps `u` and `v` and diagnoses `w` from continuity, so its kinetic
-# energy is ½(u² + v²) and every term of its budget comes off the `u` and `v` equations alone. The
-# velocities the terms below weight their rows with come from here, with a `ZeroField` in place of `w`
-# on such a model.
-energy_velocities(model) = model.velocities
-energy_velocities(model::HydrostaticFreeSurfaceModel) =
-    (u = model.velocities.u, v = model.velocities.v, w = ZeroField(eltype(model.grid)))
+# The velocity components whose momentum equations are contracted with them to form the kinetic energy
+# budget. A HydrostaticFreeSurfaceModel diagnoses w from continuity and has no w-momentum equation, so
+# w is replaced by a ZeroField there; the momentum fluxes are still computed with the diagnostic w, as
+# in the model's own u and v tendencies.
+prognostic_velocities(model, velocities) = (u = velocities.u, v = velocities.v, w = velocities.w)
+prognostic_velocities(::HydrostaticFreeSurfaceModel, velocities) = (u = velocities.u, v = velocities.v, w = ZeroField())
 
 # The forcing of each momentum equation. A hydrostatic model has no `w` equation and so no `forcing.w`;
 # the zero forcing put in its place keeps the `w` row of `uᵢFᵤᵢ` at zero.
@@ -89,7 +88,7 @@ KineticEnergy KernelFunctionOperation at (Center, Center, Center)
 └── computes: kinetic energy  ½uᵢuᵢ
 ```
 """
-KineticEnergy(model; kwargs...) = KineticEnergy(model, energy_velocities(model)...; kwargs...)
+KineticEnergy(model; kwargs...) = KineticEnergy(model, prognostic_velocities(model, model.velocities)...; kwargs...)
 #---
 
 #+++ KineticEnergyTendency
@@ -281,9 +280,6 @@ end
 #---
 
 #+++ KineticEnergyStress
-# The rows are weighted by `velocities` rather than by the velocities in `model_fields`, so that a
-# hydrostatic model can drop the `w` row while its `u` and `v` rows still see the `w` the closure's
-# fluxes are built from
 @inline function uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ(i, j, k, grid, velocities,
                                             closure,
                                             closure_fields,
@@ -312,8 +308,11 @@ Return a `KernelFunctionOperation` that computes the diffusive term of the `eₖ
 
 where `uᵢ` are the velocity components and `τᵢⱼ` is the viscous momentum flux (minus the stress
 tensor). It enters the kinetic energy budget as `-DIFF`, and splits into a transport divergence plus
-the dissipation rate `εₖ` ([`DissipationRate`](@ref)). On a `HydrostaticFreeSurfaceModel` the sum runs
-over `u` and `v` only, since `w` has no momentum equation there.
+the dissipation rate `εₖ` ([`DissipationRate`](@ref)).
+
+A `HydrostaticFreeSurfaceModel` has no `w`-momentum equation, so on that model the sum runs over
+`i = 1, 2` only and `DIFF` is the stress term of the budget of `½(u² + v²)`. The fluxes `τ₁ⱼ` and
+`τ₂ⱼ` are still computed with the diagnostic `w`, as in the model's own `u` and `v` tendencies.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -332,7 +331,7 @@ KineticEnergyStress KernelFunctionOperation at (Center, Center, Center)
 """
 function KineticEnergyStress(model; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyStress")
-    dependencies = (energy_velocities(model),
+    dependencies = (prognostic_velocities(model, model.velocities),
                     model.closure,
                     model.closure_fields,
                     model.clock,
@@ -455,7 +454,8 @@ function KineticEnergyPressureRedistribution(model::NonhydrostaticModel; velocit
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
 end
 
-function KineticEnergyPressureRedistribution(model::HydrostaticFreeSurfaceModel; velocities = energy_velocities(model),
+function KineticEnergyPressureRedistribution(model::HydrostaticFreeSurfaceModel;
+                                             velocities = prognostic_velocities(model, model.velocities),
                                              pressure = model.pressure.pHY′,
                                              location = (Center, Center, Center))
     validate_location(location, "KineticEnergyPressureRedistribution")
@@ -534,33 +534,36 @@ end
 #---
 
 #+++ KineticEnergyDissipationRate
+# Each term takes the velocity component it differentiates apart from the fields the momentum flux is
+# computed with, so that a HydrostaticFreeSurfaceModel can drop w from the former and keep it in the latter
+
 # ∂ⱼu₁ ⋅ τ₁ⱼ
-Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, fields.u) * viscous_flux_ux(i, j, k, grid, closure, K_fields, clo, fields, b)
-Ayᶠᶠᶜ_δuᶠᶠᶜ_τ₁₂ᶠᶠᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶠᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, fields.u) * viscous_flux_uy(i, j, k, grid, closure, K_fields, clo, fields, b)
-Azᶠᶜᶠ_δuᶠᶜᶠ_τ₁₃ᶠᶜᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Azᶠᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, fields.u) * viscous_flux_uz(i, j, k, grid, closure, K_fields, clo, fields, b)
+Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid, u, closure, K_fields, clo, fields, b) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, u) * viscous_flux_ux(i, j, k, grid, closure, K_fields, clo, fields, b)
+Ayᶠᶠᶜ_δuᶠᶠᶜ_τ₁₂ᶠᶠᶜ(i, j, k, grid, u, closure, K_fields, clo, fields, b) = -Ayᶠᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, u) * viscous_flux_uy(i, j, k, grid, closure, K_fields, clo, fields, b)
+Azᶠᶜᶠ_δuᶠᶜᶠ_τ₁₃ᶠᶜᶠ(i, j, k, grid, u, closure, K_fields, clo, fields, b) = -Azᶠᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, u) * viscous_flux_uz(i, j, k, grid, closure, K_fields, clo, fields, b)
 
 # ∂ⱼu₂ ⋅ τ₂ⱼ
-Axᶠᶠᶜ_δvᶠᶠᶜ_τ₂₁ᶠᶠᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶠᶠᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, fields.v) * viscous_flux_vx(i, j, k, grid, closure, K_fields, clo, fields, b)
-Ayᶜᶜᶜ_δvᶜᶜᶜ_τ₂₂ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶜᶜᶜ(i, j, k, grid) * δyᵃᶜᵃ(i, j, k, grid, fields.v) * viscous_flux_vy(i, j, k, grid, closure, K_fields, clo, fields, b)
-Azᶜᶠᶠ_δvᶜᶠᶠ_τ₂₃ᶜᶠᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Azᶜᶠᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, fields.v) * viscous_flux_vz(i, j, k, grid, closure, K_fields, clo, fields, b)
+Axᶠᶠᶜ_δvᶠᶠᶜ_τ₂₁ᶠᶠᶜ(i, j, k, grid, v, closure, K_fields, clo, fields, b) = -Axᶠᶠᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, v) * viscous_flux_vx(i, j, k, grid, closure, K_fields, clo, fields, b)
+Ayᶜᶜᶜ_δvᶜᶜᶜ_τ₂₂ᶜᶜᶜ(i, j, k, grid, v, closure, K_fields, clo, fields, b) = -Ayᶜᶜᶜ(i, j, k, grid) * δyᵃᶜᵃ(i, j, k, grid, v) * viscous_flux_vy(i, j, k, grid, closure, K_fields, clo, fields, b)
+Azᶜᶠᶠ_δvᶜᶠᶠ_τ₂₃ᶜᶠᶠ(i, j, k, grid, v, closure, K_fields, clo, fields, b) = -Azᶜᶠᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, v) * viscous_flux_vz(i, j, k, grid, closure, K_fields, clo, fields, b)
 
 # ∂ⱼu₃ ⋅ τ₃ⱼ
-Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Axᶠᶜᶠ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, fields.w) * viscous_flux_wx(i, j, k, grid, closure, K_fields, clo, fields, b)
-Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, fields.w) * viscous_flux_wy(i, j, k, grid, closure, K_fields, clo, fields, b)
-Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid, closure, K_fields, clo, fields, b) = -Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, fields.w) * viscous_flux_wz(i, j, k, grid, closure, K_fields, clo, fields, b)
+Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ(i, j, k, grid, w, closure, K_fields, clo, fields, b) = -Axᶠᶜᶠ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, w) * viscous_flux_wx(i, j, k, grid, closure, K_fields, clo, fields, b)
+Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ(i, j, k, grid, w, closure, K_fields, clo, fields, b) = -Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, w) * viscous_flux_wy(i, j, k, grid, closure, K_fields, clo, fields, b)
+Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid, w, closure, K_fields, clo, fields, b) = -Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, w) * viscous_flux_wz(i, j, k, grid, closure, K_fields, clo, fields, b)
 
-@inline viscous_dissipation_rate_ccc(i, j, k, grid, closure_fields, fields, p) =
-    (Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid,         p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, C, C
-     ℑxyᶜᶜᵃ(i, j, k, grid, Ayᶠᶠᶜ_δuᶠᶠᶜ_τ₁₂ᶠᶠᶜ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
-     ℑxzᶜᵃᶜ(i, j, k, grid, Azᶠᶜᶠ_δuᶠᶜᶠ_τ₁₃ᶠᶜᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
+@inline viscous_dissipation_rate_ccc(i, j, k, grid, velocities, closure_fields, fields, p) =
+    (Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid,         velocities.u, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, C, C
+     ℑxyᶜᶜᵃ(i, j, k, grid, Ayᶠᶠᶜ_δuᶠᶠᶜ_τ₁₂ᶠᶠᶜ, velocities.u, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
+     ℑxzᶜᵃᶜ(i, j, k, grid, Azᶠᶜᶠ_δuᶠᶜᶠ_τ₁₃ᶠᶜᶠ, velocities.u, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
 
-     ℑxyᶜᶜᵃ(i, j, k, grid, Axᶠᶠᶜ_δvᶠᶠᶜ_τ₂₁ᶠᶠᶜ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
-     Ayᶜᶜᶜ_δvᶜᶜᶜ_τ₂₂ᶜᶜᶜ(i, j, k, grid,         p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, C, C
-     ℑyzᵃᶜᶜ(i, j, k, grid, Azᶜᶠᶠ_δvᶜᶠᶠ_τ₂₃ᶜᶠᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
+     ℑxyᶜᶜᵃ(i, j, k, grid, Axᶠᶠᶜ_δvᶠᶠᶜ_τ₂₁ᶠᶠᶜ, velocities.v, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
+     Ayᶜᶜᶜ_δvᶜᶜᶜ_τ₂₂ᶜᶜᶜ(i, j, k, grid,         velocities.v, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, C, C
+     ℑyzᵃᶜᶜ(i, j, k, grid, Azᶜᶠᶠ_δvᶜᶠᶠ_τ₂₃ᶜᶠᶠ, velocities.v, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
 
-     ℑxzᶜᵃᶜ(i, j, k, grid, Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
-     ℑyzᵃᶜᶜ(i, j, k, grid, Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
-     Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid,         p.closure, closure_fields, p.clock, fields, p.buoyancy)   # C, C, C
+     ℑxzᶜᵃᶜ(i, j, k, grid, Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ, velocities.w, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
+     ℑyzᵃᶜᶜ(i, j, k, grid, Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ, velocities.w, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
+     Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid,         velocities.w, p.closure, closure_fields, p.clock, fields, p.buoyancy)   # C, C, C
      ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δuᵢ above, ensures a derivative operation
 
 const KineticEnergyDissipationRate = CustomKFO{<:typeof(viscous_dissipation_rate_ccc)}
@@ -579,6 +582,10 @@ a Newtonian flux with a scalar viscosity, `τᵢⱼ = -2νSᵢⱼ`, it reduces t
 [`KineticEnergyIsotropicDissipationRate`](@ref) computes directly; neither that reduction nor, for a
 flux that is not down-gradient, the sign carries over to other closures.
 
+A `HydrostaticFreeSurfaceModel` has no `w`-momentum equation, so on that model the sum runs over
+`i = 1, 2` only and `εₖ` is the dissipation rate of `½(u² + v²)`. The fluxes `τ₁ⱼ` and `τ₂ⱼ` are
+still computed with the diagnostic `w`, as in the model's own `u` and `v` tendencies.
+
 ```jldoctest
 julia> using Oceananigans, Oceanostics
 
@@ -590,7 +597,7 @@ julia> ε = KineticEnergyEquation.DissipationRate(model)
 KineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
-└── arguments: ("Nothing", "NamedTuple", "NamedTuple")
+└── arguments: ("NamedTuple", "Nothing", "NamedTuple", "NamedTuple")
 └── computes: kinetic energy dissipation rate  -∂ⱼuᵢ·τᵢⱼ
 ```
 """
@@ -604,6 +611,7 @@ function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
                   model.buoyancy)
 
     return KernelFunctionOperation{Center, Center, Center}(viscous_dissipation_rate_ccc, model.grid,
+                                                           prognostic_velocities(model, model_fields),
                                                            model.closure_fields, model_fields, parameters)
 end
 #---

@@ -41,10 +41,12 @@ All diagnostics are computed at `(Center, Center, Center)`.
 
 A `HydrostaticFreeSurfaceModel` steps ``u`` and ``v`` and diagnoses ``w`` from continuity, so on such a
 model the kinetic energy is ``e_k = \tfrac{1}{2}(u^2 + v^2)``, and `KineticEnergy`,
-`KineticEnergyTendency`, `KineticEnergyAdvection`, `KineticEnergyStress`, `KineticEnergyForcing` and
-`KineticEnergyPressureRedistribution` all sum over ``u`` and ``v`` only. Buoyancy does not appear in the
-hydrostatic momentum equations. It enters through the hydrostatic pressure anomaly ``p'``, with
-``\partial_z p' = b``, so the budget reads
+`KineticEnergyTendency`, `KineticEnergyAdvection`, `KineticEnergyStress`, `KineticEnergyForcing`,
+`KineticEnergyPressureRedistribution` and `KineticEnergyDissipationRate` all sum over ``u`` and ``v``
+only. The momentum fluxes inside the stress term and the dissipation rate are still computed with the
+diagnosed ``w``, as in the model's own tendencies. Buoyancy does not appear in the hydrostatic momentum
+equations. It enters through the hydrostatic pressure anomaly ``p'``, with ``\partial_z p' = b``, so the
+budget reads
 
 ```math
 \partial_t e_k = -u_i (\boldsymbol{u} \cdot \nabla) u_i - u_i \partial_j \tau_{ij} - u_i \partial_i p'
@@ -64,9 +66,8 @@ which is why `PotentialToKineticEnergyConversion` uses the diagnosed ``w`` on a 
 buoyancy model and the vertical direction is bounded) is arranged the same way: its ``w`` equation has no
 buoyancy term, and ``wb`` reaches the budget through ``w \partial_z p'`` instead.
 
-The two dissipation rates are functions of the velocity gradient and keep the ``w`` row on both model
-types. On a hydrostatic model that row is the dissipation of a velocity the model does not step, so there
-the volume integral of `KineticEnergyStress` matches that of ``\varepsilon_k`` only up to it.
+`KineticEnergyIsotropicDissipationRate` is ``2\nu S_{ij} S_{ij}`` of the full strain rate, so it keeps
+the ``w`` row on both model types.
 
 ## Example
 
