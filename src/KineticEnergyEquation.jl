@@ -18,7 +18,9 @@ using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Fields: ZeroField
 using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
-using Oceananigans.Advection: div_𝐯u, div_𝐯v, div_𝐯w
+using Oceananigans.Models.HydrostaticFreeSurfaceModels: hydrostatic_free_surface_u_velocity_tendency,
+                                                        hydrostatic_free_surface_v_velocity_tendency
+using Oceananigans.Advection: div_𝐯u, div_𝐯v, div_𝐯w, U_dot_∇u, U_dot_∇v
 using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz,
                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
                                        viscous_flux_wx, viscous_flux_wy, viscous_flux_wz,
@@ -32,6 +34,27 @@ using Oceanostics: validate_location, validate_dissipative_closure, perturbation
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
 @inline fψ_plus_gφ²(i, j, k, grid, f, ψ, g, φ) = (f(i, j, k, grid, ψ) + g(i, j, k, grid, φ))^2
+
+# `uᵢ` times the term `f` of the `uᵢ` equation. A row whose velocity is a `ZeroField` is skipped without
+# evaluating `f`, which is how the `w` row is dropped on a hydrostatic model (see `energy_velocities`).
+@inline ψf(i, j, k, grid, ψ, f, args...) = @inbounds ψ[i, j, k] * f(i, j, k, grid, args...)
+@inline ψf(i, j, k, grid, ::ZeroField, f, args...) = zero(grid)
+
+const SupportedModel = Union{NonhydrostaticModel, HydrostaticFreeSurfaceModel}
+
+# A `HydrostaticFreeSurfaceModel` steps `u` and `v` and diagnoses `w` from continuity, so its kinetic
+# energy is ½(u² + v²) and every term of its budget comes off the `u` and `v` equations alone. The
+# velocities the terms below weight their rows with come from here, with a `ZeroField` in place of `w`
+# on such a model.
+energy_velocities(model) = model.velocities
+energy_velocities(model::HydrostaticFreeSurfaceModel) =
+    (u = model.velocities.u, v = model.velocities.v, w = ZeroField(eltype(model.grid)))
+
+# The forcing of each momentum equation. A hydrostatic model has no `w` equation and so no `forcing.w`;
+# the zero forcing put in its place keeps the `w` row of `uᵢFᵤᵢ` at zero.
+momentum_forcing(model) = model.forcing
+momentum_forcing(model::HydrostaticFreeSurfaceModel) =
+    (u = model.forcing.u, v = model.forcing.v, w = Returns(zero(eltype(model.grid))))
 
 #+++ KineticEnergy
 @inline kinetic_energy_ccc(i, j, k, grid, u, v, w) = (ℑxᶜᵃᵃ(i, j, k, grid, ψ², u) +
@@ -48,7 +71,8 @@ end
 """
     $(SIGNATURES)
 
-Calculate the kinetic energy per unit mass `eₖ = ½uᵢuᵢ` of `model`.
+Calculate the kinetic energy per unit mass `eₖ = ½uᵢuᵢ` of `model`. On a `HydrostaticFreeSurfaceModel`,
+which steps `u` and `v` and diagnoses `w` from continuity, this is `½(u² + v²)`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -65,12 +89,10 @@ KineticEnergy KernelFunctionOperation at (Center, Center, Center)
 └── computes: kinetic energy  ½uᵢuᵢ
 ```
 """
-KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwargs...)
+KineticEnergy(model; kwargs...) = KineticEnergy(model, energy_velocities(model)...; kwargs...)
 #---
 
 #+++ KineticEnergyTendency
-@inline ψf(i, j, k, grid, ψ, f, args...) = @inbounds ψ[i, j, k] * f(i, j, k, grid, args...)
-
 @inline function uᵢGᵢᶜᶜᶜ(i, j, k, grid, advection,
                                         coriolis,
                                         stokes_drift,
@@ -94,7 +116,33 @@ KineticEnergy(model; kwargs...) = KineticEnergy(model, model.velocities...; kwar
     return u∂ₜu + v∂ₜv + w∂ₜw
 end
 
-const KineticEnergyTendency = CustomKFO{<:typeof(uᵢGᵢᶜᶜᶜ)}
+# A hydrostatic model has tendencies for `u` and `v` only, and Oceananigans' kernels for them take a
+# different set of arguments
+@inline function uₕGₕᶜᶜᶜ(i, j, k, grid, advection,
+                                        coriolis,
+                                        closure,
+                                        u_immersed_bc,
+                                        v_immersed_bc,
+                                        velocities,
+                                        free_surface,
+                                        tracers,
+                                        buoyancy,
+                                        closure_fields,
+                                        pHY′,
+                                        auxiliary_fields,
+                                        vertical_coordinate,
+                                        clock,
+                                        forcings)
+    common_args = (velocities, free_surface, tracers, buoyancy, closure_fields, pHY′, auxiliary_fields,
+                   vertical_coordinate, clock)
+    u∂ₜu = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, hydrostatic_free_surface_u_velocity_tendency,
+                 advection, coriolis, closure, u_immersed_bc, common_args..., forcings.u)
+    v∂ₜv = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, hydrostatic_free_surface_v_velocity_tendency,
+                 advection, coriolis, closure, v_immersed_bc, common_args..., forcings.v)
+    return u∂ₜu + v∂ₜv
+end
+
+const KineticEnergyTendency = Union{CustomKFO{<:typeof(uᵢGᵢᶜᶜᶜ)}, CustomKFO{<:typeof(uₕGₕᶜᶜᶜ)}}
 
 """
     $(SIGNATURES)
@@ -103,6 +151,10 @@ Return a `KernelFunctionOperation` that computes the tendency uᵢGᵢ of the ki
 excluding the nonhydrostatic pressure contribution:
 
     ∂ₜeₖ = ½∂ₜuᵢ² = uᵢGᵢ - uᵢ∂ᵢpₙₕₛ
+
+On a `HydrostaticFreeSurfaceModel` the sum runs over `u` and `v` only, and `Gᵢ` is Oceananigans'
+hydrostatic tendency, which leaves out the part of the barotropic pressure gradient the free surface
+treats implicitly (all of it for an `ImplicitFreeSurface` or a `SplitExplicitFreeSurface`).
 
 ```jldoctest
 julia> using Oceananigans
@@ -141,6 +193,26 @@ function KineticEnergyTendency(model::NonhydrostaticModel; location = (Center, C
                     model.forcing,)
     return KernelFunctionOperation{Center, Center, Center}(uᵢGᵢᶜᶜᶜ, model.grid, dependencies...)
 end
+
+function KineticEnergyTendency(model::HydrostaticFreeSurfaceModel; location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyTendency")
+    dependencies = (advection = momentum_advection(model),
+                    model.coriolis,
+                    model.closure,
+                    u_immersed_bc = model.velocities.u.boundary_conditions.immersed,
+                    v_immersed_bc = model.velocities.v.boundary_conditions.immersed,
+                    model.velocities,
+                    model.free_surface,
+                    model.tracers,
+                    model.buoyancy,
+                    model.closure_fields,
+                    model.pressure.pHY′,
+                    model.auxiliary_fields,
+                    model.vertical_coordinate,
+                    model.clock,
+                    model.forcing,)
+    return KernelFunctionOperation{Center, Center, Center}(uₕGₕᶜᶜᶜ, model.grid, dependencies...)
+end
 #---
 
 #+++ KineticEnergyAdvection
@@ -151,7 +223,15 @@ end
     return u∂ⱼuⱼu + v∂ⱼuⱼv + w∂ⱼuⱼw
 end
 
-const KineticEnergyAdvection = CustomKFO{<:typeof(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ)}
+# The hydrostatic `u` and `v` equations advect momentum through `U_dot_∇u` and `U_dot_∇v`, which take
+# either a flux-form scheme or a `VectorInvariant` one
+@inline function uₕU_dot_∇uₕᶜᶜᶜ(i, j, k, grid, velocities, advection)
+    uU_dot_∇u = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, U_dot_∇u, advection, velocities)
+    vU_dot_∇v = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, U_dot_∇v, advection, velocities)
+    return uU_dot_∇u + vU_dot_∇v
+end
+
+const KineticEnergyAdvection = Union{CustomKFO{<:typeof(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ)}, CustomKFO{<:typeof(uₕU_dot_∇uₕᶜᶜᶜ)}}
 const Advection = KineticEnergyAdvection
 
 """
@@ -161,8 +241,15 @@ Return a `KernelFunctionOperation` that computes the advection term, defined as
 
     ADV = uᵢ∂ⱼ(uᵢuⱼ)
 
-By default, the buoyancy production will be calculated using the resolved `velocities` and
-users cab use the keyword `velocities` to modify that behavior:
+On a `HydrostaticFreeSurfaceModel` it is `uₕ⋅(u⃗⋅∇)uₕ` over `u` and `v` only, built on the kernels
+(`U_dot_∇u`, `U_dot_∇v`) the hydrostatic momentum equations advect with, so it follows the model's
+scheme, `VectorInvariant` included. The hydrostatic metric terms that a flux-form scheme picks up on a
+curvilinear grid are left out, as they are by
+[`UMomentumEquation.Advection`](@ref Oceanostics.UMomentumEquation.Advection); they vanish on a
+`RectilinearGrid` and for a `VectorInvariant` scheme.
+
+By default, the advection will be calculated using the resolved `velocities` and
+users can use the keyword `velocities` to modify that behavior:
 
 ```jldoctest
 julia> using Oceananigans
@@ -185,18 +272,28 @@ function KineticEnergyAdvection(model::NonhydrostaticModel; velocities = model.v
     validate_location(location, "KineticEnergyAdvection")
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ⱼuⱼuᵢᶜᶜᶜ, model.grid, velocities, momentum_advection(model))
 end
+
+function KineticEnergyAdvection(model::HydrostaticFreeSurfaceModel; velocities = model.velocities,
+                                location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyAdvection")
+    return KernelFunctionOperation{Center, Center, Center}(uₕU_dot_∇uₕᶜᶜᶜ, model.grid, velocities, momentum_advection(model))
+end
 #---
 
 #+++ KineticEnergyStress
-@inline function uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ(i, j, k, grid, closure,
+# The rows are weighted by `velocities` rather than by the velocities in `model_fields`, so that a
+# hydrostatic model can drop the `w` row while its `u` and `v` rows still see the `w` the closure's
+# fluxes are built from
+@inline function uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ(i, j, k, grid, velocities,
+                                            closure,
                                             closure_fields,
                                             clock,
                                             model_fields,
                                             buoyancy)
 
-    u∂ⱼ_τ₁ⱼ = ℑxᶜᵃᵃ(i, j, k, grid, ψf, model_fields.u, ∂ⱼ_τ₁ⱼ, closure, closure_fields, clock, model_fields, buoyancy)
-    v∂ⱼ_τ₂ⱼ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, model_fields.v, ∂ⱼ_τ₂ⱼ, closure, closure_fields, clock, model_fields, buoyancy)
-    w∂ⱼ_τ₃ⱼ = ℑzᵃᵃᶜ(i, j, k, grid, ψf, model_fields.w, ∂ⱼ_τ₃ⱼ, closure, closure_fields, clock, model_fields, buoyancy)
+    u∂ⱼ_τ₁ⱼ = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, ∂ⱼ_τ₁ⱼ, closure, closure_fields, clock, model_fields, buoyancy)
+    v∂ⱼ_τ₂ⱼ = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, ∂ⱼ_τ₂ⱼ, closure, closure_fields, clock, model_fields, buoyancy)
+    w∂ⱼ_τ₃ⱼ = ℑzᵃᵃᶜ(i, j, k, grid, ψf, velocities.w, ∂ⱼ_τ₃ⱼ, closure, closure_fields, clock, model_fields, buoyancy)
 
     return u∂ⱼ_τ₁ⱼ+ v∂ⱼ_τ₂ⱼ + w∂ⱼ_τ₃ⱼ
 end
@@ -215,7 +312,8 @@ Return a `KernelFunctionOperation` that computes the diffusive term of the `eₖ
 
 where `uᵢ` are the velocity components and `τᵢⱼ` is the viscous momentum flux (minus the stress
 tensor). It enters the kinetic energy budget as `-DIFF`, and splits into a transport divergence plus
-the dissipation rate `εₖ` ([`DissipationRate`](@ref)).
+the dissipation rate `εₖ` ([`DissipationRate`](@ref)). On a `HydrostaticFreeSurfaceModel` the sum runs
+over `u` and `v` only, since `w` has no momentum equation there.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -228,18 +326,14 @@ julia> DIFF = KineticEnergyEquation.KineticEnergyStress(model)
 KineticEnergyStress KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ (generic function with 1 method)
-└── arguments: ("ScalarDiffusivity", "Nothing", "Clock", "NamedTuple", "Nothing")
+└── arguments: ("NamedTuple", "ScalarDiffusivity", "Nothing", "Clock", "NamedTuple", "Nothing")
 └── computes: kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ
 ```
 """
 function KineticEnergyStress(model; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyStress")
-    model_fields = fields(model)
-
-    if model isa HydrostaticFreeSurfaceModel
-        model_fields = (; model_fields..., w=ZeroField())
-    end
-    dependencies = (model.closure,
+    dependencies = (energy_velocities(model),
+                    model.closure,
                     model.closure_fields,
                     model.clock,
                     fields(model),
@@ -273,7 +367,8 @@ Return a `KernelFunctionOperation` that computes the forcing term of the KE prog
 ```
 
 where `uᵢ` are the velocity components and `Fᵤᵢ` is the forcing term(s) in the `uᵢ`
-prognostic equation (i.e. the forcing for `uᵢ`).
+prognostic equation (i.e. the forcing for `uᵢ`). On a `HydrostaticFreeSurfaceModel` the sum runs over
+`u` and `v` only, since `w` has no momentum equation, and so no forcing, there.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -290,11 +385,9 @@ KineticEnergyForcing KernelFunctionOperation at (Center, Center, Center)
 └── computes: kinetic energy forcing  uᵢFᵤᵢ
 ```
 """
-function KineticEnergyForcing(model::NonhydrostaticModel; location = (Center, Center, Center))
+function KineticEnergyForcing(model::SupportedModel; location = (Center, Center, Center))
     validate_location(location, "KineticEnergyForcing")
-    model_fields = fields(model)
-
-    dependencies = (model.forcing,
+    dependencies = (momentum_forcing(model),
                     model.clock,
                     fields(model))
     return KernelFunctionOperation{Center, Center, Center}(uᵢFᵤᵢᶜᶜᶜ, model.grid, dependencies...)
@@ -350,10 +443,21 @@ KineticEnergyPressureRedistribution KernelFunctionOperation at (Center, Center, 
 └── arguments: ("NamedTuple", "Field")
 └── computes: kinetic energy pressure redistribution  uᵢ∂ᵢp
 ```
+
+On a `HydrostaticFreeSurfaceModel` the sum runs over `u` and `v` only, and `p` defaults to the
+hydrostatic pressure anomaly `model.pressure.pHY′`, which is the pressure the hydrostatic momentum
+tendencies carry. The free surface's own pressure is not part of it.
 """
 function KineticEnergyPressureRedistribution(model::NonhydrostaticModel; velocities = model.velocities,
                                     pressure = model.pressures.pHY′ == nothing ? model.pressures.pNHS : sum(model.pressures),
                                     location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyPressureRedistribution")
+    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
+end
+
+function KineticEnergyPressureRedistribution(model::HydrostaticFreeSurfaceModel; velocities = energy_velocities(model),
+                                             pressure = model.pressure.pHY′,
+                                             location = (Center, Center, Center))
     validate_location(location, "KineticEnergyPressureRedistribution")
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
 end
@@ -381,6 +485,11 @@ energy, defined as
 where bᵢ is the component of the buoyancy acceleration in the `i`-th direction (which is zero for x
 and y, except when `gravity_unit_vector` isn't aligned with the grid's z-direction) and all three
 components of `i=1,2,3` are added up.
+
+On a `HydrostaticFreeSurfaceModel`, `w` is the vertical velocity diagnosed from continuity. Buoyancy
+enters the hydrostatic momentum equations through the hydrostatic pressure, so `wb` is not one of the
+terms of `uₕGₕ` there; it is the conversion that the pressure work `-uₕ⋅∇ₕp` contains, since
+`∂p/∂z = b`.
 
 By default, the conversion will be calculated using the resolved `velocities` and `tracers`:
 
@@ -417,7 +526,8 @@ PotentialToKineticEnergyConversion KernelFunctionOperation at (Center, Center, C
 └── computes: potential to kinetic energy conversion  uᵢbᵢ
 ```
 """
-function PotentialEnergyConversion(model::NonhydrostaticModel; velocities = model.velocities, tracers = model.tracers, location = (Center, Center, Center))
+function PotentialEnergyConversion(model::SupportedModel; velocities = model.velocities, tracers = model.tracers,
+                                   location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyConversion")
     return KernelFunctionOperation{Center, Center, Center}(uᵢbᵢᶜᶜᶜ, model.grid, velocities, model.buoyancy, tracers)
 end

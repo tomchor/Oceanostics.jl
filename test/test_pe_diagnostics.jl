@@ -30,6 +30,18 @@ function test_potential_energy_equation_terms(model; geopotential_height = nothi
     @test Eₚ isa PotentialEnergyEquation.PotentialEnergy
     @test Eₚ_field isa Field
 
+    # `eₚ = -bz` at the cell centres, with `b` the tracer itself or `g(αT - βS)` from the linear
+    # equation of state. Neither has a reference depth, so `geopotential_height` does not change them.
+    zᶜ = reshape(Array(znodes(model.grid, Center())), 1, 1, :)
+    if model.buoyancy isa PotentialEnergyEquation.BuoyancyTracerModel
+        @test cpu_interior(Eₚ_field) ≈ .-cpu_interior(model.tracers.b) .* zᶜ
+    elseif model.buoyancy isa PotentialEnergyEquation.BuoyancyLinearEOSModel
+        g = model.buoyancy.formulation.gravitational_acceleration
+        eos = model.buoyancy.formulation.equation_of_state
+        T, S = cpu_interior(model.tracers.T), cpu_interior(model.tracers.S)
+        @test cpu_interior(Eₚ_field) ≈ .-g .* (eos.thermal_expansion .* T .- eos.haline_contraction .* S) .* zᶜ
+    end
+
     if model.buoyancy isa PotentialEnergyEquation.BuoyancyBoussinesqEOSModel
         ρ = isnothing(geopotential_height) ? Field(seawater_density(model)) :
                                              Field(seawater_density(model; geopotential_height))
@@ -47,10 +59,10 @@ function test_potential_energy_equation_terms(model; geopotential_height = nothi
     return nothing
 end
 
-function test_PEbuoyancytracer_equals_PElineareos(grid)
+function test_PEbuoyancytracer_equals_PElineareos(grid; model_type)
 
-    model_buoyancytracer = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
-    model_lineareos = NonhydrostaticModel(grid; buoyancy=SeawaterBuoyancy(), tracers=(:S, :T))
+    model_buoyancytracer = model_type(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    model_lineareos = model_type(grid; buoyancy=SeawaterBuoyancy(), tracers=(:S, :T))
     C_grad(x, y, z) = 0.01 * z
     set!(model_lineareos, S = C_grad, T = C_grad)
     linear_eos_buoyancy(grid, buoyancy, tracers) =
@@ -78,10 +90,10 @@ flux the closure actually returns or something reconstructed from the boundary v
 case below is what separates them, and it is the case the docstring warns not to apply the boundary form
 to.
 """
-function test_diffusive_buoyancy_flux(grid)
+function test_diffusive_buoyancy_flux(grid; model_type)
 
     κ = 1e-3
-    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(; ν=1e-6, κ))
+    model = model_type(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure=ScalarDiffusivity(; ν=1e-6, κ))
 
     Φ = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)
     @test Φ isa PotentialEnergyDiffusiveVerticalBuoyancyFlux
@@ -99,8 +111,8 @@ function test_diffusive_buoyancy_flux(grid)
     # With `κ` a function of depth, `b = 3z` still gives `3κ` on every face, so `Φ` is that averaged
     # onto the centre with the wall faces zeroed. The boundary form no longer applies.
     κ_of_z(x, y, z, t) = 1e-3 * (1 + 5z)
-    varying = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b,
-                                  closure=ScalarDiffusivity(ν=1e-6, κ=κ_of_z))
+    varying = model_type(grid; buoyancy=BuoyancyTracer(), tracers=:b,
+                         closure=ScalarDiffusivity(ν=1e-6, κ=κ_of_z))
     set!(varying, b = (x, y, z) -> 3z)
 
     κ_face = [κ_of_z(0, 0, z, 0) for z in Array(znodes(grid, Face()))]
@@ -116,11 +128,11 @@ function test_diffusive_buoyancy_flux(grid)
     # construction rather than at `compute!`, where the failure is a `MethodError` from inside the
     # kernel that names none of the caller's code.
     @test_throws "no closure" PotentialEnergyDiffusiveVerticalBuoyancyFlux(
-        NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b))
+        model_type(grid; buoyancy=BuoyancyTracer(), tracers=:b))
 
     # Closures that compute their own κ do define a flux and must keep working.
     for closure in (SmagorinskyLilly(), AnisotropicMinimumDissipation())
-        eddy = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure)
+        eddy = model_type(grid; buoyancy=BuoyancyTracer(), tracers=:b, closure)
         set!(eddy, b = grid_noise)
         @test volume_integral(PotentialEnergyDiffusiveVerticalBuoyancyFlux(eddy)) isa Number
     end
@@ -144,29 +156,47 @@ stays, since that one enters through `BuoyancyAdvection`'s total velocity and is
 The two integral identities are the other half of the arrangement: pulling `z` inside the derivative
 splits `BuoyancyAdvection` into `-Advection - wb` and `BuoyancyDiffusion` into `Diffusion + Φ`, so over
 a periodic domain `∫BuoyancyAdvection = -∫wb` and `∫BuoyancyDiffusion = ∫Φ`. Those come from the
-continuum product rule and need `∂ⱼuⱼ = 0`, which is why the model is stepped first: the pressure
-projection is what makes the velocity field divergence-free, and a random one straight out of `set!` is
-not.
+continuum product rule and need `∂ⱼuⱼ = 0`, which is why the nonhydrostatic model is stepped first: the
+pressure projection is what makes the velocity field divergence-free, and a random one straight out of
+`set!` is not.
+
+A hydrostatic model has no background fields, and its `w` comes from continuity, so its velocity is
+divergence-free out of `set!`. What it lacks is a lid: the depth-integrated flow moves the free surface,
+and `w` at the surface carries `eₚ` out of the domain. Removing the flow's depth mean closes the domain
+the way the nonhydrostatic one is closed. It is not stepped, so its buoyancy is given a part that
+correlates with the `w` the flow drives and a mean stratification; without them `∫wb` and `∫Φ` vanish by
+symmetry and the identities would compare two roundoff errors.
 
 `Advection` and `Diffusion` are the transports themselves, built as genuine flux divergences rather
 than by rearranging their `Buoyancy*` partners, so each telescopes and its volume integral vanishes to
 roundoff rather than to truncation error. That is checked separately below.
 """
-function test_potential_energy_budget_terms(grid)
+function test_potential_energy_budget_terms(grid; model_type)
 
     U(x, y, z, t) = 1e-2 * z                        # background velocity
     Fᵇ(x, y, z, t) = 1e-4 * sin(2π * z)             # sized to be a real term in the budget, see below
-
-    model = NonhydrostaticModel(grid; buoyancy = BuoyancyTracer(), tracers = :b,
-                                advection = Centered(order=4),
-                                closure = ScalarDiffusivity(ν=1e-4, κ=1e-4),
-                                background_fields = (; u = BackgroundField(U)),
-                                forcing = (; b = Forcing(Fᵇ)))
-
     smooth(x, y, z) = 1e-2 * sin(2π * x) * cos(2π * y) * sin(π * z)
-    set!(model, u = smooth, v = smooth, b = smooth)
-    for _ in 1:3
-        time_step!(model, 1e-2)   # the pressure projection makes u⃗ divergence-free
+
+    if model_type == NonhydrostaticModel
+        model = NonhydrostaticModel(grid; buoyancy = BuoyancyTracer(), tracers = :b,
+                                    advection = Centered(order=4),
+                                    closure = ScalarDiffusivity(ν=1e-4, κ=1e-4),
+                                    background_fields = (; u = BackgroundField(U)),
+                                    forcing = (; b = Forcing(Fᵇ)))
+
+        set!(model, u = smooth, v = smooth, b = smooth)
+        for _ in 1:3
+            time_step!(model, 1e-2)   # the pressure projection makes u⃗ divergence-free
+        end
+    else
+        model = HydrostaticFreeSurfaceModel(grid; buoyancy = BuoyancyTracer(), tracers = :b,
+                                            tracer_advection = Centered(order=4),
+                                            closure = ScalarDiffusivity(ν=1e-4, κ=1e-4),
+                                            forcing = (; b = Forcing(Fᵇ)))
+
+        stratified(x, y, z) = smooth(x, y, z) + 1e-2 * cos(2π * x) * cos(2π * y) * exp(2z) + 1e-2 * z
+        set!(model, u = smooth, v = smooth, b = stratified)
+        remove_barotropic_flow!(model)
     end
 
     TEND  = PotentialEnergyTendency(model)
@@ -190,8 +220,8 @@ function test_potential_energy_budget_terms(grid)
     # Every term has to be doing something, or the sum above would be checking nothing. A term worth 1%
     # of the tendency is still pinned to about `1e-10` of its own size by that bound, which is what makes
     # 1% a meaningful floor. `Fᵇ`'s amplitude is set so the forcing clears it by more than a factor of
-    # ten on both grids, as the other two terms do; a forcing weak enough to be a rounding correction
-    # would satisfy the sum above no matter what `PotentialEnergyForcing` returned.
+    # five on both grids and both model types, as the other two terms do; a forcing weak enough to be a
+    # rounding correction would satisfy the sum above no matter what `PotentialEnergyForcing` returned.
     for term in (BADV, BDIFF, FORC)
         @test maximum(abs, Array(interior(Field(term)))) > 1e-2 * maximum(abs, tendency)
     end
@@ -216,9 +246,9 @@ function test_potential_energy_budget_terms(grid)
     @test volume_integral(BDIFF) ≈  volume_integral(PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)) rtol=1e-6
 
     # These are terms of the `b` equation weighted by `-z`, so they need `b` to be a tracer
-    plain = NonhydrostaticModel(grid; buoyancy = BuoyancyTracer(), tracers = :b)
-    seawater = NonhydrostaticModel(grid; buoyancy = SeawaterBuoyancy(), tracers = (:T, :S),
-                                   closure = ScalarDiffusivity(κ=1e-4))
+    plain = model_type(grid; buoyancy = BuoyancyTracer(), tracers = :b)
+    seawater = model_type(grid; buoyancy = SeawaterBuoyancy(), tracers = (:T, :S),
+                          closure = ScalarDiffusivity(κ=1e-4))
     for diagnostic in (PotentialEnergyTendency, PotentialEnergyAdvection, PotentialEnergyBuoyancyAdvection,
                        PotentialEnergyDiffusion, PotentialEnergyBuoyancyDiffusion, PotentialEnergyForcing)
         @test_throws ArgumentError diagnostic(seawater)
@@ -241,11 +271,11 @@ vertical component of the closure's diffusive flux, which is what its name promi
 doing. `PotentialToKineticEnergyConversion` is the full `u⃗·(bĝ)` contraction over Oceananigans' own
 gravity-projected components, so it is correct under any tilt and only reads as `wb` when `ĝ = -ẑ`.
 """
-function test_gravity_direction_validation(grid)
+function test_gravity_direction_validation(grid; model_type)
 
     tilted = BuoyancyForce(BuoyancyTracer(); gravity_unit_vector = (0, sind(10), -cosd(10)))
-    model = NonhydrostaticModel(grid; buoyancy = tilted, tracers = :b,
-                                closure = ScalarDiffusivity(ν=1e-6, κ=1e-3))
+    model = model_type(grid; buoyancy = tilted, tracers = :b,
+                       closure = ScalarDiffusivity(ν=1e-6, κ=1e-3))
     set!(model, b = grid_noise)
 
     for diagnostic in (PotentialEnergy, PotentialEnergyTendency, PotentialEnergyAdvection,
@@ -264,8 +294,8 @@ function test_gravity_direction_validation(grid)
     @test PotentialToKineticEnergyConversion(model) isa PotentialToKineticEnergyConversion
 
     # An upright model of course still builds every one of them
-    upright = NonhydrostaticModel(grid; buoyancy = BuoyancyTracer(), tracers = :b,
-                                  closure = ScalarDiffusivity(ν=1e-6, κ=1e-3))
+    upright = model_type(grid; buoyancy = BuoyancyTracer(), tracers = :b,
+                         closure = ScalarDiffusivity(ν=1e-6, κ=1e-3))
     for diagnostic in (PotentialEnergy, PotentialEnergyTendency, PotentialEnergyAdvection,
                        PotentialEnergyBuoyancyAdvection, PotentialEnergyDiffusion,
                        PotentialEnergyBuoyancyDiffusion, PotentialEnergyForcing)
@@ -276,25 +306,20 @@ function test_gravity_direction_validation(grid)
 end
 
 """
-`PotentialEnergyForcing`, `PotentialEnergyAdvection` and `PotentialEnergyBuoyancyAdvection` also build on
-a `HydrostaticFreeSurfaceModel` now (#282). `PotentialEnergyTendency` does not yet: it is still built
-directly on `NonhydrostaticModels.tracer_tendency`, so it still requires a `NonhydrostaticModel`. The
-last `@test_throws` here is a reminder to extend this test once `PotentialEnergyTendency` gains
-hydrostatic support too.
+The terms of the `eₚ` budget are built for `NonhydrostaticModel` and `HydrostaticFreeSurfaceModel` (#282).
+Any other model is refused at construction with a message that says so, rather than with a `MethodError`
+or a missing property from somewhere inside the constructor.
 """
-function test_potential_energy_hydrostatic_support(grid)
+function test_unsupported_model_is_rejected()
 
-    Fᵇ(x, y, z, t) = 1e-4 * sin(2π * z)
-    model = HydrostaticFreeSurfaceModel(grid; buoyancy = BuoyancyTracer(), tracers = :b,
-                                        closure = ScalarDiffusivity(κ=1e-4),
-                                        forcing = (; b = Forcing(Fᵇ)))
-    set!(model, b = grid_noise)
+    grid = RectilinearGrid(arch, size=(N, N), extent=(1, 1), topology=(Periodic, Periodic, Flat))
+    model = ShallowWaterModel(grid; gravitational_acceleration = 1)
 
-    for diagnostic in (PotentialEnergyForcing, PotentialEnergyAdvection, PotentialEnergyBuoyancyAdvection)
-        @test Field(diagnostic(model)) isa Field
+    for diagnostic in (PotentialEnergyTendency, PotentialEnergyAdvection, PotentialEnergyBuoyancyAdvection,
+                       PotentialEnergyDiffusion, PotentialEnergyBuoyancyDiffusion, PotentialEnergyForcing,
+                       PotentialEnergyDiffusiveVerticalBuoyancyFlux)
+        @test_throws "supports `NonhydrostaticModel` and `HydrostaticFreeSurfaceModel`" diagnostic(model)
     end
-
-    @test_throws MethodError PotentialEnergyTendency(model)
 
     return nothing
 end
@@ -345,20 +370,21 @@ end
                     test_potential_energy_equation_terms(model, geopotential_height = 0)
                 end
             end
-            test_PEbuoyancytracer_equals_PElineareos(grid)
+            test_PEbuoyancytracer_equals_PElineareos(grid; model_type)
+
+            @info "        Testing the diffusive buoyancy flux"
+            test_diffusive_buoyancy_flux(grid; model_type)
+
+            @info "        Testing the terms of the potential energy equation"
+            test_potential_energy_budget_terms(grid; model_type)
+
+            @info "        Testing that a tilted gravity is rejected"
+            test_gravity_direction_validation(grid; model_type)
         end
-        @info "      Testing the diffusive buoyancy flux"
-        test_diffusive_buoyancy_flux(grid)
-
-        @info "      Testing the terms of the potential energy equation"
-        test_potential_energy_budget_terms(grid)
-
-        @info "      Testing that a tilted gravity is rejected"
-        test_gravity_direction_validation(grid)
-
-        @info "      Testing hydrostatic-model support for the low-hanging-fruit terms"
-        test_potential_energy_hydrostatic_support(grid)
     end
+
+    @info "  Testing that other model types are rejected"
+    test_unsupported_model_is_rejected()
 
     @info "  Testing the `KineticEnergyConversion` alias and its export scope"
     test_kinetic_energy_conversion_alias()

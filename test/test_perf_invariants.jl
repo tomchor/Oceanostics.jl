@@ -64,6 +64,22 @@ function build_probe_model()
                 b=(x,y,z) -> 1e-3*(x + y + z))
     return model
 end
+
+# The energy budget terms build a kernel of their own on a hydrostatic model, which needs a bounded
+# vertical direction for its free surface. The probe point stays three cells from either wall.
+function build_probe_hydrostatic_model()
+    grid = RectilinearGrid(CPU(), size=(N, N, N), extent=(1, 1, 1),
+                           halo=(3, 3, 3),
+                           topology=(Periodic, Periodic, Bounded))
+    model = HydrostaticFreeSurfaceModel(grid; closure=ScalarDiffusivity(ν=1e-3, κ=1e-3),
+                                        buoyancy=BuoyancyForce(BuoyancyTracer()),
+                                        coriolis=FPlane(f=1e-4),
+                                        tracers=:b)
+    set!(model, u=(x,y,z) -> sin(2π*x),
+                v=(x,y,z) -> cos(2π*y),
+                b=(x,y,z) -> 1e-3*(x + y + z))
+    return model
+end
 #---
 
 #+++ Helpers
@@ -177,6 +193,17 @@ end
         test_kfo_invariants("PotentialEnergyDiffusion", PotentialEnergyDiffusion(model))
         test_kfo_invariants("PotentialEnergyBuoyancyDiffusion", PotentialEnergyBuoyancyDiffusion(model))
         test_kfo_invariants("PotentialEnergyForcing",   PotentialEnergyForcing(model))
+    end
+
+    @testset "Energy budgets on a HydrostaticFreeSurfaceModel" begin
+        # Kernels of their own around Oceananigans' hydrostatic tendencies, and a `ZeroField` for `w`
+        hydrostatic = build_probe_hydrostatic_model()
+        test_kfo_invariants("KineticEnergy",            KineticEnergyEquation.KineticEnergy(hydrostatic))
+        test_kfo_invariants("KineticEnergyTendency",    KineticEnergyEquation.KineticEnergyTendency(hydrostatic))
+        test_kfo_invariants("KineticEnergyAdvection",   KineticEnergyEquation.KineticEnergyAdvection(hydrostatic))
+        test_kfo_invariants("KineticEnergyStress",      KineticEnergyEquation.KineticEnergyStress(hydrostatic))
+        test_kfo_invariants("KineticEnergyForcing",     KineticEnergyEquation.KineticEnergyForcing(hydrostatic))
+        test_kfo_invariants("PotentialEnergyTendency",  PotentialEnergyTendency(hydrostatic))
     end
 
     @testset "AvailablePotentialEnergyEquation" begin

@@ -131,6 +131,23 @@ over the gravity-projected buoyancy components, so it is correct under any tilt 
 when ``\hat{g} = -\hat{z}``. Neither is the term the budget above needs once gravity tilts, so the split
 still does not close there — only the individual quantities remain meaningful.
 
+## Model types
+
+Every term above accepts a `NonhydrostaticModel` or a `HydrostaticFreeSurfaceModel`, and the terms of
+the budget refuse any other model at construction. On a hydrostatic model `PotentialEnergyTendency` wraps
+Oceananigans'
+`hydrostatic_free_surface_tracer_tendency`, evaluated with `model.velocities`. That is also the flow the
+two advection terms take by default, so the split above holds cell by cell there as well.
+
+Two things set a hydrostatic model apart. Within a time step it advects its tracers with
+`model.transport_velocities`, which carry the free surface's barotropic correction and are only filled
+once the model has stepped, so a diagnostic evaluated between steps describes the flow at that instant
+rather than the one the step used. And its domain is open at the top: the depth-integrated flow moves the
+free surface, so ``w`` does not vanish there, and the integral identities above, which assume a closed
+domain, hold only when the depth-integrated flow is divergence-free. A `MutableVerticalDiscretization`,
+whose ``z`` moves with the free surface, is outside what these terms describe, since ``\partial_t e_p``
+is then no longer ``-z\,\partial_t b``.
+
 ## Summary of ``e_p`` equation terms
 
 ```@docs

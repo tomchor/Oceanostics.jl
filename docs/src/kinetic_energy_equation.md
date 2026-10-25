@@ -37,6 +37,37 @@ Oceananigans' kernels carry (i.e. , the negative of the stress tensor; ``-2\nu S
 
 All diagnostics are computed at `(Center, Center, Center)`.
 
+## Hydrostatic models
+
+A `HydrostaticFreeSurfaceModel` steps ``u`` and ``v`` and diagnoses ``w`` from continuity, so on such a
+model the kinetic energy is ``e_k = \tfrac{1}{2}(u^2 + v^2)``, and `KineticEnergy`,
+`KineticEnergyTendency`, `KineticEnergyAdvection`, `KineticEnergyStress`, `KineticEnergyForcing` and
+`KineticEnergyPressureRedistribution` all sum over ``u`` and ``v`` only. Buoyancy does not appear in the
+hydrostatic momentum equations. It enters through the hydrostatic pressure anomaly ``p'``, with
+``\partial_z p' = b``, so the budget reads
+
+```math
+\partial_t e_k = -u_i (\boldsymbol{u} \cdot \nabla) u_i - u_i \partial_j \tau_{ij} - u_i \partial_i p'
+                 + u_i F_{u_i} , \qquad i = 1, 2 ,
+```
+
+cell by cell, apart from the work of the barotropic pressure gradient, which an `ImplicitFreeSurface` or
+a `SplitExplicitFreeSurface` treats implicitly and `KineticEnergyTendency` therefore leaves out. The
+conversion ``wb`` sits inside the pressure work,
+
+```math
+-u_i \partial_i p' = -\partial_j (u_j p') + w b , \qquad i = 1, 2 ,
+```
+
+which is why `PotentialToKineticEnergyConversion` uses the diagnosed ``w`` on a hydrostatic model. A
+`NonhydrostaticModel` that carries a hydrostatic pressure anomaly (Oceananigans' default when there is a
+buoyancy model and the vertical direction is bounded) is arranged the same way: its ``w`` equation has no
+buoyancy term, and ``wb`` reaches the budget through ``w \partial_z p'`` instead.
+
+The two dissipation rates are functions of the velocity gradient and keep the ``w`` row on both model
+types. On a hydrostatic model that row is the dissipation of a velocity the model does not step, so there
+the volume integral of `KineticEnergyStress` matches that of ``\varepsilon_k`` only up to it.
+
 ## Example
 
 ```jldoctest ke_eq
