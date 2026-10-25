@@ -176,29 +176,23 @@ end
 #---
 
 #+++ Utils for removing mean fields
-using Oceananigans: prognostic_fields, HydrostaticFreeSurfaceModel
-using Oceananigans.Biogeochemistry: biogeochemical_auxiliary_fields
+using Oceananigans: fields
 """
     $(SIGNATURES)
 
-Remove mean fields from the model resolved fields.
+Remove mean fields, passed as keyword arguments such as `u = U`, from the fields of `model` with the
+same names. The fields are those of `fields(model)`, which include the auxiliary fields and, for a
+`HydrostaticFreeSurfaceModel`, the diagnostic `w`.
 """
 function perturbation_fields(model; kwargs...)
 
-    resolved_fields = prognostic_fields(model)
-    if model isa HydrostaticFreeSurfaceModel
-        resolved_fields = (; resolved_fields..., w=ZeroField())
-    end
-
+    model_fields = fields(model)
     mean_fields = values(kwargs)
     # Removes mean fields only if mean field is provided
-    pert_fields = NamedTuple{keys(resolved_fields)}(haskey(mean_fields, key) ?
-                                                    Field(val - mean_fields[key]) :
-                                                    val
-                                                    for (key,val) in zip(keys(resolved_fields), resolved_fields))
-    return merge(pert_fields,
-                 model.auxiliary_fields,
-                 biogeochemical_auxiliary_fields(model.biogeochemistry))
+    return NamedTuple{keys(model_fields)}(haskey(mean_fields, key) ?
+                                          Field(val - mean_fields[key]) :
+                                          val
+                                          for (key,val) in zip(keys(model_fields), model_fields))
 end
 #---
 
