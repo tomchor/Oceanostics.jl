@@ -261,6 +261,94 @@ function test_potential_energy_budget_terms(grid; model_type)
 end
 
 """
+Each term of the `eₚ` equation has a closed form for a flow and a buoyancy simple enough that the discrete
+operators can be written out. With `u = U₀` uniform, so that `w = 0`, `b = B₀ sin(2πx) + B₁ sin(2πy) + B₂ z`,
+second-order centred advection, a constant `κ` and the forcing `Fᵇ = F₀ sin(2πx) + F₁ z`:
+
+  * `BuoyancyAdvection = z U₀ ∂ₓb`, with the centred difference `∂ₓ sin(2πx) = sin(2πΔx)/Δx cos(2πx)`,
+    and `Advection = -BuoyancyAdvection`, since `w = 0` and `z` does not vary along `x`.
+  * `BuoyancyDiffusion = z ∂ⱼqⱼ`: the second difference of a sine gives `∂ₓqₓ = κB₀ 4 sin²(πΔx)/Δx² sin(2πx)`
+    and likewise in `y`, while `q₃ = -κB₂` on the interior faces and zero on the walls, so `∂zq₃` vanishes
+    except in the two wall cells. `Diffusion = ∂ⱼ(z qⱼ)` weights the vertical flux by the face `z`, and
+    `Φ = -ℑz(q₃)` is `κB₂` with the wall cells halved; the three satisfy `BuoyancyDiffusion = Diffusion + Φ`.
+  * `Forcing = -z Fᵇ`, and `Tendency` is the sum of the three `-z ×` terms.
+
+Both grids are regular in `x` and `y`, so the horizontal forms hold on both; the vertical ones are built
+from the face heights and hold on the stretched grid too.
+"""
+function test_potential_energy_term_values(grid; model_type)
+    U₀ = 0.3; B₀ = 2; B₁ = 3; B₂ = 5; κ = 1e-2; F₀ = 7; F₁ = 11
+    Fᵇ(x, y, z, t) = F₀ * sin(2π * x) + F₁ * z
+    b₀(x, y, z) = B₀ * sin(2π * x) + B₁ * sin(2π * y) + B₂ * z
+
+    kwargs = (; buoyancy = BuoyancyTracer(), tracers = :b, closure = ScalarDiffusivity(; ν=1e-2, κ), forcing = (; b = Forcing(Fᵇ)))
+    model = model_type == NonhydrostaticModel ? NonhydrostaticModel(grid; advection = Centered(order=2), kwargs...) :
+                                                HydrostaticFreeSurfaceModel(grid; tracer_advection = Centered(order=2), kwargs...)
+    set!(model, u = U₀, b = b₀)
+
+    xᶜ = reshape(Array(xnodes(grid, Center())), :, 1, 1)
+    yᶜ = reshape(Array(ynodes(grid, Center())), 1, :, 1)
+    zᶜ = reshape(Array(znodes(grid, Center())), 1, 1, :)
+    zᶠ = Array(znodes(grid, Face()))
+    Δx = grid.Lx / grid.Nx; Δy = grid.Ly / grid.Ny
+    Δzᶜ = diff(zᶠ)
+
+    ∂ₓb  = B₀ * sin(2π * Δx) / Δx .* cos.(2π .* xᶜ)                       # centred difference over 2Δx
+    ∂ₓqₓ = κ * B₀ * 4 * sin(π * Δx)^2 / Δx^2 .* sin.(2π .* xᶜ)            # -κ times the second difference
+    ∂ᵧqᵧ = κ * B₁ * 4 * sin(π * Δy)^2 / Δy^2 .* sin.(2π .* yᶜ)
+    q₃ = fill(-κ * B₂, grid.Nz + 1); q₃[1] = q₃[end] = 0                  # no buoyancy crosses the walls
+    ∂zq₃  = reshape((q₃[2:end] .- q₃[1:end-1]) ./ Δzᶜ, 1, 1, :)
+    ∂z_zq₃ = reshape((zᶠ[2:end] .* q₃[2:end] .- zᶠ[1:end-1] .* q₃[1:end-1]) ./ Δzᶜ, 1, 1, :)
+    Φ = reshape(.-(q₃[1:end-1] .+ q₃[2:end]) ./ 2, 1, 1, :)
+
+    BADV  = zᶜ .* U₀ .* ∂ₓb
+    BDIFF = zᶜ .* (∂ₓqₓ .+ ∂ᵧqᵧ .+ ∂zq₃)
+    DIFF  = zᶜ .* (∂ₓqₓ .+ ∂ᵧqᵧ) .+ ∂z_zq₃
+    FORC  = .-zᶜ .* (F₀ .* sin.(2π .* xᶜ) .+ F₁ .* zᶜ)
+    full(a) = a .+ zeros(grid.Nx, grid.Ny, grid.Nz)
+
+    @test cpu_interior(PotentialEnergyBuoyancyAdvection(model)) ≈ full(BADV)
+    @test cpu_interior(PotentialEnergyAdvection(model)) ≈ full(-BADV)
+    @test cpu_interior(PotentialEnergyBuoyancyDiffusion(model)) ≈ full(BDIFF)
+    @test cpu_interior(PotentialEnergyDiffusion(model)) ≈ full(DIFF)
+    @test cpu_interior(PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)) ≈ full(Φ)
+    @test cpu_interior(PotentialEnergyForcing(model)) ≈ full(FORC)
+    @test cpu_interior(PotentialEnergyTendency(model)) ≈ full(BADV .+ BDIFF .+ FORC)
+
+    return nothing
+end
+
+"""
+The one check that takes the model's own time stepping as the truth. After a warm-up step, so that the
+transport velocities and the time stepper's history exist, the tendency diagnosed at `tⁿ` has to match the
+change of `eₚ` over the next step of length `Δt` to `O(Δt)`, cell by cell, with advection, diffusion,
+Coriolis and a forcing all in play. On a hydrostatic model the depth-mean flow is removed first, so that
+the free surface stays at rest and the model advects `b` with the velocities the diagnostic is evaluated
+with.
+"""
+function test_potential_energy_tendency_matches_one_time_step(grid; model_type)
+    Δt = 1e-5
+    Fᵇ(x, y, z, t) = 1e-1 * sin(2π * z)
+    smooth(x, y, z) = 1e-1 * sin(2π * x) * cos(2π * y) * sin(π * z) + 5e-2 * cos(2π * z)
+    stratified(x, y, z) = smooth(x, y, z) + 1e-2 * z
+
+    model = model_type(grid; buoyancy = BuoyancyTracer(), tracers = :b, coriolis = FPlane(f=1),
+                       closure = ScalarDiffusivity(ν=1e-2, κ=1e-2), forcing = (; b = Forcing(Fᵇ)))
+    set!(model, u = smooth, v = smooth, b = stratified)
+    model isa HydrostaticFreeSurfaceModel && remove_barotropic_flow!(model)
+    time_step!(model, Δt)
+
+    eₚ⁰ = cpu_interior(PotentialEnergy(model))
+    ∂ₜeₚ = cpu_interior(PotentialEnergyTendency(model))
+    time_step!(model, Δt)
+    eₚ¹ = cpu_interior(PotentialEnergy(model))
+
+    @test maximum(abs, (eₚ¹ .- eₚ⁰) ./ Δt .- ∂ₜeₚ) < 1e-3 * maximum(abs, ∂ₜeₚ)
+
+    return nothing
+end
+
+"""
 Every term of the `eₚ = -bz` equation weights buoyancy by `z`, which is the height that works against
 gravity only when gravity points along `-z`. Tilt it and the height becomes `z cosθ - y sinθ`, so `-bz`
 is wrong by a factor and by a cross-slope term: not a term computed approximately, a different quantity.
@@ -377,6 +465,12 @@ end
 
             @info "        Testing the terms of the potential energy equation"
             test_potential_energy_budget_terms(grid; model_type)
+
+            @info "        Testing the value of every term against closed forms"
+            test_potential_energy_term_values(grid; model_type)
+
+            @info "        Testing the tendency against one time step of the model"
+            test_potential_energy_tendency_matches_one_time_step(grid; model_type)
 
             @info "        Testing that a tilted gravity is rejected"
             test_gravity_direction_validation(grid; model_type)

@@ -318,6 +318,50 @@ function test_kinetic_energy_budget(grid; model_type)
     return nothing
 end
 
+"""
+The one check that takes the model's own time stepping as the truth. After a warm-up step, so that the
+nonhydrostatic pressure, the transport velocities and the time stepper's history exist, the tendency
+diagnosed at `tⁿ` has to match the change of `eₖ` over the next step of length `Δt` to `O(Δt)`, cell by
+cell, with Coriolis, a buoyancy anomaly, viscosity and a forcing all in play. On a nonhydrostatic model
+the tendency is `uᵢGᵢ` less the work of the nonhydrostatic pressure, which the warm-up step has filled
+and whose halos have to be refilled first, see the comment below. On a hydrostatic model the free
+surface's pressure gradient also acts on `u` and `v`, but the depth-mean flow is removed first, so its
+work over the step is `O(Δt²)`.
+"""
+function test_kinetic_energy_tendency_matches_one_time_step(grid; model_type)
+    Δt = 1e-5
+    drag(x, y, z, t, ψ) = -ψ
+    flow(x, y, z) = 1e-1 * sin(2π * x) * cos(2π * y) * sin(π * z) + 5e-2 * cos(2π * z)
+
+    model = model_type(grid; buoyancy = BuoyancyTracer(), tracers = :b, coriolis = FPlane(f=1),
+                       closure = ScalarDiffusivity(ν=1e-2, κ=1e-2),
+                       forcing = (u = Forcing(drag, field_dependencies=:u), v = Forcing(drag, field_dependencies=:v)))
+    set!(model, u = flow, v = flow, b = flow)
+    model isa HydrostaticFreeSurfaceModel && remove_barotropic_flow!(model)
+    time_step!(model, Δt)
+
+    eₖ⁰ = cpu_interior(KineticEnergyEquation.KineticEnergy(model))
+    ∂ₜeₖ = cpu_interior(KineticEnergyTendency(model))
+    stale = nothing
+    if model isa NonhydrostaticModel
+        # After a step Oceananigans (0.106 to 0.116) leaves the halos of `pNHS` at the pressure times `Δt`:
+        # it corrects the velocities with `p Δt`, then divides the interior alone by `Δt`. Read across
+        # those halos, the pressure work is wrong in the cells next to a periodic boundary. The stale
+        # value is kept as a broken test, so that an Oceananigans release that fixes it shows up here.
+        pNHS = model.pressures.pNHS
+        stale = ∂ₜeₖ .- cpu_interior(KineticEnergyPressureRedistribution(model; pressure = pNHS))
+        fill_halo_regions!(pNHS)
+        ∂ₜeₖ .-= cpu_interior(KineticEnergyPressureRedistribution(model; pressure = pNHS))
+    end
+    time_step!(model, Δt)
+    rate = (cpu_interior(KineticEnergyEquation.KineticEnergy(model)) .- eₖ⁰) ./ Δt
+
+    @test maximum(abs, rate .- ∂ₜeₖ) < 1e-3 * maximum(abs, ∂ₜeₖ)
+    isnothing(stale) || @test_broken maximum(abs, rate .- stale) < 1e-3 * maximum(abs, stale)
+
+    return nothing
+end
+
 # Random velocities without a depth mean, so the depth-integrated transport vanishes and with it the
 # diagnostic w of a HydrostaticFreeSurfaceModel at the top, where the flux of u would otherwise be -ν∂ₓw
 function set_velocities_without_depth_mean!(model)
@@ -455,6 +499,9 @@ end
 
             @info "        Testing that the terms add up to the tendency"
             test_kinetic_energy_budget(grid; model_type)
+
+            @info "        Testing the tendency against one time step of the model"
+            test_kinetic_energy_tendency_matches_one_time_step(grid; model_type)
 
             for closure in closures
                 @info "        Testing the closure-dependent terms with $(summary(closure))"

@@ -472,6 +472,13 @@ KineticEnergyPressureRedistribution KernelFunctionOperation at (Center, Center, 
 On a `HydrostaticFreeSurfaceModel` the sum runs over `u` and `v` only, and `p` defaults to the
 hydrostatic pressure anomaly `model.pressure.pHY′`, which is the pressure the hydrostatic momentum
 tendencies carry. The free surface's own pressure is not part of it.
+
+On a `NonhydrostaticModel` that has taken a time step, Oceananigans (0.106 to 0.116 at least) leaves the
+halos of `pNHS` at the pressure times `Δt`: it corrects the velocities with `p Δt` and then divides the
+interior alone by `Δt`. This term differentiates `p` across those halos, so in the cells next to a
+periodic boundary it is wrong until the halos are refilled, with
+`fill_halo_regions!(model.pressures.pNHS)` right before it is evaluated. The error is a redistribution
+and barely changes a volume integral.
 """
 function KineticEnergyPressureRedistribution(model::NonhydrostaticModel; velocities = model.velocities,
                                     pressure = model.pressures.pHY′ == nothing ? model.pressures.pNHS : sum(model.pressures),
