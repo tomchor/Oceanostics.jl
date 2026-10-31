@@ -15,11 +15,12 @@ export Forcing, PotentialEnergyForcing
 # `KineticEnergyEquation` and re-exported here under both its own name and a budget-neutral alias.
 export PotentialToKineticEnergyConversion, KineticEnergyConversion
 
-using Oceananigans: NonhydrostaticModel, fields
+using Oceananigans: NonhydrostaticModel, HydrostaticFreeSurfaceModel, fields
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Models: seawater_density
 using Oceananigans.Models: model_geopotential_height
 using Oceananigans.Models.NonhydrostaticModels: div_Uc, tracer_tendency
+using Oceananigans.Models.HydrostaticFreeSurfaceModels: hydrostatic_free_surface_tracer_tendency
 using Oceananigans.Grids: Center, Face
 using Oceananigans.Grids: NegativeZDirection
 using Oceananigans.BuoyancyFormulations: BuoyancyForce, BuoyancyTracer, SeawaterBuoyancy, LinearEquationOfState
@@ -72,6 +73,16 @@ validate_gravity_unit_vector(diagnostic, gravity_unit_vector) =
 # term's own buoyancy validator instead.
 validate_gravity_is_z_aligned(diagnostic, model) =
     isnothing(model.buoyancy) ? nothing : validate_gravity_unit_vector(diagnostic, model.buoyancy.gravity_unit_vector)
+
+# Every term of the `eₚ` equation accepts either model type (#282). `Forcing`, `Advection` and
+# `BuoyancyAdvection` build on pieces that are the same for both (`model.forcing`, `div_Uc`,
+# `tracer_advection`), while `Tendency` wraps each model's own tracer tendency kernel.
+const SupportedModel = Union{NonhydrostaticModel, HydrostaticFreeSurfaceModel}
+
+validate_model_supports_potential_energy_budget(diagnostic, model::SupportedModel) = nothing
+validate_model_supports_potential_energy_budget(diagnostic, model) =
+    throw(ArgumentError("`$diagnostic` supports `NonhydrostaticModel` and `HydrostaticFreeSurfaceModel`, \
+                         but got a $(nameof(typeof(model)))."))
 
 #+++ Potential energy
 """
@@ -378,6 +389,7 @@ PotentialEnergyDiffusiveVerticalBuoyancyFlux KernelFunctionOperation at (Center,
 """
 function DiffusiveVerticalBuoyancyFlux(model; location = (Center, Center, Center))
     validate_location(location, "DiffusiveVerticalBuoyancyFlux")
+    validate_model_supports_potential_energy_budget("DiffusiveVerticalBuoyancyFlux", model)
     validate_buoyancy_is_a_diffused_tracer("DiffusiveVerticalBuoyancyFlux", model)
     validate_closure_supplies_a_flux("DiffusiveVerticalBuoyancyFlux", model)
 
@@ -401,23 +413,33 @@ Base.@deprecate_binding DiffusiveBuoyancyFlux DiffusiveVerticalBuoyancyFlux
 # is then the model's own tendency taken apart term by term, rather than a continuum rearrangement of
 # it, so it holds at the discrete level.
 #
-# `Tendency` comes off `tracer_tendency`, so it always carries every term the model steps. The other
-# three cover most but not all of them, and the split closes exactly only when none of the following is
-# in play. In each case `Tendency` still includes the term and the other three do not, so the shortfall
-# shows up as a residual with no error raised:
+# `Tendency` comes off the model's tracer tendency kernel (`tracer_tendency`, or
+# `hydrostatic_free_surface_tracer_tendency` on a hydrostatic model), so it always carries every term
+# the model steps. The other three cover most but not all of them, and the split closes exactly only
+# when none of the following is in play. In each case `Tendency` still includes the term and the other
+# three do not, so the shortfall shows up as a residual with no error raised:
 #
 #   * a `BackgroundField` buoyancy `B`. The model prognoses the perturbation and its equation picks up
 #     `-∂ⱼ(uⱼB)`, which weighted by `-z` is a source of `eₚ` that does not drop out of a volume integral.
 #     It has no diagnostic here yet.
-#   * an `AdvectiveForcing`, or a biogeochemistry with a drift velocity. `tracer_tendency` folds both
-#     into the advecting flow through `with_advective_forcing` and `biogeochemical_drift_velocity`,
-#     while `BuoyancyAdvection`'s `velocities` default is only `sum_of_velocities(velocities,
-#     background)`. An `AdvectiveForcing` is doubly invisible: it also evaluates to zero when called
-#     pointwise, which is how `Forcing` calls it. Pass `velocities` explicitly to cover the drift.
-#   * an `ImmersedBoundaryGrid`. `tracer_tendency` adds `-immersed_∇_dot_qᶜ`, the flux through immersed
-#     faces, and no diagnostic here accounts for it.
-#   * a biogeochemistry with a transition term for `b`, which `tracer_tendency` adds and nothing here
+#   * an `AdvectiveForcing`, a biogeochemistry with a drift velocity or, on a hydrostatic model, a
+#     closure with an advecting velocity of its own (an eddy-induced velocity). The tendency kernels fold
+#     these into the advecting flow through `with_advective_forcing`, `biogeochemical_drift_velocity` and
+#     `closure_auxiliary_velocity`, while `BuoyancyAdvection`'s `velocities` default is only the resolved
+#     flow (plus the background on a nonhydrostatic model). An `AdvectiveForcing` is doubly invisible:
+#     it also evaluates to zero when called pointwise, which is how `Forcing` calls it. Pass `velocities`
+#     explicitly to cover the drift.
+#   * an `ImmersedBoundaryGrid`. The tendency kernels add `-immersed_∇_dot_qᶜ`, the flux through
+#     immersed faces, and no diagnostic here accounts for it.
+#   * a biogeochemistry with a transition term for `b`, which the tendency kernels add and nothing here
 #     mirrors.
+#
+# On a hydrostatic model `Tendency` evaluates the kernel with `model.velocities`, the flow
+# `BuoyancyAdvection` takes by default, so that the two agree at the state they are computed from.
+# Within a time step the model advects its tracers with `model.transport_velocities` instead, which
+# carry the free surface's barotropic correction and are only filled once the model has stepped. And
+# none of this holds on a `MutableVerticalDiscretization`, where `z` moves with the free surface and
+# `∂ₜeₚ` is no longer `-z∂ₜb`.
 #
 # Pulling `z` inside the derivative splits each of the two flux terms into a transport of `eₚ` and a
 # conversion:
@@ -439,11 +461,22 @@ Base.@deprecate_binding DiffusiveBuoyancyFlux DiffusiveVerticalBuoyancyFlux
 # `DiffusiveVerticalBuoyancyFlux` in place of the two `Buoyancy*` terms. Those identities come from the
 # continuum product rule, so they hold to the truncation error of the discretization rather than
 # exactly.
+#
+# `∇_dot_qᶜ` also applies the closure's time discretization. Under a `VerticallyImplicitTimeDiscretization`
+# (CATKE's default, an option of `ScalarDiffusivity` and `VerticalScalarDiffusivity`) it drops the
+# interior vertical flux, which the model applies in the implicit step instead, while `Diffusion` and `Φ`
+# are built from the bare `diffusive_flux_*` and keep it. `Tendency` and `BuoyancyDiffusion` then leave
+# out the vertical diffusion the model does, so the split still closes but neither
+# `BuoyancyDiffusion = Diffusion + Φ` nor `∫BuoyancyDiffusion dV = ∫Φ dV` holds, and an integrated budget
+# has to be written with `Φ`, as the examples do.
 
 #+++ Tendency
 @inline minus_z_∂ₜb_ccc(i, j, k, grid, args...) = -Zᶜᶜᶜ(i, j, k, grid) * tracer_tendency(i, j, k, grid, args...)
+@inline minus_z_hydrostatic_∂ₜb_ccc(i, j, k, grid, args...) =
+    -Zᶜᶜᶜ(i, j, k, grid) * hydrostatic_free_surface_tracer_tendency(i, j, k, grid, args...)
 
-const PotentialEnergyTendency = CustomKFO{<:typeof(minus_z_∂ₜb_ccc)}
+const PotentialEnergyTendency = Union{CustomKFO{<:typeof(minus_z_∂ₜb_ccc)},
+                                      CustomKFO{<:typeof(minus_z_hydrostatic_∂ₜb_ccc)}}
 const Tendency = PotentialEnergyTendency
 
 """
@@ -473,6 +506,22 @@ that term, silently:
     advecting flow but [`PotentialEnergyBuoyancyAdvection`](@ref) does not pick up by default;
   * an `ImmersedBoundaryGrid`, whose `immersed_∇_dot_qᶜ` no diagnostic here mirrors;
   * a biogeochemical transition term for `b`.
+
+On a `HydrostaticFreeSurfaceModel` the kernel is `hydrostatic_free_surface_tracer_tendency`, evaluated
+with `model.velocities`, the flow [`PotentialEnergyBuoyancyAdvection`](@ref) takes by default, so the
+split closes there too. A closure with an eddy-induced velocity of its own adds to that list, since the
+hydrostatic kernel folds it into the advecting flow. Within a time step the model advects its tracers
+with `model.transport_velocities` instead, which carry the free surface's barotropic correction. The
+split also assumes a static vertical coordinate: on a `MutableVerticalDiscretization` `z` moves with the
+free surface, and `∂ₜeₚ` is no longer `-z ∂ₜb`.
+
+On either model this is the explicit tendency. A closure with a `VerticallyImplicitTimeDiscretization`
+(CATKE's default, and an option of `ScalarDiffusivity` and `VerticalScalarDiffusivity`) applies its
+interior vertical diffusion in the implicit step instead, so this term and
+[`PotentialEnergyBuoyancyDiffusion`](@ref) leave that diffusion out, and the change of `eₚ` over a time
+step differs from this term by `-z` times it. The split above still closes, since both sides omit the
+same thing. [`DiffusiveVerticalBuoyancyFlux`](@ref) keeps the implicit flux, so an integrated budget
+should be written with it.
 
 Defined for `BuoyancyTracer` models, where `b` is one of the model's tracers.
 
@@ -515,6 +564,32 @@ function PotentialEnergyTendency(model::NonhydrostaticModel; location = (Center,
 
     return KernelFunctionOperation{Center, Center, Center}(minus_z_∂ₜb_ccc, model.grid, dependencies...)
 end
+
+function PotentialEnergyTendency(model::HydrostaticFreeSurfaceModel; location = (Center, Center, Center))
+    validate_location(location, "PotentialEnergyTendency")
+    validate_buoyancy_is_a_tracer("PotentialEnergyTendency", model)
+    validate_gravity_is_z_aligned("PotentialEnergyTendency", model)
+
+    # `model.velocities`, the flow `BuoyancyAdvection` takes, not `model.transport_velocities` (see above)
+    dependencies = (buoyancy_tracer_index(model),
+                    Val(:b),
+                    tracer_advection(model, :b),
+                    model.closure,
+                    model.tracers.b.boundary_conditions.immersed,
+                    model.buoyancy,
+                    model.biogeochemistry,
+                    model.velocities,
+                    model.free_surface,
+                    model.tracers,
+                    model.closure_fields,
+                    model.auxiliary_fields,
+                    model.clock,
+                    model.forcing.b)
+
+    return KernelFunctionOperation{Center, Center, Center}(minus_z_hydrostatic_∂ₜb_ccc, model.grid, dependencies...)
+end
+
+PotentialEnergyTendency(model; kwargs...) = validate_model_supports_potential_energy_budget("PotentialEnergyTendency", model)
 #---
 
 #+++ Advection of eₚ
@@ -522,6 +597,14 @@ end
 # model advects `b` with, exactly as it would a tracer. Being a flux divergence it telescopes, so its
 # volume integral over a periodic or closed domain vanishes to roundoff rather than to truncation error.
 @inline div_U_eₚ_ccc(i, j, k, grid, advection, U, eₚ) = div_Uc(i, j, k, grid, advection, U, eₚ)
+
+# `NonhydrostaticModel` carries `background_fields`, so its total advecting velocity is the perturbation
+# plus the background. `HydrostaticFreeSurfaceModel` has no `background_fields` container at all, so the
+# default there is `model.velocities`, the same flow `Tendency` is evaluated with on that model. The
+# model itself advects tracers with `model.transport_velocities` within a time step (see the notes
+# above).
+default_eₚ_velocities(model::NonhydrostaticModel) = sum_of_velocities(model.velocities, model.background_fields.velocities)
+default_eₚ_velocities(model) = model.velocities
 
 const PotentialEnergyAdvection = CustomKFO{<:typeof(div_U_eₚ_ccc)}
 const Advection = PotentialEnergyAdvection
@@ -536,8 +619,10 @@ Return a `KernelFunctionOperation` computing the advection of the potential ener
 ```
 
 with `eₚ = -bz` handed to the scheme the model advects `b` with, the way a tracer would be. `uⱼ`
-defaults to the *total* velocity, perturbation plus background, which is what the model advects
-with; pass `velocities` to override it. It enters the `eₚ` equation with a minus sign, as
+defaults to the *total* velocity, perturbation plus background, on a `NonhydrostaticModel` and to
+`model.velocities` on a `HydrostaticFreeSurfaceModel` (see [`PotentialEnergyTendency`](@ref) for how
+that relates to the flow the model advects its tracers with); pass `velocities` to override it. It
+enters the `eₚ` equation with a minus sign, as
 [`TracerEquation.Advection`](@ref Oceanostics.TracerEquation.Advection) does for a tracer.
 
 This is a transport and nothing else: it is a flux divergence, so over a periodic or closed domain it
@@ -567,10 +652,11 @@ PotentialEnergyAdvection KernelFunctionOperation at (Center, Center, Center)
 └── computes: potential energy advection  ∂ⱼ(uⱼeₚ)
 ```
 """
-function PotentialEnergyAdvection(model::NonhydrostaticModel;
-                                  velocities = sum_of_velocities(model.velocities, model.background_fields.velocities),
+function PotentialEnergyAdvection(model;
+                                  velocities = default_eₚ_velocities(model),
                                   location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyAdvection")
+    validate_model_supports_potential_energy_budget("PotentialEnergyAdvection", model)
     validate_buoyancy_is_a_tracer("PotentialEnergyAdvection", model)
     validate_gravity_is_z_aligned("PotentialEnergyAdvection", model)
 
@@ -595,7 +681,8 @@ Return a `KernelFunctionOperation` computing the advective term of the `eₚ = -
 ```
 
 the advection of the buoyancy weighted by `-z`. `uⱼ` defaults to the *total* velocity, perturbation
-plus background, which is what the model advects with; pass `velocities` to override it.
+plus background, on a `NonhydrostaticModel` and to `model.velocities` on a
+`HydrostaticFreeSurfaceModel`; pass `velocities` to override it.
 
 Pulling `z` inside the derivative writes this as a transport of `eₚ` plus the conversion term,
 `ADV = -∂ⱼ(uⱼeₚ) - wb`, so over a periodic or closed domain its volume integral is
@@ -605,10 +692,11 @@ Pulling `z` inside the derivative writes this as a transport of `eₚ` plus the 
 A background buoyancy field is advected by a term of its own, which this one does not include and which
 has no diagnostic here yet.
 
-The default `velocities` is the perturbation plus background flow. That is what the model advects with
-in the ordinary case, but not when an `AdvectiveForcing` or a biogeochemical drift velocity is in play:
-`tracer_tendency` folds those in too, through `with_advective_forcing` and
-`biogeochemical_drift_velocity`. Pass `velocities` explicitly to match the model in that case.
+That default is what the model advects with in the ordinary case, but not when an `AdvectiveForcing`, a
+biogeochemical drift velocity or, on a hydrostatic model, a closure's eddy-induced velocity is in play:
+the tendency kernels fold those in too, through `with_advective_forcing`,
+`biogeochemical_drift_velocity` and `closure_auxiliary_velocity`. Pass `velocities` explicitly to match
+the model in that case.
 
 ```jldoctest
 using Oceananigans, Oceanostics
@@ -627,10 +715,11 @@ PotentialEnergyBuoyancyAdvection KernelFunctionOperation at (Center, Center, Cen
 └── computes: potential energy buoyancy advection  z ∂ⱼ(uⱼb)
 ```
 """
-function PotentialEnergyBuoyancyAdvection(model::NonhydrostaticModel;
-                                          velocities = sum_of_velocities(model.velocities, model.background_fields.velocities),
+function PotentialEnergyBuoyancyAdvection(model;
+                                          velocities = default_eₚ_velocities(model),
                                           location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyBuoyancyAdvection")
+    validate_model_supports_potential_energy_budget("PotentialEnergyBuoyancyAdvection", model)
     validate_buoyancy_is_a_tracer("PotentialEnergyBuoyancyAdvection", model)
     validate_gravity_is_z_aligned("PotentialEnergyBuoyancyAdvection", model)
 
@@ -682,11 +771,14 @@ with `Φ` the [`DiffusiveVerticalBuoyancyFlux`](@ref).
 Like the other diffusive terms this reads `κ∇b` off the closure, so it needs the buoyancy to be a
 tracer the closure diffuses.
 
-Two limits are worth knowing. The divergence is assembled from the unconditional `diffusive_flux_*`,
+Three limits are worth knowing. The divergence is assembled from the unconditional `diffusive_flux_*`,
 while [`PotentialEnergyBuoyancyDiffusion`](@ref) reaches the closure through Oceananigans' `∇_dot_qᶜ`,
 which uses the conditional `_diffusive_flux_*` that `ImmersedBoundaries` overrides to zero across
 immersed faces. Off an immersed grid the two are the same flux; on one this term includes fluxes its
-partner zeroes, and neither the telescoping nor the identity above survives. And the horizontal fluxes
+partner zeroes, and neither the telescoping nor the identity above survives. The two paths also part
+under a closure with a `VerticallyImplicitTimeDiscretization`, where `∇_dot_qᶜ` drops the interior
+vertical flux that the implicit step applies and this term keeps it, so the identity above fails there
+although the telescoping does not. And the horizontal fluxes
 are weighted by `z` at the cell centre rather than at the `x`- and `y`-faces they live on, which is
 exact wherever `znode` does not vary with `i` and `j` — every `RectilinearGrid` and
 `LatitudeLongitudeGrid` with an immutable vertical coordinate — but not under a
@@ -711,6 +803,7 @@ PotentialEnergyDiffusion KernelFunctionOperation at (Center, Center, Center)
 """
 function PotentialEnergyDiffusion(model; location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyDiffusion")
+    validate_model_supports_potential_energy_budget("PotentialEnergyDiffusion", model)
     validate_buoyancy_is_a_diffused_tracer("PotentialEnergyDiffusion", model)
     validate_closure_supplies_a_flux("PotentialEnergyDiffusion", model)
     validate_gravity_is_z_aligned("PotentialEnergyDiffusion", model)
@@ -747,6 +840,13 @@ Pulling `z` inside the derivative writes this as a transport plus the vertical f
 Like `Φ`, this reads `κ∇b` off the closure, so it needs the buoyancy to be a tracer the closure
 diffuses.
 
+It reaches the closure through Oceananigans' `∇_dot_qᶜ`, the diffusion term of the explicit tracer
+tendency. A closure with a `VerticallyImplicitTimeDiscretization` (CATKE's default, and an option of
+`ScalarDiffusivity` and `VerticalScalarDiffusivity`) takes its interior vertical flux out of that term
+and applies it in the implicit step, so this diagnostic then holds the horizontal diffusion alone, while
+`Φ` and [`PotentialEnergyDiffusion`](@ref) are built from the explicit fluxes and keep the vertical one.
+`∫DIFF dV = ∫Φ dV` fails there, and an integrated budget should be written with `Φ`.
+
 ```jldoctest
 using Oceananigans, Oceanostics
 
@@ -766,6 +866,7 @@ PotentialEnergyBuoyancyDiffusion KernelFunctionOperation at (Center, Center, Cen
 """
 function PotentialEnergyBuoyancyDiffusion(model; location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyBuoyancyDiffusion")
+    validate_model_supports_potential_energy_budget("PotentialEnergyBuoyancyDiffusion", model)
     validate_buoyancy_is_a_diffused_tracer("PotentialEnergyBuoyancyDiffusion", model)
     validate_closure_supplies_a_flux("PotentialEnergyBuoyancyDiffusion", model)
     validate_gravity_is_z_aligned("PotentialEnergyBuoyancyDiffusion", model)
@@ -819,8 +920,9 @@ PotentialEnergyForcing KernelFunctionOperation at (Center, Center, Center)
 └── computes: potential energy forcing  -z Fᵇ
 ```
 """
-function PotentialEnergyForcing(model::NonhydrostaticModel; location = (Center, Center, Center))
+function PotentialEnergyForcing(model; location = (Center, Center, Center))
     validate_location(location, "PotentialEnergyForcing")
+    validate_model_supports_potential_energy_budget("PotentialEnergyForcing", model)
     validate_buoyancy_is_a_tracer("PotentialEnergyForcing", model)
     validate_gravity_is_z_aligned("PotentialEnergyForcing", model)
 
