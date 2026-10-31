@@ -625,13 +625,20 @@ Calculate the kinetic energy dissipation rate, defined as
 
 where ∂ⱼuᵢ is the velocity gradient tensor and τᵢⱼ is the closure's viscous momentum flux (minus the
 stress tensor), in the same convention Oceananigans uses. That definition holds for any closure. For
-a Newtonian flux with a scalar viscosity, `τᵢⱼ = -2νSᵢⱼ`, it reduces to `εₖ = 2νSᵢⱼSᵢⱼ ≥ 0`, which
-[`KineticEnergyIsotropicDissipationRate`](@ref) computes directly; neither that reduction nor, for a
-flux that is not down-gradient, the sign carries over to other closures.
+a Newtonian flux with a scalar viscosity, `τᵢⱼ = -2νSᵢⱼ`, it reduces on a `NonhydrostaticModel` to
+`εₖ = 2νSᵢⱼSᵢⱼ ≥ 0`, which [`KineticEnergyIsotropicDissipationRate`](@ref) computes directly; neither
+that reduction nor, for a flux that is not down-gradient, the sign carries over to other closures.
 
 A `HydrostaticFreeSurfaceModel` has no `w`-momentum equation, so on that model the sum runs over
 `i = 1, 2` only and `εₖ` is the dissipation rate of `½(u² + v²)`. The fluxes `τ₁ⱼ` and `τ₂ⱼ` are
-still computed with the diagnostic `w`, as in the model's own `u` and `v` tendencies.
+still computed with the diagnostic `w`, as in the model's own `u` and `v` tendencies. The reduction
+to `2νSᵢⱼSᵢⱼ` needs the `w` row, so there `εₖ` is not that, and the isotropic rate, which keeps the
+row, is not a term of the hydrostatic budget. `∫εₖ dV` is still the viscous sink of `½(u² + v²)`.
+Pointwise, `εₖ ≥ 0` with a horizontal or vertical formulation (`HorizontalScalarDiffusivity`,
+`VerticalScalarDiffusivity`, CATKE), whose `τ` is built from `u` and `v` alone. With a
+three-dimensional `ScalarDiffusivity`, whose `τ₁₃` carries `∂ₓw`, the cross term `ν ∂zu ∂ₓw` has no
+`w` row to complete its square, so `εₖ` is indefinite cell by cell, by a term of order aspect ratio
+squared relative to `ν(∂zu)²`, which is the order the hydrostatic approximation neglects elsewhere.
 
 The fluxes are the closure's explicit `viscous_flux_*`, with no time discretization applied, so under a
 closure with a `VerticallyImplicitTimeDiscretization` (CATKE's default, and an option of
@@ -701,7 +708,10 @@ Calculate the isotropic kinetic energy dissipation rate as
     εₖ = 2 ν SᵢⱼSᵢⱼ,
 
 where Sᵢⱼ is the strain rate tensor, for a fluid with an isotropic turbulence closure (i.e., a
-turbulence closure where ν (eddy or not) is the same for all directions).
+turbulence closure where ν (eddy or not) is the same for all directions). It keeps the `w` row on both
+model types, so on a `HydrostaticFreeSurfaceModel` it is not the dissipation term of the budget of
+`½(u² + v²)`, which [`DissipationRate`](@ref) computes: it includes the dissipation of `½w²`, which that
+budget does not carry.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics

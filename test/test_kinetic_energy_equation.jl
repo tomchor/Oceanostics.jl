@@ -371,6 +371,37 @@ function test_hydrostatic_fluxes_keep_w(grid)
 end
 
 """
+On a hydrostatic model `εₖ = -(τ₁ⱼ∂ⱼu + τ₂ⱼ∂ⱼv)` has no `w` row, so it is `2νSᵢⱼSᵢⱼ` less that row and
+smaller than the isotropic rate, which keeps it. With a three-dimensional `ScalarDiffusivity`, whose
+`τ₁₃` carries `∂ₓw`, the cross term `ν∂zu∂ₓw` is left without the `(∂ₓw)²` that completes its square,
+and `εₖ` goes negative where `∂ₓw` opposes `∂zu`: for `u = sin(2πx) z` about mid-depth it is
+`ν sin²(2πx)(1 - π²H²/2)` there. Its volume integral is still the viscous sink of `½(u² + v²)`, which
+`∫DIFF` measures. The horizontal and vertical formulations build `τ` from `u` and `v` alone, and with
+them `εₖ` is non-negative in every cell.
+"""
+function test_hydrostatic_dissipation_rate_sign(grid)
+    ν = 1e-2
+    sheared(x, y, z) = sin(2π * x) * z
+
+    isotropic = HydrostaticFreeSurfaceModel(grid; closure=ScalarDiffusivity(; ν))
+    set!(isotropic, u=sheared)
+    remove_barotropic_flow!(isotropic)   # so that w vanishes at the surface and ∫DIFF = ∫εₖ
+
+    εₖ = KineticEnergyEquation.KineticEnergyDissipationRate(isotropic)
+    @test minimum(cpu_interior(εₖ)) < 0
+    @test volume_integral(εₖ) > 0
+    @test volume_integral(εₖ) ≈ volume_integral(KineticEnergyStress(isotropic))
+    @test volume_integral(KineticEnergyEquation.KineticEnergyIsotropicDissipationRate(isotropic)) > volume_integral(εₖ)
+
+    hydrostatic_stress = HydrostaticFreeSurfaceModel(grid; closure=(HorizontalScalarDiffusivity(; ν), VerticalScalarDiffusivity(; ν)))
+    set!(hydrostatic_stress, u=sheared)
+    remove_barotropic_flow!(hydrostatic_stress)
+    @test minimum(cpu_interior(KineticEnergyEquation.KineticEnergyDissipationRate(hydrostatic_stress))) ≥ 0
+
+    return nothing
+end
+
+"""
 Every closure the other test groups use has to build the closure-dependent terms on either model, and
 the isotropic dissipation rate has to agree between its two signatures.
 """
@@ -436,5 +467,8 @@ end
 
         @info "      Testing that the HydrostaticFreeSurfaceModel stress term and dissipation rate keep w in the fluxes"
         test_hydrostatic_fluxes_keep_w(grid)
+
+        @info "      Testing the sign of the HydrostaticFreeSurfaceModel dissipation rate per closure formulation"
+        test_hydrostatic_dissipation_rate_sign(grid)
     end
 end

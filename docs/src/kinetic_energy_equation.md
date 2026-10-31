@@ -31,8 +31,9 @@ and removed (by viscous dissipation). The module also provides two formulations 
 dissipation rate: a general one based on the full momentum flux
 (``\varepsilon_k = -\partial_j u_i \, \tau_{ij}``), and an isotropic version
 (``\varepsilon_k = 2\nu S_{ij} S_{ij}``) valid when the turbulence closure uses a single scalar
-viscosity. The two agree for a constant viscosity, and both are non-negative for a down-gradient
-closure. As in [the momentum equation](momentum_equation.md), ``\tau_{ij}`` is the momentum flux
+viscosity. On a `NonhydrostaticModel` the two agree for a constant viscosity, and both are non-negative
+for a down-gradient closure; on a hydrostatic model only the general one is a term of the budget, as
+discussed below. As in [the momentum equation](momentum_equation.md), ``\tau_{ij}`` is the momentum flux
 Oceananigans' kernels carry (i.e. , the negative of the stress tensor; ``-2\nu S_{ij}`` for a constant viscosity).
 
 All diagnostics are computed at `(Center, Center, Center)`.
@@ -66,8 +67,29 @@ which is why `PotentialToKineticEnergyConversion` uses the diagnosed ``w`` on a 
 buoyancy model and the vertical direction is bounded) is arranged the same way: its ``w`` equation has no
 buoyancy term, and ``wb`` reaches the budget through ``w \partial_z p'`` instead.
 
-`KineticEnergyIsotropicDissipationRate` is ``2\nu S_{ij} S_{ij}`` of the full strain rate, so it keeps
-the ``w`` row on both model types.
+The dissipation rate of this budget is the viscous work above less a transport divergence,
+
+```math
+-u_i \partial_j \tau_{ij} = -\partial_j (u_i \tau_{ij}) - \varepsilon_k , \qquad
+\varepsilon_k = -(\tau_{1j} \partial_j u + \tau_{2j} \partial_j v) ,
+```
+
+and `KineticEnergyDissipationRate` computes exactly that, the first two rows of the general form, so
+``\int \varepsilon_k \, \mathrm{d}V`` is the viscous sink of ``\tfrac{1}{2}(u^2 + v^2)``; for a constant
+isotropic viscosity it equals ``\nu \int (|\nabla u|^2 + |\nabla v|^2) \, \mathrm{d}V``. Pointwise, its
+sign depends on the closure's formulation. A horizontal or vertical formulation
+(`HorizontalScalarDiffusivity`, `VerticalScalarDiffusivity`, CATKE) builds ``\tau`` from ``u`` and ``v``
+alone, and ``\varepsilon_k`` is then non-negative cell by cell: ``\nu_h (\delta^2 + \zeta^2)`` from the
+horizontal divergence and vorticity, plus ``\nu_z [(\partial_z u)^2 + (\partial_z v)^2]``. A
+three-dimensional `ScalarDiffusivity` puts ``\partial_x w`` into ``\tau_{13}``. In the full budget the
+cross term ``\nu \, \partial_z u \, \partial_x w`` pairs with the ``w`` row to complete
+``\nu (\partial_z u + \partial_x w)^2``, but the hydrostatic energy has no ``w`` row, so the cross term
+stands alone and ``\varepsilon_k`` is indefinite pointwise, by a term of order aspect ratio squared
+relative to ``\nu (\partial_z u)^2``, which is the order the hydrostatic approximation neglects
+elsewhere; the integral is unaffected. `KineticEnergyIsotropicDissipationRate` is
+``2\nu S_{ij} S_{ij}`` of the full strain rate and keeps the ``w`` row on both model types, so on a
+hydrostatic model it is not the dissipation term of this budget: it includes the dissipation of
+``\tfrac{1}{2} w^2``, which the budget does not carry.
 
 ## Vertically implicit closures
 
