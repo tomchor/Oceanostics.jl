@@ -51,12 +51,14 @@ budget reads
 
 ```math
 \partial_t e_k = -u_i (\boldsymbol{u} \cdot \nabla) u_i - u_i \partial_j \tau_{ij} - u_i \partial_i p'
-                 + u_i F_{u_i} , \qquad i = 1, 2 ,
+                 - u_i \partial_i (g \eta) + u_i F_{u_i} , \qquad i = 1, 2 ,
 ```
 
-cell by cell, apart from the work of the barotropic pressure gradient, which an `ImplicitFreeSurface` or
-a `SplitExplicitFreeSurface` treats implicitly and `KineticEnergyTendency` therefore leaves out. The
-conversion ``wb`` sits inside the pressure work,
+cell by cell. The last pressure term is the work of the barotropic pressure gradient, which an
+`ImplicitFreeSurface` or a `SplitExplicitFreeSurface` applies in its free-surface step, outside the
+tendency kernel, so `KineticEnergyTendency` leaves it out there and
+`KineticEnergyBarotropicPressureRedistribution` supplies it; [the free surface section](@ref free_surface_energy)
+below says where it sits on each model. The conversion ``wb`` sits inside the work of ``p'``,
 
 ```math
 -u_i \partial_i p' = -\partial_j (u_j p') + w b , \qquad i = 1, 2 ,
@@ -90,6 +92,65 @@ elsewhere; the integral is unaffected. `KineticEnergyIsotropicDissipationRate` i
 ``2\nu S_{ij} S_{ij}`` of the full strain rate and keeps the ``w`` row on both model types, so on a
 hydrostatic model it is not the dissipation term of this budget: it includes the dissipation of
 ``\tfrac{1}{2} w^2``, which the budget does not carry.
+
+## [Free surface](@id free_surface_energy)
+
+A free surface adds the pressure ``g\eta`` to the budget and a reservoir to exchange with. The barotropic
+pressure gradient ``g \nabla_h \eta`` is the same at every depth, and its work is
+
+```math
+-u_h \cdot \nabla_h (g \eta) = -\texttt{BPR} , \qquad \texttt{BPR} = u_h \cdot \nabla_h (g \eta) ,
+```
+
+`KineticEnergyBarotropicPressureRedistribution`, with the sign convention of the other pressure term:
+it is subtracted. Its volume integral is a boundary quantity. With closed or periodic lateral boundaries
+and ``\boldsymbol{U}`` the depth-integrated transport,
+
+```math
+\int \texttt{BPR} \, \mathrm{d}V = \int \boldsymbol{U} \cdot \nabla_h (g \eta) \, \mathrm{d}A
+  = -\int g \eta \, \nabla_h \cdot \boldsymbol{U} \, \mathrm{d}A
+  = \int g \eta \, \partial_t \eta \, \mathrm{d}A
+  = \frac{\mathrm{d}}{\mathrm{d}t} \int e_s \, \mathrm{d}A ,
+```
+
+where ``e_s = \tfrac{1}{2} g \eta^2`` is the potential energy of the free surface per unit area,
+`FreeSurfacePotentialEnergy`, and ``g \eta \, \partial_t \eta = g \eta \, w|_{\mathrm{surface}}`` its
+tendency, `FreeSurfacePotentialEnergyTendency`, both described on
+[the potential energy page](potential_energy_equation.md). Pointwise ``\texttt{BPR}`` is of the order
+of the other pressure work; integrated it is small whenever the barotropic flow is narrow compared with
+the external deformation radius ``\sqrt{gH}/f``, which is why a budget can look closed without it. With
+it, the three reservoirs of a hydrostatic model close together,
+
+```math
+\frac{\mathrm{d}}{\mathrm{d}t} \left( \int e_k \, \mathrm{d}V + \int e_p \, \mathrm{d}V + \int e_s \, \mathrm{d}A \right)
+  = \int \left( \texttt{FORC} - \varepsilon_k + \Phi \right) \mathrm{d}V - \int e_k \, w \, \mathrm{d}A ,
+```
+
+the last integral over the surface: the domain is open there, since the diagnosed ``w`` at the top is
+``\partial_t \eta``, so ``\int \texttt{ADV} \, \mathrm{d}V`` is the flux of ``e_k`` through the surface
+rather than zero, of order ``\eta / H`` relative to the rest. (``\int \texttt{Advection} \, \mathrm{d}V``
+of ``e_p`` is zero all the same, since its surface flux carries a factor ``z = 0``.) Where
+``\texttt{BPR}`` sits depends on the model:
+
+- A `HydrostaticFreeSurfaceModel` with an `ImplicitFreeSurface` or a `SplitExplicitFreeSurface` applies
+  ``-g \nabla_h \eta`` in its free-surface step, so the change of ``e_k`` over a step is
+  ``u_h G_h - \texttt{BPR}`` and an integrated budget written with `KineticEnergyTendency`, or with the
+  terms that rebuild it, needs the term added. With an `ExplicitFreeSurface` the gradient is inside
+  ``G_h`` and the term is already counted.
+- A `NonhydrostaticModel` built with a `free_surface` carries ``g \eta`` as the surface value of its
+  nonhydrostatic pressure, so `KineticEnergyPressureRedistribution` with the default pressure already
+  contains the term; ``\texttt{BPR}`` is the barotropic part of that work, and the rest integrates to
+  zero. The default `NonhydrostaticModel` has a rigid lid, where the term is zero and ``e_s`` does not
+  exist.
+
+The model applies ``\nabla_h \eta`` at the new time level, or averaged over its barotropic substeps,
+while the diagnostics read ``\eta`` and ``w`` as they are when evaluated, so a budget built from them
+closes to ``O(\Delta t)``, the order of a `TimeDerivative`. The differences of ``\eta`` reach into its
+halos along the lateral boundaries, which a `NonhydrostaticModel` fills when ``\eta`` is set and never
+again (Oceananigans 0.116 and earlier); on that model the term reads a copy of ``\eta`` that is refilled
+whenever the operation is computed, so it is evaluated through a `Field` or an output writer rather than
+by indexing the operation. A `MutableVerticalDiscretization`, whose cells move with ``\eta``, is outside
+what these terms describe.
 
 ## Vertically implicit closures
 
@@ -186,6 +247,12 @@ Oceanostics.KineticEnergyEquation.KineticEnergyForcing
 
 ```@docs
 Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution
+```
+
+## Barotropic pressure redistribution
+
+```@docs
+Oceanostics.KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution
 ```
 
 ## Potential energy conversion

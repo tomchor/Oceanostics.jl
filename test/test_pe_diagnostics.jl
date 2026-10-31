@@ -436,6 +436,52 @@ function test_kinetic_energy_conversion_alias()
     return nothing
 end
 
+"""
+`eₛ = ½gη²` on the top face, one value per column, with `η = A sin(2πx) + B cos(2πy)` prescribed; the
+diagnostic is two-dimensional, so its `Field` has one level and its area integral is a sum. Its tendency
+`gηw` reads `w` on the same face: the one a hydrostatic model diagnoses from `u = U₀ sin(2πx)`,
+`-Lz U₀ 2sin(πΔx)/Δx cos(2πx)`, or the `w = W₀ cos(2πx)` a nonhydrostatic model is given. A rigid lid
+has neither, and both reject any location but `(Center, Center, Nothing)`.
+"""
+function test_free_surface_potential_energy(grid; model_type)
+    A = 0.3; B = 0.2; U₀ = 2; W₀ = 3
+    model = free_surface_model(model_type, grid)
+    if model isa NonhydrostaticModel
+        set!(model, w=(x, y, z) -> W₀ * cos(2π * x), enforce_incompressibility=false)
+    else
+        set!(model, u=(x, y, z) -> U₀ * sin(2π * x))
+    end
+    set_free_surface!(model, (x, y, z) -> A * sin(2π * x) + B * cos(2π * y))
+
+    g = model.free_surface.gravitational_acceleration
+    x = Array(xnodes(grid, Center())); y = Array(ynodes(grid, Center()))
+    η = A .* sin.(2π .* x) .+ B .* cos.(2π .* y)'
+
+    eₛ = FreeSurfacePotentialEnergy(model)
+    @test eₛ isa FreeSurfacePotentialEnergy
+    @test size(cpu_interior(eₛ)) == (grid.Nx, grid.Ny, 1)
+    @test cpu_interior(eₛ)[:, :, 1] ≈ g .* η.^2 ./ 2
+    ΔA = grid.Lx * grid.Ly / (grid.Nx * grid.Ny)
+    @test area_integral(eₛ) ≈ sum(g .* η.^2 ./ 2) * ΔA
+
+    Δx = grid.Lx / grid.Nx
+    w_surface = model isa NonhydrostaticModel ? W₀ .* cos.(2π .* x) :
+                                                -grid.Lz * U₀ * 2sin(π * Δx) / Δx .* cos.(2π .* x)
+    ∂ₜeₛ = FreeSurfacePotentialEnergyTendency(model)
+    @test ∂ₜeₛ isa FreeSurfacePotentialEnergyTendency
+    @test cpu_interior(∂ₜeₛ)[:, :, 1] ≈ g .* η .* w_surface
+
+    @test_throws ArgumentError FreeSurfacePotentialEnergy(model; location=(Center, Center, Center))
+    @test_throws ArgumentError FreeSurfacePotentialEnergyTendency(model; location=(Center, Center, Center))
+    if model isa NonhydrostaticModel
+        rigid_lid = NonhydrostaticModel(grid)
+        @test_throws ArgumentError FreeSurfacePotentialEnergy(rigid_lid)
+        @test_throws ArgumentError FreeSurfacePotentialEnergyTendency(rigid_lid)
+    end
+
+    return nothing
+end
+
 @testset "Diagnostics tests" begin
     @info "  Testing Diagnostics"
     for (grid_class, grid) in zip(keys(grids), values(grids))
@@ -474,6 +520,9 @@ end
 
             @info "        Testing that a tilted gravity is rejected"
             test_gravity_direction_validation(grid; model_type)
+
+            @info "        Testing the free surface's potential energy and its tendency"
+            test_free_surface_potential_energy(grid; model_type)
         end
     end
 

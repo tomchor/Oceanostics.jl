@@ -143,10 +143,42 @@ Two things set a hydrostatic model apart. Within a time step it advects its trac
 `model.transport_velocities`, which carry the free surface's barotropic correction and are only filled
 once the model has stepped, so a diagnostic evaluated between steps describes the flow at that instant
 rather than the one the step used. And its domain is open at the top: the depth-integrated flow moves the
-free surface, so ``w`` does not vanish there, and the integral identities above, which assume a closed
-domain, hold only when the depth-integrated flow is divergence-free. A `MutableVerticalDiscretization`,
-whose ``z`` moves with the free surface, is outside what these terms describe, since ``\partial_t e_p``
-is then no longer ``-z\,\partial_t b``.
+free surface, so ``w`` does not vanish there. The surface flux of ``e_p`` carries a factor ``z = 0``, so
+the integral identities above survive in the continuum, with a residual from the top cell, whose centre
+sits at ``z = -\Delta z / 2``; they are exact when the depth-integrated flow is divergence-free. A
+`MutableVerticalDiscretization`, whose ``z`` moves with the free surface, is outside what these terms
+describe, since ``\partial_t e_p`` is then no longer ``-z\,\partial_t b``.
+
+## Free surface
+
+A free surface stores potential energy of its own,
+
+```math
+e_s = \tfrac{1}{2} g \eta^2 ,
+```
+
+per unit area, with ``\eta`` the displacement and ``g`` the free surface's gravitational acceleration.
+`FreeSurfacePotentialEnergy` computes it at `(Center, Center, Nothing)`, one value per column on the top
+face of the grid, so the energy of a domain is ``\int e_k \, \mathrm{d}V + \int e_p \, \mathrm{d}V +
+\int e_s \, \mathrm{d}A``. Its budget has a single term, ``\partial_t e_s = g \eta \, \partial_t \eta``,
+which the kinematic condition makes ``g \eta \, w`` on the surface: `FreeSurfacePotentialEnergyTendency`,
+read from ``\eta`` and the ``w`` on the top face. Nothing diffuses ``e_s`` and nothing exchanges it with
+``e_p``, which does not see the free surface: the surface flux of ``e_p`` carries a factor ``z = 0`` and
+``\eta`` never enters the buoyancy equation. The exchange is with the kinetic energy, through the
+barotropic pressure gradient, and with closed or periodic lateral boundaries
+
+```math
+\int \partial_t e_s \, \mathrm{d}A = \int \texttt{BPR} \, \mathrm{d}V ,
+```
+
+with ``\texttt{BPR} = u_h \cdot \nabla_h (g\eta)`` the term `KineticEnergyBarotropicPressureRedistribution`;
+[the kinetic energy page](kinetic_energy_equation.md) has it, and the budget of the three reservoirs.
+Both a `HydrostaticFreeSurfaceModel` and a `NonhydrostaticModel` built with a `free_surface` have an
+``e_s``; the nonhydrostatic default, a rigid lid, has none, and the two diagnostics reject it. On an
+`ImplicitFreeSurface`, and on the nonhydrostatic free surface, ``g \eta \, w`` is exactly the backward
+difference of ``e_s`` over the step, or the substep of a multi-stage time stepper, that produced the
+state, up to ``\tfrac{1}{2} g (\Delta\eta)^2 / \Delta t``; a `SplitExplicitFreeSurface` steps ``\eta``
+with its substep-averaged transport, which differs from the one the velocities carry at ``O(\Delta t)``.
 
 ## Vertically implicit closures
 
@@ -175,4 +207,6 @@ Oceanostics.PotentialEnergyEquation.PotentialEnergyDiffusion
 Oceanostics.PotentialEnergyEquation.PotentialEnergyBuoyancyDiffusion
 Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux
 Oceanostics.PotentialEnergyEquation.PotentialEnergyForcing
+Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergy
+Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergyTendency
 ```

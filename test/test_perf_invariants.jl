@@ -216,6 +216,20 @@ end
         test_kfo_invariants("PotentialEnergyTendency",             PotentialEnergyTendency(hydrostatic))
     end
 
+    @testset "Free surface terms" begin
+        # `η` reaches the kernels through `SurfaceDisplacement`, and the two surface terms are
+        # two-dimensional operations at `(Center, Center, Nothing)`, so both wrappers are probed
+        hydrostatic = build_probe_hydrostatic_model()
+        test_kfo_invariants("KineticEnergyBarotropicPressureRedistribution", KineticEnergyBarotropicPressureRedistribution(hydrostatic))
+        test_kfo_invariants("FreeSurfacePotentialEnergy",                    FreeSurfacePotentialEnergy(hydrostatic))
+        test_kfo_invariants("FreeSurfacePotentialEnergyTendency",            FreeSurfacePotentialEnergyTendency(hydrostatic))
+
+        # On a nonhydrostatic model the barotropic term reads a computed copy of `η` instead
+        nonhydrostatic = NonhydrostaticModel(hydrostatic.grid; free_surface=ImplicitFreeSurface())
+        test_kfo_invariants("KineticEnergyBarotropicPressureRedistribution (nonhydrostatic)",
+                            KineticEnergyBarotropicPressureRedistribution(nonhydrostatic))
+    end
+
     @testset "AvailablePotentialEnergyEquation" begin
         # The sorting behind `z✶` is a whole-field operation done in `compute!`, but the kernels that
         # read the resulting field still have to be allocation-free per cell like every other one.
