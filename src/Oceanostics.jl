@@ -122,6 +122,17 @@ validate_location(location, type, valid_location=(Center, Center, Center)) =
 validate_dissipative_closure(closure) = error("Cannot calculate dissipation rate for $closure")
 validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}) = nothing
 validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_closure(c) for c in closure_tuple)
+
+# A diagnostic that reads a flux off the closure (`viscous_flux_*`, `diffusive_flux_*`) works with
+# any closure that defines it, so `validate_dissipative_closure`, which admits only a
+# three-dimensional `AbstractScalarDiffusivity`, would reject Smagorinsky, AMD and the rest for no
+# reason. What breaks is having no closure at all, which is a legal model and which otherwise
+# surfaces as a `MethodError` from inside the kernel, naming none of the caller's code.
+validate_closure_supplies_a_flux(diagnostic, model) =
+    isnothing(model.closure) &&
+        throw(ArgumentError("`$diagnostic` reads its flux off the model's closure, but this model has no closure, \
+                             so there is no flux to read. Build the model with one, e.g. \
+                             `closure = ScalarDiffusivity(ν=..., κ=...)`."))
 #---
 
 #+++ Utils for advection schemes
@@ -180,14 +191,25 @@ using Oceananigans: fields
 """
     $(SIGNATURES)
 
-Remove mean fields, passed as keyword arguments such as `u = U`, from the fields of `model` with the
-same names. The fields are those of `fields(model)`, which include the auxiliary fields and, for a
-`HydrostaticFreeSurfaceModel`, the diagnostic `w`.
+Remove mean fields, passed as keyword arguments such as `u = U`, from the velocities and tracers of
+`model` with the same names, and return them with the rest of `fields(model)`, which includes the
+auxiliary fields and, for a `HydrostaticFreeSurfaceModel`, the diagnostic `w`. A keyword that names no
+velocity or tracer throws an `ArgumentError`. That includes `U` and `V`, which on a model with a
+`SplitExplicitFreeSurface` name the barotropic transports rather than the means of `u` and `v`.
 """
 function perturbation_fields(model; kwargs...)
 
     model_fields = fields(model)
     mean_fields = values(kwargs)
+
+    accepted = filter(name -> name ∈ (:u, :v, :w) || name ∈ keys(model.tracers), keys(model_fields))
+    for name in keys(mean_fields)
+        name ∈ accepted ||
+            throw(ArgumentError("`perturbation_fields` removes means from the velocities and tracers of the model, \
+                                 $(join(accepted, ", ")), but got one for `$name`. Name each mean after its \
+                                 field, e.g. `u = U`."))
+    end
+
     # Removes mean fields only if mean field is provided
     return NamedTuple{keys(model_fields)}(haskey(mean_fields, key) ?
                                           Field(val - mean_fields[key]) :

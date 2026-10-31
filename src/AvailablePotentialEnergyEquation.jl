@@ -25,13 +25,12 @@ using Oceananigans.Models: model_geopotential_height
 using Oceananigans.BuoyancyFormulations: Zᶜᶜᶜ
 using Oceananigans.Operators
 using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
-using Oceanostics: validate_location, CustomKFO
+using Oceanostics: validate_location, validate_closure_supplies_a_flux, CustomKFO
 
 # Imported so the docstring `@ref`s below resolve in-module, as well as for dispatch.
 using ..PotentialEnergyEquation: PotentialEnergy, PotentialEnergyDiffusiveVerticalBuoyancyFlux,
                                  PotentialToKineticEnergyConversion, KineticEnergyConversion,
-                                 validate_buoyancy_is_a_diffused_tracer, validate_closure_supplies_a_flux,
-                                 validate_gravity_is_z_aligned,
+                                 validate_buoyancy_is_a_diffused_tracer, validate_gravity_is_z_aligned,
                                  buoyancy_diffusive_flux_arguments
 using ..BackgroundPotentialEnergyEquation: BackgroundPotentialEnergy, SortedReferenceHeightField,
                                            AbstractReferenceHeightMethod, reference_height,

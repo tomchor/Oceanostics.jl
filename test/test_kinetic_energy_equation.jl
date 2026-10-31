@@ -225,6 +225,9 @@ free-slip condition zeroes the shear on the boundary face. The isotropic form ge
 face shears. The general form `-∂ⱼuᵢτᵢⱼ` weights the two faces of a cell by the spacing between the
 centres either side of them, which a stretched grid makes unequal to the cell height, so its interior
 value is `ν(∂u/∂z)² (Δzᶠₖ + Δzᶠₖ₊₁) / 2Δzᶜₖ`, which is `ν(∂u/∂z)²` again on a regular grid.
+
+A model with no closure has no viscous flux, which the general form's constructor says up front instead of
+failing with a `MethodError` from inside the kernel at the first compute.
 """
 function test_kinetic_energy_dissipation_rates(grid; model_type)
     ν = 1e-2; dudz = 2
@@ -245,6 +248,8 @@ function test_kinetic_energy_dissipation_rates(grid; model_type)
 
     @test cpu_interior(ε_iso)[:, :, k] ≈ fill(ν * dudz^2, grid.Nx, grid.Ny, length(k))
     @test cpu_interior(ε)[:, :, k] ≈ ν * dudz^2 .* repeat(face_weights, grid.Nx, grid.Ny, 1)
+
+    @test_throws "no closure" KineticEnergyEquation.KineticEnergyDissipationRate(model_type(grid))
 
     return nothing
 end
@@ -348,9 +353,15 @@ function test_kinetic_energy_tendency_matches_one_time_step(grid; model_type)
         # it corrects the velocities with `p Δt`, then divides the interior alone by `Δt`. Read across
         # those halos, the pressure work is wrong in the cells next to a periodic boundary. The stale
         # value is kept as a broken test, so that an Oceananigans release that fixes it shows up here.
+        # The term's default pressure is a computed `Field` that fills its own halos, so evaluated before
+        # the refill it already matches the refilled pressure (#335).
         pNHS = model.pressures.pNHS
+        PR_default = cpu_interior(KineticEnergyPressureRedistribution(model))
         stale = ∂ₜeₖ .- cpu_interior(KineticEnergyPressureRedistribution(model; pressure = pNHS))
         fill_halo_regions!(pNHS)
+        p = isnothing(model.pressures.pHY′) ? pNHS : sum(model.pressures)
+        PR_refilled = cpu_interior(KineticEnergyPressureRedistribution(model; pressure = p))
+        @test maximum(abs, PR_default .- PR_refilled) < 1e-12 * maximum(abs, PR_refilled)
         ∂ₜeₖ .-= cpu_interior(KineticEnergyPressureRedistribution(model; pressure = pNHS))
     end
     time_step!(model, Δt)

@@ -121,6 +121,17 @@ the closure's explicit fluxes without the masking that the interior term applies
 so on such a grid it includes shear across faces the model treats as solid and
 ``\int \mathrm{DIFF}\, \mathrm{d}V = \int \varepsilon_k\, \mathrm{d}V`` does not hold.
 
+## Background fields
+
+Background fields are not supported. On a `NonhydrostaticModel` built with `background_fields`,
+`model.velocities` holds the perturbation from the background flow, and every term except
+`KineticEnergyTendency` is built from the perturbation alone. `KineticEnergyTendency` comes off the
+model's own kernel, which also advects the perturbation with the background flow and the background flow
+with the perturbation. With `BackgroundFields(; background_closure_fluxes = true)` its viscous term is
+the closure flux of the total velocities, while `KineticEnergyStress` and
+`KineticEnergyDissipationRate` take the flux of the perturbation. No diagnostic here supplies the
+difference, so on such a model the terms do not add up to `KineticEnergyTendency`.
+
 ## Example
 
 ```jldoctest ke_eq
