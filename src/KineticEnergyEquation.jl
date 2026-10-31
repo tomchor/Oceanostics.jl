@@ -155,6 +155,13 @@ On a `HydrostaticFreeSurfaceModel` the sum runs over `u` and `v` only, and `Gᵢ
 hydrostatic tendency, which leaves out the part of the barotropic pressure gradient the free surface
 treats implicitly (all of it for an `ImplicitFreeSurface` or a `SplitExplicitFreeSurface`).
 
+On either model `Gᵢ` is the explicit tendency. A closure with a `VerticallyImplicitTimeDiscretization`
+(CATKE's default, and an option of `ScalarDiffusivity` and `VerticalScalarDiffusivity`) takes the `∂zu`
+and `∂zv` parts of its vertical fluxes out of `Gᵢ` and applies them in the implicit step, so this term,
+like [`KineticEnergyStress`](@ref), leaves out the vertical viscous work the model does. The change of
+`eₖ` over a time step then differs from `uᵢGᵢ - uᵢ∂ᵢpₙₕₛ` by that work, which [`DissipationRate`](@ref)
+still accounts for.
+
 ```jldoctest
 julia> using Oceananigans
 
@@ -313,6 +320,14 @@ the dissipation rate `εₖ` ([`DissipationRate`](@ref)).
 A `HydrostaticFreeSurfaceModel` has no `w`-momentum equation, so on that model the sum runs over
 `i = 1, 2` only and `DIFF` is the stress term of the budget of `½(u² + v²)`. The fluxes `τ₁ⱼ` and
 `τ₂ⱼ` are still computed with the diagnostic `w`, as in the model's own `u` and `v` tendencies.
+
+`∂ⱼτᵢⱼ` is Oceananigans' own explicit viscous term, with the closure's time discretization applied. A
+closure with a `VerticallyImplicitTimeDiscretization` (CATKE's default, and an option of
+`ScalarDiffusivity` and `VerticalScalarDiffusivity`) takes the `∂zu` and `∂zv` parts of its vertical
+fluxes out of that term and applies them in the implicit step, so `DIFF` then leaves out the vertical
+viscous work the model does, as [`KineticEnergyTendency`](@ref) does, while [`DissipationRate`](@ref)
+keeps the full explicit flux. Under such a closure `∫DIFF dV = ∫εₖ dV` no longer holds, and an
+integrated budget should be written with `εₖ` rather than with `DIFF`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -535,7 +550,10 @@ end
 
 #+++ KineticEnergyDissipationRate
 # Each term takes the velocity component it differentiates apart from the fields the momentum flux is
-# computed with, so that a HydrostaticFreeSurfaceModel can drop w from the former and keep it in the latter
+# computed with, so that a HydrostaticFreeSurfaceModel can drop w from the former and keep it in the latter.
+# The fluxes are the bare `viscous_flux_*`, the closure's explicit flux, without the time discretization
+# that `∂ⱼ_τᵢⱼ` applies and that zeroes the interior `∂zu` flux of a vertically implicit closure; so εₖ
+# keeps a term that `KineticEnergyStress` and `KineticEnergyTendency` leave to the implicit step.
 
 # ∂ⱼu₁ ⋅ τ₁ⱼ
 Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid, u, closure, K_fields, clo, fields, b) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, u) * viscous_flux_ux(i, j, k, grid, closure, K_fields, clo, fields, b)
@@ -585,6 +603,13 @@ flux that is not down-gradient, the sign carries over to other closures.
 A `HydrostaticFreeSurfaceModel` has no `w`-momentum equation, so on that model the sum runs over
 `i = 1, 2` only and `εₖ` is the dissipation rate of `½(u² + v²)`. The fluxes `τ₁ⱼ` and `τ₂ⱼ` are
 still computed with the diagnostic `w`, as in the model's own `u` and `v` tendencies.
+
+The fluxes are the closure's explicit `viscous_flux_*`, with no time discretization applied, so under a
+closure with a `VerticallyImplicitTimeDiscretization` (CATKE's default, and an option of
+`ScalarDiffusivity` and `VerticalScalarDiffusivity`) `εₖ` still includes the vertical shear term that
+the model applies in the implicit step. [`KineticEnergyStress`](@ref) and
+[`KineticEnergyTendency`](@ref) leave that term out, so `∫DIFF dV = ∫εₖ dV` fails there and an
+integrated budget should be written with `εₖ`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics

@@ -22,6 +22,7 @@ A term that weights buoyancy by `z` or sorts along it needs `BuoyancyTracer` and
 Every `(model, z✶)` method calls `validate_gravity_is_z_aligned` itself, because a `z✶` built from a bare `Field` carries no model for `reference_height` to check; `test_tilted_gravity_is_rejected` pins each one.
 A `BackgroundField` buoyancy adds `-z∂ⱼ(uⱼB)`, which has no diagnostic yet, so the `-z ×` split closes only without one; `Tendency` still includes it, since it comes off the model's own kernel.
 On a `HydrostaticFreeSurfaceModel`, `Tendency` and the advection defaults take `model.velocities`, although the model advects tracers with `model.transport_velocities` (barotropically corrected, zero before the first step); keep both on the same flow or the split stops closing (#310).
+`Tendency` and `BuoyancyDiffusion` go through `∇_dot_qᶜ`, which under a `VerticallyImplicitTimeDiscretization` drops the interior vertical flux the implicit step applies, while `Diffusion` and `Φ` keep it, so `BuoyancyDiffusion = Diffusion + Φ` and `∫BuoyancyDiffusion = ∫Φ` hold for explicit closures only (#310).
 The exact `-z ×` split and the two integral identities are tested only in `test/test_pe_diagnostics.jl`; `baroclinic_adjustment.jl` closes the integrated budget with the two conversions and never exercises the `-z ×` terms.
 Keep `baroclinic_adjustment.jl` a double front: a single Eady front needs a uniform background gradient, which makes `∫eₚ dV` infinite (#279).
 

@@ -69,6 +69,23 @@ buoyancy term, and ``wb`` reaches the budget through ``w \partial_z p'`` instead
 `KineticEnergyIsotropicDissipationRate` is ``2\nu S_{ij} S_{ij}`` of the full strain rate, so it keeps
 the ``w`` row on both model types.
 
+## Vertically implicit closures
+
+`KineticEnergyTendency` and `KineticEnergyStress` wrap Oceananigans' explicit tendency and its viscous
+term ``\partial_j \tau_{ij}``, which apply the closure's time discretization. A closure with a
+`VerticallyImplicitTimeDiscretization`, which is CATKE's default and an option of `ScalarDiffusivity`
+and `VerticalScalarDiffusivity`, takes the ``\partial_z u`` and ``\partial_z v`` parts of its vertical
+fluxes out of the explicit tendency and applies them in the implicit step, so both diagnostics leave out
+the vertical viscous work the model does. `KineticEnergyDissipationRate` is built from the closure's
+explicit fluxes and keeps it. Under such a closure the terms still rebuild `KineticEnergyTendency` cell
+by cell, but that tendency is no longer the change of ``e_k`` over a step, the identity
+``\int \mathrm{DIFF}\, \mathrm{d}V = \int \varepsilon_k\, \mathrm{d}V`` fails, and an integrated budget
+should be written with ``\varepsilon_k`` in place of ``\mathrm{DIFF}``. Hydrostatic runs usually carry
+such a closure, so there this is the common case. The potential energy budget splits the same way, with
+`PotentialEnergyTendency` and `PotentialEnergyBuoyancyDiffusion` on the explicit side and
+`PotentialEnergyDiffusiveVerticalBuoyancyFlux` keeping the implicit flux; see
+[the potential energy page](potential_energy_equation.md).
+
 ## Example
 
 ```jldoctest ke_eq

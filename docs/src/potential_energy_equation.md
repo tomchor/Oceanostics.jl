@@ -148,6 +148,22 @@ domain, hold only when the depth-integrated flow is divergence-free. A `MutableV
 whose ``z`` moves with the free surface, is outside what these terms describe, since ``\partial_t e_p``
 is then no longer ``-z\,\partial_t b``.
 
+## Vertically implicit closures
+
+`PotentialEnergyTendency` and `PotentialEnergyBuoyancyDiffusion` wrap the explicit tracer tendency and
+its diffusion term, which apply the closure's time discretization. A closure with a
+`VerticallyImplicitTimeDiscretization`, which is CATKE's default and an option of `ScalarDiffusivity`
+and `VerticalScalarDiffusivity`, takes its interior vertical flux out of the explicit tendency and applies
+it in the implicit step, so both diagnostics leave out the vertical diffusion the model does, on either
+model type. `DiffusiveVerticalBuoyancyFlux` and `PotentialEnergyDiffusion` are built from the closure's
+explicit fluxes and keep it. Under such a closure the split above still closes cell by cell, but the
+tendency is no longer the change of ``e_p`` over a step, the identities
+``\texttt{BuoyancyDiffusion} = \texttt{Diffusion} + \Phi`` and
+``\int \texttt{BuoyancyDiffusion}\, \mathrm{d}V = \int \Phi\, \mathrm{d}V`` fail, and an integrated
+budget should be written with ``\Phi``, as the examples do. Hydrostatic runs usually carry such a closure.
+[The kinetic energy page](kinetic_energy_equation.md) describes the same split between
+`KineticEnergyStress` and `KineticEnergyDissipationRate`.
+
 ## Summary of ``e_p`` equation terms
 
 ```@docs

@@ -461,6 +461,14 @@ Base.@deprecate_binding DiffusiveBuoyancyFlux DiffusiveVerticalBuoyancyFlux
 # `DiffusiveVerticalBuoyancyFlux` in place of the two `Buoyancy*` terms. Those identities come from the
 # continuum product rule, so they hold to the truncation error of the discretization rather than
 # exactly.
+#
+# `∇_dot_qᶜ` also applies the closure's time discretization. Under a `VerticallyImplicitTimeDiscretization`
+# (CATKE's default, an option of `ScalarDiffusivity` and `VerticalScalarDiffusivity`) it drops the
+# interior vertical flux, which the model applies in the implicit step instead, while `Diffusion` and `Φ`
+# are built from the bare `diffusive_flux_*` and keep it. `Tendency` and `BuoyancyDiffusion` then leave
+# out the vertical diffusion the model does, so the split still closes but neither
+# `BuoyancyDiffusion = Diffusion + Φ` nor `∫BuoyancyDiffusion dV = ∫Φ dV` holds, and an integrated budget
+# has to be written with `Φ`, as the examples do.
 
 #+++ Tendency
 @inline minus_z_∂ₜb_ccc(i, j, k, grid, args...) = -Zᶜᶜᶜ(i, j, k, grid) * tracer_tendency(i, j, k, grid, args...)
@@ -506,6 +514,14 @@ hydrostatic kernel folds it into the advecting flow. Within a time step the mode
 with `model.transport_velocities` instead, which carry the free surface's barotropic correction. The
 split also assumes a static vertical coordinate: on a `MutableVerticalDiscretization` `z` moves with the
 free surface, and `∂ₜeₚ` is no longer `-z ∂ₜb`.
+
+On either model this is the explicit tendency. A closure with a `VerticallyImplicitTimeDiscretization`
+(CATKE's default, and an option of `ScalarDiffusivity` and `VerticalScalarDiffusivity`) applies its
+interior vertical diffusion in the implicit step instead, so this term and
+[`PotentialEnergyBuoyancyDiffusion`](@ref) leave that diffusion out, and the change of `eₚ` over a time
+step differs from this term by `-z` times it. The split above still closes, since both sides omit the
+same thing. [`DiffusiveVerticalBuoyancyFlux`](@ref) keeps the implicit flux, so an integrated budget
+should be written with it.
 
 Defined for `BuoyancyTracer` models, where `b` is one of the model's tracers.
 
@@ -755,11 +771,14 @@ with `Φ` the [`DiffusiveVerticalBuoyancyFlux`](@ref).
 Like the other diffusive terms this reads `κ∇b` off the closure, so it needs the buoyancy to be a
 tracer the closure diffuses.
 
-Two limits are worth knowing. The divergence is assembled from the unconditional `diffusive_flux_*`,
+Three limits are worth knowing. The divergence is assembled from the unconditional `diffusive_flux_*`,
 while [`PotentialEnergyBuoyancyDiffusion`](@ref) reaches the closure through Oceananigans' `∇_dot_qᶜ`,
 which uses the conditional `_diffusive_flux_*` that `ImmersedBoundaries` overrides to zero across
 immersed faces. Off an immersed grid the two are the same flux; on one this term includes fluxes its
-partner zeroes, and neither the telescoping nor the identity above survives. And the horizontal fluxes
+partner zeroes, and neither the telescoping nor the identity above survives. The two paths also part
+under a closure with a `VerticallyImplicitTimeDiscretization`, where `∇_dot_qᶜ` drops the interior
+vertical flux that the implicit step applies and this term keeps it, so the identity above fails there
+although the telescoping does not. And the horizontal fluxes
 are weighted by `z` at the cell centre rather than at the `x`- and `y`-faces they live on, which is
 exact wherever `znode` does not vary with `i` and `j` — every `RectilinearGrid` and
 `LatitudeLongitudeGrid` with an immutable vertical coordinate — but not under a
@@ -820,6 +839,13 @@ Pulling `z` inside the derivative writes this as a transport plus the vertical f
 
 Like `Φ`, this reads `κ∇b` off the closure, so it needs the buoyancy to be a tracer the closure
 diffuses.
+
+It reaches the closure through Oceananigans' `∇_dot_qᶜ`, the diffusion term of the explicit tracer
+tendency. A closure with a `VerticallyImplicitTimeDiscretization` (CATKE's default, and an option of
+`ScalarDiffusivity` and `VerticalScalarDiffusivity`) takes its interior vertical flux out of that term
+and applies it in the implicit step, so this diagnostic then holds the horizontal diffusion alone, while
+`Φ` and [`PotentialEnergyDiffusion`](@ref) are built from the explicit fluxes and keep the vertical one.
+`∫DIFF dV = ∫Φ dV` fails there, and an integrated budget should be written with `Φ`.
 
 ```jldoctest
 using Oceananigans, Oceanostics
