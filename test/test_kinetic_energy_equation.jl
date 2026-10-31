@@ -5,7 +5,8 @@ using Oceananigans.TurbulenceClosures: AbstractScalarDiffusivity, ThreeDimension
 
 using Oceanostics
 using Oceanostics.KineticEnergyEquation: KineticEnergyTendency, KineticEnergyAdvection, KineticEnergyStress,
-                                         KineticEnergyForcing, KineticEnergyPressureRedistribution
+                                         KineticEnergyForcing, KineticEnergyPressureRedistribution,
+                                         KineticEnergyBarotropicPressureRedistribution
 
 # Include common test utilities
 include("test_utils.jl")
@@ -479,6 +480,135 @@ function test_closure_dependent_terms(grid; model_type, closure)
 
     return nothing
 end
+
+#+++ Free surface
+# A flow whose depth-integrated divergence projects on `η = A sin(2πx) + B cos(2πy)`, so that the exchange
+# with the free surface's energy is not zero by orthogonality
+free_surface_η(x, y, z) = 0.3 * sin(2π * x) + 0.2 * cos(2π * y)
+free_surface_u(x, y, z) = 0.5 * cos(2π * x) * (1 + 0.3z) + 0.1 * cos(2π * y)
+free_surface_v(x, y, z) = 0.4 * sin(2π * y) * (1 - 0.5z) + 0.2 * sin(2π * x)
+
+# A free surface that this `η` does not throw into a violent adjustment: at Earth's gravity a 0.3 m
+# displacement on a 1 m deep box changes the surface velocity by tens of percent within one small
+# step, which is more than the `O(Δt)` statements below should have to absorb
+gentle_free_surface() = ImplicitFreeSurface(gravitational_acceleration=0.1)
+
+"""
+`BPR = uₕ⋅∇ₕ(gη)` with `η = A sin(2πx) + B cos(2πy)` prescribed and a uniform `u = U₀`, `v = V₀`. The
+differences of a sine on a regular grid are known exactly, so in every cell
+`BPR = g [U₀ A sin(2πΔx)/Δx cos(2πx) - V₀ B sin(2πΔy)/Δy sin(2πy)]`, on both model types with a free
+surface. `η` has no vertical structure, so the term is the same at every level, and a rigid lid, the
+nonhydrostatic default, makes it zero.
+"""
+function test_barotropic_pressure_redistribution(grid; model_type)
+    A = 0.3; B = 0.2; U₀ = 0.7; V₀ = -0.4
+    model = free_surface_model(model_type, grid)
+    has_w_equation(model) ? set!(model, u=U₀, v=V₀, enforce_incompressibility=false) : set!(model, u=U₀, v=V₀)
+    set_free_surface!(model, (x, y, z) -> A * sin(2π * x) + B * cos(2π * y))
+
+    BPR = KineticEnergyBarotropicPressureRedistribution(model)
+    @test BPR isa KineticEnergyBarotropicPressureRedistribution
+
+    g = model.free_surface.gravitational_acceleration
+    Δx = grid.Lx / grid.Nx; Δy = grid.Ly / grid.Ny
+    x = Array(xnodes(grid, Center())); y = Array(ynodes(grid, Center()))
+    expected = g .* (U₀ * A * sin(2π * Δx) / Δx .* cos.(2π .* x) .- V₀ * B * sin(2π * Δy) / Δy .* sin.(2π .* y)')
+    @test cpu_interior(BPR) ≈ repeat(reshape(expected, grid.Nx, grid.Ny, 1), 1, 1, grid.Nz)
+
+    if has_w_equation(model)
+        rigid_lid = NonhydrostaticModel(grid)
+        set!(rigid_lid, u=U₀, v=V₀)
+        @test all(cpu_interior(KineticEnergyBarotropicPressureRedistribution(rigid_lid)) .== 0)
+    end
+
+    return nothing
+end
+
+"""
+With an `ExplicitFreeSurface` the barotropic pressure gradient is inside Oceananigans' hydrostatic
+tendency, so `uₕGₕ = -ADV - DIFF - PR - BPR` cell by cell with no forcing or Coriolis, which pins `BPR`
+to the model's own discretization of `g∇ₕη`.
+"""
+function test_barotropic_pressure_redistribution_matches_explicit_tendency(grid)
+    model = HydrostaticFreeSurfaceModel(grid; free_surface=ExplicitFreeSurface(), closure=first(closures),
+                                        buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, u=free_surface_u, v=free_surface_v, b=(x, y, z) -> 1e-2 * sin(2π * x) * z)
+    set_free_surface!(model, free_surface_η)
+
+    tendency = cpu_interior(KineticEnergyTendency(model))
+    ADV = cpu_interior(KineticEnergyAdvection(model))
+    DIFF = cpu_interior(KineticEnergyStress(model))
+    PR = cpu_interior(KineticEnergyPressureRedistribution(model))
+    BPR = cpu_interior(KineticEnergyBarotropicPressureRedistribution(model))
+
+    @test maximum(abs, tendency .- (.-ADV .- DIFF .- PR .- BPR)) < 1e-12 * maximum(abs, tendency)
+    @test maximum(abs, BPR) > 1e-2 * maximum(abs, tendency)
+
+    return nothing
+end
+
+"""
+`∫BPR dV = ∫gηw dA` over the surface, by summation by parts across the periodic sides, since `w` on the
+top face is `-∇ₕ⋅U` of the depth-integrated transport: continuity gives that to a hydrostatic model
+directly and the pressure projection to a nonhydrostatic one. The identity is exact for the velocities
+the model holds, before and after a time step. The nonhydrostatic model never refills the halos of `η`,
+which the term reads at the periodic boundaries; it holds there because the term reads a copy of `η`
+that is refilled when the operation is computed.
+"""
+function test_free_surface_energy_exchange(grid; model_type)
+    model = free_surface_model(model_type, grid; closure=first(closures), free_surface=gentle_free_surface())
+    set!(model, u=free_surface_u, v=free_surface_v)
+    set_free_surface!(model, free_surface_η)
+
+    work = volume_integral(KineticEnergyBarotropicPressureRedistribution(model))
+    tendency = area_integral(FreeSurfacePotentialEnergyTendency(model))
+    @test work ≈ tendency rtol=1e-10
+    # The flow projects on `η`, so the exchange is not zero by orthogonality (the nonhydrostatic
+    # projection takes most of the surface transport out, which leaves it an order of magnitude smaller)
+    @test abs(work) > 1e-3 * model.free_surface.gravitational_acceleration
+
+    time_step!(model, 1e-3)
+    work = volume_integral(KineticEnergyBarotropicPressureRedistribution(model))
+    tendency = area_integral(FreeSurfacePotentialEnergyTendency(model))
+    @test work ≈ tendency rtol=1e-10
+
+    return nothing
+end
+
+"""
+Over one small step the change of `∫eₛ dA` is the work `∫BPR dV`, to `O(Δt)`. An `ImplicitFreeSurface`
+steps `η` with the transport of the corrected velocities, and a nonhydrostatic free surface with the
+surface `w` its pressure correction leaves, so when a single-stage step is done `gηw` on the surface is
+exactly `gη(η¹ - η⁰)/Δt`, and the change of `½gη²` differs from it by `½g(Δη)²/Δt` alone. The
+nonhydrostatic model is therefore given the `QuasiAdamsBashforth2` stepper here; with `RungeKutta3`, its
+default, the relation holds per substep and the step as a whole only to `O(Δt)`.
+"""
+function test_free_surface_energy_one_time_step(grid; model_type)
+    Δt = 1e-5
+    stepper = model_type == NonhydrostaticModel ? (; timestepper=:QuasiAdamsBashforth2) : (;)
+    model = free_surface_model(model_type, grid; closure=first(closures), free_surface=gentle_free_surface(), stepper...)
+    set!(model, u=free_surface_u, v=free_surface_v)
+    set_free_surface!(model, free_surface_η)
+    time_step!(model, Δt)   # warm-up, so that the state is one the model produced
+
+    η⁰ = copy(cpu_interior(free_surface_displacement(model.free_surface)))
+    E⁰ = area_integral(FreeSurfacePotentialEnergy(model))
+    time_step!(model, Δt)
+    η¹ = cpu_interior(free_surface_displacement(model.free_surface))
+    E¹ = area_integral(FreeSurfacePotentialEnergy(model))
+
+    work = volume_integral(KineticEnergyBarotropicPressureRedistribution(model))
+    tendency = area_integral(FreeSurfacePotentialEnergyTendency(model))
+    g = model.free_surface.gravitational_acceleration
+    ΔA = grid.Lx * grid.Ly / (grid.Nx * grid.Ny)
+    backward = sum(g .* η¹ .* (η¹ .- η⁰)) * ΔA / Δt
+
+    @test (E¹ - E⁰) / Δt ≈ work rtol=1e-2
+    @test tendency ≈ backward rtol=1e-9
+
+    return nothing
+end
+#---
 #---
 
 @testset "Kinetic Energy Equation tests" begin
@@ -503,6 +633,11 @@ end
             @info "        Testing the tendency against one time step of the model"
             test_kinetic_energy_tendency_matches_one_time_step(grid; model_type)
 
+            @info "        Testing the free-surface terms"
+            test_barotropic_pressure_redistribution(grid; model_type)
+            test_free_surface_energy_exchange(grid; model_type)
+            test_free_surface_energy_one_time_step(grid; model_type)
+
             for closure in closures
                 @info "        Testing the closure-dependent terms with $(summary(closure))"
                 test_closure_dependent_terms(grid; model_type, closure)
@@ -517,5 +652,8 @@ end
 
         @info "      Testing the sign of the HydrostaticFreeSurfaceModel dissipation rate per closure formulation"
         test_hydrostatic_dissipation_rate_sign(grid)
+
+        @info "      Testing the barotropic pressure term against an ExplicitFreeSurface tendency"
+        test_barotropic_pressure_redistribution_matches_explicit_tendency(grid)
     end
 end

@@ -24,6 +24,8 @@ A `BackgroundField` buoyancy adds `-z∂ⱼ(uⱼB)`, which has no diagnostic yet
 On a `HydrostaticFreeSurfaceModel`, `Tendency` and the advection defaults take `model.velocities`, although the model advects tracers with `model.transport_velocities` (barotropically corrected, zero before the first step); keep both on the same flow or the split stops closing (#310).
 `Tendency` and `BuoyancyDiffusion` go through `∇_dot_qᶜ`, which under a `VerticallyImplicitTimeDiscretization` drops the interior vertical flux the implicit step applies, while `Diffusion` and `Φ` keep it, so `BuoyancyDiffusion = Diffusion + Φ` and `∫BuoyancyDiffusion = ∫Φ` hold for explicit closures only (#310).
 The exact `-z ×` split and the two integral identities are tested only in `test/test_pe_diagnostics.jl`; `baroclinic_adjustment.jl` closes the integrated budget with the two conversions and never exercises the `-z ×` terms.
+The free surface's `η` is a `Field` windowed to the top face, so a kernel gets it through `SurfaceDisplacement` (in `src/Oceanostics.jl`), since a windowed `Field` handed to a `KernelFunctionOperation` directly narrows the operation's indices to that face and `Field(op)` fails on the intersection.
+A `NonhydrostaticModel` fills the halos of `η` when it is set and never again, while a `HydrostaticFreeSurfaceModel` refills them every step; a term that differences `η`, such as `KineticEnergyBarotropicPressureRedistribution`, reads a computed copy of it on the nonhydrostatic model, and the two surface terms, which read `η` in the interior only, read it directly.
 Keep `baroclinic_adjustment.jl` a double front: a single Eady front needs a uniform background gradient, which makes `∫eₚ dV` infinite (#279).
 
 ## Reference state
