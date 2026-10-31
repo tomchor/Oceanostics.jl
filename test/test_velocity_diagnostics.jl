@@ -206,6 +206,15 @@ function test_auxiliary_functions(model)
     @test all(Array(interior(fields_without_means.u)) .== 0)
     @test all(Array(interior(fields_without_means.v)) .== 0)
     @test fields_without_means.w === model.velocities.w # the diagnostic w on a HydrostaticFreeSurfaceModel
+
+    # A mean is named after its velocity or tracer, so an uppercase `U` is an error, also where `fields`
+    # has a `U`: the barotropic transport of a split-explicit free surface
+    @test_throws ArgumentError perturbation_fields(model; U=1)
+    if model isa HydrostaticFreeSurfaceModel
+        split_explicit = HydrostaticFreeSurfaceModel(model.grid; free_surface=SplitExplicitFreeSurface(model.grid; substeps=10))
+        @test haskey(fields(split_explicit), :U)
+        @test_throws ArgumentError perturbation_fields(split_explicit; U=1)
+    end
     return
 end
 #---
