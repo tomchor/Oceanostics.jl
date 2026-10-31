@@ -86,6 +86,19 @@ such a closure, so there this is the common case. The potential energy budget sp
 `PotentialEnergyDiffusiveVerticalBuoyancyFlux` keeping the implicit flux; see
 [the potential energy page](potential_energy_equation.md).
 
+## Immersed boundaries
+
+On an `ImmersedBoundaryGrid` the momentum tendencies subtract two viscous terms, the interior
+``\partial_j \tau_{ij}`` and the stress through the immersed faces, which Oceananigans keeps separate.
+`KineticEnergyStress` wraps the interior term only, while `KineticEnergyTendency` carries both. The
+immersed stress vanishes under the default no-flux immersed boundary conditions, but with an immersed
+`ValueBoundaryCondition` or a drag `FluxBoundaryCondition` on the velocities the budget above is short by
+the wall-stress work, which no diagnostic here provides; [the momentum equation](momentum_equation.md)
+exposes it per component as `ImmersedViscousDissipation`. `KineticEnergyDissipationRate` is built from
+the closure's explicit fluxes without the masking that the interior term applies across immersed faces,
+so on such a grid it includes shear across faces the model treats as solid and
+``\int \mathrm{DIFF}\, \mathrm{d}V = \int \varepsilon_k\, \mathrm{d}V`` does not hold.
+
 ## Example
 
 ```jldoctest ke_eq

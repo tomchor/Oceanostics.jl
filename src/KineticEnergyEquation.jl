@@ -160,7 +160,8 @@ On either model `Gᵢ` is the explicit tendency. A closure with a `VerticallyImp
 and `∂zv` parts of its vertical fluxes out of `Gᵢ` and applies them in the implicit step, so this term,
 like [`KineticEnergyStress`](@ref), leaves out the vertical viscous work the model does. The change of
 `eₖ` over a time step then differs from `uᵢGᵢ - uᵢ∂ᵢpₙₕₛ` by that work, which [`DissipationRate`](@ref)
-still accounts for.
+still accounts for. On an `ImmersedBoundaryGrid` `Gᵢ` also carries the stress through the immersed
+faces, which [`KineticEnergyStress`](@ref) leaves out.
 
 ```jldoctest
 julia> using Oceananigans
@@ -287,6 +288,12 @@ end
 #---
 
 #+++ KineticEnergyStress
+# `uᵢ` times `∂ⱼ_τᵢⱼ`, the interior viscous term of the momentum equations. Both tendency kernels also
+# subtract `immersed_∂ⱼ_τᵢⱼ`, the stress through the faces of an `ImmersedBoundaryGrid`, which is zero off
+# such a grid and under its default no-flux immersed boundary conditions, and nonzero with an immersed
+# `ValueBoundaryCondition` or a drag `FluxBoundaryCondition` on `u`, `v` or `w`. No diagnostic here mirrors
+# it, so there `KineticEnergyTendency` minus the other terms leaves the wall-stress work as a residual; the
+# momentum modules expose it per component as `ImmersedViscousDissipation`.
 @inline function uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ(i, j, k, grid, velocities,
                                             closure,
                                             closure_fields,
@@ -328,6 +335,12 @@ fluxes out of that term and applies them in the implicit step, so `DIFF` then le
 viscous work the model does, as [`KineticEnergyTendency`](@ref) does, while [`DissipationRate`](@ref)
 keeps the full explicit flux. Under such a closure `∫DIFF dV = ∫εₖ dV` no longer holds, and an
 integrated budget should be written with `εₖ` rather than with `DIFF`.
+
+On an `ImmersedBoundaryGrid` the tendency kernels also subtract the stress through the immersed faces,
+`immersed_∂ⱼτᵢⱼ`, which `DIFF` does not include. It vanishes under the default no-flux immersed boundary
+conditions, but with an immersed `ValueBoundaryCondition` or a drag `FluxBoundaryCondition` on the
+velocities the wall-stress work is left out of the budget; the momentum modules expose it per component
+as `ImmersedViscousDissipation`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -553,7 +566,8 @@ end
 # computed with, so that a HydrostaticFreeSurfaceModel can drop w from the former and keep it in the latter.
 # The fluxes are the bare `viscous_flux_*`, the closure's explicit flux, without the time discretization
 # that `∂ⱼ_τᵢⱼ` applies and that zeroes the interior `∂zu` flux of a vertically implicit closure; so εₖ
-# keeps a term that `KineticEnergyStress` and `KineticEnergyTendency` leave to the implicit step.
+# keeps a term that `KineticEnergyStress` and `KineticEnergyTendency` leave to the implicit step. Nor are
+# they masked across the faces of an `ImmersedBoundaryGrid`, as the `_viscous_flux_*` behind `∂ⱼ_τᵢⱼ` are.
 
 # ∂ⱼu₁ ⋅ τ₁ⱼ
 Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid, u, closure, K_fields, clo, fields, b) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, u) * viscous_flux_ux(i, j, k, grid, closure, K_fields, clo, fields, b)
@@ -610,6 +624,10 @@ closure with a `VerticallyImplicitTimeDiscretization` (CATKE's default, and an o
 the model applies in the implicit step. [`KineticEnergyStress`](@ref) and
 [`KineticEnergyTendency`](@ref) leave that term out, so `∫DIFF dV = ∫εₖ dV` fails there and an
 integrated budget should be written with `εₖ`.
+
+On an `ImmersedBoundaryGrid` the same bare fluxes are not masked across immersed faces, as the
+`_viscous_flux_*` behind `∂ⱼτᵢⱼ` are, so `εₖ` there includes the shear across faces the model treats as
+solid and `∫DIFF dV = ∫εₖ dV` does not hold either.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
