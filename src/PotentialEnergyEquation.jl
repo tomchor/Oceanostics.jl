@@ -1006,7 +1006,8 @@ Return a `KernelFunctionOperation` that computes the tendency of the free surfac
 at `(Center, Center, Nothing)`, from `η` and the vertical velocity on the top face of the grid, which is
 the kinematic condition the model steps `η` with. On a `HydrostaticFreeSurfaceModel` that `w` is the one
 continuity diagnoses from `velocities`, `-∇ₕ⋅U` with `U` the depth-integrated transport, so the
-identity with [`KineticEnergyBarotropicPressureRedistribution`](@ref),
+identity with
+[`KineticEnergyBarotropicPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution),
 
     ∫ ∂ₜeₛ dA = ∫ BPR dV ,
 

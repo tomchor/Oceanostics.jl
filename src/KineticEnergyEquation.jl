@@ -545,14 +545,15 @@ contributes, with the sign convention of [`KineticEnergyPressureRedistribution`]
 budget of `eₖ` as `-BPR`, and `∇ₕη` is the same top-face difference the model applies to `u` and `v`.
 
 Its volume integral is the exchange with the potential energy of the free surface,
-[`FreeSurfacePotentialEnergy`](@ref) `eₛ = ½gη²`. With closed or periodic lateral boundaries and `U` the
-depth-integrated transport,
+[`FreeSurfacePotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergy)
+`eₛ = ½gη²`. With closed or periodic lateral boundaries and `U` the depth-integrated transport,
 
     ∫ BPR dV = ∫ U⋅∇ₕ(gη) dA = -∫ gη ∇ₕ⋅U dA = ∫ gη ∂ₜη dA = ∂ₜ ∫ eₛ dA ,
 
-which [`FreeSurfacePotentialEnergyTendency`](@ref) measures column by column as `gη w` at the surface.
-Pointwise the term is of the order of the other pressure work; integrated it is small whenever the
-barotropic flow is narrow compared with the external deformation radius `√(gH)/f`.
+which [`FreeSurfacePotentialEnergyTendency`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergyTendency)
+measures column by column as `gη w` at the surface. Pointwise the term is of the order of the other
+pressure work; integrated it is small whenever the barotropic flow is narrow compared with the external
+deformation radius `√(gH)/f`.
 
 Where it sits in the budget depends on the model:
 
