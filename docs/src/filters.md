@@ -125,7 +125,10 @@ on regular grids:
   to cell, so the weights cannot be precomputed and are evaluated on the fly.
   Keeping the per-cell ``\Delta_m`` factor is what stops the average from being
   biased toward finely resolved regions; it makes the filter preserve constants
-  exactly and linear fields to quadrature accuracy.
+  exactly and linear fields to quadrature accuracy. Past a `Bounded` wall the
+  stencil continues with cells as wide as the boundary cell, so `:edge` and
+  constant padding weight each padded value by its distance from the current
+  cell, as they do on a uniform direction.
 
 Directions are handled independently, so a grid that is uniform in `x` and `y`
 but stretched in `z` uses the fast path for the horizontal directions and the
@@ -220,6 +223,11 @@ t_staged = @elapsed compute!(∫εₖˢ_staged)
 
 Absolute timings depend on the machine, and the ratio grows with the stencil width; the point is
 that materializing the filtered field first speeds up the calculation at the cost of one array.
+
+A filter over `d` directions also needs `d - 1` intermediate arrays for its passes. They are allocated
+on the first `compute!` and reused by every later one, and all filtered fields on the same grid and
+location share them, so they add at most two arrays per location however many filtered fields are
+materialized. They are released after every field that uses them has been garbage collected.
 
 The same reasoning applies to any filtered quantity assembled from operations rather than stored fields.
 Wrap the filtered velocities in `Field`s before forming `½(ū² + v̄² + w̄²)`, for instance. This is also why
