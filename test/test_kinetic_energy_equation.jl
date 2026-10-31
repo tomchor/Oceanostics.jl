@@ -338,7 +338,7 @@ function velocity_times_viscous_term(model, model_fields=fields(model))
     return Field(@at (Center, Center, Center) u∂ⱼτ₁ⱼ + v∂ⱼτ₂ⱼ + w∂ⱼτ₃ⱼ)
 end
 
-function test_ke_stress_and_dissipation_rate_values(grid; model_type=NonhydrostaticModel, closure=ScalarDiffusivity(ν=1))
+function test_ke_stress_and_dissipation_rate_values(grid; model_type, closure)
     model = model_type(grid; closure, buoyancy=BuoyancyTracer(), tracers=:b)
     set_velocities_without_depth_mean!(model)
 
@@ -357,7 +357,7 @@ end
 # HydrostaticFreeSurfaceModel both diagnostics change if w is dropped from the fluxes as well as from
 # the sum over i
 function test_hydrostatic_fluxes_keep_w(grid)
-    model = HydrostaticFreeSurfaceModel(grid; closure=ScalarDiffusivity(ν=1), buoyancy=BuoyancyTracer(), tracers=:b)
+    model = HydrostaticFreeSurfaceModel(grid; closure=first(closures), buoyancy=BuoyancyTracer(), tracers=:b)
     set_velocities_without_depth_mean!(model)
 
     # What both volume integrals would be with w zeroed in the fluxes

@@ -13,9 +13,8 @@ export KineticEnergyIsotropicDissipationRate
 
 using Oceananigans: NonhydrostaticModel, HydrostaticFreeSurfaceModel, fields
 using Oceananigans.Operators
-using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceananigans.Grids: Center, Face
+using Oceananigans.Grids: Center
 using Oceananigans.Fields: ZeroField
 using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: hydrostatic_free_surface_u_velocity_tendency,
@@ -25,7 +24,6 @@ using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous
                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
                                        viscous_flux_wx, viscous_flux_wy, viscous_flux_wz,
                                        ∂ⱼ_τ₁ⱼ, ∂ⱼ_τ₂ⱼ, ∂ⱼ_τ₃ⱼ
-using Oceananigans.TurbulenceClosures: immersed_∂ⱼ_τ₁ⱼ, immersed_∂ⱼ_τ₂ⱼ, immersed_∂ⱼ_τ₃ⱼ
 using Oceananigans.BuoyancyFormulations: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
 
 using Oceanostics: _νᶜᶜᶜ
@@ -569,34 +567,51 @@ end
 # keeps a term that `KineticEnergyStress` and `KineticEnergyTendency` leave to the implicit step. Nor are
 # they masked across the faces of an `ImmersedBoundaryGrid`, as the `_viscous_flux_*` behind `∂ⱼ_τᵢⱼ` are.
 
-# ∂ⱼu₁ ⋅ τ₁ⱼ
-Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid, u, closure, K_fields, clo, fields, b) = -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, u) * viscous_flux_ux(i, j, k, grid, closure, K_fields, clo, fields, b)
-Ayᶠᶠᶜ_δuᶠᶠᶜ_τ₁₂ᶠᶠᶜ(i, j, k, grid, u, closure, K_fields, clo, fields, b) = -Ayᶠᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, u) * viscous_flux_uy(i, j, k, grid, closure, K_fields, clo, fields, b)
-Azᶠᶜᶠ_δuᶠᶜᶠ_τ₁₃ᶠᶜᶠ(i, j, k, grid, u, closure, K_fields, clo, fields, b) = -Azᶠᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, u) * viscous_flux_uz(i, j, k, grid, closure, K_fields, clo, fields, b)
+# ∂ⱼu₁ ⋅ τ₁ⱼ; `args` are the closure, its fields, the clock, the model fields and the buoyancy
+@inline Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid, u, args...) =
+    -Axᶜᶜᶜ(i, j, k, grid) * δxᶜᵃᵃ(i, j, k, grid, u) * viscous_flux_ux(i, j, k, grid, args...)
+@inline Ayᶠᶠᶜ_δuᶠᶠᶜ_τ₁₂ᶠᶠᶜ(i, j, k, grid, u, args...) =
+    -Ayᶠᶠᶜ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, u) * viscous_flux_uy(i, j, k, grid, args...)
+@inline Azᶠᶜᶠ_δuᶠᶜᶠ_τ₁₃ᶠᶜᶠ(i, j, k, grid, u, args...) =
+    -Azᶠᶜᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, u) * viscous_flux_uz(i, j, k, grid, args...)
 
 # ∂ⱼu₂ ⋅ τ₂ⱼ
-Axᶠᶠᶜ_δvᶠᶠᶜ_τ₂₁ᶠᶠᶜ(i, j, k, grid, v, closure, K_fields, clo, fields, b) = -Axᶠᶠᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, v) * viscous_flux_vx(i, j, k, grid, closure, K_fields, clo, fields, b)
-Ayᶜᶜᶜ_δvᶜᶜᶜ_τ₂₂ᶜᶜᶜ(i, j, k, grid, v, closure, K_fields, clo, fields, b) = -Ayᶜᶜᶜ(i, j, k, grid) * δyᵃᶜᵃ(i, j, k, grid, v) * viscous_flux_vy(i, j, k, grid, closure, K_fields, clo, fields, b)
-Azᶜᶠᶠ_δvᶜᶠᶠ_τ₂₃ᶜᶠᶠ(i, j, k, grid, v, closure, K_fields, clo, fields, b) = -Azᶜᶠᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, v) * viscous_flux_vz(i, j, k, grid, closure, K_fields, clo, fields, b)
+@inline Axᶠᶠᶜ_δvᶠᶠᶜ_τ₂₁ᶠᶠᶜ(i, j, k, grid, v, args...) =
+    -Axᶠᶠᶜ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, v) * viscous_flux_vx(i, j, k, grid, args...)
+@inline Ayᶜᶜᶜ_δvᶜᶜᶜ_τ₂₂ᶜᶜᶜ(i, j, k, grid, v, args...) =
+    -Ayᶜᶜᶜ(i, j, k, grid) * δyᵃᶜᵃ(i, j, k, grid, v) * viscous_flux_vy(i, j, k, grid, args...)
+@inline Azᶜᶠᶠ_δvᶜᶠᶠ_τ₂₃ᶜᶠᶠ(i, j, k, grid, v, args...) =
+    -Azᶜᶠᶠ(i, j, k, grid) * δzᵃᵃᶠ(i, j, k, grid, v) * viscous_flux_vz(i, j, k, grid, args...)
 
 # ∂ⱼu₃ ⋅ τ₃ⱼ
-Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ(i, j, k, grid, w, closure, K_fields, clo, fields, b) = -Axᶠᶜᶠ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, w) * viscous_flux_wx(i, j, k, grid, closure, K_fields, clo, fields, b)
-Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ(i, j, k, grid, w, closure, K_fields, clo, fields, b) = -Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, w) * viscous_flux_wy(i, j, k, grid, closure, K_fields, clo, fields, b)
-Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid, w, closure, K_fields, clo, fields, b) = -Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, w) * viscous_flux_wz(i, j, k, grid, closure, K_fields, clo, fields, b)
+@inline Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ(i, j, k, grid, w, args...) =
+    -Axᶠᶜᶠ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, w) * viscous_flux_wx(i, j, k, grid, args...)
+@inline Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ(i, j, k, grid, w, args...) =
+    -Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, w) * viscous_flux_wy(i, j, k, grid, args...)
+@inline Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid, w, args...) =
+    -Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, w) * viscous_flux_wz(i, j, k, grid, args...)
 
-@inline viscous_dissipation_rate_ccc(i, j, k, grid, velocities, closure_fields, fields, p) =
-    (Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid,         velocities.u, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, C, C
-     ℑxyᶜᶜᵃ(i, j, k, grid, Ayᶠᶠᶜ_δuᶠᶠᶜ_τ₁₂ᶠᶠᶜ, velocities.u, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
-     ℑxzᶜᵃᶜ(i, j, k, grid, Azᶠᶜᶠ_δuᶠᶜᶠ_τ₁₃ᶠᶜᶠ, velocities.u, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
+# A hydrostatic model has no `w` row (see `prognostic_velocities`), so its three `w` terms are skipped
+# without evaluating their fluxes, as `ψf` does for a `ZeroField`
+@inline Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ(i, j, k, grid, ::ZeroField, args...) = zero(grid)
+@inline Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ(i, j, k, grid, ::ZeroField, args...) = zero(grid)
+@inline Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid, ::ZeroField, args...) = zero(grid)
 
-     ℑxyᶜᶜᵃ(i, j, k, grid, Axᶠᶠᶜ_δvᶠᶠᶜ_τ₂₁ᶠᶠᶜ, velocities.v, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, F, C  → C, C, C
-     Ayᶜᶜᶜ_δvᶜᶜᶜ_τ₂₂ᶜᶜᶜ(i, j, k, grid,         velocities.v, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, C, C
-     ℑyzᵃᶜᶜ(i, j, k, grid, Azᶜᶠᶠ_δvᶜᶠᶠ_τ₂₃ᶜᶠᶠ, velocities.v, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
+@inline function viscous_dissipation_rate_ccc(i, j, k, grid, velocities, closure_fields, fields, p)
+    args = (p.closure, closure_fields, p.clock, fields, p.buoyancy)
+    return (Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid,         velocities.u, args...) + # C, C, C
+            ℑxyᶜᶜᵃ(i, j, k, grid, Ayᶠᶠᶜ_δuᶠᶠᶜ_τ₁₂ᶠᶠᶜ, velocities.u, args...) + # F, F, C  → C, C, C
+            ℑxzᶜᵃᶜ(i, j, k, grid, Azᶠᶜᶠ_δuᶠᶜᶠ_τ₁₃ᶠᶜᶠ, velocities.u, args...) + # F, C, F  → C, C, C
 
-     ℑxzᶜᵃᶜ(i, j, k, grid, Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ, velocities.w, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # F, C, F  → C, C, C
-     ℑyzᵃᶜᶜ(i, j, k, grid, Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ, velocities.w, p.closure, closure_fields, p.clock, fields, p.buoyancy) + # C, F, F  → C, C, C
-     Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid,         velocities.w, p.closure, closure_fields, p.clock, fields, p.buoyancy)   # C, C, C
-     ) / Vᶜᶜᶜ(i, j, k, grid) # This division by volume, coupled with the call to A*δuᵢ above, ensures a derivative operation
+            ℑxyᶜᶜᵃ(i, j, k, grid, Axᶠᶠᶜ_δvᶠᶠᶜ_τ₂₁ᶠᶠᶜ, velocities.v, args...) + # F, F, C  → C, C, C
+            Ayᶜᶜᶜ_δvᶜᶜᶜ_τ₂₂ᶜᶜᶜ(i, j, k, grid,         velocities.v, args...) + # C, C, C
+            ℑyzᵃᶜᶜ(i, j, k, grid, Azᶜᶠᶠ_δvᶜᶠᶠ_τ₂₃ᶜᶠᶠ, velocities.v, args...) + # C, F, F  → C, C, C
+
+            ℑxzᶜᵃᶜ(i, j, k, grid, Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ, velocities.w, args...) + # F, C, F  → C, C, C
+            ℑyzᵃᶜᶜ(i, j, k, grid, Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ, velocities.w, args...) + # C, F, F  → C, C, C
+            Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid,         velocities.w, args...)   # C, C, C
+            ) / Vᶜᶜᶜ(i, j, k, grid) # The division by volume, with the A*δuᵢ in each term, makes a derivative
+end
 
 const KineticEnergyDissipationRate = CustomKFO{<:typeof(viscous_dissipation_rate_ccc)}
 const DissipationRate = KineticEnergyDissipationRate

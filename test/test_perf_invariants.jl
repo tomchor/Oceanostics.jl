@@ -199,12 +199,14 @@ end
     @testset "Energy budgets on a HydrostaticFreeSurfaceModel" begin
         # Kernels of their own around Oceananigans' hydrostatic tendencies, and a `ZeroField` for `w`
         hydrostatic = build_probe_hydrostatic_model()
-        test_kfo_invariants("KineticEnergy",            KineticEnergyEquation.KineticEnergy(hydrostatic))
-        test_kfo_invariants("KineticEnergyTendency",    KineticEnergyEquation.KineticEnergyTendency(hydrostatic))
-        test_kfo_invariants("KineticEnergyAdvection",   KineticEnergyEquation.KineticEnergyAdvection(hydrostatic))
-        test_kfo_invariants("KineticEnergyStress",      KineticEnergyEquation.KineticEnergyStress(hydrostatic))
-        test_kfo_invariants("KineticEnergyForcing",     KineticEnergyEquation.KineticEnergyForcing(hydrostatic))
-        test_kfo_invariants("PotentialEnergyTendency",  PotentialEnergyTendency(hydrostatic))
+        test_kfo_invariants("KineticEnergy",                       KineticEnergyEquation.KineticEnergy(hydrostatic))
+        test_kfo_invariants("KineticEnergyTendency",               KineticEnergyEquation.KineticEnergyTendency(hydrostatic))
+        test_kfo_invariants("KineticEnergyAdvection",              KineticEnergyEquation.KineticEnergyAdvection(hydrostatic))
+        test_kfo_invariants("KineticEnergyStress",                 KineticEnergyEquation.KineticEnergyStress(hydrostatic))
+        test_kfo_invariants("KineticEnergyForcing",                KineticEnergyEquation.KineticEnergyForcing(hydrostatic))
+        test_kfo_invariants("KineticEnergyPressureRedistribution", KineticEnergyEquation.KineticEnergyPressureRedistribution(hydrostatic))
+        test_kfo_invariants("KineticEnergyDissipationRate",        KineticEnergyEquation.KineticEnergyDissipationRate(hydrostatic))
+        test_kfo_invariants("PotentialEnergyTendency",             PotentialEnergyTendency(hydrostatic))
     end
 
     @testset "AvailablePotentialEnergyEquation" begin
