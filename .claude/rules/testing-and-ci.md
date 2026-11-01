@@ -15,6 +15,7 @@ The GPU pipeline needs no `CUDA_Runtime_jll` pin and sets `JULIA_CUDA_USE_COMPAT
 
 ## Writing tests
 Build a test from the grids, closures, buoyancy and Coriolis formulations and model types in `test/test_utils.jl` rather than defining new ones.
+A check against a closed-form value may build its own `ScalarDiffusivity` with the ν or κ the formula needs, as the KE and PE value tests do; a test that needs only some closure takes one from `test/test_utils.jl` (#310).
 Put new grids on `arch = has_cuda_gpu() ? GPU() : CPU()` so the same file runs on the CPU under Actions and on the GPU under Buildkite; only `test_perf_invariants.jl` builds `CPU()` grids on purpose.
 `test_momentum_diagnostics.jl` runs one set of test functions over the `DIRECTIONS` table (u, v, w); add a momentum term there once, not per component.
 A new `src/` module adds a representative KFO to `test_perf_invariants.jl`, which checks that per-cell evaluation is type-stable and allocates nothing.

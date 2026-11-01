@@ -34,6 +34,21 @@ grid_noise(x, y, z) = randn()
 # Volume reductions as scalars, i.e. without scalar indexing on GPUs
 volume_integral(op) = sum(∫dV(op))
 volume_mean(op)     = sum(Field(Average(op)))  # volume-weighted over the whole domain
+
+# Interior values copied to the CPU, so that comparisons index a plain `Array` on either architecture
+cpu_interior(f::Field) = Array(interior(f))
+cpu_interior(op) = Array(interior(Field(op)))
+
+# Subtract the depth mean from a `HydrostaticFreeSurfaceModel`'s `u` and `v`. The depth-integrated flow
+# is what moves the free surface, so without it the `w` diagnosed from continuity vanishes at the surface
+# as well as at the bottom, and the domain is closed the way a nonhydrostatic one with rigid walls is.
+function remove_barotropic_flow!(model)
+    u, v, _ = model.velocities
+    u′ = Field(u - Field(Average(u, dims=3)))
+    v′ = Field(v - Field(Average(v, dims=3)))
+    set!(model, u = u′, v = v′)
+    return nothing
+end
 #---
 
 #+++ Common model configurations

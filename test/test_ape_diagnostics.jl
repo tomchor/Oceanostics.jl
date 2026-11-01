@@ -819,6 +819,71 @@ function test_tilted_gravity_is_rejected(grid)
     @test_throws "`AvailablePotentialEnergyDissipationRate`" AvailablePotentialEnergyDissipationRate(model, z✶)
     @test_throws "`ReferenceBuoyancyAnomaly`" ReferenceBuoyancyAnomaly(model, z✶)
     @test_throws "`AvailablePotentialToKineticEnergyConversion`" AvailablePotentialToKineticEnergyConversion(model, z✶)
+    # `R` also checks the profile tendency it is handed, so the message is pinned to the gravity check
+    gravity_message = "`AvailablePotentialEnergyReferenceTendency` measures buoyancy against depth"
+    @test_throws gravity_message AvailablePotentialEnergyReferenceTendency(model, CenterField(grid), z✶)
+
+    return nothing
+end
+
+"""
+`eₐ` is homogeneous of degree one in buoyancy: scaling `b` and the profile `b✶` together scales `eₐ` and
+leaves `z✶` where it was. Differentiating along that scaling, the change in `b` contributes `Υb` and
+the change in the profile contributes `R` with `∂ₜb✶ = b✶`, so the two add back up to `eₐ` (Euler's
+theorem). That pins `R`'s sign, its limits and the slots it integrates over exactly, against `eₐ`'s own
+discretization rather than a reimplementation. A uniform tendency `c` then makes `R = c(z - z✶) = -cΥ`,
+which `R` has to follow when the tendency it reads changes.
+"""
+function test_reference_tendency(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = grid_noise)
+    b = model.tracers.b
+
+    column = reference_height(model, method=VerticalSort())
+    z✶ = reference_height(b; method=ProfileLookup(column))
+
+    ∂ₜb✶ = CenterField(column.grid)
+    interior(∂ₜb✶) .= interior(reference_buoyancy(column))
+    R = AvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶)
+    @test R isa AvailablePotentialEnergyReferenceTendency
+    @test occursin("computes:", sprint(show, MIME("text/plain"), R))
+
+    eₐ = Field(AvailablePotentialEnergy(model, z✶))
+    Υ  = Field(DisplacementPotential(model, z✶))
+    @test interior(Field(R)) ≈ interior(eₐ) .- interior(Υ) .* interior(b)
+
+    # the same through the `TimeDerivative` the diagnostic is ordinarily handed
+    ∂ₜb✶_derivative = TimeDerivative(reference_buoyancy(column))
+    interior(∂ₜb✶_derivative.result) .= interior(reference_buoyancy(column))
+    @test interior(Field(AvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶_derivative, z✶))) ≈ interior(Field(R))
+
+    R_field = Field(R)
+    interior(∂ₜb✶) .= 2
+    compute_at!(R_field, 1.0)
+    @test interior(R_field) ≈ -2 .* interior(Υ)
+
+    return nothing
+end
+
+"""
+`R` integrates the profile tendency over the slots of the sorted column, so it has to be handed one
+value per slot of a column that spans the model's depth: a field on the model grid, or a column of
+another depth, is refused rather than integrated over the wrong slots. The reference height it starts
+from has to live on the model grid, as for `Υ`.
+"""
+function test_reference_tendency_errors(grid)
+
+    model = NonhydrostaticModel(grid; buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, b = grid_noise)
+
+    column = reference_height(model, method=VerticalSort())
+    z✶ = reference_height(model, method=ProfileLookup(column))
+    shallow_column = RectilinearGrid(arch, size=(1, 1, prod(size(grid))), extent=(1, 1, grid.Lz / 2))
+
+    @test_throws "sorted column" AvailablePotentialEnergyReferenceTendency(model, CenterField(grid), z✶)
+    @test_throws "sorted column" AvailablePotentialEnergyReferenceTendency(model, CenterField(shallow_column), z✶)
+    @test_throws "model grid" AvailablePotentialEnergyReferenceTendency(model, CenterField(column.grid), column)
 
     return nothing
 end
@@ -883,6 +948,11 @@ end
             test_sorting_methods_agree(grid)   # needs at least two methods to run, so regular grids only
             test_one_dimensional_sort_column(grid)
             test_reference_buoyancy_triggers_the_sort(grid)
+
+            # `R` reads its profile tendency off a `VerticalSort` column, which needs uniform cells
+            @info "      Testing the reference tendency R"
+            test_reference_tendency(grid)
+            test_reference_tendency_errors(grid)
         else
             @info "      Testing that only `HeavisideIntegral` runs on a stretched grid"
             test_stretched_grid_restrictions(grid)

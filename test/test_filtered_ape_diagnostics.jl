@@ -8,6 +8,7 @@ using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialE
 using Oceanostics: FilteredAvailablePotentialEnergyDisplacementPotential
 using Oceanostics: AvailablePotentialEnergyCrossScaleFlux, subfilter_covariance
 using Oceanostics: FilteredAvailablePotentialToKineticEnergyConversion
+using Oceanostics: FilteredAvailablePotentialEnergyReferenceTendency, AvailablePotentialEnergyReferenceTendency
 using Oceanostics.BackgroundPotentialEnergyEquation: reference_buoyancy_at_height
 using Oceanostics.AvailablePotentialEnergyEquation: DisplacementPotential
 using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate,
@@ -22,6 +23,15 @@ random_stratified_b(x, y, z) = 1e-2 * z + 1e-3 * randn()
 # The shared profile the filtered buoyancy is looked up in: a column sorted from the model's own
 # buoyancy, borrowed through `ProfileLookup` so the tests can build the same `z✶ˡ` by hand.
 shared_lookup(model) = ProfileLookup(reference_height(model, method=VerticalSort()))
+
+# A stand-in for `TimeDerivative(reference_buoyancy(column))`: a field on the sorted column holding the
+# profile itself, which makes a reference tendency the profile part of its APE (Euler's theorem; see
+# `test_reference_tendency` in the full-field suite).
+function profile_as_tendency(column)
+    ∂ₜb✶ = CenterField(column.grid)
+    interior(∂ₜb✶) .= interior(reference_buoyancy(column))
+    return ∂ₜb✶
+end
 
 # Filters that are neither a `BoxFilter` nor a `GaussianFilter`: three-point means along z and along x,
 # written as plain kernels, which the diagnostics can only recognize by trying them on a probe field.
@@ -305,6 +315,55 @@ function test_filtered_ape_rejects_vertical_filters(grid, filt, vertical_filters
     for diagnostic in (FilteredAvailablePotentialEnergyDissipationRate, AvailablePotentialEnergyCrossScaleFlux)
         @test_throws "acts in the horizontal" diagnostic(model, z_mean_filter, z✶ˡ)
     end
+
+    # Rˡ takes the profile tendency besides the filter, so it gets its own calls
+    Rˡ = FilteredAvailablePotentialEnergyReferenceTendency
+    ∂ₜb✶ = profile_as_tendency(lookup.profile)
+    for vertical in (vertical_filters..., z_mean_filter)
+        @test_throws "acts in the horizontal" Rˡ(model, vertical, ∂ₜb✶; method=lookup)
+    end
+    for vertical in vertical_filters
+        z✶ˡ_vertical = reference_height(Field(vertical(b)); method=lookup)
+        @test_throws "acts in the horizontal" Rˡ(model, ∂ₜb✶, z✶ˡ_vertical)
+    end
+    for dims in ((1, 2, 3), (3,))
+        @test_throws "acts in the horizontal" Rˡ(model, ∂ₜb✶; σ=0.1, dims)
+    end
+    @test Rˡ(model, x_mean_filter, ∂ₜb✶; method=lookup) isa Rˡ
+    return nothing
+end
+
+# Rˡ is R measured from the reference height of the filtered buoyancy, so Euler's theorem holds for it
+# as it does for R: with the profile itself as the tendency, Rˡ = eₐˡ - Υˡb̄ exactly. An identity filter
+# makes it R to the bit, and the low-level form on a prebuilt z✶ˡ matches the high-level one.
+function test_filtered_ape_reference_tendency(model, filt)
+    lookup = shared_lookup(model)
+    ∂ₜb✶ = profile_as_tendency(lookup.profile)
+
+    Rˡ = FilteredAvailablePotentialEnergyReferenceTendency(model, filt, ∂ₜb✶; method=lookup)
+    @test location(Rˡ) == (Center, Center, Center)
+    @test Rˡ isa FilteredAvailablePotentialEnergyReferenceTendency
+    @test occursin("FilteredAvailablePotentialEnergyReferenceTendency", sprint(show, Rˡ))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), Rˡ))
+
+    b̄   = Field(filt(model.tracers.b))
+    z✶ˡ = reference_height(b̄; method=lookup)
+    eₐˡ = Field(FilteredAvailablePotentialEnergy(model, z✶ˡ))
+    Υˡ  = Field(DisplacementPotential(model, z✶ˡ))
+    @test interior(Field(Rˡ)) ≈ interior(eₐˡ) .- interior(Υˡ) .* interior(b̄)
+    @test interior(Field(FilteredAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶ˡ))) == interior(Field(Rˡ))
+
+    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=1e-4, N=3)
+    z✶ = reference_height(model.tracers.b; method=lookup)
+    @test interior(Field(FilteredAvailablePotentialEnergyReferenceTendency(model, identity_filter, ∂ₜb✶; method=lookup))) ==
+          interior(Field(AvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶)))
+
+    σ = 0.12
+    gaussian = ψ -> GaussianFilter(ψ; dims=(1, 2), σ, boundary=:shrink)   # the convenience defaults
+    @test interior(Field(FilteredAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶; σ, method=lookup))) ≈
+          interior(Field(FilteredAvailablePotentialEnergyReferenceTendency(model, gaussian, ∂ₜb✶; method=lookup)))
+
+    @test_throws "ProfileLookup" FilteredAvailablePotentialEnergyReferenceTendency(model, filt, ∂ₜb✶; method=HeavisideIntegral())
     return nothing
 end
 
@@ -435,9 +494,9 @@ function test_ape_cross_scale_flux_errors(grid, filt)
 end
 
 """
-w̄b_rˡ = w̄(b̄ − b✶(z)) rebuilt by hand from the filtered vertical velocity, the filtered buoyancy and the
-reference profile read at each cell's own height. The product is formed on the `w` face and only then
-interpolated to the center, so the manual construction pins that co-location too.
+w̄ b̄ᵣ = w̄(b̄ − b✶(z)) rebuilt by hand from the filtered vertical velocity, the filtered buoyancy
+and the reference profile read at each cell's own height. The product is formed on the `w` face and
+only then interpolated to the center, so the manual construction pins that co-location too.
 """
 function test_filtered_ape_ke_conversion_matches_manual(model, filt)
 
@@ -445,8 +504,8 @@ function test_filtered_ape_ke_conversion_matches_manual(model, filt)
     b✶z = reference_buoyancy_at_height(model.grid, lookup.profile)
     w̄  = Field(filt(model.velocities.w))
     b̄  = Field(filt(model.tracers.b))
-    b_rˡ_ccf = Field(@at (Center, Center, Face) Field(b̄ - b✶z))
-    manual = Field(@at (Center, Center, Center) (w̄ * b_rˡ_ccf))
+    b̄ᵣ_ccf = Field(@at (Center, Center, Face) Field(b̄ - b✶z))
+    manual = Field(@at (Center, Center, Center) (w̄ * b̄ᵣ_ccf))
 
     conversion = FilteredAvailablePotentialToKineticEnergyConversion(model, filt; method = lookup)
     @test location(conversion) == (Center, Center, Center)
@@ -460,9 +519,9 @@ end
 
 """
 The reference profile is read at the parcel's own height, so a horizontally uniform stable
-stratification is its own reference state: b✶(z) = b(z) cell by cell, hence b_rˡ ≡ 0 and no energy is
-converted however vigorous the vertical velocity. This is the sharp check on the lookup, since a
-half-slot error in b✶(z) would show up here as an O(N²Δz) anomaly rather than as roundoff.
+stratification is its own reference state: b✶(z) = b(z) cell by cell, hence b̄ᵣ ≡ 0 and no
+energy is converted however vigorous the vertical velocity. This is the sharp check on the lookup,
+since a half-slot error in b✶(z) would show up here as an O(N²Δz) anomaly rather than as roundoff.
 """
 function test_filtered_ape_ke_conversion_uniform_stratification_vanishes(grid, filt)
 
@@ -479,8 +538,8 @@ end
 
 """
 The conversion is a flux carried by the filtered vertical velocity, so it vanishes identically with no
-motion however sharp the buoyancy — the check a stray sign or a leftover term would break, since b_rˡ
-is nowhere near zero here.
+motion however sharp the buoyancy — the check a stray sign or a leftover term would break, since
+b̄ᵣ is nowhere near zero here.
 """
 function test_filtered_ape_ke_conversion_vanishes_without_motion(grid, filt)
 
@@ -488,30 +547,29 @@ function test_filtered_ape_ke_conversion_vanishes_without_motion(grid, filt)
     set!(model, b = random_stratified_b)   # velocities left at zero
 
     lookup = shared_lookup(model)
-    b_rˡ = Field(Field(filt(model.tracers.b)) - reference_buoyancy_at_height(grid, lookup.profile))
-    @test maximum(abs, interior(b_rˡ)) > 0   # otherwise the assertion below would hold trivially
+    b̄ᵣ = Field(Field(filt(model.tracers.b)) - reference_buoyancy_at_height(grid, lookup.profile))
+    @test maximum(abs, interior(b̄ᵣ)) > 0   # otherwise the assertion below would hold trivially
     @test maximum(abs, interior(Field(FilteredAvailablePotentialToKineticEnergyConversion(model, filt; method = lookup)))) == 0
 
     return nothing
 end
 
 """
-b_rˡ = b̄ − b✶(z) measures the filtered buoyancy against the *unfiltered* reference profile, which is
-what differentiating eₐˡ produces; it is not filter(b_r) = b̄ − filter(b✶(z)), which filters the
-reference too. The two differ once the filter acts in the vertical and coincide for a purely horizontal
-one, since b✶ is a function of z alone — exactly the distinction this term is defined by. The diagnostic
-itself takes only the horizontal kind, so the vertical filter here is applied to the fields directly.
+The diagnostic forms the filtered anomaly as b̄ᵣ = b̄ − b✶(z), which is filter(bᵣ) = filter(b − b✶(z))
+for a horizontal filter, since b✶ depends on z alone and passes through the filter unchanged; a
+filter that acts in the vertical smooths b✶ as well, and the two differ. The diagnostic itself
+takes only the horizontal kind, so the vertical filter here is applied to the fields directly.
 """
-function test_filtered_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt_horizontal)
+function test_filtered_ape_ke_conversion_filtered_anomaly(model, filt_vertical, filt_horizontal)
 
     lookup = shared_lookup(model)
     b = model.tracers.b
 
     for (filter, coincide) in ((filt_vertical, false), (filt_horizontal, true))
         b✶z = reference_buoyancy_at_height(model.grid, lookup.profile)
-        b_rˡ         = Field(Field(filter(b)) - b✶z)     # filtered buoyancy, unfiltered reference
-        filtered_b_r = Field(filter(Field(b - b✶z)))     # filters the reference too
-        @test (interior(b_rˡ) ≈ interior(filtered_b_r)) == coincide
+        b̄ᵣ          = Field(Field(filter(b)) - b✶z)     # as the diagnostic forms it
+        filtered_bᵣ = Field(filter(Field(b - b✶z)))     # filter(bᵣ) literally
+        @test (interior(b̄ᵣ) ≈ interior(filtered_bᵣ)) == coincide
     end
 
     return nothing
@@ -612,6 +670,9 @@ end
     @info "    Filtered APE dissipation εₐˡ = -q̄ᵢ∂ᵢΥˡ basics and shared Υˡ"
     test_filtered_ape_dissipation_basics(model, filt)
 
+    @info "    Filtered APE reference tendency Rˡ"
+    test_filtered_ape_reference_tendency(model, filt)
+
     @info "    eₐˡ and εₐˡ recompute as the flow evolves"
     test_filtered_ape_recomputes(model, filt)              # mutates model; keep after the other `model` tests
     test_filtered_ape_dissipation_recomputes(model, filt)
@@ -625,9 +686,9 @@ end
     @info "    Module re-exports and aliases"
     test_filtered_ape_module_reexports()
 
-    @info "  Testing the filtered APE to filtered KE conversion w̄b_rˡ"
+    @info "  Testing the filtered APE to filtered KE conversion w̄ b̄ᵣ"
     test_filtered_ape_ke_conversion_matches_manual(model, filt)
-    test_filtered_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt)
+    test_filtered_ape_ke_conversion_filtered_anomaly(model, filt_vertical, filt)
     test_filtered_ape_ke_conversion_convenience(model)
     test_filtered_ape_ke_conversion_uniform_stratification_vanishes(grid, filt)
     test_filtered_ape_ke_conversion_vanishes_without_motion(grid, filt)
@@ -640,6 +701,6 @@ end
     test_ape_cross_scale_flux_vanishes_without_motion(grid, filt)
     test_ape_cross_scale_flux_errors(grid, filt)
 
-    @info "    w̄b_rˡ recomputes as the flow evolves"
+    @info "    w̄ b̄ᵣ recomputes as the flow evolves"
     test_filtered_ape_ke_conversion_recomputes(model, filt)   # mutates model; keep last
 end

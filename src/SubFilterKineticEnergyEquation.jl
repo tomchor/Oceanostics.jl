@@ -6,14 +6,14 @@ export SubFilterKineticEnergy, SubFilterKineticEnergyDissipationRate, Dissipatio
 # Πₖ is a source term of the subfilter KE budget (and a sink of the filtered budget), so it is
 # re-exported here from `FilteredKineticEnergyEquation`, where it is defined.
 export KineticEnergyCrossScaleFlux
-# τˡ(w, bᵣ) is the other source of this budget — the APE the subfilter scales release to it — and a sink
+# τ(w, bᵣ) is the other source of this budget — the APE the subfilter scales release to it — and a sink
 # of the subfilter APE one, so it is re-exported here from `SubFilterAvailablePotentialEnergyEquation`.
 export SubFilterAvailablePotentialToKineticEnergyConversion
 
 using Oceananigans.Fields: Field
 using Oceananigans.Grids: Center
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceanostics: CustomKFO
+using Oceanostics: CustomKFO, validate_closure_supplies_a_flux
 
 using ..KineticEnergyEquation: KineticEnergyDissipationRate, KineticEnergy
 using ..FilteredKineticEnergyEquation: FilteredKineticEnergy, FilteredKineticEnergyDissipationRate,
@@ -137,7 +137,7 @@ SubFilterKineticEnergyDissipationRate(model, filter)
 SubFilterKineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: subfilter_ke_dissipation_rate_ccc (generic function with 1 method)
-└── arguments: ("Oceananigans.AbstractOperations.BinaryOperation",)
+└── arguments: ("BinaryOperation",)
 └── computes: subfilter kinetic energy dissipation rate  filter(εₖ) - εₖˡ
 ```
 
@@ -145,6 +145,7 @@ A convenience method `SubFilterKineticEnergyDissipationRate(model; σ, dims, bou
 Gaussian `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
 """
 function SubFilterKineticEnergyDissipationRate(model, filter)
+    validate_closure_supplies_a_flux("SubFilterKineticEnergyDissipationRate", model)
     εₖ  = KineticEnergyDissipationRate(model)                 # dissipation of the full flow
     εₖˡ = FilteredKineticEnergyDissipationRate(model, filter)  # dissipation of the filtered flow
     εₖˢ = Field(filter(Field(εₖ))) - εₖˡ                       # εₖˢ = filter(εₖ) - εₖˡ; leaves are materialized Fields

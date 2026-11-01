@@ -486,7 +486,7 @@ julia> TEND = UMomentumEquation.Tendency(model)
 UTendency KernelFunctionOperation at (Face, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: u_velocity_tendency (generic function with 1 method)
-└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "Oceananigans.Models.NonhydrostaticModels.BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
+└── arguments: ("Centered", "Nothing", "Nothing", "Nothing", "Nothing", "Nothing", "BackgroundFields", "NamedTuple", "NamedTuple", "NamedTuple", "Nothing", "Nothing", "Clock", "Returns")
 └── computes: total tendency of the u-momentum equation
 ```
 """

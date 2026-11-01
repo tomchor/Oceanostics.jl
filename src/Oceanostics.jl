@@ -91,18 +91,19 @@ export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
 
 #+++ AvailablePotentialEnergyEquation exports
 export AvailablePotentialEnergy, AvailablePotentialEnergyDisplacementPotential, AvailablePotentialEnergyDissipationRate
-export ReferenceBuoyancyAnomaly, AvailablePotentialToKineticEnergyConversion
+export ReferenceBuoyancyAnomaly, AvailablePotentialToKineticEnergyConversion, AvailablePotentialEnergyReferenceTendency
 #---
 
 #+++ FilteredAvailablePotentialEnergyEquation exports
 export FilteredAvailablePotentialEnergy, FilteredAvailablePotentialEnergyDisplacementPotential
 export FilteredAvailablePotentialEnergyDissipationRate
 export AvailablePotentialEnergyCrossScaleFlux, FilteredAvailablePotentialToKineticEnergyConversion
+export FilteredAvailablePotentialEnergyReferenceTendency
 #---
 
 #+++ SubFilterAvailablePotentialEnergyEquation exports
 export SubFilterAvailablePotentialEnergy, SubFilterAvailablePotentialEnergyDissipationRate
-export SubFilterAvailablePotentialToKineticEnergyConversion
+export SubFilterAvailablePotentialToKineticEnergyConversion, SubFilterAvailablePotentialEnergyReferenceTendency
 #---
 
 #+++ ProgressMessengers
@@ -121,6 +122,17 @@ validate_location(location, type, valid_location=(Center, Center, Center)) =
 validate_dissipative_closure(closure) = error("Cannot calculate dissipation rate for $closure")
 validate_dissipative_closure(::AbstractScalarDiffusivity{<:Any, ThreeDimensionalFormulation}) = nothing
 validate_dissipative_closure(closure_tuple::Tuple) = Tuple(validate_dissipative_closure(c) for c in closure_tuple)
+
+# A diagnostic that reads a flux off the closure (`viscous_flux_*`, `diffusive_flux_*`) works with
+# any closure that defines it, so `validate_dissipative_closure`, which admits only a
+# three-dimensional `AbstractScalarDiffusivity`, would reject Smagorinsky, AMD and the rest for no
+# reason. What breaks is having no closure at all, which is a legal model and which otherwise
+# surfaces as a `MethodError` from inside the kernel, naming none of the caller's code.
+validate_closure_supplies_a_flux(diagnostic, model) =
+    isnothing(model.closure) &&
+        throw(ArgumentError("`$diagnostic` reads its flux off the model's closure, but this model has no closure, \
+                             so there is no flux to read. Build the model with one, e.g. \
+                             `closure = ScalarDiffusivity(ν=..., κ=...)`."))
 #---
 
 #+++ Utils for advection schemes
@@ -175,29 +187,34 @@ end
 #---
 
 #+++ Utils for removing mean fields
-using Oceananigans: prognostic_fields, HydrostaticFreeSurfaceModel
-using Oceananigans.Biogeochemistry: biogeochemical_auxiliary_fields
+using Oceananigans: fields
 """
     $(SIGNATURES)
 
-Remove mean fields from the model resolved fields.
+Remove mean fields, passed as keyword arguments such as `u = U`, from the velocities and tracers of
+`model` with the same names, and return them with the rest of `fields(model)`, which includes the
+auxiliary fields and, for a `HydrostaticFreeSurfaceModel`, the diagnostic `w`. A keyword that names no
+velocity or tracer throws an `ArgumentError`. That includes `U` and `V`, which on a model with a
+`SplitExplicitFreeSurface` name the barotropic transports rather than the means of `u` and `v`.
 """
 function perturbation_fields(model; kwargs...)
 
-    resolved_fields = prognostic_fields(model)
-    if model isa HydrostaticFreeSurfaceModel
-        resolved_fields = (; resolved_fields..., w=ZeroField())
+    model_fields = fields(model)
+    mean_fields = values(kwargs)
+
+    accepted = filter(name -> name ∈ (:u, :v, :w) || name ∈ keys(model.tracers), keys(model_fields))
+    for name in keys(mean_fields)
+        name ∈ accepted ||
+            throw(ArgumentError("`perturbation_fields` removes means from the velocities and tracers of the model, \
+                                 $(join(accepted, ", ")), but got one for `$name`. Name each mean after its \
+                                 field, e.g. `u = U`."))
     end
 
-    mean_fields = values(kwargs)
     # Removes mean fields only if mean field is provided
-    pert_fields = NamedTuple{keys(resolved_fields)}(haskey(mean_fields, key) ?
-                                                    Field(val - mean_fields[key]) :
-                                                    val
-                                                    for (key,val) in zip(keys(resolved_fields), resolved_fields))
-    return merge(pert_fields,
-                 model.auxiliary_fields,
-                 biogeochemical_auxiliary_fields(model.biogeochemistry))
+    return NamedTuple{keys(model_fields)}(haskey(mean_fields, key) ?
+                                          Field(val - mean_fields[key]) :
+                                          val
+                                          for (key,val) in zip(keys(model_fields), model_fields))
 end
 #---
 
@@ -492,6 +509,7 @@ end
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyDissipationRate "AvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate  -qᵢ∂ᵢΥ"
 @diagnostic_show AvailablePotentialEnergyEquation.ReferenceBuoyancyAnomaly                "ReferenceBuoyancyAnomaly"                "reference buoyancy anomaly  b - b✶(z)"
 @diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialToKineticEnergyConversion "AvailablePotentialToKineticEnergyConversion" "available potential to kinetic energy conversion  wbᵣ"
+@diagnostic_show AvailablePotentialEnergyEquation.AvailablePotentialEnergyReferenceTendency "AvailablePotentialEnergyReferenceTendency" "available potential energy reference tendency  ∫∂ₜb✶(z̃)dz̃ from z✶ to z"
 #---
 
 #+++ FilteredAvailablePotentialEnergyEquation
@@ -499,13 +517,15 @@ end
 @diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyDisplacementPotential "FilteredAvailablePotentialEnergyDisplacementPotential" "displacement potential of the filtered buoyancy  z✶(b̄) - z"
 @diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyDissipationRate "FilteredAvailablePotentialEnergyDissipationRate" "available potential energy dissipation rate of the filtered buoyancy  -q̄ᵢ∂ᵢΥˡ"
 @diagnostic_show FilteredAvailablePotentialEnergyEquation.AvailablePotentialEnergyCrossScaleFlux            "AvailablePotentialEnergyCrossScaleFlux"            "cross-scale available potential energy flux  -τ(uᵢ, b)∂ᵢΥˡ"
-@diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion "FilteredAvailablePotentialToKineticEnergyConversion" "filtered APE to filtered KE conversion  w̄(b̄ - b✶(z))"
+@diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialToKineticEnergyConversion "FilteredAvailablePotentialToKineticEnergyConversion" "filtered APE to filtered KE conversion  w̄ b̄ᵣ"
+@diagnostic_show FilteredAvailablePotentialEnergyEquation.FilteredAvailablePotentialEnergyReferenceTendency "FilteredAvailablePotentialEnergyReferenceTendency" "available potential energy reference tendency of the filtered buoyancy  ∫∂ₜb✶(z̃)dz̃ from z✶(b̄) to z"
 #---
 
 #+++ SubFilterAvailablePotentialEnergyEquation
 @diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergy                "SubFilterAvailablePotentialEnergy"                "subfilter available potential energy  filter(eₐ) - eₐˡ"
 @diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyDissipationRate "SubFilterAvailablePotentialEnergyDissipationRate" "subfilter available potential energy dissipation rate  filter(εₐ) - εₐˡ"
-@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion "SubFilterAvailablePotentialToKineticEnergyConversion" "subfilter APE to KE conversion  filter(wbᵣ) - w̄b_rˡ"
+@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion "SubFilterAvailablePotentialToKineticEnergyConversion" "subfilter APE to KE conversion  filter(wbᵣ) - w̄ b̄ᵣ"
+@diagnostic_show SubFilterAvailablePotentialEnergyEquation.SubFilterAvailablePotentialEnergyReferenceTendency "SubFilterAvailablePotentialEnergyReferenceTendency" "subfilter available potential energy reference tendency  filter(R) - Rˡ"
 #---
 
 #+++ FlowDiagnostics

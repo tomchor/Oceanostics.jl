@@ -41,14 +41,14 @@ julia> tke = TurbulentKineticEnergyEquation.TurbulentKineticEnergy(model)
 TurbulentKineticEnergy KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: turbulent_kinetic_energy_ccc (generic function with 1 method)
-└── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── arguments: ("Field", "Field", "Field", "ZeroField", "ZeroField", "ZeroField")
 └── computes: turbulent kinetic energy  ½uᵢ′uᵢ′
 
 julia> SP = TurbulentKineticEnergyEquation.ShearProductionRate(model)
 TurbulentKineticEnergyShearProductionRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: shear_production_rate_ccc (generic function with 1 method)
-└── arguments: ("Field", "Field", "Field", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField", "Oceananigans.Fields.ZeroField")
+└── arguments: ("Field", "Field", "Field", "ZeroField", "ZeroField", "ZeroField")
 └── computes: total TKE shear production  -uᵢ′uⱼ′ ∂ⱼUᵢ
 ```
 

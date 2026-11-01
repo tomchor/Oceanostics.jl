@@ -9,6 +9,8 @@ using Oceanostics: FilteredAvailablePotentialEnergy, FilteredAvailablePotentialE
                    AvailablePotentialEnergyCrossScaleFlux, FilteredAvailablePotentialToKineticEnergyConversion
 using Oceanostics: SubFilterAvailablePotentialToKineticEnergyConversion, AvailablePotentialToKineticEnergyConversion,
                    reference_buoyancy_at_height
+using Oceanostics: SubFilterAvailablePotentialEnergyReferenceTendency, FilteredAvailablePotentialEnergyReferenceTendency,
+                   AvailablePotentialEnergyReferenceTendency
 using Oceanostics: AvailablePotentialEnergy, AvailablePotentialEnergyDissipationRate,
                    reference_height, reference_buoyancy, VerticalSort, ProfileLookup, HeavisideIntegral,
                    GaussianFilter, BoxFilter
@@ -254,6 +256,50 @@ function test_subfilter_ape_rejects_vertical_filters(grid, vertical_filters)
             @test_throws "acts in the horizontal" diagnostic(model; σ=0.1, dims)
         end
     end
+
+    # Rˢ takes the profile tendency besides the filter, so it gets its own calls
+    ∂ₜb✶ = CenterField(reference_height(model, method=VerticalSort()).grid)
+    for vertical in vertical_filters
+        @test_throws "acts in the horizontal" SubFilterAvailablePotentialEnergyReferenceTendency(model, vertical, ∂ₜb✶)
+    end
+    for dims in ((1, 2, 3), (3,))
+        @test_throws "acts in the horizontal" SubFilterAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶; σ=0.1, dims)
+    end
+    return nothing
+end
+
+# Rˢ = filter(R) - Rˡ, both halves integrating one profile tendency, so the two have to add back up to
+# the filtered full-field reference tendency. The tendency here is the profile itself, which keeps both
+# halves away from zero (see `test_reference_tendency` in the full-field suite). An identity-scale
+# filter makes the two halves equal, so Rˢ vanishes to the bit.
+function test_subfilter_ape_reference_tendency(model, filt)
+    column = reference_height(model, method=VerticalSort())
+    lookup = ProfileLookup(column)
+    ∂ₜb✶ = CenterField(column.grid)
+    interior(∂ₜb✶) .= interior(reference_buoyancy(column))
+
+    Rˢ = SubFilterAvailablePotentialEnergyReferenceTendency(model, filt, ∂ₜb✶; method=lookup)
+    @test location(Rˢ) == (Center, Center, Center)
+    @test Rˢ isa SubFilterAvailablePotentialEnergyReferenceTendency
+    @test occursin("SubFilterAvailablePotentialEnergyReferenceTendency", sprint(show, Rˢ))
+    @test occursin("computes:", sprint(show, MIME("text/plain"), Rˢ))
+
+    z✶ = reference_height(model.tracers.b; method=lookup)
+    Rˡ = Field(FilteredAvailablePotentialEnergyReferenceTendency(model, filt, ∂ₜb✶; method=lookup))
+    filtered_R = Field(filt(Field(AvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶, z✶))))
+    @test maximum(abs, interior(Field(Rˢ))) > 0   # otherwise the sum below would hold trivially
+    @test interior(filtered_R) ≈ interior(Rˡ) .+ interior(Field(Rˢ))
+
+    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=1e-4, N=3)
+    Rˢ_identity = Field(SubFilterAvailablePotentialEnergyReferenceTendency(model, identity_filter, ∂ₜb✶; method=lookup))
+    @test all(interior(Rˢ_identity) .== 0)
+
+    σ = 0.12
+    gaussian = ψ -> GaussianFilter(ψ; dims=(1, 2), σ, boundary=:shrink)   # the convenience defaults
+    @test interior(Field(SubFilterAvailablePotentialEnergyReferenceTendency(model, ∂ₜb✶; σ, method=lookup))) ≈
+          interior(Field(SubFilterAvailablePotentialEnergyReferenceTendency(model, gaussian, ∂ₜb✶; method=lookup)))
+
+    @test_throws "ProfileLookup" SubFilterAvailablePotentialEnergyReferenceTendency(model, filt, ∂ₜb✶; method=HeavisideIntegral())
     return nothing
 end
 
@@ -267,7 +313,7 @@ function test_subfilter_ape_module_reexports()
     @test :FilteredAvailablePotentialEnergy in names(SubFilterAvailablePotentialEnergyEquation)
     @test :FilteredAvailablePotentialEnergyDissipationRate in names(SubFilterAvailablePotentialEnergyEquation)
     @test :AvailablePotentialEnergyCrossScaleFlux in names(SubFilterAvailablePotentialEnergyEquation)
-    # τˡ(w, bᵣ) is a source of the subfilter KE budget too, so that module re-exports it from here
+    # τ(w, bᵣ) is a source of the subfilter KE budget too, so that module re-exports it from here
     @test SubFilterKineticEnergyEquation.SubFilterAvailablePotentialToKineticEnergyConversion === SubFilterAvailablePotentialToKineticEnergyConversion
     @test :SubFilterAvailablePotentialToKineticEnergyConversion in names(SubFilterKineticEnergyEquation)
     @test SubFilterAvailablePotentialEnergyEquation.DissipationRate === SubFilterAvailablePotentialEnergyDissipationRate
@@ -279,10 +325,10 @@ function test_subfilter_ape_module_reexports()
 end
 #---
 
-# τˡ(w, bᵣ) is defined as filter(wbᵣ) - w̄b_rˡ, so the two halves have to add back up to the filtered
-# full-field conversion. That is the decomposition claim, and it pins the shared b✶(z) and the shared
-# discretization: were either half built against a different reference or collocated differently, the
-# sum would drift from filter(wbᵣ).
+# τ(w, bᵣ) is defined as filter(wbᵣ) - w̄ b̄ᵣ, so the two halves have to add back up to the
+# filtered full-field conversion. That is the decomposition claim, and it pins the shared b✶(z) and the
+# shared discretization: were either half built against a different reference or collocated
+# differently, the sum would drift from filter(wbᵣ).
 function test_subfilter_ape_ke_conversion_decomposition(model, filt)
     lookup = ProfileLookup(reference_height(model, method=VerticalSort()))
     z✶ = reference_height(model.tracers.b; method=lookup)
@@ -318,20 +364,20 @@ function test_subfilter_ape_ke_conversion_vanishes_without_motion(grid, filt)
     return nothing
 end
 
-# Both halves measure the buoyancy against the *unfiltered* reference profile, so the filtered half uses
-# b_rˡ = b̄ - b✶(z) rather than filter(bᵣ) = filter(b - b✶(z)), which filters the reference too. The two
-# differ once the filter acts in the vertical and coincide for a purely horizontal one, b✶ being a
-# function of z alone — the convention that makes the two halves an exact decomposition. The diagnostic
-# itself takes only the horizontal kind, so the vertical filter here is applied to the fields directly.
-function test_subfilter_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt_horizontal)
+# The filtered half forms the anomaly as b̄ᵣ = b̄ - b✶(z), which is filter(bᵣ) = filter(b - b✶(z)) for
+# a horizontal filter, since b✶ depends on z alone and passes through the filter unchanged, so
+# τ(w, bᵣ) is the subfilter covariance of w and bᵣ; a filter that acts in the vertical smooths b✶ as
+# well, and the two differ. The diagnostic itself takes only the horizontal kind, so the vertical
+# filter here is applied to the fields directly.
+function test_subfilter_ape_ke_conversion_filtered_anomaly(model, filt_vertical, filt_horizontal)
     lookup = ProfileLookup(reference_height(model, method=VerticalSort()))
     b   = model.tracers.b
     b✶ᶻ = reference_buoyancy_at_height(model.grid, lookup.profile)
 
     for (filter, coincide) in ((filt_vertical, false), (filt_horizontal, true))
-        b_rˡ        = Field(Field(filter(b)) - b✶ᶻ)   # filtered buoyancy, unfiltered reference
-        filtered_bᵣ = Field(filter(Field(b - b✶ᶻ)))   # filters the reference too
-        @test (interior(b_rˡ) ≈ interior(filtered_bᵣ)) == coincide
+        b̄ᵣ          = Field(Field(filter(b)) - b✶ᶻ)   # as the diagnostic forms it
+        filtered_bᵣ = Field(filter(Field(b - b✶ᶻ)))   # filter(bᵣ) literally
+        @test (interior(b̄ᵣ) ≈ interior(filtered_bᵣ)) == coincide
     end
     return nothing
 end
@@ -430,6 +476,9 @@ end
     @info "    Subfilter APE dissipation εₐˢ = filter(εₐ) - εₐˡ basics"
     test_subfilter_ape_dissipation_basics(model, filt)
 
+    @info "    Subfilter APE reference tendency Rˢ = filter(R) - Rˡ"
+    test_subfilter_ape_reference_tendency(model, filt)
+
     @info "    eₐˢ and εₐˢ recompute as the flow evolves"
     test_subfilter_ape_recomputes(model, filt)              # mutates model; keep after the other `model` tests
     test_subfilter_ape_dissipation_recomputes(model, filt)
@@ -440,13 +489,13 @@ end
     @info "    Filters with a vertical component are rejected"
     test_subfilter_ape_rejects_vertical_filters(grid, vertical_filters)
 
-    @info "    Subfilter APE to KE conversion τˡ(w, bᵣ)"
+    @info "    Subfilter APE to KE conversion τ(w, bᵣ)"
     # The shared model is buoyancy-only, and the conversion is carried by the vertical velocity, so
     # without this every assertion below would hold trivially on a field of zeros.
     set!(model, u=(x, y, z) -> 1e-2 * randn(), w=(x, y, z) -> 1e-2 * randn())
     test_subfilter_ape_ke_conversion_decomposition(model, filt)
     test_subfilter_ape_ke_conversion_identity_filter_vanishes(model)
-    test_subfilter_ape_ke_conversion_unfiltered_reference(model, filt_vertical, filt)
+    test_subfilter_ape_ke_conversion_filtered_anomaly(model, filt_vertical, filt)
     test_subfilter_ape_ke_conversion_convenience(model)
     test_subfilter_ape_ke_conversion_vanishes_without_motion(grid, filt)
     test_subfilter_ape_ke_conversion_errors(grid, filt)

@@ -21,7 +21,7 @@ GPU testing runs on hardware provided by [atdepth](https://www.atdepth.org).
 To install the latest stable version from Julia:
 ```julia
 julia> ]
-(@v1.9) pkg> add Oceanostics
+(@v1.13) pkg> add Oceanostics
 ```
 
 If you want the latest developments (which may or may not be unstable) you can add the latest
@@ -29,5 +29,5 @@ version from Github in the `main` branch:
 
 ```julia
 julia> ]
-(@v1.9) pkg> add Oceanostics#main
+(@v1.13) pkg> add Oceanostics#main
 ```

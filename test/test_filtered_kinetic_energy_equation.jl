@@ -195,6 +195,13 @@ function test_filtered_dissipation_convenience(model)
     return nothing
 end
 
+# A model with no closure has no viscous flux to filter, which the constructor says up front instead of
+# failing with a `MethodError` from inside the flux kernel.
+function test_filtered_dissipation_needs_a_closure(model, filt)
+    @test_throws "no closure" FilteredKineticEnergyDissipationRate(model, filt)
+    return nothing
+end
+
 # A uniform flow has S̄ᵢⱼ ≡ 0, so the filtered-flow dissipation vanishes identically.
 function test_filtered_dissipation_uniform_vanishes(grid, filt; ν=1e-3, U=2, V=-3)
     model = NonhydrostaticModel(grid; closure=ScalarDiffusivity(; ν))
@@ -251,6 +258,9 @@ end
 
     @info "    Recomputes as the flow evolves"
     test_recomputes_on_evolution(model, filt)
+
+    @info "    Filtered-flow KE dissipation needs a closure"
+    test_filtered_dissipation_needs_a_closure(model, filt)
 
     # The filtered dissipation contracts the filtered velocity gradient with the *filtered* full-flow
     # viscous flux. A fully periodic grid (so the filter commutes with the constant-ν flux) plus a

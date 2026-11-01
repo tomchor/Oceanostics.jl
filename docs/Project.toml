@@ -19,3 +19,7 @@ Oceanostics = {path = ".."}
 [compat]
 Documenter = "1.17"
 DocumenterCodeBlocks = "1"
+# The doctests expect bare argument type names ("ZeroField"), which the `show` of a
+# `KernelFunctionOperation` prints since 0.114.1; earlier releases qualify any type not visible
+# from `Main` ("Oceananigans.Fields.ZeroField") and fail those doctests.
+Oceananigans = ">= 0.114.1"

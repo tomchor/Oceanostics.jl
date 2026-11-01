@@ -21,6 +21,8 @@ A term that weights buoyancy by `z` or sorts along it needs `BuoyancyTracer` and
 `DiffusiveVerticalBuoyancyFlux` and `PotentialToKineticEnergyConversion` skip the gravity check on purpose, since neither depends on the direction of gravity.
 Every `(model, z✶)` method calls `validate_gravity_is_z_aligned` itself, because a `z✶` built from a bare `Field` carries no model for `reference_height` to check; `test_tilted_gravity_is_rejected` pins each one.
 A `BackgroundField` buoyancy adds `-z∂ⱼ(uⱼB)`, which has no diagnostic yet, so the `-z ×` split closes only without one; `Tendency` still includes it, since it comes off the model's own kernel.
+On a `HydrostaticFreeSurfaceModel`, `Tendency` and the advection defaults take `model.velocities`, although the model advects tracers with `model.transport_velocities` (barotropically corrected, zero before the first step); keep both on the same flow or the split stops closing (#310).
+`Tendency` and `BuoyancyDiffusion` go through `∇_dot_qᶜ`, which under a `VerticallyImplicitTimeDiscretization` drops the interior vertical flux the implicit step applies, while `Diffusion` and `Φ` keep it, so `BuoyancyDiffusion = Diffusion + Φ` and `∫BuoyancyDiffusion = ∫Φ` hold for explicit closures only (#310).
 The exact `-z ×` split and the two integral identities are tested only in `test/test_pe_diagnostics.jl`; `baroclinic_adjustment.jl` closes the integrated budget with the two conversions and never exercises the `-z ×` terms.
 Keep `baroclinic_adjustment.jl` a double front: a single Eady front needs a uniform background gradient, which makes `∫eₚ dV` infinite (#279).
 
@@ -33,7 +35,9 @@ A diagnostic that is a map on the model grid (Υ, bᵣ, wbᵣ, εₐ) rejects `V
 `AvailablePotentialToKineticEnergyConversion` (wbᵣ) forms its product on the same face as `PotentialToKineticEnergyConversion` (wb), which is what makes wb = wbᵣ + wb✶ hold cell by cell; keep a new conversion on that discretization.
 
 ## Filtered and subfilter APE
+The filtered and subfilter APE diagnostics cover horizontal filters only (#318), so their docs and tests describe that case alone, with no text on how a filter with vertical extent would be supported; the formulas are those of arXiv:2605.15879 §2.5.
+The notation holds only for a horizontal filter: `b̄ᵣ = b̄ − b✶(z)` for the filtered anomaly, `τ(w, bᵣ)` for the subfilter conversion and `eₐˡ = eₐ(b̄, z)` against the unfiltered profile all rely on `b✶(z)` passing through the filter unchanged, so none of it carries over to a filter with vertical extent.
 The filtered buoyancy is looked up in a profile it did not produce, so `method` must be a `ProfileLookup`; `shared_profile_lookup` turns the default into a `VerticalSort` column of the model's buoyancy.
 Build `z✶` and `z✶ˡ` against one lookup (`filtered_buoyancy_and_lookup`, `subfilter_reference_heights`); with two lookups `filter(eₐ) − eₐˡ` is a difference of unrelated quantities, not a decomposition.
-`b_rˡ = b̄ − b✶(z)` keeps the reference profile unfiltered, which is what differentiating eₐˡ in z produces; `filter(b_r)` differs from it once the filter acts vertically.
+The filtered anomaly `b̄ᵣ = filter(bᵣ)` is formed as `b̄ − b✶(z)`, which is −∂eₐˡ/∂z and equals it for a horizontal filter since `b✶` depends on z alone, so `τ(w, bᵣ) = filter(wbᵣ) − w̄ b̄ᵣ` is the plain subfilter covariance and reduces to `τ(w, b)`; both halves share one `b✶(z)` and one kernel so the split holds on one discretization.
 `eₐˢ ≥ 0` holds pointwise only for a filter that averages at fixed z (Jensen), so every filtered and subfilter APE constructor calls `validate_filter_is_horizontal` before any `Field` is computed, on the filter itself (probed by `mixes_vertical_levels`, which recognizes any filter) and on a prebuilt `z✶ˡ` or `upsilon` (walked by `filtered_dims`, which recognizes only `BoxFilter` and `GaussianFilter`).

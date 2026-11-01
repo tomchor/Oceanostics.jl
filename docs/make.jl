@@ -28,7 +28,7 @@ examples = [
     "Baroclinic adjustment"        => "baroclinic_adjustment", # PE and KE budgets, double front (~20 min)
     "Spatial filtering"            => "spatial_filtering", # Spatial filtering examples (~5 min)
     "Kelvin-Helmholtz instability" => "kelvin_helmholtz", # Filtered KE budget (~8 min)
-    "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability", # SFS budget (~6 min)
+    "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability", # Subfilter KE and APE budgets (~6 min)
     "Lock release"                 => "lock_release", # APE and reference profiles calculation (~ 5 min)
     ]
 

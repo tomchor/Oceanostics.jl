@@ -10,22 +10,20 @@ export MixedLayerDepth, BuoyancyAnomalyCriterion, DensityAnomalyCriterion
 export BottomCellValue
 
 using Oceanostics: validate_location,
-                   validate_dissipative_closure,
                    add_background_fields,
                    get_coriolis_frequency_components,
                    CustomKFO
 
 import Oceananigans # so `Oceananigans.defaults.gravitational_acceleration` resolves in default kwargs/fields below
-using Oceananigans: NonhydrostaticModel, FPlane, ConstantCartesianCoriolis, BuoyancyTracer, location, Field
-using Oceananigans.BuoyancyFormulations: get_temperature_and_salinity, SeawaterBuoyancy, buoyancy_perturbationᶜᶜᶜ
+using Oceananigans: NonhydrostaticModel, FPlane, BuoyancyTracer, location, Field
+using Oceananigans.BuoyancyFormulations: SeawaterBuoyancy, buoyancy_perturbationᶜᶜᶜ
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Models: buoyancy_operation
 using Oceananigans.Grids: AbstractGrid, Center, Face, NegativeZDirection, ZDirection, znode, bottommost_active_node
 
-using SeawaterPolynomials: ρ′, BoussinesqEquationOfState
-using SeawaterPolynomials.SecondOrderSeawaterPolynomials: SecondOrderSeawaterPolynomial
+using SeawaterPolynomials: BoussinesqEquationOfState
 
 #+++ Richardson number
 """
