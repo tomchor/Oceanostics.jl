@@ -207,6 +207,15 @@ function test_auxiliary_functions(model)
     @test all(Array(interior(fields_without_means.v)) .== 0)
     @test fields_without_means.w === model.velocities.w # the diagnostic w on a HydrostaticFreeSurfaceModel
 
+    # A perturbation's halos come from its own boundary conditions: zero flux by default, which copies
+    # the interior, or those `boundary_conditions` sets. A wall valued 1 over a zero interior puts 2 in
+    # the halo.
+    wall = (; u=FieldBoundaryConditions(bottom=ValueBoundaryCondition(1)))
+    walled = perturbation_fields(model; u=1, boundary_conditions=wall)
+    @allowscalar @test fields_without_means.u[1, 1, 0] ≈ 0
+    @allowscalar @test walled.u[1, 1, 0] ≈ 2
+    @test_throws ArgumentError perturbation_fields(model; boundary_conditions=wall) # no mean is removed from u
+
     # A mean is named after its velocity or tracer, so an uppercase `U` is an error, also where `fields`
     # has a `U`: the barotropic transport of a split-explicit free surface
     @test_throws ArgumentError perturbation_fields(model; U=1)

@@ -684,6 +684,15 @@ On an `ImmersedBoundaryGrid` the same bare fluxes are not masked across immersed
 `_viscous_flux_*` behind `∂ⱼτᵢⱼ` are, so `εₖ` there includes the shear across faces the model treats as
 solid and `∫DIFF dV = ∫εₖ dV` does not hold either.
 
+`U`, `V` and `W` are means removed from the velocities before `εₖ` is computed, which makes it the
+dissipation rate of the turbulent kinetic energy. Each perturbation is a computed `Field` whose boundary
+conditions are zero flux at every wall unless `boundary_conditions` sets them, keyed by velocity. At a
+wall where a velocity has a value or gradient condition, the zero-flux default drops the wall shear from
+the cells next to it, so pass the condition the perturbation satisfies there. For a no-slip bottom and a
+horizontal mean, that is
+`boundary_conditions = (u = FieldBoundaryConditions(bottom = ValueBoundaryCondition(0)),)`.
+See `Oceanostics.perturbation_fields` for the details.
+
 ```jldoctest
 julia> using Oceananigans, Oceanostics
 
@@ -699,12 +708,12 @@ KineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 └── computes: kinetic energy dissipation rate  -∂ⱼuᵢ·τᵢⱼ
 ```
 """
-function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
+function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), boundary_conditions=NamedTuple(),
                                                location = (Center, Center, Center))
     validate_location(location, "DissipationRate")
     validate_closure_supplies_a_flux("KineticEnergyDissipationRate", model)
     mean_velocities = (u=U, v=V, w=W)
-    model_fields = perturbation_fields(model; mean_velocities...)
+    model_fields = perturbation_fields(model; mean_velocities..., boundary_conditions)
     parameters = (; model.closure,
                   model.clock,
                   model.buoyancy,

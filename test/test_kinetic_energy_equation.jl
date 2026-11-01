@@ -255,6 +255,40 @@ function test_kinetic_energy_dissipation_rates(grid; model_type)
 end
 
 """
+With a mean removed, `εₖ` is built from perturbation fields whose boundary conditions are zero flux
+unless `boundary_conditions` sets them, so next to a wall where the perturbation has a value or gradient
+condition the default drops the shear across the wall face (F3 of #332). With the conditions passed, `εₖ`
+matches that of a twin model whose velocity is the perturbation itself, under the same conditions, wall
+cells included. The perturbation varies in `y` and `z` only, so it has no horizontal divergence and `w`
+stays zero on both model types.
+"""
+function test_dissipation_rate_perturbation_boundary_conditions(grid; model_type)
+    ν = 1e-2; S = 2; A = 1
+    zᴮ = Array(znodes(grid, Face()))[1]
+    closure = ScalarDiffusivity(; ν)
+    perturbation_bcs = FieldBoundaryConditions(bottom = ValueBoundaryCondition(0), top = GradientBoundaryCondition(1))
+
+    model = model_type(grid; closure, boundary_conditions = (; u = FieldBoundaryConditions(bottom = ValueBoundaryCondition(0))))
+    twin = model_type(grid; closure, boundary_conditions = (; u = perturbation_bcs))
+    set!(model, u = (x, y, z) -> (S + A * sin(2π * y)) * (z - zᴮ))
+    set!(twin, u = (x, y, z) -> A * sin(2π * y) * (z - zᴮ))
+
+    U = Field(Average(model.velocities.u, dims=(1, 2)))
+    bcs = (; u = perturbation_bcs)
+    ε_twin = cpu_interior(KineticEnergyEquation.KineticEnergyDissipationRate(twin))
+    ε = cpu_interior(KineticEnergyEquation.KineticEnergyDissipationRate(model; U, boundary_conditions = bcs))
+    ε_default = cpu_interior(KineticEnergyEquation.KineticEnergyDissipationRate(model; U))
+
+    @test ε ≈ ε_twin
+    @test ε_default[:, :, 2:end-1] ≈ ε_twin[:, :, 2:end-1]
+    @test !(ε_default[:, :, 1] ≈ ε_twin[:, :, 1])
+    @test !(ε_default[:, :, end] ≈ ε_twin[:, :, end])
+    @test_throws ArgumentError KineticEnergyEquation.KineticEnergyDissipationRate(model; boundary_conditions = bcs)
+
+    return nothing
+end
+
+"""
 `KineticEnergyTendency` is `uᵢGᵢ` off the model's own momentum tendency kernels, so the other terms have
 to rebuild it cell by cell, to machine precision,
 
@@ -507,6 +541,7 @@ end
             test_pressure_redistribution(grid; model_type)
             test_potential_to_kinetic_energy_conversion(grid; model_type)
             test_kinetic_energy_dissipation_rates(grid; model_type)
+            test_dissipation_rate_perturbation_boundary_conditions(grid; model_type)
 
             @info "        Testing that the terms add up to the tendency"
             test_kinetic_energy_budget(grid; model_type)
