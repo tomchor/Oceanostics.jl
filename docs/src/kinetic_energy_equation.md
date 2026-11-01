@@ -10,9 +10,11 @@ e_k = \tfrac{1}{2} u_i u_i ,
 where ``i`` runs over the prognostic velocity components of the model: ``i = 1, 2, 3`` on a
 `NonhydrostaticModel`, which steps ``u``, ``v`` and ``w``, and ``i = 1, 2`` on a
 `HydrostaticFreeSurfaceModel`, which steps ``u`` and ``v`` and diagnoses ``w`` from continuity. Every
-diagnostic of the module sums over the same indices. As throughout Oceanostics, the lower-case ``e_k``
-is the pointwise energy density and the upper-case ``E_k = \int e_k \, \mathrm{d}V`` its volume
-integral; [the potential energy page](potential_energy_equation.md) states the convention in full. All
+diagnostic of the module sums over the same indices, except the pressure term, which keeps the
+diagnosed ``w`` on a hydrostatic model for the reason given in its section. As throughout Oceanostics,
+the lower-case ``e_k`` is the pointwise energy density and the upper-case
+``E_k = \int e_k \, \mathrm{d}V`` its volume integral;
+[the potential energy page](potential_energy_equation.md) states the convention in full. All
 diagnostics are computed at `(Center, Center, Center)`.
 
 The budget of ``e_k`` follows from contracting the momentum equations with the velocity. The two model
@@ -102,12 +104,33 @@ the hydrostatic anomaly is
 -u_i \partial_i p' = -\partial_j (u_j p') + wb , \qquad i = 1, 2 ,
 ```
 
-so the conversion ``wb`` is present pointwise, inside ``-\texttt{PR}`` together with a transport term,
-which is why `PotentialToKineticEnergyConversion` uses the diagnosed ``w`` on a hydrostatic model and
-why it is not a term of this budget. `KineticEnergyPressureRedistribution` defaults to ``p'`` here,
-and the momentum fluxes inside `KineticEnergyStress` and `KineticEnergyDissipationRate` still use the
-diagnosed ``w``, as the model's own tendencies do. The last pressure term is the work of the barotropic
-pressure gradient, `KineticEnergyBarotropicPressureRedistribution`. An `ImplicitFreeSurface` or a
+so the conversion ``wb`` is present pointwise, inside the work of ``p'`` together with a transport
+term, which is why `PotentialToKineticEnergyConversion` uses the diagnosed ``w`` on a hydrostatic
+model. The package writes the budget in the same form as the nonhydrostatic one. Adding and
+subtracting the vertical hydrostatic work ``w \, \partial_z p'``, which is ``wb`` by hydrostatic
+balance, turns the two-component pressure work into the three-component one plus the conversion,
+
+```math
+\partial_t e_k = -\underbrace{u_i \partial_j(u_j u_i)}_{\texttt{ADV}}
+             - \underbrace{u_i \partial_j \tau_{ij}}_{\texttt{STRESS}}
+             - \underbrace{u_j \partial_j p'}_{\texttt{PR}}
+             - \underbrace{u_i \partial_i (g \eta)}_{\texttt{BPR}}
+             + wb
+             + \underbrace{u_i F_{u_i}}_{\texttt{FORC}} , \qquad i = 1, 2 , \quad j = 1, 2, 3 ,
+```
+
+where ``\texttt{PR}`` now contracts all three components with the diagnosed ``w`` and is the same
+transport term as on the nonhydrostatic model, the divergence of the pressure flux ``u_j p'``, while
+``wb`` is the same conversion. This is the form `KineticEnergyPressureRedistribution` computes by
+default on a hydrostatic model, with ``p = p'``; the two-component work of the previous equation is
+``\texttt{PR} - wb``. On Oceananigans' grid the added and subtracted pieces cancel cell by cell at the
+interior faces, since ``p'`` is integrated from the same face buoyancy that ``wb`` multiplies by
+``w``; at the top face the difference of ``p'`` reads its halo, so with a free surface, where ``w``
+does not vanish there, the top cell is short by half the ``wb`` of its upper face, as on a
+nonhydrostatic model. The momentum fluxes inside `KineticEnergyStress` and
+`KineticEnergyDissipationRate` also use the diagnosed ``w``, as the model's own tendencies do. The
+last pressure term is the work of the barotropic pressure gradient,
+`KineticEnergyBarotropicPressureRedistribution`. An `ImplicitFreeSurface` or a
 `SplitExplicitFreeSurface` applies ``-g \nabla_h \eta`` in its free-surface step, outside the tendency
 kernel, so `KineticEnergyTendency` leaves it out and the change of ``e_k`` over a step is
 ``u_i G_i - \texttt{BPR}``; with an `ExplicitFreeSurface` the gradient is inside ``G_i`` and the term
@@ -137,9 +160,9 @@ the free surface per unit area, described in [the free surface section](@ref fre
 | --- | --- | --- | --- |
 | Kinetic energy ``e_k`` | ``\tfrac{1}{2}(u^2 + v^2 + w^2)`` | ``\tfrac{1}{2}(u^2 + v^2)`` | `KineticEnergy`, over the prognostic velocities of each model |
 | Pressure in the momentum equations | ``-\nabla p' - \nabla p_{nh}``, with ``p_{nh} = g \eta`` at the surface | ``-\nabla_h p' - g \nabla_h \eta`` | Nothing in this module; per component, `PressureGradient` and `BarotropicPressureGradient` in [the momentum modules](momentum_equation.md) |
-| Pressure work as the model steps it | ``-u_h \cdot \nabla_h p' - u_i \partial_i p_{nh}`` | ``-u_h \cdot \nabla_h p' - u_h \cdot \nabla_h (g \eta)`` | ``-\texttt{PR}``, `KineticEnergyPressureRedistribution`, with ``p = p' + p_{nh}`` by default on the nonhydrostatic model, where it also holds the ``-wb`` of the next row, and ``p = p'`` on the hydrostatic one; there the barotropic part is ``-\texttt{BPR}``, `KineticEnergyBarotropicPressureRedistribution` |
-| ``wb`` from the buoyancy force of the momentum equations | ``wb``, cancelled by ``-w \, \partial_z p'`` | none | `PotentialToKineticEnergyConversion`: a term of the nonhydrostatic budget, where it cancels the ``-wb`` inside ``-\texttt{PR}``; not a term of the hydrostatic budget |
-| Pressure work in flux form | ``-\partial_j [u_j (p' + p_{nh})] + wb`` | ``-\partial_j [u_j (p' + g \eta)] + wb`` | The residual ``wb`` is `PotentialToKineticEnergyConversion` again; the flux convergence is ``-\texttt{PR}`` itself on the nonhydrostatic model, since ``u_i \partial_i p = \partial_i (u_i p)``, and ``-\texttt{PR} - \texttt{BPR} - wb`` on the hydrostatic one |
+| Pressure work as the model steps it | ``-u_h \cdot \nabla_h p' - u_i \partial_i p_{nh}`` | ``-u_h \cdot \nabla_h p' - u_h \cdot \nabla_h (g \eta)`` | ``-\texttt{PR} + wb`` on the nonhydrostatic model and ``-\texttt{PR} - \texttt{BPR} + wb`` on the hydrostatic one: `KineticEnergyPressureRedistribution` contracts all three components on both, with ``p = p' + p_{nh}`` and ``p = p'`` by default, so it holds the ``-wb`` that `PotentialToKineticEnergyConversion` cancels; `KineticEnergyBarotropicPressureRedistribution` is the barotropic part |
+| ``wb`` from the buoyancy force of the momentum equations | ``wb``, cancelled by ``-w \, \partial_z p'`` | none | `PotentialToKineticEnergyConversion`, a term of both budgets as the package writes them: it cancels the vertical row of ``\texttt{PR}``, which is ``wb`` by hydrostatic balance |
+| Pressure work in flux form | ``-\partial_j [u_j (p' + p_{nh})] + wb`` | ``-\partial_j [u_j (p' + g \eta)] + wb`` | The flux convergence is ``-\texttt{PR}`` on the nonhydrostatic model and ``-\texttt{PR} - \texttt{BPR}`` on the hydrostatic one, since ``u_j \partial_j p = \partial_j (u_j p)``; the residual ``wb`` is `PotentialToKineticEnergyConversion` |
 | Normal pressure flux at the surface | ``g \eta \, w = \partial_t e_s`` | ``g \eta \, w = \partial_t e_s`` | `FreeSurfacePotentialEnergyTendency` (``g \eta \, w`` at the surface) and `FreeSurfacePotentialEnergy` (``e_s``), on [the potential energy page](potential_energy_equation.md) |
 | Normal pressure flux at the bottom | ``0`` at every point, any bathymetry | ``0`` at every point, any bathymetry | Nothing to compute |
 | What one has and the other lacks | the transport ``-\partial_j [u_j (p_{nh} - g \eta)]`` by the nonhydrostatic pressure proper | | `KineticEnergyPressureRedistribution` with `pressure = model.pressures.pNHS`, less ``\texttt{BPR}``, sign flipped |

@@ -45,7 +45,9 @@ const SupportedModel = Union{NonhydrostaticModel, HydrostaticFreeSurfaceModel}
 # The velocity components whose momentum equations are contracted with them to form the kinetic energy
 # budget. A HydrostaticFreeSurfaceModel diagnoses w from continuity and has no w-momentum equation, so
 # w is replaced by a ZeroField there; the momentum fluxes are still computed with the diagnostic w, as
-# in the model's own u and v tendencies.
+# in the model's own u and v tendencies. The pressure term is the exception: it keeps the diagnosed w,
+# so that its z row is the wb the budget's conversion term cancels (see
+# `KineticEnergyPressureRedistribution`), and the budget reads the same on both model types.
 prognostic_velocities(model, velocities) = (u = velocities.u, v = velocities.v, w = velocities.w)
 prognostic_velocities(::HydrostaticFreeSurfaceModel, velocities) = (u = velocities.u, v = velocities.v, w = ZeroField())
 
@@ -473,12 +475,17 @@ KineticEnergyPressureRedistribution KernelFunctionOperation at (Center, Center, 
 └── computes: kinetic energy pressure redistribution  uᵢ∂ᵢp
 ```
 
-On a `HydrostaticFreeSurfaceModel` the sum runs over `u` and `v` only, and `p` defaults to the
-hydrostatic pressure anomaly `model.pressure.pHY′`, which is the pressure the hydrostatic momentum
-tendencies carry. The free surface's own pressure `gη` is not part of it;
-[`KineticEnergyBarotropicPressureRedistribution`](@ref) provides that work separately. On a
-`NonhydrostaticModel` with a free surface, `gη` is the surface value of `pNHS`, so the default here
-already contains it.
+On a `HydrostaticFreeSurfaceModel` `p` defaults to the hydrostatic pressure anomaly
+`model.pressure.pHY′`, the pressure the hydrostatic momentum tendencies carry, and the sum runs over all
+three components with the diagnosed `w`, although those tendencies have no `w` row. The `z` row is
+`w∂zp′ = wb` by hydrostatic balance, and exactly so on Oceananigans' grid away from the top face, since
+`p′` is integrated from the same face buoyancy that [`PotentialEnergyConversion`](@ref) multiplies by
+`w`. So `-PR + wb` is the work of the horizontal gradient, the one the model applies, and the budget
+takes the same form on both model types, `∂ₜeₖ = -uᵢ∂ⱼ(uⱼuᵢ) - uᵢ∂ⱼτᵢⱼ - PR + wb + uᵢFᵤᵢ`, less `BPR`
+on a hydrostatic model; the two-component work alone is `PR - wb`. The free surface's own pressure `gη`
+is not part of `p` there; [`KineticEnergyBarotropicPressureRedistribution`](@ref) provides that work
+separately. On a `NonhydrostaticModel` with a free surface, `gη` is the surface value of `pNHS`, so the
+default here already contains it.
 
 On a `NonhydrostaticModel` that has taken a time step, Oceananigans (0.106 to 0.116 at least) leaves the
 halos of `pNHS` at the pressure times `Δt`: it corrects the velocities with `p Δt` and then divides the
@@ -494,8 +501,10 @@ function KineticEnergyPressureRedistribution(model::NonhydrostaticModel; velocit
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
 end
 
+# The diagnosed `w` stays in on purpose: its row is `wb`, so that `-PR + wb` is the horizontal work the
+# hydrostatic momentum equations apply and the budget reads the same as on a nonhydrostatic model.
 function KineticEnergyPressureRedistribution(model::HydrostaticFreeSurfaceModel;
-                                             velocities = prognostic_velocities(model, model.velocities),
+                                             velocities = model.velocities,
                                              pressure = model.pressure.pHY′,
                                              location = (Center, Center, Center))
     validate_location(location, "KineticEnergyPressureRedistribution")
@@ -626,8 +635,9 @@ components of `i=1,2,3` are added up.
 
 On a `HydrostaticFreeSurfaceModel`, `w` is the vertical velocity diagnosed from continuity. Buoyancy
 enters the hydrostatic momentum equations through the hydrostatic pressure, so `wb` is not one of the
-terms of `uₕGₕ` there; it is the conversion that the pressure work `-uₕ⋅∇ₕp` contains, since
-`∂p/∂z = b`.
+terms of `uₕGₕ` there; it is the conversion that the horizontal pressure work `-uₕ⋅∇ₕp′` contains,
+since `∂p′/∂z = b`. [`KineticEnergyPressureRedistribution`](@ref) contracts all three components on
+that model, so that its `z` row is this `wb` and the budget reads `-PR + wb` on both model types.
 
 By default, the conversion will be calculated using the resolved `velocities` and `tracers`:
 
