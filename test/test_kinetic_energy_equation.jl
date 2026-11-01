@@ -256,11 +256,11 @@ end
 
 """
 With a mean removed, `εₖ` is built from perturbation fields whose boundary conditions are zero flux
-unless `boundary_conditions` sets them, so next to a wall where the perturbation has a value or gradient
-condition the default drops the shear across the wall face (F3 of #332). With the conditions passed, `εₖ`
-matches that of a twin model whose velocity is the perturbation itself, under the same conditions, wall
-cells included. The perturbation varies in `y` and `z` only, so it has no horizontal divergence and `w`
-stays zero on both model types.
+unless `perturbation_boundary_conditions` sets them, so next to a wall where the perturbation has a
+value or gradient condition the default drops the shear across the wall face (F3 of #332). With the
+conditions passed, `εₖ` matches that of a twin model whose velocity is the perturbation itself, under the
+same conditions, wall cells included. The perturbation varies in `y` and `z` only, so it has no
+horizontal divergence and `w` stays zero on both model types.
 """
 function test_dissipation_rate_perturbation_boundary_conditions(grid; model_type)
     ν = 1e-2; S = 2; A = 1
@@ -276,14 +276,14 @@ function test_dissipation_rate_perturbation_boundary_conditions(grid; model_type
     U = Field(Average(model.velocities.u, dims=(1, 2)))
     bcs = (; u = perturbation_bcs)
     ε_twin = cpu_interior(KineticEnergyEquation.KineticEnergyDissipationRate(twin))
-    ε = cpu_interior(KineticEnergyEquation.KineticEnergyDissipationRate(model; U, boundary_conditions = bcs))
+    ε = cpu_interior(KineticEnergyEquation.KineticEnergyDissipationRate(model; U, perturbation_boundary_conditions = bcs))
     ε_default = cpu_interior(KineticEnergyEquation.KineticEnergyDissipationRate(model; U))
 
     @test ε ≈ ε_twin
     @test ε_default[:, :, 2:end-1] ≈ ε_twin[:, :, 2:end-1]
     @test !(ε_default[:, :, 1] ≈ ε_twin[:, :, 1])
     @test !(ε_default[:, :, end] ≈ ε_twin[:, :, end])
-    @test_throws ArgumentError KineticEnergyEquation.KineticEnergyDissipationRate(model; boundary_conditions = bcs)
+    @test_throws ArgumentError KineticEnergyEquation.KineticEnergyDissipationRate(model; perturbation_boundary_conditions = bcs)
 
     return nothing
 end

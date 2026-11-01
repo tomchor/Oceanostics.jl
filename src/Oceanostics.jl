@@ -199,17 +199,20 @@ velocity or tracer throws an `ArgumentError`. That includes `U` and `V`, which o
 `SplitExplicitFreeSurface` name the barotropic transports rather than the means of `u` and `v`.
 
 Each perturbation is a computed `Field` with boundary conditions of its own. They are zero flux at
-every wall unless `boundary_conditions` sets them, as a `NamedTuple` of `FieldBoundaryConditions` keyed
-by field name, and a side left out keeps the default. At a wall where the model field has a value or
-gradient condition, give the perturbation the condition it satisfies there, or derivatives across the
-wall face come out zero. For a no-slip bottom and a horizontal mean of `u`, that is
-`boundary_conditions = (u = FieldBoundaryConditions(bottom = ValueBoundaryCondition(0)),)`. A computed
-`Field` fills its halos without the model's clock or fields, so the conditions have to be constants.
+every wall unless `perturbation_boundary_conditions` sets them, as a `NamedTuple` of
+`FieldBoundaryConditions` keyed by field name, and a side left out keeps the default. At a wall where
+the model field has a value or gradient condition, give the perturbation the condition it satisfies
+there, or derivatives across the wall face come out zero. For a no-slip bottom and a horizontal mean of
+`u`, that is
+`perturbation_boundary_conditions = (u = FieldBoundaryConditions(bottom = ValueBoundaryCondition(0)),)`.
+A computed `Field` fills its halos without the model's clock or fields, so the conditions have to be
+constants.
 """
-function perturbation_fields(model; boundary_conditions = NamedTuple(), kwargs...)
+function perturbation_fields(model; perturbation_boundary_conditions = NamedTuple(), kwargs...)
 
     model_fields = fields(model)
     mean_fields = values(kwargs)
+    bcs = perturbation_boundary_conditions
 
     accepted = filter(name -> name ∈ (:u, :v, :w) || name ∈ keys(model.tracers), keys(model_fields))
     for name in keys(mean_fields)
@@ -218,15 +221,15 @@ function perturbation_fields(model; boundary_conditions = NamedTuple(), kwargs..
                                  $(join(accepted, ", ")), but got one for `$name`. Name each mean after its \
                                  field, e.g. `u = U`."))
     end
-    for name in keys(boundary_conditions)
+    for name in keys(bcs)
         haskey(mean_fields, name) && !(mean_fields[name] isa ZeroField) ||
-            throw(ArgumentError("`boundary_conditions` has an entry for `$name`, but no mean is removed from `$name`, \
-                                 so there is no perturbation field to give them to."))
+            throw(ArgumentError("`perturbation_boundary_conditions` has an entry for `$name`, but no mean is removed \
+                                 from `$name`, so there is no perturbation field to give them to."))
     end
 
     # Removes mean fields only if mean field is provided
     return NamedTuple{keys(model_fields)}(haskey(mean_fields, key) ?
-                                          perturbation_field(val, mean_fields[key], get(boundary_conditions, key, nothing)) :
+                                          perturbation_field(val, mean_fields[key], get(bcs, key, nothing)) :
                                           val
                                           for (key,val) in zip(keys(model_fields), model_fields))
 end
