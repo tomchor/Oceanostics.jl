@@ -121,6 +121,12 @@ end
 
 # The module re-exports Πₖ (a source term of this budget) from `FilteredKineticEnergyEquation`, and
 # aliases its dissipation rate as `DissipationRate`.
+# A model with no closure has no viscous flux, so the constructor rejects it before building εₖ and εₖˡ.
+function test_subfilter_dissipation_needs_a_closure(model, filt)
+    @test_throws "no closure" SubFilterKineticEnergyDissipationRate(model, filt)
+    return nothing
+end
+
 function test_subfilter_module_reexports()
     @test SubFilterKineticEnergyEquation.KineticEnergyCrossScaleFlux === KineticEnergyCrossScaleFlux
     @test SubFilterKineticEnergyEquation.DissipationRate === SubFilterKineticEnergyDissipationRate
@@ -150,6 +156,9 @@ end
 
     @info "    Discrete decomposition filter(eₖ) = eₖˡ + eₖˢ (bounded grid)"
     test_subfilter_kinetic_energy_decomposition(grid, filt)
+
+    @info "    εₖˢ needs a closure"
+    test_subfilter_dissipation_needs_a_closure(model, filt)
 
     # εₖˢ needs a dissipative closure so the full- and filtered-flow dissipations are defined.
     @info "    Subfilter KE dissipation εₖˢ = filter(εₖ) - εₖˡ matches manual"

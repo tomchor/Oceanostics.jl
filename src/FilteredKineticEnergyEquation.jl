@@ -15,7 +15,7 @@ using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous
                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
                                        viscous_flux_wx, viscous_flux_wy, viscous_flux_wz
 
-using Oceanostics: CustomKFO
+using Oceanostics: CustomKFO, validate_closure_supplies_a_flux
 using ..FlowDiagnostics: StressTensor, StrainRateTensor, to_center
 import ..FlowDiagnostics            # for the (unexported) `validate_dims`
 using ..SpatialFilters: GaussianFilter, BoxFilter   # BoxFilter is imported so its docstring `@ref` resolves in-module
@@ -365,6 +365,7 @@ Gaussian `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√
 `dims` here selects the directions the Gaussian filter acts in.
 """
 function FilteredKineticEnergyDissipationRate(model, filter)
+    validate_closure_supplies_a_flux("FilteredKineticEnergyDissipationRate", model)
     grid = model.grid
     u, v, w = model.velocities
 

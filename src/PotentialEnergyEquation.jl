@@ -29,7 +29,7 @@ using Oceananigans.Models: ShallowWaterModel
 using Oceananigans.Operators: ℑzᵃᵃᶜ, δxᶜᵃᵃ, δyᵃᶜᵃ, δzᵃᵃᶜ, V⁻¹ᶜᶜᶜ, Axᶠᶜᶜ, Ayᶜᶠᶜ, Azᶜᶜᶠ
 using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z, ∇_dot_qᶜ
 using Oceananigans.Utils: sum_of_velocities
-using Oceanostics: validate_location, CustomKFO, tracer_advection
+using Oceanostics: validate_location, validate_closure_supplies_a_flux, CustomKFO, tracer_advection
 using SeawaterPolynomials: BoussinesqEquationOfState
 
 using ..KineticEnergyEquation: PotentialToKineticEnergyConversion
@@ -246,20 +246,10 @@ end
 
 #+++ Buoyancy as a diffused tracer
 # `Φ` here, and `εₐ` over in `AvailablePotentialEnergyEquation`, both read `κ∇b` off the closure's own
-# diffusive flux, which needs the buoyancy to be a tracer the closure diffuses. `SeawaterBuoyancy` would
-# need the fluxes of temperature and salinity combined through the equation of state. Both helpers live
-# here because this is the module the two diagnostics have in common.
-# `Oceanostics.validate_dissipative_closure` is the wrong tool here: it admits only
-# `AbstractScalarDiffusivity`, so it would reject Smagorinsky, AMD and every other closure that defines
-# `diffusive_flux_*` and works fine. What actually breaks is having no closure at all, which is a legal
-# model and which otherwise surfaces as a `MethodError` from inside the kernel naming none of the
-# caller's code.
-validate_closure_supplies_a_flux(diagnostic, model) =
-    isnothing(model.closure) &&
-        throw(ArgumentError("`$diagnostic` reads `κ∇b` off the model's closure, but this model has no \
-                             closure, so there is no diffusive flux to read. Build the model with one, \
-                             e.g. `closure = ScalarDiffusivity(κ=...)`."))
-
+# diffusive flux, which needs a closure (`Oceanostics.validate_closure_supplies_a_flux` checks that) and
+# the buoyancy to be a tracer the closure diffuses. `SeawaterBuoyancy` would need the fluxes of
+# temperature and salinity combined through the equation of state. The check below lives here because
+# this is the module the two diagnostics have in common.
 validate_buoyancy_is_a_diffused_tracer(diagnostic, model) =
     model.buoyancy isa BuoyancyTracerModel ||
         throw(ArgumentError("`$diagnostic` needs the buoyancy to be a tracer the closure diffuses, so that `κ∇b` is \

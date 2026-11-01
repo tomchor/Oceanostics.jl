@@ -13,7 +13,7 @@ export SubFilterAvailablePotentialToKineticEnergyConversion
 using Oceananigans.Fields: Field
 using Oceananigans.Grids: Center
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceanostics: CustomKFO
+using Oceanostics: CustomKFO, validate_closure_supplies_a_flux
 
 using ..KineticEnergyEquation: KineticEnergyDissipationRate, KineticEnergy
 using ..FilteredKineticEnergyEquation: FilteredKineticEnergy, FilteredKineticEnergyDissipationRate,
@@ -145,6 +145,7 @@ A convenience method `SubFilterKineticEnergyDissipationRate(model; σ, dims, bou
 Gaussian `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
 """
 function SubFilterKineticEnergyDissipationRate(model, filter)
+    validate_closure_supplies_a_flux("SubFilterKineticEnergyDissipationRate", model)
     εₖ  = KineticEnergyDissipationRate(model)                 # dissipation of the full flow
     εₖˡ = FilteredKineticEnergyDissipationRate(model, filter)  # dissipation of the filtered flow
     εₖˢ = Field(filter(Field(εₖ))) - εₖˡ                       # εₖˢ = filter(εₖ) - εₖˡ; leaves are materialized Fields

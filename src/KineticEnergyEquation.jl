@@ -15,7 +15,7 @@ using Oceananigans: NonhydrostaticModel, HydrostaticFreeSurfaceModel, fields
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.Grids: Center
-using Oceananigans.Fields: ZeroField
+using Oceananigans.Fields: Field, ZeroField
 using Oceananigans.Models.NonhydrostaticModels: u_velocity_tendency, v_velocity_tendency, w_velocity_tendency
 using Oceananigans.Models.HydrostaticFreeSurfaceModels: hydrostatic_free_surface_u_velocity_tendency,
                                                         hydrostatic_free_surface_v_velocity_tendency
@@ -27,7 +27,8 @@ using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous
 using Oceananigans.BuoyancyFormulations: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ, z_dot_g_bᶜᶜᶠ
 
 using Oceanostics: _νᶜᶜᶜ
-using Oceanostics: validate_location, validate_dissipative_closure, perturbation_fields, CustomKFO, momentum_advection
+using Oceanostics: validate_location, validate_dissipative_closure, validate_closure_supplies_a_flux,
+                   perturbation_fields, CustomKFO, momentum_advection
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -46,6 +47,11 @@ const SupportedModel = Union{NonhydrostaticModel, HydrostaticFreeSurfaceModel}
 # in the model's own u and v tendencies.
 prognostic_velocities(model, velocities) = (u = velocities.u, v = velocities.v, w = velocities.w)
 prognostic_velocities(::HydrostaticFreeSurfaceModel, velocities) = (u = velocities.u, v = velocities.v, w = ZeroField())
+
+# The same choice as a type, for a kernel that takes the velocities themselves from `fields(model)`:
+# `Val(true)` keeps the `w` row and `Val(false)` drops it
+prognostic_w_row(model) = Val(true)
+prognostic_w_row(::HydrostaticFreeSurfaceModel) = Val(false)
 
 # The forcing of each momentum equation. A hydrostatic model has no `w` equation and so no `forcing.w`;
 # the zero forcing put in its place keeps the `w` row of `uᵢFᵤᵢ` at zero.
@@ -430,6 +436,16 @@ end
 const KineticEnergyPressureRedistribution = CustomKFO{<:typeof(uᵢ∂ᵢpᶜᶜᶜ)}
 const PressureRedistribution = KineticEnergyPressureRedistribution
 
+# The default pressure on a NonhydrostaticModel: `pNHS`, plus the hydrostatic anomaly when the model
+# carries one, as a computed `Field` so that computing the term fills its halos. Read directly, `pNHS`
+# would be differentiated across halos that Oceananigans leaves at `p Δt` after a time step (#335).
+@inline total_pressure_ccc(i, j, k, grid, pNHS, pHY′) = @inbounds pNHS[i, j, k] + pHY′[i, j, k]
+@inline total_pressure_ccc(i, j, k, grid, pNHS, ::Nothing) = @inbounds pNHS[i, j, k]
+
+total_pressure(model::NonhydrostaticModel) =
+    Field(KernelFunctionOperation{Center, Center, Center}(total_pressure_ccc, model.grid,
+                                                          model.pressures.pNHS, model.pressures.pHY′))
+
 """
     $(SIGNATURES)
 
@@ -475,14 +491,15 @@ tendencies carry. The free surface's own pressure is not part of it.
 
 On a `NonhydrostaticModel` that has taken a time step, Oceananigans (0.106 to 0.116 at least) leaves the
 halos of `pNHS` at the pressure times `Δt`: it corrects the velocities with `p Δt` and then divides the
-interior alone by `Δt`. This term differentiates `p` across those halos, so in the cells next to a
-periodic boundary it is wrong until the halos are refilled, with
-`fill_halo_regions!(model.pressures.pNHS)` right before it is evaluated. The error is a redistribution
-and barely changes a volume integral.
+interior alone by `Δt`. The default `p` is a computed `Field`, which fills its own halos when the term
+is computed, so it is not affected. A pressure passed by hand, such as `model.pressures.pNHS` above, is
+differentiated across its own halos, so in the cells next to a periodic boundary the term is wrong until
+they are refilled with `fill_halo_regions!(model.pressures.pNHS)` right before it is evaluated. The
+error is a redistribution and barely changes a volume integral.
 """
 function KineticEnergyPressureRedistribution(model::NonhydrostaticModel; velocities = model.velocities,
-                                    pressure = model.pressures.pHY′ == nothing ? model.pressures.pNHS : sum(model.pressures),
-                                    location = (Center, Center, Center))
+                                             pressure = total_pressure(model),
+                                             location = (Center, Center, Center))
     validate_location(location, "KineticEnergyPressureRedistribution")
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
 end
@@ -604,19 +621,28 @@ end
 @inline Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ(i, j, k, grid, ::ZeroField, args...) = zero(grid)
 @inline Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid, ::ZeroField, args...) = zero(grid)
 
-@inline function viscous_dissipation_rate_ccc(i, j, k, grid, velocities, closure_fields, fields, p)
+# The `w` of the `w` row: the one in `fields`, or a `ZeroField` that skips the row on a hydrostatic
+# model. The kernel takes the velocities from `fields` and gets only this choice on its own.
+# Oceananigans computes the fields of every `NamedTuple` argument each time the operation is computed,
+# so a second `NamedTuple` of velocities would compute a perturbation field built from a mean, and the
+# mean, twice per evaluation.
+@inline differentiated_w(fields, ::Val{true}) = fields.w
+@inline differentiated_w(fields, ::Val{false}) = ZeroField()
+
+@inline function viscous_dissipation_rate_ccc(i, j, k, grid, closure_fields, fields, p)
     args = (p.closure, closure_fields, p.clock, fields, p.buoyancy)
-    return (Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid,         velocities.u, args...) + # C, C, C
-            ℑxyᶜᶜᵃ(i, j, k, grid, Ayᶠᶠᶜ_δuᶠᶠᶜ_τ₁₂ᶠᶠᶜ, velocities.u, args...) + # F, F, C  → C, C, C
-            ℑxzᶜᵃᶜ(i, j, k, grid, Azᶠᶜᶠ_δuᶠᶜᶠ_τ₁₃ᶠᶜᶠ, velocities.u, args...) + # F, C, F  → C, C, C
+    u, v, w = fields.u, fields.v, differentiated_w(fields, p.w_row)
+    return (Axᶜᶜᶜ_δuᶜᶜᶜ_τ₁₁ᶜᶜᶜ(i, j, k, grid,         u, args...) + # C, C, C
+            ℑxyᶜᶜᵃ(i, j, k, grid, Ayᶠᶠᶜ_δuᶠᶠᶜ_τ₁₂ᶠᶠᶜ, u, args...) + # F, F, C  → C, C, C
+            ℑxzᶜᵃᶜ(i, j, k, grid, Azᶠᶜᶠ_δuᶠᶜᶠ_τ₁₃ᶠᶜᶠ, u, args...) + # F, C, F  → C, C, C
 
-            ℑxyᶜᶜᵃ(i, j, k, grid, Axᶠᶠᶜ_δvᶠᶠᶜ_τ₂₁ᶠᶠᶜ, velocities.v, args...) + # F, F, C  → C, C, C
-            Ayᶜᶜᶜ_δvᶜᶜᶜ_τ₂₂ᶜᶜᶜ(i, j, k, grid,         velocities.v, args...) + # C, C, C
-            ℑyzᵃᶜᶜ(i, j, k, grid, Azᶜᶠᶠ_δvᶜᶠᶠ_τ₂₃ᶜᶠᶠ, velocities.v, args...) + # C, F, F  → C, C, C
+            ℑxyᶜᶜᵃ(i, j, k, grid, Axᶠᶠᶜ_δvᶠᶠᶜ_τ₂₁ᶠᶠᶜ, v, args...) + # F, F, C  → C, C, C
+            Ayᶜᶜᶜ_δvᶜᶜᶜ_τ₂₂ᶜᶜᶜ(i, j, k, grid,         v, args...) + # C, C, C
+            ℑyzᵃᶜᶜ(i, j, k, grid, Azᶜᶠᶠ_δvᶜᶠᶠ_τ₂₃ᶜᶠᶠ, v, args...) + # C, F, F  → C, C, C
 
-            ℑxzᶜᵃᶜ(i, j, k, grid, Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ, velocities.w, args...) + # F, C, F  → C, C, C
-            ℑyzᵃᶜᶜ(i, j, k, grid, Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ, velocities.w, args...) + # C, F, F  → C, C, C
-            Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid,         velocities.w, args...)   # C, C, C
+            ℑxzᶜᵃᶜ(i, j, k, grid, Axᶠᶜᶠ_δwᶠᶜᶠ_τ₃₁ᶠᶜᶠ, w, args...) + # F, C, F  → C, C, C
+            ℑyzᵃᶜᶜ(i, j, k, grid, Ayᶜᶠᶠ_δwᶜᶠᶠ_τ₃₂ᶜᶠᶠ, w, args...) + # C, F, F  → C, C, C
+            Azᶜᶜᶜ_δwᶜᶜᶜ_τ₃₃ᶜᶜᶜ(i, j, k, grid,         w, args...)   # C, C, C
             ) / Vᶜᶜᶜ(i, j, k, grid) # The division by volume, with the A*δuᵢ in each term, makes a derivative
 end
 
@@ -669,21 +695,22 @@ julia> ε = KineticEnergyEquation.DissipationRate(model)
 KineticEnergyDissipationRate KernelFunctionOperation at (Center, Center, Center)
 ├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
 ├── kernel_function: viscous_dissipation_rate_ccc (generic function with 1 method)
-└── arguments: ("NamedTuple", "Nothing", "NamedTuple", "NamedTuple")
+└── arguments: ("Nothing", "NamedTuple", "NamedTuple")
 └── computes: kinetic energy dissipation rate  -∂ⱼuᵢ·τᵢⱼ
 ```
 """
 function DissipationRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(),
                                                location = (Center, Center, Center))
     validate_location(location, "DissipationRate")
+    validate_closure_supplies_a_flux("KineticEnergyDissipationRate", model)
     mean_velocities = (u=U, v=V, w=W)
     model_fields = perturbation_fields(model; mean_velocities...)
     parameters = (; model.closure,
                   model.clock,
-                  model.buoyancy)
+                  model.buoyancy,
+                  w_row = prognostic_w_row(model))
 
     return KernelFunctionOperation{Center, Center, Center}(viscous_dissipation_rate_ccc, model.grid,
-                                                           prognostic_velocities(model, model_fields),
                                                            model.closure_fields, model_fields, parameters)
 end
 #---

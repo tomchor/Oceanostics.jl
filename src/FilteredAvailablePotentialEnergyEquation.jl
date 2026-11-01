@@ -21,10 +21,10 @@ using Oceananigans.Models: model_geopotential_height
 using Oceananigans.Operators
 using Oceananigans.TurbulenceClosures: diffusive_flux_x, diffusive_flux_y, diffusive_flux_z
 
-using Oceanostics: CustomKFO
+using Oceanostics: CustomKFO, validate_closure_supplies_a_flux
 
-using ..PotentialEnergyEquation: validate_buoyancy_is_a_diffused_tracer, validate_closure_supplies_a_flux,
-                                 validate_gravity_is_z_aligned, buoyancy_diffusive_flux_arguments
+using ..PotentialEnergyEquation: validate_buoyancy_is_a_diffused_tracer, validate_gravity_is_z_aligned,
+                                 buoyancy_diffusive_flux_arguments
 using ..BackgroundPotentialEnergyEquation: SortedReferenceHeightField, reference_height, reference_buoyancy,
                                            reference_buoyancy_at_height, VerticalSort, ProfileLookup,
                                            buoyancy_field
