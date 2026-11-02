@@ -1,0 +1,13 @@
+/* Widen the reading column. Documenter's theme caps it at 52rem, which is tight for the tables and the
+   long equations of the budget pages; the sidebar keeps its 18rem beside it. The light theme writes the
+   cap as `#documenter .docs-main`, every other theme as `html.theme--<name> #documenter .docs-main`, so
+   the override is written at that higher specificity to win in all of them. */
+html #documenter .docs-main,
+html[class*="theme--"] #documenter .docs-main {
+    max-width: 62rem;
+}
+
+html #documenter .docs-main > article,
+html[class*="theme--"] #documenter .docs-main > article {
+    max-width: 62rem;
+}

@@ -182,6 +182,7 @@ format = Documenter.HTML(collapselevel = 1,
                          prettyurls = CI, # Makes links work when building locally
                          mathengine = MathJax3(),
                          warn_outdated = true,
+                         assets = ["assets/custom.css"], # widens the reading column past the theme's 52rem
                          )
 #---
 
