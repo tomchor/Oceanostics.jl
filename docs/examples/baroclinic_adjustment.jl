@@ -50,8 +50,9 @@ grid = RectilinearGrid(size = (50, 100, 20),
 # The deformation radius `Ld = NH/f` sets the scale of the instability: the fastest-growing wavelength
 # is `λ ≈ 3.9 Ld` and the growth rate `σ ≈ 0.31 f/√Ri`. The free surface has a scale of its own, the
 # external deformation radius `L_ext = √(gH)/f`: the energy stored in a geostrophic displacement of
-# scale `L` is a fraction `(L/L_ext)²` of the kinetic energy of the depth-mean flow that balances it,
-# which is why that reservoir is small, but not negligible, for fronts a few hundred kilometres wide.
+# scale `L` is a fraction `(L/L_ext)²` of the kinetic energy of the depth-mean flow that balances it.
+# For the eddies, whose scale is `Ld`, that fraction is `N²H/g`, a tenth of a percent here, so the
+# surface is a small reservoir.
 
 α     = M² / f                 # [s⁻¹]   thermal-wind shear inside a front
 Ld    = √N² * H / f            # [m]     deformation radius
@@ -122,11 +123,18 @@ double_ramp_prime(y, w) = ramp_prime(y - y₁, w) - ramp_prime(y - y₂, w)
 
 uᵢ(x, y, z) = -(Δb * double_ramp_prime(y, w_front) / f) * (z + H)
 
-# Referenced to the bottom, the thermal wind has a depth mean, `Ū/2` inside each front. In a
-# hydrostatic model that jet is balanced by the slope of the free surface, `g ∂η/∂y = -f ū`, so we start
-# the surface in balance as well, which spares the run a barotropic adjustment in its first steps:
+# The surface starts in balance as well, which spares the run a barotropic adjustment in its first
+# steps. The velocity is referenced to the bottom, where it vanishes, so the pressure gradient vanishes
+# there too: the slope of the surface cancels the gradient of the hydrostatic anomaly at the bottom,
+# `g ∂η/∂y = H ∂b/∂y` across each front. That is twice the slope that balances the depth-mean jet
+# alone, since the depth-mean gradient of the anomaly, zero at the surface and largest at the bottom,
+# adds as much again. Oceananigans integrates the anomaly over a full cell at the top rather than the
+# half cell above the top centre, which shifts every column's pressure by half a cell of surface
+# buoyancy, so the surface that balances the discrete model has `H + Δz/2` in place of `H`:
 
-ηᵢ(x, y, z) = Δb * H / 2g * (double_ramp(y, w_front) - 1/2)
+Δz = H / grid.Nz
+
+ηᵢ(x, y, z) = Δb * (H + Δz/2) / g * (double_ramp(y, w_front) - 1/2)
 
 set!(model, u = uᵢ, b = bᵢ, η = ηᵢ)
 nothing #hide
@@ -187,9 +195,11 @@ wb = PotentialToKineticEnergyConversion(model)
 #
 # Pointwise, the barotropic pressure is as hard at work as any term here: the depth-integrated
 # ``\texttt{BPR}`` in the movie below is several times the conversion ``wb``. Integrated over the domain
-# it is a fraction of a percent of it, because the geostrophic jets keep their transport, and with it
-# the displacement of the surface, while the eddies grow. The work moves kinetic energy between columns
-# far more than it stores it. We measure both below.
+# it is a fraction of a percent of it, the fraction `N²H/g` of the section above: the work moves kinetic
+# energy between columns far more than it stores it in the surface. Part of what it does store goes back
+# at a nearly steady rate from the first day, as horizontal diffusion widens the fronts and the slope
+# that balances them flattens; the eddies add an exchange of either sign once they grow. We measure both
+# below.
 
 eₖ  = KineticEnergy(model)
 εₖ  = KineticEnergyDissipationRate(model)
@@ -335,7 +345,7 @@ using Test                                                                      
 rms(x) = √(sum(abs2, x) / length(x))                                                  #hide
 eₚ_terms = (deₚdt, wb_bud, Φ_bud)                                                     #hide
 eₖ_terms = (deₖdt, ADV_bud, wb_bud, εₖ_bud, BPR_bud)                                  #hide
-## Each budget closes to a small fraction of its own largest term (measured 0.3%, 0.2% and 4%).      #hide
+## Each budget closes to a small fraction of its own largest term (measured 0.3%, 0.2% and 7%).      #hide
 @test rms(eₚ_resid) < 0.015 * maximum(rms, eₚ_terms)                                  #hide
 @test rms(eₖ_resid) < 0.015 * maximum(rms, eₖ_terms)                                  #hide
 @test rms(eₛ_resid) < 0.15 * rms(BPR_bud)                                             #hide
@@ -343,7 +353,7 @@ eₖ_terms = (deₖdt, ADV_bud, wb_bud, εₖ_bud, BPR_bud)                     
 @test rms(eₚ_resid .+ eₖ_resid) < 0.02 * rms(wb_bud)                                  #hide
 ## The work of the barotropic pressure gradient is the free surface's energy tendency, exactly, at    #hide
 ## every output time; pointwise it is larger than the conversion and integrated it is a fraction of   #hide
-## a percent of it (measured 6 times and 0.2%).                                                       #hide
+## a percent of it (measured 6 times and 0.1%).                                                       #hide
 @test gηw_bud ≈ BPR_bud rtol=1e-8                                                     #hide
 @test mean(absBPR_bud ./ abswb_bud) > 1                                               #hide
 @test mean(abs, BPR_bud) < 0.01 * mean(abs, wb_bud)                                   #hide
@@ -403,13 +413,10 @@ lines!(ax_k, t_bud ./ day, -BPR_bud,  label = "-∫BPR dV (on the axis)")
 lines!(ax_k, t_bud ./ day,  eₖ_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_k; position = :rt, labelsize = 16, nbanks = 2)
 
-## The first record holds the surface's adjustment to the discretized balance, a burst an order of
-## magnitude above everything that follows, which is kept off this axis.
 ax_s = Axis(fig[6, 1:2]; title = "Area-integrated free surface potential energy budget", budget_kwargs...)
 lines!(ax_s, t_bud ./ day, -deₛdt,    label = "-d(∫eₛ)/dt")
 lines!(ax_s, t_bud ./ day,  BPR_bud,  label = "∫BPR dV")
 lines!(ax_s, t_bud ./ day,  eₛ_resid, label = "residual", color = :black, linestyle = :dash)
-ylims!(ax_s, 1.5 .* extrema(BPR_bud[t_bud .> 1day]))
 axislegend(ax_s; position = :rt, labelsize = 16, nbanks = 2)
 
 for ax in (ax_p, ax_k, ax_s)
