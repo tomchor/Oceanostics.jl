@@ -227,6 +227,9 @@ free-slip condition zeroes the shear on the boundary face. The isotropic form ge
 face shears. The general form `-∂ⱼuᵢτᵢⱼ` weights the two faces of a cell by the spacing between the
 centres either side of them, which a stretched grid makes unequal to the cell height, so its interior
 value is `ν(∂u/∂z)² (Δzᶠₖ + Δzᶠₖ₊₁) / 2Δzᶜₖ`, which is `ν(∂u/∂z)²` again on a regular grid.
+
+A model with no closure has no viscous flux, which the general form's constructor says up front instead of
+failing with a `MethodError` from inside the kernel at the first compute.
 """
 function test_kinetic_energy_dissipation_rates(grid; model_type)
     ν = 1e-2; dudz = 2
@@ -247,6 +250,42 @@ function test_kinetic_energy_dissipation_rates(grid; model_type)
 
     @test cpu_interior(ε_iso)[:, :, k] ≈ fill(ν * dudz^2, grid.Nx, grid.Ny, length(k))
     @test cpu_interior(ε)[:, :, k] ≈ ν * dudz^2 .* repeat(face_weights, grid.Nx, grid.Ny, 1)
+
+    @test_throws "no closure" KineticEnergyEquation.KineticEnergyDissipationRate(model_type(grid))
+
+    return nothing
+end
+
+"""
+With a mean removed, `εₖ` is built from perturbation fields whose boundary conditions are zero flux
+unless `perturbation_boundary_conditions` sets them, so next to a wall where the perturbation has a
+value or gradient condition the default drops the shear across the wall face (F3 of #332). With the
+conditions passed, `εₖ` matches that of a twin model whose velocity is the perturbation itself, under the
+same conditions, wall cells included. The perturbation varies in `y` and `z` only, so it has no
+horizontal divergence and `w` stays zero on both model types.
+"""
+function test_dissipation_rate_perturbation_boundary_conditions(grid; model_type)
+    ν = 1e-2; S = 2; A = 1
+    zᴮ = Array(znodes(grid, Face()))[1]
+    closure = ScalarDiffusivity(; ν)
+    perturbation_bcs = FieldBoundaryConditions(bottom = ValueBoundaryCondition(0), top = GradientBoundaryCondition(1))
+
+    model = model_type(grid; closure, boundary_conditions = (; u = FieldBoundaryConditions(bottom = ValueBoundaryCondition(0))))
+    twin = model_type(grid; closure, boundary_conditions = (; u = perturbation_bcs))
+    set!(model, u = (x, y, z) -> (S + A * sin(2π * y)) * (z - zᴮ))
+    set!(twin, u = (x, y, z) -> A * sin(2π * y) * (z - zᴮ))
+
+    U = Field(Average(model.velocities.u, dims=(1, 2)))
+    bcs = (; u = perturbation_bcs)
+    ε_twin = cpu_interior(KineticEnergyEquation.KineticEnergyDissipationRate(twin))
+    ε = cpu_interior(KineticEnergyEquation.KineticEnergyDissipationRate(model; U, perturbation_boundary_conditions = bcs))
+    ε_default = cpu_interior(KineticEnergyEquation.KineticEnergyDissipationRate(model; U))
+
+    @test ε ≈ ε_twin
+    @test ε_default[:, :, 2:end-1] ≈ ε_twin[:, :, 2:end-1]
+    @test !(ε_default[:, :, 1] ≈ ε_twin[:, :, 1])
+    @test !(ε_default[:, :, end] ≈ ε_twin[:, :, end])
+    @test_throws ArgumentError KineticEnergyEquation.KineticEnergyDissipationRate(model; perturbation_boundary_conditions = bcs)
 
     return nothing
 end
@@ -362,9 +401,15 @@ function test_kinetic_energy_tendency_matches_one_time_step(grid; model_type)
         # it corrects the velocities with `p Δt`, then divides the interior alone by `Δt`. Read across
         # those halos, the pressure work is wrong in the cells next to a periodic boundary. The stale
         # value is kept as a broken test, so that an Oceananigans release that fixes it shows up here.
+        # The term's default pressure is a computed `Field` that fills its own halos, so evaluated before
+        # the refill it already matches the refilled pressure (#335).
         pNHS = model.pressures.pNHS
+        PR_default = cpu_interior(KineticEnergyPressureRedistribution(model))
         stale = ∂ₜeₖ .- cpu_interior(KineticEnergyPressureRedistribution(model; pressure = pNHS))
         fill_halo_regions!(pNHS)
+        p = isnothing(model.pressures.pHY′) ? pNHS : sum(model.pressures)
+        PR_refilled = cpu_interior(KineticEnergyPressureRedistribution(model; pressure = p))
+        @test maximum(abs, PR_default .- PR_refilled) < 1e-12 * maximum(abs, PR_refilled)
         ∂ₜeₖ .-= cpu_interior(KineticEnergyPressureRedistribution(model; pressure = pNHS))
     end
     time_step!(model, Δt)
@@ -644,6 +689,7 @@ end
             test_pressure_redistribution(grid; model_type)
             test_potential_to_kinetic_energy_conversion(grid; model_type)
             test_kinetic_energy_dissipation_rates(grid; model_type)
+            test_dissipation_rate_perturbation_boundary_conditions(grid; model_type)
 
             @info "        Testing that the terms add up to the tendency"
             test_kinetic_energy_budget(grid; model_type)
