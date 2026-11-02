@@ -52,11 +52,12 @@ viscous work ``-u_i \partial_j \tau_{ij} = -\partial_j (u_i \tau_{ij}) - \vareps
 does its work through the horizontal gradient of ``p'``. The budget reads
 
 ```math
-\partial_t e_k = -\underbrace{u_i \partial_j(u_j u_i)}_{\text{advection}}
-             - \underbrace{u_i \partial_j \tau_{ij}}_{\text{viscous work}}
-             - \underbrace{u_i \partial_i (p' + p_{nh})}_{\text{pressure work}}
-             + \underbrace{wb}_{\text{conversion}}
-             + \underbrace{u_i F_{u_i}}_{\text{forcing}} , \qquad i = 1, 2, 3 ,
+\partial_t e_k = - \underbrace{u_i \partial_j(u_j u_i)}_{\text{advection}}
+                 - \underbrace{u_i \partial_i (p' + p_{nh})}_{\text{pressure work}}
+                 + \underbrace{wb}_{\text{conversion}}
+                 + \underbrace{u_i F_{u_i}}_{\text{forcing}}
+                 - \underbrace{u_i \partial_j \tau_{ij}}_{\text{viscous work}}
+                 , \qquad i = 1, 2, 3 ,
 ```
 
 with ``wb`` and the ``-wb`` inside the pressure work cancelling cell by cell.
@@ -90,11 +91,12 @@ Contracting with ``u_i``, ``i = 1, 2``, goes as before, with ``\partial_j u_j = 
 the diagnosed ``w``, and no buoyancy term arises:
 
 ```math
-\partial_t e_k = -\underbrace{u_i \partial_j(u_j u_i)}_{\text{advection}}
-             - \underbrace{u_i \partial_j \tau_{ij}}_{\text{viscous work}}
-             - \underbrace{u_i \partial_i p'}_{\text{pressure work}}
-             - \underbrace{u_i \partial_i (g \eta)}_{\text{barotropic pressure work}}
-             + \underbrace{u_i F_{u_i}}_{\text{forcing}} , \qquad i = 1, 2 .
+\partial_t e_k = - \underbrace{u_i \partial_j(u_j u_i)}_{\text{advection}}
+                 - \underbrace{u_i \partial_i p'}_{\text{pressure work}}
+                 - \underbrace{u_i \partial_i (g \eta)}_{\text{barotropic pressure work}}
+                 + \underbrace{u_i F_{u_i}}_{\text{forcing}}
+                 - \underbrace{u_i \partial_j \tau_{ij}}_{\text{viscous work}}
+                 , \qquad i = 1, 2 .
 ```
 
 Buoyancy reaches ``e_k`` through ``p'`` alone. Using continuity and ``\partial_z p' = b``, the work of
@@ -112,11 +114,12 @@ balance, and gathering the two pressure gradients into one, turns the pressure w
 three-component contraction with the total pressure ``p' + g \eta`` plus the conversion,
 
 ```math
-\partial_t e_k = -\underbrace{u_i \partial_j(u_j u_i)}_{\text{advection}}
-             - \underbrace{u_i \partial_j \tau_{ij}}_{\text{viscous work}}
-             - \underbrace{u_j \partial_j (p' + g \eta)}_{\text{pressure work}}
-             + \underbrace{wb}_{\text{conversion}}
-             + \underbrace{u_i F_{u_i}}_{\text{forcing}} , \qquad i = 1, 2 , \quad j = 1, 2, 3 ,
+\partial_t e_k = - \underbrace{u_i \partial_j(u_j u_i)}_{\text{advection}}
+                 - \underbrace{u_j \partial_j (p' + g \eta)}_{\text{pressure work}}
+                 + \underbrace{wb}_{\text{conversion}}
+                 + \underbrace{u_i F_{u_i}}_{\text{forcing}}
+                 - \underbrace{u_i \partial_j \tau_{ij}}_{\text{viscous work}}
+                 , \qquad i = 1, 2 , \quad j = 1, 2, 3 ,
 ```
 
 where the pressure work now contracts all three components with the diagnosed ``w`` and the total
@@ -153,7 +156,7 @@ dissipation term of this budget.
 
 Every quantity below is pointwise. ``u_h`` is the horizontal velocity, ``\nabla_h`` the horizontal
 gradient, ``G_i`` Oceananigans' momentum tendency, and the hydrostatic ``w`` is the one diagnosed from
-continuity. The advection, the viscous work and the pressure work enter the budget with a minus sign,
+continuity. The advection, the pressure work and the viscous work enter the budget with a minus sign,
 the conversion and the forcing with a plus sign.
 
 | Quantity | Nonhydrostatic | Hydrostatic | Diagnostic |
@@ -161,23 +164,18 @@ the conversion and the forcing with a plus sign.
 | Kinetic energy | ``e_k = \tfrac{1}{2} u_i u_i``, with ``i = 1, 2, 3`` | same, with ``i = 1, 2`` | [`KineticEnergy`](@ref Oceanostics.KineticEnergyEquation.KineticEnergy) |
 | Tendency | ``u_i G_i = \partial_t e_k + u_i \partial_i p_{nh}`` | ``u_i G_i = \partial_t e_k + u_h \cdot \nabla_h (g \eta)`` | [`KineticEnergyTendency`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyTendency) |
 | Advection | ``u_i \partial_j (u_j u_i)`` | same, with ``i = 1, 2`` and the diagnosed ``w`` in ``u_j`` | [`KineticEnergyAdvection`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyAdvection) |
-| Viscous work | ``u_i \partial_j \tau_{ij}`` | same, ``i = 1, 2`` | [`KineticEnergyStress`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyStress) |
 | Pressure work | ``u_j \partial_j (p' + p_{nh})`` | ``u_j \partial_j (p' + g \eta)``, ``j = 1, 2, 3``, with the diagnosed ``w`` | [`KineticEnergyPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution) |
 | Barotropic pressure work | ``u_h \cdot \nabla_h (g \eta)``, a part of the pressure work | ``u_h \cdot \nabla_h (g \eta)``, a part of the pressure work | [`KineticEnergyBarotropicPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution) |
+| Free-surface energy and its tendency | ``e_s = \tfrac{1}{2} g \eta^2`` and ``\partial_t e_s = g \eta \, w`` at the surface, with a `free_surface` | same | [`FreeSurfacePotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergy) and [`FreeSurfacePotentialEnergyTendency`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergyTendency), on [the potential energy page](potential_energy_equation.md) |
 | Conversion from potential energy | ``wb`` | same, with the diagnosed ``w`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
 | Forcing work | ``u_i F_{u_i}``, ``i = 1, 2, 3`` | same, ``i = 1, 2`` | [`KineticEnergyForcing`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyForcing) |
-| Pressure transport | ``\partial_j [u_j (p' + p_{nh})]``, equal to the pressure work | ``\partial_j [u_j (p' + g \eta)]``, equal to the pressure work | none; the flow is divergence-free, so the pressure work is this transport, which is why the conversion stands apart as ``wb`` |
-| Free-surface energy and its tendency | ``e_s = \tfrac{1}{2} g \eta^2`` and ``\partial_t e_s = g \eta \, w`` at the surface, with a `free_surface` | same | [`FreeSurfacePotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergy) and [`FreeSurfacePotentialEnergyTendency`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergyTendency), on [the potential energy page](potential_energy_equation.md) |
+| Viscous work | ``u_i \partial_j \tau_{ij}`` | same, ``i = 1, 2`` | [`KineticEnergyStress`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyStress) |
 | Dissipation rate | ``\varepsilon_k = -\tau_{ij} \partial_j u_i`` | ``\varepsilon_k = -(\tau_{1j} \partial_j u + \tau_{2j} \partial_j v)`` | [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) |
 | Isotropic dissipation rate | ``2 \nu S_{ij} S_{ij}``, equal to ``\varepsilon_k`` for a constant viscosity | ``2 \nu S_{ij} S_{ij}``, which keeps the ``w`` row and so is not the dissipation of this budget | [`KineticEnergyIsotropicDissipationRate`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyIsotropicDissipationRate) |
 
-`using Oceanostics` brings in `KineticEnergy`, `KineticEnergyForcing`,
-`KineticEnergyPressureRedistribution`, `KineticEnergyBarotropicPressureRedistribution`,
-`PotentialToKineticEnergyConversion`, `KineticEnergyDissipationRate` and
-`KineticEnergyIsotropicDissipationRate`. `using Oceanostics.KineticEnergyEquation` brings in the rest,
-and the short aliases `Advection`, `Stress`, `Forcing`, `PressureRedistribution`,
-`BarotropicPressureRedistribution`, `PotentialEnergyConversion` and `DissipationRate`, which are scoped
-to the module since unprefixed they do not say which budget they belong to.
+`using Oceanostics` brings in `KineticEnergyAdvection`, `KineticEnergyForcing`, etc.
+At the same time, `using Oceanostics.KineticEnergyEquation` brings in the short aliases:
+`Advection`, `Forcing`, etc.
 
 ## [Free surface](@id free_surface_energy)
 
@@ -280,57 +278,17 @@ PotentialToKineticEnergyConversion KernelFunctionOperation at (Center, Center, C
 └── computes: potential to kinetic energy conversion  uᵢbᵢ
 ```
 
-## Kinetic energy
+## Summary of ``e_k`` equation terms
 
 ```@docs
 Oceanostics.KineticEnergyEquation.KineticEnergy
-```
-
-## Tendency
-
-```@docs
 Oceanostics.KineticEnergyEquation.KineticEnergyTendency
-```
-
-## Advection
-
-```@docs
 Oceanostics.KineticEnergyEquation.KineticEnergyAdvection
-```
-
-## Stress (diffusive) term
-
-```@docs
 Oceanostics.KineticEnergyEquation.KineticEnergyStress
-```
-
-## Forcing
-
-```@docs
 Oceanostics.KineticEnergyEquation.KineticEnergyForcing
-```
-
-## Pressure redistribution
-
-```@docs
 Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution
-```
-
-## Barotropic pressure redistribution
-
-```@docs
 Oceanostics.KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution
-```
-
-## Potential energy conversion
-
-```@docs
 Oceanostics.KineticEnergyEquation.PotentialEnergyConversion
-```
-
-## Dissipation rate
-
-```@docs
 Oceanostics.KineticEnergyEquation.DissipationRate
 Oceanostics.KineticEnergyEquation.KineticEnergyIsotropicDissipationRate
 ```
