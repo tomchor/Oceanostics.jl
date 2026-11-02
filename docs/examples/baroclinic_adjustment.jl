@@ -202,66 +202,43 @@ wb = PotentialToKineticEnergyConversion(model)
 # Integrated over the domain, ``\texttt{PR}`` is a flux through the boundaries. It vanishes through the
 # periodic sides and the bottom, and at the moving surface it is the energy the free surface stores,
 # ``\int g\eta\, w\, \mathrm{d}A``, which the section on derived quantities puts at the fraction `N²H/g`
-# of the conversion, a tenth of a percent. Its barotropic part, the work of the surface pressure alone,
-# ``\texttt{BPR} = \boldsymbol{u}_h \cdot \nabla_h (g\eta)``
-# ([`KineticEnergyBarotropicPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution)),
-# is as hard at work as any term pointwise: its depth integral in the movie below is several times the
-# conversion ``wb``. That work moves kinetic energy between columns far more than it stores it in the
-# surface. We measure both below.
+# of the conversion, a tenth of a percent. Pointwise it is as large as the conversion, since its vertical
+# row is ``wb`` itself; as a flux divergence, it cancels between columns when integrated.
 
 eₖ  = KineticEnergy(model)
 εₖ  = KineticEnergyDissipationRate(model)
 ADV = KineticEnergyEquation.KineticEnergyAdvection(model)
 PR  = KineticEnergyPressureRedistribution(model)
-BPR = KineticEnergyBarotropicPressureRedistribution(model)
 
 ∫eₖ  = ∫dV(eₖ)
 ∫εₖ  = ∫dV(εₖ)
 ∫ADV = ∫dV(ADV)
 ∫PR  = ∫dV(PR)
-∫BPR = ∫dV(BPR)
-∫absBPR = ∫dV(abs(BPR))
-∫abswb  = ∫dV(abs(wb))
 
 ∂ₜ∫eₖ = TimeDerivative(∫eₖ)
 
-# For the movie we keep the surface vorticity and buoyancy, the free surface, and the barotropic part
-# of the pressure work integrated over the depth of each column, which shows how large it is before the
-# area integral cancels nearly all of it. `η` lives on the top face of the grid rather than in a cell, so it is
-# averaged over that one level, which turns it into a surface map the writer takes as it takes the depth
-# integral:
+# For the movie we keep the surface vorticity, buoyancy and displacement, in one file with the volume
+# integrals. Each map is averaged over its single vertical level, the top level of cells for ``\zeta``
+# and ``b`` and the top face of the grid for ``\eta``, which leaves it two-dimensional, with no vertical
+# dimension to share with the others:
 
 u, v, w = model.velocities
 b = model.tracers.b
 ζ = ∂x(v) - ∂y(u)
-η = Average(model.free_surface.displacement, dims=3)
-∫BPRdz = Integral(BPR, dims=3)
+ζₛ = Average(Field(ζ, indices = (:, :, grid.Nz)), dims=3)
+bₛ = Average(view(b, :, :, grid.Nz), dims=3)
+ηₛ = Average(model.free_surface.displacement, dims=3)
 
 # ## Output
 #
-# A *snapshot* writer for the surface slices of ``\zeta`` and ``b``, a *surface* writer for the two maps
-# that are already two-dimensional, and a *budget* writer for the integrals, all on
-# `TimeInterval(6hours)`.
+# One writer for the three surface maps and the integrals, on `TimeInterval(6hours)`.
 
 using NCDatasets
 filename = joinpath(@__DIR__, "baroclinic_adjustment")
 
-simulation.output_writers[:fields] =
-    NetCDFWriter(model, (; ζ, b),
+simulation.output_writers[:output] =
+    NetCDFWriter(model, (; ζ = ζₛ, b = bₛ, η = ηₛ, ∂ₜ∫eₚ, ∫Φ, ∂ₜ∫eₖ, ∫wb, ∫εₖ, ∫ADV, ∫PR),
                  filename = filename,
-                 schedule = TimeInterval(6hours),
-                 indices = (:, :, grid.Nz),
-                 overwrite_files = true)
-
-simulation.output_writers[:surface] =
-    NetCDFWriter(model, (; η, ∫BPRdz),
-                 filename = filename * "_surface",
-                 schedule = TimeInterval(6hours),
-                 overwrite_files = true)
-
-simulation.output_writers[:budget] =
-    NetCDFWriter(model, (; ∂ₜ∫eₚ, ∫Φ, ∂ₜ∫eₖ, ∫wb, ∫εₖ, ∫ADV, ∫PR, ∫BPR, ∫absBPR, ∫abswb),
-                 filename = filename * "_budget",
                  schedule = TimeInterval(6hours),
                  overwrite_files = true)
 
@@ -273,48 +250,33 @@ run!(simulation)
 
 using CairoMakie
 
-ds = NCDataset(simulation.output_writers[:fields].filepath)
+ds = NCDataset(simulation.output_writers[:output].filepath)
 times = ds["time"][:]
 x_faa = ds["x_faa"][:]; y_afa = ds["y_afa"][:]
 x_caa = ds["x_caa"][:]; y_aca = ds["y_aca"][:]
-ζ_arr = ds["ζ"][:, :, 1, :]
-b_arr = ds["b"][:, :, 1, :]
-close(ds)
-
-ds_s = NCDataset(simulation.output_writers[:surface].filepath)
-η_arr = ds_s["η"][:, :, :]          # (Center, Center, Nothing)-located: no z dimension to slice
-BPR_arr = ds_s["∫BPRdz"][:, :, :]
-close(ds_s)
+ζ_arr = ds["ζ"][:, :, :]     # the maps have no vertical dimension: (x, y, time)
+b_arr = ds["b"][:, :, :]
+η_arr = ds["η"][:, :, :]
 
 ζlim = maximum(abs, ζ_arr)
 ηlim = maximum(abs, η_arr)
-BPRlim = maximum(abs, BPR_arr)
 
 # Every budget record carries both tendencies and every source term at the same time. The first record
 # has no earlier state to difference against and is written as zero, so the budgets start from the
 # second.
 
-ds_b = NCDataset(simulation.output_writers[:budget].filepath)
-nb   = 2:length(ds_b["time"])
-
-t_bud   = ds_b["time"][nb]
-deₚdt   = ds_b["∂ₜ∫eₚ"][nb]
-deₖdt   = ds_b["∂ₜ∫eₖ"][nb]
-Φ_bud   = ds_b["∫Φ"][nb]
-wb_bud  = ds_b["∫wb"][nb]
-εₖ_bud  = ds_b["∫εₖ"][nb]
-ADV_bud = ds_b["∫ADV"][nb]
-BPR_bud = ds_b["∫BPR"][nb]
-PR_bud  = ds_b["∫PR"][nb]
-absBPR_bud = ds_b["∫absBPR"][nb]
-abswb_bud  = ds_b["∫abswb"][nb]
-close(ds_b)
-
-# The two faces of the barotropic pressure work, pointwise and integrated, relative to the conversion:
+nb      = 2:length(times)
+t_bud   = times[nb]
+deₚdt   = ds["∂ₜ∫eₚ"][nb]
+deₖdt   = ds["∂ₜ∫eₖ"][nb]
+Φ_bud   = ds["∫Φ"][nb]
+wb_bud  = ds["∫wb"][nb]
+εₖ_bud  = ds["∫εₖ"][nb]
+ADV_bud = ds["∫ADV"][nb]
+PR_bud  = ds["∫PR"][nb]
+close(ds)
 
 using Statistics: mean
-@info "∫|BPR| dV is $(round(mean(absBPR_bud ./ abswb_bud), digits=1)) times ∫|wb| dV on average, and ∫BPR dV is $(round(100 * mean(abs, BPR_bud) / mean(abs, wb_bud), digits=2))% of ∫wb dV"
-
 
 # Every budget in sum-to-zero form: each curve is plotted with the sign it carries here, so each panel
 # below adds up to its residual.
@@ -331,10 +293,9 @@ eₖ_terms = (deₖdt, ADV_bud, PR_bud, wb_bud, εₖ_bud)                      
 @test rms(eₖ_resid) < 0.015 * maximum(rms, eₖ_terms)                                  #hide
 ## `wb` is the same term in both, so it cancels from their sum                        #hide
 @test rms(eₚ_resid .+ eₖ_resid) < 0.02 * rms(wb_bud)                                  #hide
-## Pointwise the barotropic part of the pressure work is larger than the conversion, and integrated   #hide
-## it is a fraction of a percent of it (measured 6 times and 0.1%).                                   #hide
-@test mean(absBPR_bud ./ abswb_bud) > 1                                               #hide
-@test mean(abs, BPR_bud) < 0.01 * mean(abs, wb_bud)                                   #hide
+## Integrated, the pressure work is only the exchange with the free surface, a fraction of a percent  #hide
+## of the conversion (measured 0.1%).                                                                 #hide
+@test mean(abs, PR_bud) < 0.01 * mean(abs, wb_bud)                                    #hide
 ## The adjustment does what it should: the fronts slump and the potential energy they release turns  #hide
 ## into kinetic energy, so the conversion is positive on average and leads the kinetic energy budget.#hide
 @test mean(wb_bud) > 0                                                                #hide
@@ -345,20 +306,18 @@ eₖ_terms = (deₖdt, ADV_bud, PR_bud, wb_bud, εₖ_bud)                      
 # ## Plotting
 
 set_theme!(Theme(fontsize = 18))
-fig = Figure(size = (1000, 1730))
+fig = Figure(size = (1100, 1250))
 
 n = Observable(1)
 
 panel_kwargs = (xlabel = "x [km]", ylabel = "y [km]", aspect = DataAspect())
-axζ = Axis(fig[2, 1][1, 1]; title = "surface vorticity, ζ",         panel_kwargs...)
-axb = Axis(fig[2, 2][1, 1]; title = "surface buoyancy, b",          panel_kwargs...)
-axη = Axis(fig[3, 1][1, 1]; title = "free surface, η",              panel_kwargs...)
-axp = Axis(fig[3, 2][1, 1]; title = "barotropic pressure work, ∫BPR dz", panel_kwargs...)
+axζ = Axis(fig[2, 1][1, 1]; title = "surface vorticity, ζ", panel_kwargs...)
+axb = Axis(fig[2, 2][1, 1]; title = "surface buoyancy, b",  panel_kwargs...)
+axη = Axis(fig[2, 3][1, 1]; title = "free surface, η",      panel_kwargs...)
 
 ζₙ = @lift ζ_arr[:, :, $n]
 bₙ = @lift b_arr[:, :, $n]
 ηₙ = @lift η_arr[:, :, $n]
-BPRₙ = @lift BPR_arr[:, :, $n]
 
 km = 1e-3
 hmζ = heatmap!(axζ, x_faa .* km, y_afa .* km, ζₙ; colormap = :balance, colorrange = (-ζlim, ζlim))
@@ -368,21 +327,18 @@ hmb = heatmap!(axb, x_caa .* km, y_aca .* km, bₙ; colormap = :thermal)
 Colorbar(fig[2, 2][1, 2], hmb)
 
 hmη = heatmap!(axη, x_caa .* km, y_aca .* km, ηₙ; colormap = :balance, colorrange = (-ηlim, ηlim))
-Colorbar(fig[3, 1][1, 2], hmη)
-
-hmp = heatmap!(axp, x_caa .* km, y_aca .* km, BPRₙ; colormap = :balance, colorrange = (-BPRlim, BPRlim))
-Colorbar(fig[3, 2][1, 2], hmp)
+Colorbar(fig[2, 3][1, 2], hmη)
 
 budget_kwargs = (xlabel = "time [days]", ylabel = "[m⁵ s⁻³]")
 
-ax_p = Axis(fig[4, 1:2]; title = "Volume-integrated potential energy budget", budget_kwargs...)
+ax_p = Axis(fig[3, 1:3]; title = "Volume-integrated potential energy budget", budget_kwargs...)
 lines!(ax_p, t_bud ./ day, -deₚdt,    label = "-d(∫eₚ)/dt")
 lines!(ax_p, t_bud ./ day, -wb_bud,   label = "-∫wb dV")
 lines!(ax_p, t_bud ./ day,  Φ_bud,    label = "∫Φ dV")
 lines!(ax_p, t_bud ./ day,  eₚ_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_p; position = :rt, labelsize = 16, nbanks = 2)
 
-ax_k = Axis(fig[5, 1:2]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
+ax_k = Axis(fig[4, 1:3]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
 lines!(ax_k, t_bud ./ day, -deₖdt,    label = "-d(∫eₖ)/dt")
 lines!(ax_k, t_bud ./ day, -ADV_bud,  label = "-∫ADV dV")
 lines!(ax_k, t_bud ./ day,  wb_bud,   label = "∫wb dV")
@@ -396,15 +352,15 @@ for ax in (ax_p, ax_k)
 end
 
 title = @lift "Baroclinic adjustment, t = " * prettytime(times[$n])
-fig[1, 1:2] = Label(fig, title, fontsize = 22, tellwidth = false)
+fig[1, 1:3] = Label(fig, title, fontsize = 22, tellwidth = false)
 
 rowsize!(fig.layout, 1, Fixed(50))
 rowsize!(fig.layout, 2, Fixed(500))
-rowsize!(fig.layout, 3, Fixed(500))
+rowsize!(fig.layout, 3, Fixed(300))
 rowsize!(fig.layout, 4, Fixed(300))
-rowsize!(fig.layout, 5, Fixed(300))
-colsize!(fig.layout, 1, Fixed(450))
-colsize!(fig.layout, 2, Fixed(450))
+colsize!(fig.layout, 1, Fixed(350))
+colsize!(fig.layout, 2, Fixed(350))
+colsize!(fig.layout, 3, Fixed(350))
 resize_to_layout!(fig)
 
 @info "Animating..."
