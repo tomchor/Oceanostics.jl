@@ -158,16 +158,16 @@ the conversion and the forcing with a plus sign.
 
 | Quantity | Nonhydrostatic | Hydrostatic | Diagnostic |
 |:---|:---|:---|:---|
-| Kinetic energy | ``e_k = \tfrac{1}{2}(u^2 + v^2 + w^2)`` | ``e_k = \tfrac{1}{2}(u^2 + v^2)`` | [`KineticEnergy`](@ref Oceanostics.KineticEnergyEquation.KineticEnergy) |
+| Kinetic energy | ``e_k = \tfrac{1}{2} u_i u_i``, with ``i = 1, 2, 3`` | same, with ``i = 1, 2`` | [`KineticEnergy`](@ref Oceanostics.KineticEnergyEquation.KineticEnergy) |
 | Tendency | ``u_i G_i = \partial_t e_k + u_i \partial_i p_{nh}`` | ``u_i G_i = \partial_t e_k + u_h \cdot \nabla_h (g \eta)`` | [`KineticEnergyTendency`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyTendency) |
-| Advection | ``u_i \partial_j (u_j u_i)`` | the same, with ``i = 1, 2`` and the diagnosed ``w`` in ``u_j`` | [`KineticEnergyAdvection`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyAdvection) |
-| Viscous work | ``u_i \partial_j \tau_{ij}`` | the same, ``i = 1, 2`` | [`KineticEnergyStress`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyStress) |
+| Advection | ``u_i \partial_j (u_j u_i)`` | same, with ``i = 1, 2`` and the diagnosed ``w`` in ``u_j`` | [`KineticEnergyAdvection`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyAdvection) |
+| Viscous work | ``u_i \partial_j \tau_{ij}`` | same, ``i = 1, 2`` | [`KineticEnergyStress`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyStress) |
 | Pressure work | ``u_j \partial_j (p' + p_{nh})`` | ``u_j \partial_j (p' + g \eta)``, ``j = 1, 2, 3``, with the diagnosed ``w`` | [`KineticEnergyPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution) |
 | Barotropic pressure work | ``u_h \cdot \nabla_h (g \eta)``, a part of the pressure work | ``u_h \cdot \nabla_h (g \eta)``, a part of the pressure work | [`KineticEnergyBarotropicPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution) |
-| Conversion from potential energy | ``wb`` | ``wb`` with the diagnosed ``w`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
-| Forcing work | ``u_i F_{u_i}`` | the same, ``i = 1, 2`` | [`KineticEnergyForcing`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyForcing) |
+| Conversion from potential energy | ``wb`` | same, with the diagnosed ``w`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
+| Forcing work | ``u_i F_{u_i}``, ``i = 1, 2, 3`` | same, ``i = 1, 2`` | [`KineticEnergyForcing`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyForcing) |
 | Pressure transport | ``\partial_j [u_j (p' + p_{nh})]``, equal to the pressure work | ``\partial_j [u_j (p' + g \eta)]``, equal to the pressure work | none; the flow is divergence-free, so the pressure work is this transport, which is why the conversion stands apart as ``wb`` |
-| Free-surface energy and its tendency | ``e_s = \tfrac{1}{2} g \eta^2`` and ``\partial_t e_s = g \eta \, w`` at the surface, with a `free_surface` | the same | [`FreeSurfacePotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergy) and [`FreeSurfacePotentialEnergyTendency`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergyTendency), on [the potential energy page](potential_energy_equation.md) |
+| Free-surface energy and its tendency | ``e_s = \tfrac{1}{2} g \eta^2`` and ``\partial_t e_s = g \eta \, w`` at the surface, with a `free_surface` | same | [`FreeSurfacePotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergy) and [`FreeSurfacePotentialEnergyTendency`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergyTendency), on [the potential energy page](potential_energy_equation.md) |
 | Dissipation rate | ``\varepsilon_k = -\tau_{ij} \partial_j u_i`` | ``\varepsilon_k = -(\tau_{1j} \partial_j u + \tau_{2j} \partial_j v)`` | [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) |
 | Isotropic dissipation rate | ``2 \nu S_{ij} S_{ij}``, equal to ``\varepsilon_k`` for a constant viscosity | ``2 \nu S_{ij} S_{ij}``, which keeps the ``w`` row and so is not the dissipation of this budget | [`KineticEnergyIsotropicDissipationRate`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyIsotropicDissipationRate) |
 
