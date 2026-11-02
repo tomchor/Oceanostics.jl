@@ -2,9 +2,9 @@
 #
 # In this example we spin up a pair of mesoscale fronts in a doubly-periodic channel of a
 # `HydrostaticFreeSurfaceModel`, let them go baroclinically unstable, and close the volume-integrated
-# potential and kinetic energy budgets. The model has a free surface, which stores energy of its own
-# and exchanges it with the kinetic energy through the barotropic pressure gradient, so there are three
-# budgets to close rather than two.
+# potential and kinetic energy budgets. The model has a free surface, which exchanges a little energy
+# with the flow through the pressure; the kinetic energy budget below carries that exchange in its
+# pressure term.
 #
 # Before starting, make sure you have the required packages installed for this example, which can be
 # done with
@@ -170,81 +170,64 @@ eₚ = PotentialEnergy(model)
 wb = PotentialToKineticEnergyConversion(model)
 Φ  = PotentialEnergyDiffusiveVerticalBuoyancyFlux(model)
 
+∫eₚ  = ∫dV(eₚ)
+∫wb  = ∫dV(wb)
+∫Φ   = ∫dV(Φ)
+
+∂ₜ∫eₚ = TimeDerivative(∫eₚ)
+
 # ## The kinetic energy budget
 #
 # The other side of the exchange, written with `eₖ = ½(u² + v²)`, the energy of the two velocities a
-# hydrostatic model steps. `wb` is the same term in both budgets and carries opposite signs, so it
-# cancels from their sum. The free surface adds a term: the barotropic pressure gradient `g∇η` works on
-# the flow, and
-# [`KineticEnergyBarotropicPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution)
-# is that work, ``\texttt{BPR} = \boldsymbol{u}_h \cdot \nabla_h (g\eta)``, counted with the sign of the
-# other pressure term. An `ImplicitFreeSurface` applies the gradient in its free-surface step, outside
-# the tendency the model computes, so a budget written from the tendency's terms is short by exactly
-# that term. The advective transport stays in as well: the top of the domain is open, since the ``w``
-# the model diagnoses there is ``\partial_t \eta``, so a little ``e_k`` is advected through it, and the
+# hydrostatic model steps. The pressure enters through
+# [`KineticEnergyPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution),
+# ``\texttt{PR} = u_j \partial_j (p' + g\eta)``, the work of the whole pressure: the hydrostatic anomaly
+# ``p'`` that the buoyancy sets and the surface pressure ``g\eta`` of the free surface. It is contracted
+# with all three velocity components, the diagnosed ``w`` included, so its vertical row is
+# ``w \partial_z p' = wb`` by hydrostatic balance and the budget reads as it would on a nonhydrostatic
+# model, with `wb` the same term as in the potential energy budget and the opposite sign, so it cancels
+# from their sum. The advective transport stays in: the top of the domain is open, since the ``w`` the
+# model diagnoses there is ``\partial_t \eta``, so a little ``e_k`` is advected through it, and the
 # fourth-order centred scheme is not exactly energy-conserving; the two together are a percent of the
 # conversion. So
 #
 # ```math
-# \frac{d}{dt}\int e_k\, \mathrm{d}V = -\int \texttt{ADV}\, \mathrm{d}V + \int wb\, \mathrm{d}V
-#                                    - \int \varepsilon_k\, \mathrm{d}V - \int \texttt{BPR}\, \mathrm{d}V ,
+# \frac{d}{dt}\int e_k\, \mathrm{d}V = -\int \texttt{ADV}\, \mathrm{d}V - \int \texttt{PR}\, \mathrm{d}V
+#                                    + \int wb\, \mathrm{d}V - \int \varepsilon_k\, \mathrm{d}V ,
 # ```
 #
 # with ``\texttt{ADV} = u_i \partial_j (u_j u_i)``
 # ([`KineticEnergyAdvection`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyAdvection)).
 #
-# Pointwise, the barotropic pressure is as hard at work as any term here: the depth-integrated
-# ``\texttt{BPR}`` in the movie below is several times the conversion ``wb``. Integrated over the domain
-# it is a fraction of a percent of it, the fraction `N²H/g` of the section above: the work moves kinetic
-# energy between columns far more than it stores it in the surface. Part of what it does store goes back
-# at a nearly steady rate from the first day, as horizontal diffusion widens the fronts and the slope
-# that balances them flattens; the eddies add an exchange of either sign once they grow. We measure both
-# below.
+# Integrated over the domain, ``\texttt{PR}`` is a flux through the boundaries. It vanishes through the
+# periodic sides and the bottom, and at the moving surface it is the energy the free surface stores,
+# ``\int g\eta\, w\, \mathrm{d}A``, which the section on derived quantities puts at the fraction `N²H/g`
+# of the conversion, a tenth of a percent. Its barotropic part, the work of the surface pressure alone,
+# ``\texttt{BPR} = \boldsymbol{u}_h \cdot \nabla_h (g\eta)``
+# ([`KineticEnergyBarotropicPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution)),
+# is as hard at work as any term pointwise: its depth integral in the movie below is several times the
+# conversion ``wb``. That work moves kinetic energy between columns far more than it stores it in the
+# surface. We measure both below.
 
 eₖ  = KineticEnergy(model)
 εₖ  = KineticEnergyDissipationRate(model)
 ADV = KineticEnergyEquation.KineticEnergyAdvection(model)
+PR  = KineticEnergyPressureRedistribution(model)
 BPR = KineticEnergyBarotropicPressureRedistribution(model)
 
-# ## The free surface's budget
-#
-# Where the kinetic energy loses that work, the free surface gains it. Its potential energy per unit
-# area is `eₛ = ½gη²`
-# ([`FreeSurfacePotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergy)),
-# and the kinematic condition makes its tendency `gη ∂ₜη = gη w` at the surface
-# ([`FreeSurfacePotentialEnergyTendency`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergyTendency)).
-# Integrated by parts across the periodic boundaries, the work of the barotropic pressure gradient is
-# exactly that tendency,
-#
-# ```math
-# \frac{d}{dt}\int e_s\, \mathrm{d}A = \int g\eta\, w|_{\mathrm{surface}}\, \mathrm{d}A
-#                                    = \int \texttt{BPR}\, \mathrm{d}V ,
-# ```
-#
-# so the three reservoirs close together, and the sum of the three budgets is the total energy's.
-
-eₛ   = FreeSurfacePotentialEnergy(model)
-∂ₜeₛ = FreeSurfacePotentialEnergyTendency(model)
-
-∫eₚ  = ∫dV(eₚ)
-∫Φ   = ∫dV(Φ)
 ∫eₖ  = ∫dV(eₖ)
-∫wb  = ∫dV(wb)
 ∫εₖ  = ∫dV(εₖ)
 ∫ADV = ∫dV(ADV)
+∫PR  = ∫dV(PR)
 ∫BPR = ∫dV(BPR)
 ∫absBPR = ∫dV(abs(BPR))
 ∫abswb  = ∫dV(abs(wb))
-∫eₛ   = Integral(eₛ, dims=(1, 2))
-∫∂ₜeₛ = Integral(∂ₜeₛ, dims=(1, 2))
 
-∂ₜ∫eₚ = TimeDerivative(∫eₚ)
 ∂ₜ∫eₖ = TimeDerivative(∫eₖ)
-∂ₜ∫eₛ = TimeDerivative(∫eₛ)
 
-# For the movie we keep the surface vorticity and buoyancy, the free surface, and the barotropic
-# pressure work integrated over the depth of each column, which shows how large the term is before the
-# area integral cancels most of it. `η` lives on the top face of the grid rather than in a cell, so it is
+# For the movie we keep the surface vorticity and buoyancy, the free surface, and the barotropic part
+# of the pressure work integrated over the depth of each column, which shows how large it is before the
+# area integral cancels nearly all of it. `η` lives on the top face of the grid rather than in a cell, so it is
 # averaged over that one level, which turns it into a surface map the writer takes as it takes the depth
 # integral:
 
@@ -277,7 +260,7 @@ simulation.output_writers[:surface] =
                  overwrite_files = true)
 
 simulation.output_writers[:budget] =
-    NetCDFWriter(model, (; ∂ₜ∫eₚ, ∫Φ, ∂ₜ∫eₖ, ∫wb, ∫εₖ, ∫ADV, ∫BPR, ∂ₜ∫eₛ, ∫∂ₜeₛ, ∫absBPR, ∫abswb),
+    NetCDFWriter(model, (; ∂ₜ∫eₚ, ∫Φ, ∂ₜ∫eₖ, ∫wb, ∫εₖ, ∫ADV, ∫PR, ∫BPR, ∫absBPR, ∫abswb),
                  filename = filename * "_budget",
                  schedule = TimeInterval(6hours),
                  overwrite_files = true)
@@ -317,13 +300,12 @@ nb   = 2:length(ds_b["time"])
 t_bud   = ds_b["time"][nb]
 deₚdt   = ds_b["∂ₜ∫eₚ"][nb]
 deₖdt   = ds_b["∂ₜ∫eₖ"][nb]
-deₛdt   = ds_b["∂ₜ∫eₛ"][nb]
 Φ_bud   = ds_b["∫Φ"][nb]
 wb_bud  = ds_b["∫wb"][nb]
 εₖ_bud  = ds_b["∫εₖ"][nb]
 ADV_bud = ds_b["∫ADV"][nb]
 BPR_bud = ds_b["∫BPR"][nb]
-gηw_bud = ds_b["∫∂ₜeₛ"][nb]
+PR_bud  = ds_b["∫PR"][nb]
 absBPR_bud = ds_b["∫absBPR"][nb]
 abswb_bud  = ds_b["∫abswb"][nb]
 close(ds_b)
@@ -338,23 +320,19 @@ using Statistics: mean
 # below adds up to its residual.
 
 eₚ_resid = @. -deₚdt - wb_bud + Φ_bud
-eₖ_resid = @. -deₖdt - ADV_bud + wb_bud - εₖ_bud - BPR_bud
-eₛ_resid = @. -deₛdt + BPR_bud
+eₖ_resid = @. -deₖdt - ADV_bud - PR_bud + wb_bud - εₖ_bud
 
 using Test                                                                            #hide
 rms(x) = √(sum(abs2, x) / length(x))                                                  #hide
 eₚ_terms = (deₚdt, wb_bud, Φ_bud)                                                     #hide
-eₖ_terms = (deₖdt, ADV_bud, wb_bud, εₖ_bud, BPR_bud)                                  #hide
-## Each budget closes to a small fraction of its own largest term (measured 0.3%, 0.2% and 7%).      #hide
+eₖ_terms = (deₖdt, ADV_bud, PR_bud, wb_bud, εₖ_bud)                                   #hide
+## Each budget closes to a small fraction of its own largest term (measured 0.3% and 0.2%).          #hide
 @test rms(eₚ_resid) < 0.015 * maximum(rms, eₚ_terms)                                  #hide
 @test rms(eₖ_resid) < 0.015 * maximum(rms, eₖ_terms)                                  #hide
-@test rms(eₛ_resid) < 0.15 * rms(BPR_bud)                                             #hide
 ## `wb` is the same term in both, so it cancels from their sum                        #hide
 @test rms(eₚ_resid .+ eₖ_resid) < 0.02 * rms(wb_bud)                                  #hide
-## The work of the barotropic pressure gradient is the free surface's energy tendency, exactly, at    #hide
-## every output time; pointwise it is larger than the conversion and integrated it is a fraction of   #hide
-## a percent of it (measured 6 times and 0.1%).                                                       #hide
-@test gηw_bud ≈ BPR_bud rtol=1e-8                                                     #hide
+## Pointwise the barotropic part of the pressure work is larger than the conversion, and integrated   #hide
+## it is a fraction of a percent of it (measured 6 times and 0.1%).                                   #hide
 @test mean(absBPR_bud ./ abswb_bud) > 1                                               #hide
 @test mean(abs, BPR_bud) < 0.01 * mean(abs, wb_bud)                                   #hide
 ## The adjustment does what it should: the fronts slump and the potential energy they release turns  #hide
@@ -367,7 +345,7 @@ eₖ_terms = (deₖdt, ADV_bud, wb_bud, εₖ_bud, BPR_bud)                     
 # ## Plotting
 
 set_theme!(Theme(fontsize = 18))
-fig = Figure(size = (1000, 2050))
+fig = Figure(size = (1000, 1730))
 
 n = Observable(1)
 
@@ -409,17 +387,11 @@ lines!(ax_k, t_bud ./ day, -deₖdt,    label = "-d(∫eₖ)/dt")
 lines!(ax_k, t_bud ./ day, -ADV_bud,  label = "-∫ADV dV")
 lines!(ax_k, t_bud ./ day,  wb_bud,   label = "∫wb dV")
 lines!(ax_k, t_bud ./ day, -εₖ_bud,   label = "-∫εₖ dV")
-lines!(ax_k, t_bud ./ day, -BPR_bud,  label = "-∫BPR dV (on the axis)")
+lines!(ax_k, t_bud ./ day, -PR_bud,   label = "-∫PR dV (on the axis)")
 lines!(ax_k, t_bud ./ day,  eₖ_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_k; position = :rt, labelsize = 16, nbanks = 2)
 
-ax_s = Axis(fig[6, 1:2]; title = "Area-integrated free surface potential energy budget", budget_kwargs...)
-lines!(ax_s, t_bud ./ day, -deₛdt,    label = "-d(∫eₛ)/dt")
-lines!(ax_s, t_bud ./ day,  BPR_bud,  label = "∫BPR dV")
-lines!(ax_s, t_bud ./ day,  eₛ_resid, label = "residual", color = :black, linestyle = :dash)
-axislegend(ax_s; position = :rt, labelsize = 16, nbanks = 2)
-
-for ax in (ax_p, ax_k, ax_s)
+for ax in (ax_p, ax_k)
     vlines!(ax, @lift(times[$n] / day), color = :black, linestyle = :dot)
 end
 
@@ -431,7 +403,6 @@ rowsize!(fig.layout, 2, Fixed(500))
 rowsize!(fig.layout, 3, Fixed(500))
 rowsize!(fig.layout, 4, Fixed(300))
 rowsize!(fig.layout, 5, Fixed(300))
-rowsize!(fig.layout, 6, Fixed(300))
 colsize!(fig.layout, 1, Fixed(450))
 colsize!(fig.layout, 2, Fixed(450))
 resize_to_layout!(fig)
