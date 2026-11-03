@@ -202,10 +202,14 @@ PR  = KineticEnergyPressureRedistribution(model)
 
 ∂ₜ∫eₖ = TimeDerivative(∫eₖ)
 
-# For the movie we keep the surface vorticity, buoyancy and displacement, in one file with the volume
-# integrals. Each map is averaged over its single vertical level, the top level of cells for ``\zeta``
-# and ``b`` and the top face of the grid for ``\eta``, which leaves it two-dimensional, with no vertical
-# dimension to share with the others:
+# For the movie we keep the surface vorticity, buoyancy and displacement and the mixed layer depth, in
+# one file with the volume integrals. Each surface map is averaged over its single vertical level, the
+# top level of cells for ``\zeta`` and ``b`` and the top face of the grid for ``\eta``, which leaves it
+# two-dimensional, with no vertical dimension to share with the others. The mixed layer depth is
+# two-dimensional already. We use the default criterion of
+# [`MixedLayerDepth`](@ref Oceanostics.FlowDiagnostics.MixedLayerDepth), the depth at which the buoyancy
+# has dropped by ``10^{-4} g`` below its surface value, which the initial stratification reaches about
+# 120 m down:
 
 u, v, w = model.velocities
 b = model.tracers.b
@@ -213,16 +217,17 @@ b = model.tracers.b
 ζₛ = Average(Field(ζ, indices = (:, :, grid.Nz)), dims=3)
 bₛ = Average(view(b, :, :, grid.Nz), dims=3)
 ηₛ = Average(model.free_surface.displacement, dims=3)
+MLD = MixedLayerDepth(grid, model.buoyancy.formulation, (; b))
 
 # ## Output
 #
-# One writer for the three surface maps and the integrals, on `TimeInterval(6hours)`.
+# One writer for the four maps and the integrals, on `TimeInterval(6hours)`.
 
 using NCDatasets
 filename = joinpath(@__DIR__, "baroclinic_adjustment")
 
 simulation.output_writers[:output] =
-    NetCDFWriter(model, (; ζ = ζₛ, b = bₛ, η = ηₛ, ∂ₜ∫eₚ, ∫Φ, ∂ₜ∫eₖ, ∫wb, ∫εₖ, ∫ADV, ∫PR),
+    NetCDFWriter(model, (; ζ = ζₛ, b = bₛ, η = ηₛ, MLD, ∂ₜ∫eₚ, ∫Φ, ∂ₜ∫eₖ, ∫wb, ∫εₖ, ∫ADV, ∫PR),
                  filename = filename,
                  schedule = TimeInterval(6hours),
                  overwrite_files = true)
@@ -242,9 +247,11 @@ x_caa = ds["x_caa"][:]; y_aca = ds["y_aca"][:]
 ζ_arr = ds["ζ"][:, :, :]     # the maps have no vertical dimension: (x, y, time)
 b_arr = ds["b"][:, :, :]
 η_arr = ds["η"][:, :, :]
+MLD_arr = ds["MLD"][:, :, :]
 
 ζlim = maximum(abs, ζ_arr)
 ηlim = maximum(abs, η_arr)
+MLDlim = maximum(abs, filter(isfinite, MLD_arr))
 
 # Every budget record carries both tendencies and every source term at the same time. The first record
 # has no earlier state to difference against and is written as zero, so the budgets start from the
@@ -291,18 +298,20 @@ eₖ_terms = (deₖdt, ADV_bud, PR_bud, wb_bud, εₖ_bud)                      
 # ## Plotting
 
 set_theme!(Theme(fontsize = 18))
-fig = Figure(size = (1100, 1250))
+fig = Figure(size = (1000, 1750))
 
 n = Observable(1)
 
 panel_kwargs = (xlabel = "x [km]", ylabel = "y [km]", aspect = DataAspect())
 axζ = Axis(fig[2, 1][1, 1]; title = "surface vorticity, ζ", panel_kwargs...)
 axb = Axis(fig[2, 2][1, 1]; title = "surface buoyancy, b",  panel_kwargs...)
-axη = Axis(fig[2, 3][1, 1]; title = "free surface, η",      panel_kwargs...)
+axη = Axis(fig[3, 1][1, 1]; title = "free surface, η",      panel_kwargs...)
+axh = Axis(fig[3, 2][1, 1]; title = "mixed layer depth",    panel_kwargs...)
 
 ζₙ = @lift ζ_arr[:, :, $n]
 bₙ = @lift b_arr[:, :, $n]
 ηₙ = @lift η_arr[:, :, $n]
+MLDₙ = @lift MLD_arr[:, :, $n]
 
 km = 1e-3
 hmζ = heatmap!(axζ, x_faa .* km, y_afa .* km, ζₙ; colormap = :balance, colorrange = (-ζlim, ζlim))
@@ -312,18 +321,21 @@ hmb = heatmap!(axb, x_caa .* km, y_aca .* km, bₙ; colormap = :thermal)
 Colorbar(fig[2, 2][1, 2], hmb)
 
 hmη = heatmap!(axη, x_caa .* km, y_aca .* km, ηₙ; colormap = :balance, colorrange = (-ηlim, ηlim))
-Colorbar(fig[2, 3][1, 2], hmη)
+Colorbar(fig[3, 1][1, 2], hmη)
+
+hmh = heatmap!(axh, x_caa .* km, y_aca .* km, MLDₙ; colormap = :deep, colorrange = (-MLDlim, 0))
+Colorbar(fig[3, 2][1, 2], hmh)
 
 budget_kwargs = (xlabel = "time [days]", ylabel = "[m⁵ s⁻³]")
 
-ax_p = Axis(fig[3, 1:3]; title = "Volume-integrated potential energy budget", budget_kwargs...)
+ax_p = Axis(fig[4, 1:2]; title = "Volume-integrated potential energy budget", budget_kwargs...)
 lines!(ax_p, t_bud ./ day, -deₚdt,    label = "-d(∫eₚ)/dt")
 lines!(ax_p, t_bud ./ day, -wb_bud,   label = "-∫wb dV")
 lines!(ax_p, t_bud ./ day,  Φ_bud,    label = "∫Φ dV")
 lines!(ax_p, t_bud ./ day,  eₚ_resid, label = "residual", color = :black, linestyle = :dash)
 axislegend(ax_p; position = :rt, labelsize = 16, nbanks = 2)
 
-ax_k = Axis(fig[4, 1:3]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
+ax_k = Axis(fig[5, 1:2]; title = "Volume-integrated kinetic energy budget", budget_kwargs...)
 lines!(ax_k, t_bud ./ day, -deₖdt,    label = "-d(∫eₖ)/dt")
 lines!(ax_k, t_bud ./ day, -ADV_bud,  label = "-∫ADV dV")
 lines!(ax_k, t_bud ./ day,  wb_bud,   label = "∫wb dV")
@@ -337,15 +349,15 @@ for ax in (ax_p, ax_k)
 end
 
 title = @lift "Baroclinic adjustment, t = " * prettytime(times[$n])
-fig[1, 1:3] = Label(fig, title, fontsize = 22, tellwidth = false)
+fig[1, 1:2] = Label(fig, title, fontsize = 22, tellwidth = false)
 
 rowsize!(fig.layout, 1, Fixed(50))
 rowsize!(fig.layout, 2, Fixed(500))
-rowsize!(fig.layout, 3, Fixed(300))
+rowsize!(fig.layout, 3, Fixed(500))
 rowsize!(fig.layout, 4, Fixed(300))
-colsize!(fig.layout, 1, Fixed(350))
-colsize!(fig.layout, 2, Fixed(350))
-colsize!(fig.layout, 3, Fixed(350))
+rowsize!(fig.layout, 5, Fixed(300))
+colsize!(fig.layout, 1, Fixed(450))
+colsize!(fig.layout, 2, Fixed(450))
 resize_to_layout!(fig)
 
 @info "Animating..."
