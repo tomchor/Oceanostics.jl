@@ -249,9 +249,9 @@ b_arr = ds["b"][:, :, :]
 η_arr = ds["η"][:, :, :]
 MLD_arr = ds["MLD"][:, :, :]
 
-ζlim = maximum(abs, ζ_arr)
-ηlim = maximum(abs, η_arr)
-MLDlim = maximum(abs, filter(isfinite, MLD_arr))
+ζlim   = maximum(abs, ζ_arr)
+ηlim   = 0.9 * maximum(abs, η_arr)
+MLDlim = 0.9 * maximum(abs, filter(isfinite, MLD_arr))
 
 # Every budget record carries both tendencies and every source term at the same time. The first record
 # has no earlier state to difference against and is written as zero, so the budgets start from the
