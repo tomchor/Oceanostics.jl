@@ -37,9 +37,6 @@ M² = √N² * f / √Ri        # [s⁻²] cross-front buoyancy gradient inside 
 # ## Grid
 #
 # Doubly periodic in the horizontal and bounded in the vertical, with 10 km cells and 20 levels.
-# Periodicity in `y` is what the double front buys us, and it is what makes the transport terms of every
-# budget below integrate to zero. A single (Eady) front would need a uniform background buoyancy gradient,
-# which makes the domain's potential energy infinite.
 
 grid = RectilinearGrid(size = (50, 100, 20),
                        x = (0, Lx), y = (-Ly/2, Ly/2), z = (-H, 0),
@@ -68,11 +65,9 @@ L_ext = √(g * H) / f           # [m]     external deformation radius
 
 # ## Closure
 #
-# Laplacian diffusion of momentum and buoyancy, horizontal and vertical, both explicit in time, which
-# is what lets the diagnostics below see every flux the model applies (see the budget pages for the
-# vertically implicit case). The horizontal coefficient keeps the 10 km cells smooth under the centred
-# advection scheme; the vertical one sits at the energetic end of what the mesoscale ocean mixes with,
-# so that the work diffusion does against gravity shows in the potential energy budget.
+# As a turbulence closure, we use an anisotropic diffusivity of momentum and buoyancy. The large
+# horizontal diffusivity keeps the 10 km cells smooth under the centered advection scheme, and the
+# vertical diffusivity is as small as we can make it while still resolving the flow fluctuations:
 
 νₕ = κₕ = 300     # [m² s⁻¹]
 ν_z = κ_z = 1e-3  # [m² s⁻¹]
@@ -163,8 +158,7 @@ add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval
 # ([`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion))
 # the exchange with the kinetic energy and ``\Phi = \kappa\,\partial b/\partial z``
 # ([`PotentialEnergyDiffusiveVerticalBuoyancyFlux`](@ref Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux))
-# the work diffusion does against gravity. The free surface does not enter: the surface flux of
-# ``e_p`` carries a factor ``z = 0``, and ``\eta`` is not in the buoyancy equation.
+# the work diffusion does against gravity:
 
 eₚ = PotentialEnergy(model)
 wb = PotentialToKineticEnergyConversion(model)
@@ -178,18 +172,14 @@ wb = PotentialToKineticEnergyConversion(model)
 
 # ## The kinetic energy budget
 #
-# The other side of the exchange, written with `eₖ = ½(u² + v²)`, the energy of the two velocities a
-# hydrostatic model steps. The pressure enters through
+# This budget is the other side of the exchange, written with `eₖ = ½(u² + v²)`, the energy of the two
+# prognostic velocities in a hydrostatic model. The pressure enters through
 # [`KineticEnergyPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution),
 # ``\texttt{PR} = u_j \partial_j (p' + g\eta)``, the work of the whole pressure: the hydrostatic anomaly
 # ``p'`` that the buoyancy sets and the surface pressure ``g\eta`` of the free surface. It is contracted
-# with all three velocity components, the diagnosed ``w`` included, so its vertical row is
-# ``w \partial_z p' = wb`` by hydrostatic balance and the budget reads as it would on a nonhydrostatic
-# model, with `wb` the same term as in the potential energy budget and the opposite sign, so it cancels
-# from their sum. The advective transport stays in: the top of the domain is open, since the ``w`` the
-# model diagnoses there is ``\partial_t \eta``, so a little ``e_k`` is advected through it, and the
-# fourth-order centred scheme is not exactly energy-conserving; the two together are a percent of the
-# conversion. So
+# with all three velocity components, the diagnosed ``w`` included, so the budget reads much as it would
+# on a nonhydrostatic model. Both the pressure redistribution and the advective terms stay, since the top
+# of the domain (the surface) has a nonzero ``w``. So
 #
 # ```math
 # \frac{d}{dt}\int e_k\, \mathrm{d}V = -\int \texttt{ADV}\, \mathrm{d}V - \int \texttt{PR}\, \mathrm{d}V
@@ -197,13 +187,8 @@ wb = PotentialToKineticEnergyConversion(model)
 # ```
 #
 # with ``\texttt{ADV} = u_i \partial_j (u_j u_i)``
-# ([`KineticEnergyAdvection`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyAdvection)).
-#
-# Integrated over the domain, ``\texttt{PR}`` is a flux through the boundaries. It vanishes through the
-# periodic sides and the bottom, and at the moving surface it is the energy the free surface stores,
-# ``\int g\eta\, w\, \mathrm{d}A``, which the section on derived quantities puts at the fraction `N²H/g`
-# of the conversion, a tenth of a percent. Pointwise it is as large as the conversion, since its vertical
-# row is ``wb`` itself; as a flux divergence, it cancels between columns when integrated.
+# ([`KineticEnergyAdvection`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyAdvection)). We can
+# calculate these quantities with:
 
 eₖ  = KineticEnergy(model)
 εₖ  = KineticEnergyDissipationRate(model)
