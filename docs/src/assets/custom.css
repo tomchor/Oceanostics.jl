@@ -4,10 +4,10 @@
    the override is written at that higher specificity to win in all of them. */
 html #documenter .docs-main,
 html[class*="theme--"] #documenter .docs-main {
-    max-width: 62rem;
+    max-width: 60rem;
 }
 
 html #documenter .docs-main > article,
 html[class*="theme--"] #documenter .docs-main > article {
-    max-width: 62rem;
+    max-width: 60rem;
 }
