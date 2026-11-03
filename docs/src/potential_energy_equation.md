@@ -161,11 +161,10 @@ per unit area, with ``\eta`` the displacement and ``g`` the free surface's gravi
 `FreeSurfacePotentialEnergy` computes it at `(Center, Center, Nothing)`, one value per column on the top
 face of the grid, so the energy of a domain is ``\int e_k \, \mathrm{d}V + \int e_p \, \mathrm{d}V +
 \int e_s \, \mathrm{d}A``. Its budget has a single term, ``\partial_t e_s = g \eta \, \partial_t \eta``,
-which the kinematic condition makes ``g \eta \, w`` on the surface: `FreeSurfacePotentialEnergyTendency`,
-read from ``\eta`` and the ``w`` on the top face. Nothing diffuses ``e_s`` and nothing exchanges it with
-``e_p``, which does not see the free surface: the surface flux of ``e_p`` carries a factor ``z = 0`` and
-``\eta`` never enters the buoyancy equation. The exchange is with the kinetic energy, through the
-barotropic pressure gradient, and with closed or periodic lateral boundaries
+which the kinematic condition makes ``g \eta \, w`` on the surface. Nothing diffuses ``e_s`` and nothing
+exchanges it with ``e_p``, which does not see the free surface: the surface flux of ``e_p`` carries a
+factor ``z = 0`` and ``\eta`` never enters the buoyancy equation. The exchange is with the kinetic
+energy, through the barotropic pressure gradient, and with closed or periodic lateral boundaries
 
 ```math
 \int \partial_t e_s \, \mathrm{d}A = \int \texttt{BPR} \, \mathrm{d}V ,
@@ -174,11 +173,9 @@ barotropic pressure gradient, and with closed or periodic lateral boundaries
 with ``\texttt{BPR} = u_h \cdot \nabla_h (g\eta)`` the term `KineticEnergyBarotropicPressureRedistribution`;
 [the kinetic energy page](kinetic_energy_equation.md) has it, and the budget of the three reservoirs.
 Both a `HydrostaticFreeSurfaceModel` and a `NonhydrostaticModel` built with a `free_surface` have an
-``e_s``; the nonhydrostatic default, a rigid lid, has none, and the two diagnostics reject it. On an
-`ImplicitFreeSurface`, and on the nonhydrostatic free surface, ``g \eta \, w`` is exactly the backward
-difference of ``e_s`` over the step, or the substep of a multi-stage time stepper, that produced the
-state, up to ``\tfrac{1}{2} g (\Delta\eta)^2 / \Delta t``; a `SplitExplicitFreeSurface` steps ``\eta``
-with its substep-averaged transport, which differs from the one the velocities carry at ``O(\Delta t)``.
+``e_s``; the nonhydrostatic default, a rigid lid, has none, and `FreeSurfacePotentialEnergy` rejects it.
+A budget built from the backward difference of ``\int e_s \, \mathrm{d}A`` over a step closes against
+``\int \texttt{BPR} \, \mathrm{d}V`` to ``O(\Delta t)``, the order of a `TimeDerivative`.
 
 ## Vertically implicit closures
 
@@ -208,5 +205,4 @@ Oceanostics.PotentialEnergyEquation.PotentialEnergyBuoyancyDiffusion
 Oceanostics.PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux
 Oceanostics.PotentialEnergyEquation.PotentialEnergyForcing
 Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergy
-Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergyTendency
 ```

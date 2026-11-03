@@ -80,7 +80,7 @@ export BoxFilter, GaussianFilter, check_filter_staging
 export PotentialEnergy, PotentialEnergyDiffusiveVerticalBuoyancyFlux
 export PotentialEnergyTendency, PotentialEnergyAdvection, PotentialEnergyBuoyancyAdvection,
        PotentialEnergyDiffusion, PotentialEnergyBuoyancyDiffusion, PotentialEnergyForcing
-export FreeSurfacePotentialEnergy, FreeSurfacePotentialEnergyTendency
+export FreeSurfacePotentialEnergy
 #---
 
 #+++ BackgroundPotentialEnergyEquation exports
@@ -588,7 +588,6 @@ end
 @diagnostic_show PotentialEnergyEquation.Forcing                       "PotentialEnergyForcing"              "potential energy forcing  -z Fᵇ"
 @diagnostic_show PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux "PotentialEnergyDiffusiveVerticalBuoyancyFlux" "diffusive vertical buoyancy flux  κ ∂b/∂z = -q₃"
 @diagnostic_show PotentialEnergyEquation.FreeSurfacePotentialEnergy         "FreeSurfacePotentialEnergy"         "free surface potential energy per unit area  ½gη²"
-@diagnostic_show PotentialEnergyEquation.FreeSurfacePotentialEnergyTendency "FreeSurfacePotentialEnergyTendency" "free surface potential energy tendency  gη ∂ₜη = gη w|surface"
 #---
 
 #+++ BackgroundPotentialEnergyEquation

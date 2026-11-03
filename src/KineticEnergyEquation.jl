@@ -590,9 +590,8 @@ Its volume integral is the exchange with the potential energy of the free surfac
 
     ∫ BPR dV = ∫ U⋅∇ₕ(gη) dA = -∫ gη ∇ₕ⋅U dA = ∫ gη ∂ₜη dA = ∂ₜ ∫ eₛ dA ,
 
-which [`FreeSurfacePotentialEnergyTendency`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergyTendency)
-measures column by column as `gη w` at the surface. Pointwise the term is of the order of the other
-pressure work; integrated it is small whenever the barotropic flow is narrow compared with the external
+where `gη ∂ₜη = gη w` at the surface by the kinematic condition. Pointwise the term is of the order of
+the other pressure work; integrated it is small whenever the barotropic flow is narrow compared with the external
 deformation radius `√(gH)/f`.
 
 On either model this term is the barotropic part of [`KineticEnergyPressureRedistribution`](@ref), the

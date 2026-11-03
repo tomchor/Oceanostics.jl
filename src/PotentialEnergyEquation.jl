@@ -11,7 +11,7 @@ export BuoyancyAdvection, PotentialEnergyBuoyancyAdvection
 export Diffusion, PotentialEnergyDiffusion
 export BuoyancyDiffusion, PotentialEnergyBuoyancyDiffusion
 export Forcing, PotentialEnergyForcing
-export FreeSurfacePotentialEnergy, FreeSurfacePotentialEnergyTendency
+export FreeSurfacePotentialEnergy
 # `wb` is the one term the kinetic and potential energy budgets share, so it is defined in
 # `KineticEnergyEquation` and re-exported here under both its own name and a budget-neutral alias.
 export PotentialToKineticEnergyConversion, KineticEnergyConversion
@@ -925,13 +925,11 @@ end
 #---
 
 #+++ Free surface
-# `η` lives on the top face of the grid, k = Nz+1, and so does the `w` that moves it. Both kernels are
-# two-dimensional, at `(Center, Center, Nothing)`: `k` is ignored and the fields are read on that face.
+# `η` lives on the top face of the grid, k = Nz+1. The kernel is two-dimensional, at
+# `(Center, Center, Nothing)`: `k` is ignored and `η` is read on that face.
 @inline half_gη²_ccn(i, j, k, grid, g, η) = @inbounds g * η[i, j, grid.Nz+1]^2 / 2
-@inline gηw_ccn(i, j, k, grid, g, η, w) = @inbounds g * η[i, j, grid.Nz+1] * w[i, j, grid.Nz+1]
 
 const FreeSurfacePotentialEnergy = CustomKFO{<:typeof(half_gη²_ccn)}
-const FreeSurfacePotentialEnergyTendency = CustomKFO{<:typeof(gηw_ccn)}
 
 validate_free_surface(diagnostic, free_surface) = nothing
 validate_free_surface(diagnostic, ::Nothing) =
@@ -950,13 +948,13 @@ where `η` is the free-surface displacement and `g` the free surface's gravitati
 `eₖ` and `eₚ` times a length, so the energy of a domain is `∫eₖ dV + ∫eₚ dV + ∫eₛ dA`.
 
 `eₛ` is the reservoir the kinetic energy exchanges with through the barotropic pressure gradient. Its
-budget has the one term [`FreeSurfacePotentialEnergyTendency`](@ref) measures, and
+budget has a single term, `∂ₜeₛ = gη ∂ₜη`, which the kinematic condition makes `gη w` at the surface,
+and with closed or periodic lateral boundaries
 
-    ∂ₜ ∫ eₛ dA = ∫ KineticEnergyBarotropicPressureRedistribution dV
+    ∂ₜ ∫ eₛ dA = ∫ KineticEnergyBarotropicPressureRedistribution dV .
 
-holds with closed or periodic lateral boundaries, so an integrated kinetic energy budget on a
-hydrostatic model closes once that term is in it. `eₚ = -bz` does not see the free surface: the surface
-flux of `eₚ` carries a factor `z = 0`, and `η` never enters the buoyancy equation.
+`eₚ = -bz` does not see the free surface: the surface flux of `eₚ` carries a factor `z = 0`, and `η`
+never enters the buoyancy equation.
 
 Both a `HydrostaticFreeSurfaceModel` and a `NonhydrostaticModel` built with a `free_surface` have one;
 a `NonhydrostaticModel` with its default rigid lid is rejected.
@@ -983,54 +981,6 @@ function FreeSurfacePotentialEnergy(model; free_surface = model_free_surface(mod
     g = free_surface_gravitational_acceleration(free_surface)
     η = SurfaceDisplacement(free_surface_displacement(free_surface))
     return KernelFunctionOperation{Center, Center, Nothing}(half_gη²_ccn, model.grid, g, η)
-end
-
-"""
-    $(SIGNATURES)
-
-Return a `KernelFunctionOperation` that computes the tendency of the free surface's potential energy
-[`FreeSurfacePotentialEnergy`](@ref),
-
-    ∂ₜeₛ = g η ∂ₜη = g η w|surface ,
-
-at `(Center, Center, Nothing)`, from `η` and the vertical velocity on the top face of the grid, which is
-the kinematic condition the model steps `η` with. On a `HydrostaticFreeSurfaceModel` that `w` is the one
-continuity diagnoses from `velocities`, `-∇ₕ⋅U` with `U` the depth-integrated transport, so the
-identity with
-[`KineticEnergyBarotropicPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution),
-
-    ∫ ∂ₜeₛ dA = ∫ BPR dV ,
-
-holds to machine precision for closed or periodic lateral boundaries. An `ImplicitFreeSurface` steps
-`η` with the transport of the corrected velocities, and a `NonhydrostaticModel` with a free surface with
-the `w` its pressure correction leaves on the surface, so on both `gηw` is exactly the backward
-difference of `eₛ` over the step, or the substep of a multi-stage time stepper, that led to the current
-state, up to `½g(Δη)²/Δt`; a `SplitExplicitFreeSurface` steps `η` with the transport averaged over its
-substeps instead, which differs from the one `velocities` carry at `O(Δt)`.
-
-```jldoctest
-julia> using Oceananigans, Oceanostics
-
-julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
-
-julia> model = HydrostaticFreeSurfaceModel(grid);
-
-julia> ∂ₜeₛ = FreeSurfacePotentialEnergyTendency(model)
-FreeSurfacePotentialEnergyTendency KernelFunctionOperation at (Center, Center, ⋅)
-├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
-├── kernel_function: gηw_ccn (generic function with 1 method)
-└── arguments: ("Float64", "SurfaceDisplacement", "Field")
-└── computes: free surface potential energy tendency  gη ∂ₜη = gη w|surface
-```
-"""
-function FreeSurfacePotentialEnergyTendency(model; velocities = model.velocities,
-                                            free_surface = model_free_surface(model),
-                                            location = (Center, Center, Nothing))
-    validate_location(location, "FreeSurfacePotentialEnergyTendency", (Center, Center, Nothing))
-    validate_free_surface("FreeSurfacePotentialEnergyTendency", free_surface)
-    g = free_surface_gravitational_acceleration(free_surface)
-    η = SurfaceDisplacement(free_surface_displacement(free_surface))
-    return KernelFunctionOperation{Center, Center, Nothing}(gηw_ccn, model.grid, g, η, velocities.w)
 end
 #---
 

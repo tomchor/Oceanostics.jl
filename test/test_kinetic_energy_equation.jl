@@ -623,28 +623,29 @@ function test_free_surface_energy_exchange(grid; model_type)
     set!(model, u=free_surface_u, v=free_surface_v)
     set_free_surface!(model, free_surface_η)
 
+    # `∫gηw dA` from `η` and the `w` on the top face, on the uniform horizontal cells of the test grids
+    g = model.free_surface.gravitational_acceleration
+    ΔA = grid.Lx * grid.Ly / (grid.Nx * grid.Ny)
+    surface_exchange(model) = g * ΔA * sum(cpu_interior(free_surface_displacement(model.free_surface)) .*
+                                           cpu_interior(model.velocities.w)[:, :, end:end])
+
     work = volume_integral(KineticEnergyBarotropicPressureRedistribution(model))
-    tendency = area_integral(FreeSurfacePotentialEnergyTendency(model))
-    @test work ≈ tendency rtol=1e-10
+    @test work ≈ surface_exchange(model) rtol=1e-10
     # The flow projects on `η`, so the exchange is not zero by orthogonality (the nonhydrostatic
     # projection takes most of the surface transport out, which leaves it an order of magnitude smaller)
-    @test abs(work) > 1e-3 * model.free_surface.gravitational_acceleration
+    @test abs(work) > 1e-3 * g
 
     time_step!(model, 1e-3)
     work = volume_integral(KineticEnergyBarotropicPressureRedistribution(model))
-    tendency = area_integral(FreeSurfacePotentialEnergyTendency(model))
-    @test work ≈ tendency rtol=1e-10
+    @test work ≈ surface_exchange(model) rtol=1e-10
 
     return nothing
 end
 
 """
-Over one small step the change of `∫eₛ dA` is the work `∫BPR dV`, to `O(Δt)`. An `ImplicitFreeSurface`
-steps `η` with the transport of the corrected velocities, and a nonhydrostatic free surface with the
-surface `w` its pressure correction leaves, so when a single-stage step is done `gηw` on the surface is
-exactly `gη(η¹ - η⁰)/Δt`, and the change of `½gη²` differs from it by `½g(Δη)²/Δt` alone. The
-nonhydrostatic model is therefore given the `QuasiAdamsBashforth2` stepper here; with `RungeKutta3`, its
-default, the relation holds per substep and the step as a whole only to `O(Δt)`.
+Over one small step the change of `∫eₛ dA` is the work `∫BPR dV`, to `O(Δt)`. The nonhydrostatic model
+is given the single-stage `QuasiAdamsBashforth2` stepper, so that one step is one update of `η`; with
+`RungeKutta3`, its default, `η` is updated once per substep.
 """
 function test_free_surface_energy_one_time_step(grid; model_type)
     Δt = 1e-5
@@ -654,20 +655,12 @@ function test_free_surface_energy_one_time_step(grid; model_type)
     set_free_surface!(model, free_surface_η)
     time_step!(model, Δt)   # warm-up, so that the state is one the model produced
 
-    η⁰ = copy(cpu_interior(free_surface_displacement(model.free_surface)))
     E⁰ = area_integral(FreeSurfacePotentialEnergy(model))
     time_step!(model, Δt)
-    η¹ = cpu_interior(free_surface_displacement(model.free_surface))
     E¹ = area_integral(FreeSurfacePotentialEnergy(model))
 
     work = volume_integral(KineticEnergyBarotropicPressureRedistribution(model))
-    tendency = area_integral(FreeSurfacePotentialEnergyTendency(model))
-    g = model.free_surface.gravitational_acceleration
-    ΔA = grid.Lx * grid.Ly / (grid.Nx * grid.Ny)
-    backward = sum(g .* η¹ .* (η¹ .- η⁰)) * ΔA / Δt
-
     @test (E¹ - E⁰) / Δt ≈ work rtol=1e-2
-    @test tendency ≈ backward rtol=1e-9
 
     return nothing
 end

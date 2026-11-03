@@ -217,12 +217,11 @@ end
     end
 
     @testset "Free surface terms" begin
-        # `η` reaches the kernels through `SurfaceDisplacement`, and the two surface terms are
-        # two-dimensional operations at `(Center, Center, Nothing)`, so both wrappers are probed
+        # `η` reaches the kernels through `SurfaceDisplacement`, and the surface energy is a
+        # two-dimensional operation at `(Center, Center, Nothing)`, so both are probed
         hydrostatic = build_probe_hydrostatic_model()
         test_kfo_invariants("KineticEnergyBarotropicPressureRedistribution", KineticEnergyBarotropicPressureRedistribution(hydrostatic))
         test_kfo_invariants("FreeSurfacePotentialEnergy",                    FreeSurfacePotentialEnergy(hydrostatic))
-        test_kfo_invariants("FreeSurfacePotentialEnergyTendency",            FreeSurfacePotentialEnergyTendency(hydrostatic))
 
         # On a nonhydrostatic model the barotropic term reads a computed copy of `η` instead
         nonhydrostatic = NonhydrostaticModel(hydrostatic.grid; free_surface=ImplicitFreeSurface())
