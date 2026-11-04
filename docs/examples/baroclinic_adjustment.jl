@@ -143,7 +143,7 @@ nothing #hide
 # to the free surface's substeps:
 
 simulation = Simulation(model, Δt = 1hour, stop_time = 40days)
-conjure_time_step_wizard!(simulation, cfl = 0.25, max_Δt = 1hour)
+conjure_time_step_wizard!(simulation, cfl = 0.7, max_Δt = 1hour)
 
 using Oceanostics
 add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval(100))
