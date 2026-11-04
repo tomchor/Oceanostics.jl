@@ -76,15 +76,16 @@ closure = (HorizontalScalarDiffusivity(ν = νₕ, κ = κₕ), VerticalScalarDi
 
 # ## Model
 #
-# A `HydrostaticFreeSurfaceModel` with its default free surface on this grid, an `ImplicitFreeSurface`,
-# which steps the barotropic gravity waves implicitly and so lets the time step follow the flow rather
-# than the 100 m/s external wave. The advection schemes are `Centered`, which add no dissipation of their
+# A `HydrostaticFreeSurfaceModel` with a `SplitExplicitFreeSurface`, which steps the barotropic mode in
+# substeps short enough for the 100 m/s external gravity wave, at a Courant number of 0.7, so that the
+# time step can follow the flow. The advection schemes are `Centered`, which add no dissipation of their
 # own, so every sink in the budgets below is one we write down and compute.
 
 model = HydrostaticFreeSurfaceModel(grid;
                                     coriolis = FPlane(; f),
                                     buoyancy = BuoyancyTracer(),
                                     tracers = :b,
+                                    free_surface = SplitExplicitFreeSurface(grid; cfl = 0.7),
                                     timestepper = :SplitRungeKutta3,
                                     momentum_advection = Centered(order=4),
                                     tracer_advection = Centered(order=4),
@@ -136,10 +137,13 @@ nothing #hide
 
 # ## Simulation
 #
-# One hour is a quarter of the advective time step limit and well inside the inertial one, and the
-# external gravity waves are implicit, so the step is fixed:
+# A `TimeStepWizard`, set up by `conjure_time_step_wizard!`, adjusts the step every ten iterations to keep
+# the advective Courant number at 0.25, which is about an hour while the initial jets are the fastest flow,
+# and never lets it exceed that hour, well inside the inertial period. The external gravity waves are left
+# to the free surface's substeps:
 
 simulation = Simulation(model, Δt = 1hour, stop_time = 40days)
+conjure_time_step_wizard!(simulation, cfl = 0.25, max_Δt = 1hour)
 
 using Oceanostics
 add_callback!(simulation, ProgressMessengers.TimedMessenger(), IterationInterval(100))
@@ -280,13 +284,13 @@ using Test                                                                      
 rms(x) = √(sum(abs2, x) / length(x))                                                  #hide
 eₚ_terms = (deₚdt, wb_bud, Φ_bud)                                                     #hide
 eₖ_terms = (deₖdt, ADV_bud, PR_bud, wb_bud, εₖ_bud)                                   #hide
-## Each budget closes to a small fraction of its own largest term (measured 0.3% and 0.2%).          #hide
+## Each budget closes to a small fraction of its own largest term (measured 0.3% and 0.4%).          #hide
 @test rms(eₚ_resid) < 0.015 * maximum(rms, eₚ_terms)                                  #hide
 @test rms(eₖ_resid) < 0.015 * maximum(rms, eₖ_terms)                                  #hide
 ## `wb` is the same term in both, so it cancels from their sum                        #hide
 @test rms(eₚ_resid .+ eₖ_resid) < 0.02 * rms(wb_bud)                                  #hide
 ## Integrated, the pressure work is only the exchange with the free surface, a fraction of a percent  #hide
-## of the conversion (measured 0.1%).                                                                 #hide
+## of the conversion (measured 0.2%).                                                                 #hide
 @test mean(abs, PR_bud) < 0.01 * mean(abs, wb_bud)                                    #hide
 ## The adjustment does what it should: the fronts slump and the potential energy they release turns  #hide
 ## into kinetic energy, so the conversion is positive on average and leads the kinetic energy budget.#hide
