@@ -157,7 +157,7 @@ the conversion and the forcing with a plus sign.
 | Quantity | Nonhydrostatic | Hydrostatic | Diagnostic |
 |:---|:---|:---|:---|
 | Kinetic energy | ``e_k = \tfrac{1}{2} u_i u_i``, with ``i = 1, 2, 3`` | same, with ``i = 1, 2`` | [`KineticEnergy`](@ref Oceanostics.KineticEnergyEquation.KineticEnergy) |
-| Tendency | ``u_i G_i = \partial_t e_k + u_i \partial_i p_{nh}`` | ``u_i G_i = \partial_t e_k + u_i \partial_i (g \eta)`` with ``i = 1, 2`` | [`KineticEnergyTendency`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyTendency) |
+| Tendency | ``u_i G_i = \partial_t e_k + u_i \partial_i p_{nh}`` | ``u_i G_i = \partial_t e_k + u_i \partial_i (g \eta)``, ``i = 1, 2``, with an `ImplicitFreeSurface` or a `SplitExplicitFreeSurface`, and ``u_i G_i = \partial_t e_k`` with an `ExplicitFreeSurface` | [`KineticEnergyTendency`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyTendency) |
 | Advection | ``u_i \partial_j (u_j u_i)`` | same, with ``i = 1, 2`` and the diagnosed ``w`` in ``u_j`` | [`KineticEnergyAdvection`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyAdvection) |
 | Pressure work | ``u_j \partial_j (p' + p_{nh})`` | ``u_j \partial_j (p' + g \eta)``, ``j = 1, 2, 3``, with the diagnosed ``w`` | [`KineticEnergyPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution) |
 | Conversion from potential energy | ``wb`` | same, with the diagnosed ``w`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
