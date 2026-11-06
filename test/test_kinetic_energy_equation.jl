@@ -125,13 +125,14 @@ end
 """
 With `p = P₀ sin(2πx) + P₁z` prescribed, `u = U₀ sin(2πx)` and, on a nonhydrostatic model, `w = W₀`,
 `uᵢ∂ᵢp` is the `x` and `z` rows formed on their faces. `∂z p` is `P₁` on every interior face and drops
-out on the walls, where the pressure's no-flux halo zeroes it. A hydrostatic model leaves the `z` row
-out, although the `w` it diagnoses from `u` is nonzero.
+out on the walls, where the pressure's no-flux halo zeroes it. A hydrostatic model keeps the `z` row
+too, with the `w` it diagnoses from `u`, which is nonzero here.
 
 On a nonhydrostatic model the default pressure is the total one, whose work closes the full budget
 `∂ₜeₖ = -ADV - DIFF + FORC + wb - uᵢ∂ᵢp`: the nonhydrostatic pressure plus the hydrostatic anomaly when
 the model carries one, and the nonhydrostatic pressure alone otherwise. On a hydrostatic model it is
-the anomaly, whose place in the budget `test_kinetic_energy_budget` checks.
+the anomaly plus the surface pressure `gη`, zero here since `η` is never set; `test_kinetic_energy_budget`
+checks its place in the budget with a displaced surface.
 """
 function test_pressure_redistribution(grid; model_type)
     U₀ = 2; W₀ = 3; P₀ = 5; P₁ = 7
@@ -159,7 +160,7 @@ function test_pressure_redistribution(grid; model_type)
     ∂z_p = zeros(size(w))                                                  # on the w faces, zero on the walls
     ∂z_p[:, :, 2:end-1] .= diff(pᶜ, dims=3) ./ reshape(diff(zᶜ), 1, 1, :)
 
-    w∂z_p = has_w_equation(model) ? ℑz_to_centers(w .* ∂z_p) : 0
+    w∂z_p = ℑz_to_centers(w .* ∂z_p)
     @test cpu_interior(PR) ≈ ℑx_to_centers(u .* ∂x_p) .+ w∂z_p
     @test maximum(abs, w) > 0
 
@@ -301,8 +302,14 @@ from the same face buoyancy; so the split holds with an anomaly and without one,
 
 A hydrostatic model's `uₕGₕ` has no `w` row, so there `-ADV - DIFF + FORC - uₕ⋅∇ₕp′` is the whole of it
 (its free surface treats the barotropic pressure gradient implicitly, so that is not in `uₕGₕ` either).
-`wb` is then the `z` row of the pressure work, which is checked separately. That needs the diagnosed `w`
-to vanish at the surface as well as at the bottom, so the flow's depth mean is removed first.
+`PR` contracts all three components there as well, and with the total pressure `p′ + gη`, so its `z`
+row is `wb` and the identity reads as on a nonhydrostatic model, except that the implicit free surface
+applies the barotropic work outside the tendency, so with a displaced surface that part has to be added
+back: `uₕGₕ = -ADV - DIFF + FORC + wb - PR + uₕ⋅∇ₕ(gη)`, with `uₕ⋅∇ₕ(gη)` the difference between `PR`
+and the anomaly's work, `PR` with `free_surface = nothing`. The two-component work is checked to be
+`PR - wb` separately. The `z` row matches `wb` at the interior faces only, since at the top face the
+difference of `p′` reads its halo, so the diagnosed `w` has to vanish at the surface as well as at the
+bottom, which is why the flow's depth mean is removed first.
 
 Every term has to be at least 1% of the tendency, or the identity would be checking nothing.
 """
@@ -337,21 +344,25 @@ function test_kinetic_energy_budget(grid; model_type)
         model = HydrostaticFreeSurfaceModel(grid; forcing, kwargs...)
         set!(model, u=flow, v=flow, b=flow)
         remove_barotropic_flow!(model)
+        set_free_surface!(model, free_surface_η)
 
-        ADV, DIFF, FORC, PR, wb = map(cpu_interior, (KineticEnergyAdvection(model), KineticEnergyStress(model),
-                                                     KineticEnergyForcing(model), KineticEnergyPressureRedistribution(model),
-                                                     PotentialToKineticEnergyConversion(model)))
+        ADV, DIFF, FORC, PR, PR′, wb = map(cpu_interior, (KineticEnergyAdvection(model), KineticEnergyStress(model),
+                                                          KineticEnergyForcing(model), KineticEnergyPressureRedistribution(model),
+                                                          KineticEnergyPressureRedistribution(model; free_surface=nothing),
+                                                          PotentialToKineticEnergyConversion(model)))
+        uₕ∇ₕgη = PR .- PR′   # the work of the surface pressure, which the free surface applies outside the tendency
 
         tendency = cpu_interior(KineticEnergyTendency(model))
-        @test maximum(abs, tendency .- (.-ADV .- DIFF .+ FORC .- PR)) < 1e-12 * maximum(abs, tendency)
+        @test maximum(abs, tendency .- (.-ADV .- DIFF .+ FORC .+ wb .- PR .+ uₕ∇ₕgη)) < 1e-12 * maximum(abs, tendency)
 
-        for term in (ADV, DIFF, FORC, PR, wb)
+        for term in (ADV, DIFF, FORC, PR, uₕ∇ₕgη, wb)
             @test maximum(abs, term) > 1e-2 * maximum(abs, tendency)
         end
 
-        # The `z` row of the work done by the hydrostatic pressure anomaly is the conversion `wb`
-        u⃗∇p′ = cpu_interior(KineticEnergyPressureRedistribution(model; velocities=model.velocities))
-        @test maximum(abs, u⃗∇p′ .- PR .- wb) < 1e-12 * maximum(abs, wb)
+        # The `z` row of the three-component work is the conversion `wb`: without `w` the horizontal work is left
+        uₕ = (u = model.velocities.u, v = model.velocities.v, w = ZeroField())
+        uₕ∇ₕp = cpu_interior(KineticEnergyPressureRedistribution(model; velocities=uₕ))
+        @test maximum(abs, PR .- uₕ∇ₕp .- wb) < 1e-12 * maximum(abs, wb)
     end
 
     return nothing
@@ -524,6 +535,65 @@ function test_closure_dependent_terms(grid; model_type, closure)
 
     return nothing
 end
+
+#+++ Free surface
+# A flow whose depth-integrated divergence projects on `η = A sin(2πx) + B cos(2πy)`, so that the work of
+# the surface pressure does not vanish by orthogonality
+free_surface_η(x, y, z) = 0.3 * sin(2π * x) + 0.2 * cos(2π * y)
+free_surface_u(x, y, z) = 0.5 * cos(2π * x) * (1 + 0.3z) + 0.1 * cos(2π * y)
+free_surface_v(x, y, z) = 0.4 * sin(2π * y) * (1 - 0.5z) + 0.2 * sin(2π * x)
+
+"""
+On a hydrostatic model `PR` adds the work of the surface pressure, `uₕ⋅∇ₕ(gη)`, to the anomaly's, so
+`PR` less `PR` with `free_surface = nothing` is that work. With `η = A sin(2πx) + B cos(2πy)` prescribed
+and a uniform `u = U₀`, `v = V₀`, the differences of a sine on a regular grid are known exactly, so in
+every cell `uₕ⋅∇ₕ(gη) = g [U₀ A sin(2πΔx)/Δx cos(2πx) - V₀ B sin(2πΔy)/Δy sin(2πy)]`, the same at every
+level, since `η` has no vertical structure.
+"""
+function test_surface_pressure_work(grid)
+    A = 0.3; B = 0.2; U₀ = 0.7; V₀ = -0.4
+    model = free_surface_model(HydrostaticFreeSurfaceModel, grid)
+    set!(model, u=U₀, v=V₀)
+    set_free_surface!(model, (x, y, z) -> A * sin(2π * x) + B * cos(2π * y))
+
+    PR  = cpu_interior(KineticEnergyPressureRedistribution(model))
+    PR′ = cpu_interior(KineticEnergyPressureRedistribution(model; free_surface=nothing))
+
+    g = model.free_surface.gravitational_acceleration
+    Δx = grid.Lx / grid.Nx; Δy = grid.Ly / grid.Ny
+    x = Array(xnodes(grid, Center())); y = Array(ynodes(grid, Center()))
+    expected = g .* (U₀ * A * sin(2π * Δx) / Δx .* cos.(2π .* x) .- V₀ * B * sin(2π * Δy) / Δy .* sin.(2π .* y)')
+    @test PR .- PR′ ≈ repeat(reshape(expected, grid.Nx, grid.Ny, 1), 1, 1, grid.Nz)
+
+    return nothing
+end
+
+"""
+With an `ExplicitFreeSurface` the barotropic pressure gradient is inside Oceananigans' hydrostatic
+tendency, so `uₕGₕ = -ADV - DIFF - uₕ⋅∇ₕ(p′ + gη)` cell by cell with no forcing or Coriolis, with the
+work of the total pressure, which pins the surface part of `PR`, its difference from the anomaly's work,
+to the model's own discretization of `g∇ₕη`. The two-component work is used, since the flow moves the
+surface and the `z` row of the default `PR` then differs from `wb` in the top cell.
+"""
+function test_pressure_redistribution_matches_explicit_tendency(grid)
+    model = HydrostaticFreeSurfaceModel(grid; free_surface=ExplicitFreeSurface(), closure=first(closures),
+                                        buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(model, u=free_surface_u, v=free_surface_v, b=(x, y, z) -> 1e-2 * sin(2π * x) * z)
+    set_free_surface!(model, free_surface_η)
+
+    tendency = cpu_interior(KineticEnergyTendency(model))
+    ADV = cpu_interior(KineticEnergyAdvection(model))
+    DIFF = cpu_interior(KineticEnergyStress(model))
+    uₕ = (u = model.velocities.u, v = model.velocities.v, w = ZeroField())
+    uₕ∇ₕp = cpu_interior(KineticEnergyPressureRedistribution(model; velocities=uₕ))
+    uₕ∇ₕp′ = cpu_interior(KineticEnergyPressureRedistribution(model; velocities=uₕ, free_surface=nothing))
+
+    @test maximum(abs, tendency .- (.-ADV .- DIFF .- uₕ∇ₕp)) < 1e-12 * maximum(abs, tendency)
+    @test maximum(abs, uₕ∇ₕp .- uₕ∇ₕp′) > 1e-2 * maximum(abs, tendency)
+
+    return nothing
+end
+#---
 #---
 
 @testset "Kinetic Energy Equation tests" begin
@@ -563,5 +633,9 @@ end
 
         @info "      Testing the sign of the HydrostaticFreeSurfaceModel dissipation rate per closure formulation"
         test_hydrostatic_dissipation_rate_sign(grid)
+
+        @info "      Testing the work of the surface pressure against its exact value and an ExplicitFreeSurface tendency"
+        test_surface_pressure_work(grid)
+        test_pressure_redistribution_matches_explicit_tendency(grid)
     end
 end

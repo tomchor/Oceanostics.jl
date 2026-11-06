@@ -1,6 +1,8 @@
 using CUDA: has_cuda_gpu
 using Oceananigans
+using Oceananigans: fill_halo_regions!
 using Oceananigans.AbstractOperations: AbstractOperation
+using Oceanostics: free_surface_displacement
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using Oceananigans.TurbulenceClosures: DynamicCoefficient, LagrangianAveraging
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
@@ -91,4 +93,21 @@ extended_buoyancy_formulations = (nothing,
 # Common model types
 model_types = (NonhydrostaticModel,
                HydrostaticFreeSurfaceModel)
+
+# A model of `model_type` with a free surface, an `ImplicitFreeSurface` unless another is given: the
+# hydrostatic model's default on these grids, and the one the nonhydrostatic model supports, whose
+# default is a rigid lid
+free_surface_model(model_type, grid; free_surface=ImplicitFreeSurface(), kwargs...) =
+    model_type(grid; free_surface, kwargs...)
+
+# Set the free surface's displacement `η`, a `ZFaceField` windowed to the top face, halos included.
+# `set!` on the model does not reach it on a `NonhydrostaticModel`, and on that model `set!` projects
+# the velocities it is given and in doing so steps `η` by one second of the surface `w`, so a test sets
+# the velocities first and `η` afterwards.
+function set_free_surface!(model, η_function)
+    η = free_surface_displacement(model.free_surface)
+    set!(η, η_function)
+    fill_halo_regions!(η)
+    return nothing
+end
 #---

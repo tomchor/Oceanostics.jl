@@ -29,6 +29,7 @@ using Oceananigans.BuoyancyFormulations: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ,
 using Oceanostics: _νᶜᶜᶜ
 using Oceanostics: validate_location, validate_dissipative_closure, validate_closure_supplies_a_flux,
                    perturbation_fields, CustomKFO, momentum_advection
+using Oceanostics: model_free_surface, free_surface_displacement, free_surface_gravitational_acceleration, SurfaceDisplacement
 
 # Some useful operators
 @inline ψ²(i, j, k, grid, ψ) = @inbounds ψ[i, j, k]^2
@@ -44,7 +45,9 @@ const SupportedModel = Union{NonhydrostaticModel, HydrostaticFreeSurfaceModel}
 # The velocity components whose momentum equations are contracted with them to form the kinetic energy
 # budget. A HydrostaticFreeSurfaceModel diagnoses w from continuity and has no w-momentum equation, so
 # w is replaced by a ZeroField there; the momentum fluxes are still computed with the diagnostic w, as
-# in the model's own u and v tendencies.
+# in the model's own u and v tendencies. The pressure term is the exception: it keeps the diagnosed w,
+# so that its z row is the wb the budget's conversion term cancels (see
+# `KineticEnergyPressureRedistribution`), and the budget reads the same on both model types.
 prognostic_velocities(model, velocities) = (u = velocities.u, v = velocities.v, w = velocities.w)
 prognostic_velocities(::HydrostaticFreeSurfaceModel, velocities) = (u = velocities.u, v = velocities.v, w = ZeroField())
 
@@ -157,7 +160,8 @@ excluding the nonhydrostatic pressure contribution:
 
 On a `HydrostaticFreeSurfaceModel` the sum runs over `u` and `v` only, and `Gᵢ` is Oceananigans'
 hydrostatic tendency, which leaves out the part of the barotropic pressure gradient the free surface
-treats implicitly (all of it for an `ImplicitFreeSurface` or a `SplitExplicitFreeSurface`).
+treats implicitly (all of it for an `ImplicitFreeSurface` or a `SplitExplicitFreeSurface`), so the
+change of `eₖ` over a step is `uₕGₕ - uₕ⋅∇ₕ(gη)` there.
 
 On either model `Gᵢ` is the explicit tendency. A closure with a `VerticallyImplicitTimeDiscretization`
 (CATKE's default, and an option of `ScalarDiffusivity` and `VerticalScalarDiffusivity`) takes the `∂zu`
@@ -433,7 +437,14 @@ end
     return u∂x_p + v∂y_p + w∂z_p
 end
 
-const KineticEnergyPressureRedistribution = CustomKFO{<:typeof(uᵢ∂ᵢpᶜᶜᶜ)}
+# A hydrostatic model's total pressure is `p′ + gη`, with `gη` read on the top face and uniform in `z`,
+# so its work is the contraction above with `p′` plus the barotropic work `uₕ⋅∇ₕ(gη)` below, which is
+# zero for `g = η = nothing`, a rigid lid.
+@inline uᵢ∂ᵢp_plus_uₕ∇ₕgηᶜᶜᶜ(i, j, k, grid, velocities, pressure, g, η) =
+    uᵢ∂ᵢpᶜᶜᶜ(i, j, k, grid, velocities, pressure) + uₕ∇ₕgηᶜᶜᶜ(i, j, k, grid, velocities, g, η)
+
+const KineticEnergyPressureRedistribution = Union{CustomKFO{<:typeof(uᵢ∂ᵢpᶜᶜᶜ)},
+                                                  CustomKFO{<:typeof(uᵢ∂ᵢp_plus_uₕ∇ₕgηᶜᶜᶜ)}}
 const PressureRedistribution = KineticEnergyPressureRedistribution
 
 # The default pressure on a NonhydrostaticModel: `pNHS`, plus the hydrostatic anomaly when the model
@@ -485,9 +496,18 @@ KineticEnergyPressureRedistribution KernelFunctionOperation at (Center, Center, 
 └── computes: kinetic energy pressure redistribution  uᵢ∂ᵢp
 ```
 
-On a `HydrostaticFreeSurfaceModel` the sum runs over `u` and `v` only, and `p` defaults to the
-hydrostatic pressure anomaly `model.pressure.pHY′`, which is the pressure the hydrostatic momentum
-tendencies carry. The free surface's own pressure is not part of it.
+On a `HydrostaticFreeSurfaceModel` the total pressure is `p′ + gη`: `pressure` defaults to the
+hydrostatic pressure anomaly `model.pressure.pHY′`, the pressure the hydrostatic momentum tendencies
+carry, and the work of the surface pressure `gη` of `free_surface` (`model.free_surface` by default) is
+added, so that `PR` is the work of the total pressure on both model types; on a `NonhydrostaticModel`
+with a free surface `gη` is the surface value of `pNHS`, and the default there already contains it.
+`free_surface = nothing` leaves the work of the anomaly alone. The sum runs over all three components
+with the diagnosed `w`, although the hydrostatic tendencies have no `w` row. The `z` row is
+`w∂zp′ = wb` by hydrostatic balance, and exactly so on Oceananigans' grid away from the top face, since
+`p′` is integrated from the same face buoyancy that [`PotentialEnergyConversion`](@ref) multiplies by
+`w`. So `-PR + wb` is the work of the horizontal gradients, the one the model applies, and the budget
+reads `∂ₜeₖ = -uᵢ∂ⱼ(uⱼuᵢ) - uᵢ∂ⱼτᵢⱼ - PR + wb + uᵢFᵤᵢ` on both model types; the two-component work of
+the anomaly alone is `PR - uₕ⋅∇ₕ(gη) - wb`.
 
 On a `NonhydrostaticModel` that has taken a time step, Oceananigans (0.106 to 0.116 at least) leaves the
 halos of `pNHS` at the pressure times `Δt`: it corrects the velocities with `p Δt` and then divides the
@@ -504,13 +524,37 @@ function KineticEnergyPressureRedistribution(model::NonhydrostaticModel; velocit
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
 end
 
+# The diagnosed `w` stays in on purpose: its row is `wb`, so that `-PR + wb` is the horizontal work the
+# hydrostatic momentum equations apply and the budget reads the same as on a nonhydrostatic model. The
+# free surface's `gη` is added with the top-face differences the free-surface step applies, so that `PR`
+# is the work of the total pressure here too.
 function KineticEnergyPressureRedistribution(model::HydrostaticFreeSurfaceModel;
-                                             velocities = prognostic_velocities(model, model.velocities),
+                                             velocities = model.velocities,
                                              pressure = model.pressure.pHY′,
+                                             free_surface = model_free_surface(model),
                                              location = (Center, Center, Center))
     validate_location(location, "KineticEnergyPressureRedistribution")
-    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢpᶜᶜᶜ, model.grid, velocities, pressure)
+    g = free_surface_gravitational_acceleration(free_surface)
+    η = SurfaceDisplacement(free_surface_displacement(free_surface))
+    return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢp_plus_uₕ∇ₕgηᶜᶜᶜ, model.grid, velocities, pressure, g, η)
 end
+#---
+
+#+++ Work of the surface pressure
+# The barotropic pressure is `gη`. `η` lives on the top face of the grid, k = Nz+1, and has no vertical
+# structure, so its gradient at every level is the top-face difference that the free-surface step of an
+# `ImplicitFreeSurface` applies to `u` and `v` and that an `ExplicitFreeSurface` puts in the tendency.
+@inline ∂x_gηᶠᶜᶜ(i, j, k, grid, g, η) = g * ∂xᶠᶜᶠ(i, j, grid.Nz+1, grid, η)
+@inline ∂y_gηᶜᶠᶜ(i, j, k, grid, g, η) = g * ∂yᶜᶠᶠ(i, j, grid.Nz+1, grid, η)
+
+@inline function uₕ∇ₕgηᶜᶜᶜ(i, j, k, grid, velocities, g, η)
+    u∂x_gη = ℑxᶜᵃᵃ(i, j, k, grid, ψf, velocities.u, ∂x_gηᶠᶜᶜ, g, η)
+    v∂y_gη = ℑyᵃᶜᵃ(i, j, k, grid, ψf, velocities.v, ∂y_gηᶜᶠᶜ, g, η)
+    return u∂x_gη + v∂y_gη
+end
+
+# A rigid lid (`free_surface = nothing`) has no barotropic pressure
+@inline uₕ∇ₕgηᶜᶜᶜ(i, j, k, grid, velocities, ::Nothing, ::Nothing) = zero(grid)
 #---
 
 #+++ Potential-to-kinetic energy conversion
@@ -538,8 +582,9 @@ components of `i=1,2,3` are added up.
 
 On a `HydrostaticFreeSurfaceModel`, `w` is the vertical velocity diagnosed from continuity. Buoyancy
 enters the hydrostatic momentum equations through the hydrostatic pressure, so `wb` is not one of the
-terms of `uₕGₕ` there; it is the conversion that the pressure work `-uₕ⋅∇ₕp` contains, since
-`∂p/∂z = b`.
+terms of `uₕGₕ` there; it is the conversion that the horizontal pressure work `-uₕ⋅∇ₕp′` contains,
+since `∂p′/∂z = b`. [`KineticEnergyPressureRedistribution`](@ref) contracts all three components on
+that model, so that its `z` row is this `wb` and the budget reads `-PR + wb` on both model types.
 
 By default, the conversion will be calculated using the resolved `velocities` and `tracers`:
 
