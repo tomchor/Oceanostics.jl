@@ -30,6 +30,7 @@ examples = [
     "Kelvin-Helmholtz instability" => "kelvin_helmholtz", # Filtered KE budget (~8 min)
     "Rayleigh-Taylor instability"  => "rayleigh_taylor_instability", # Subfilter KE and APE budgets (~6 min)
     "Lock release"                 => "lock_release", # APE and reference profiles calculation (~ 5 min)
+    "Geostrophic adjustment"       => "geostrophic_adjustment", # KE and free-surface energy budgets with open boundaries, against the exact adjustment to a Gaussian eddy (~3 min)
     ]
 
 example_pages = [ k => "generated/$v.md" for (k, v) in examples ]

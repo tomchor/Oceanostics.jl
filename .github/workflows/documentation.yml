@@ -27,6 +27,7 @@ jobs:
           - kelvin_helmholtz
           - rayleigh_taylor_instability
           - lock_release
+          - geostrophic_adjustment
     steps:
       - uses: actions/checkout@v4
       - uses: julia-actions/setup-julia@v2
