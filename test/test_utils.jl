@@ -33,9 +33,10 @@ grids = Dict("regular grid" => regular_grid,
 # Grid noise function
 grid_noise(x, y, z) = randn()
 
-# Volume reductions as scalars, i.e. without scalar indexing on GPUs
+# Volume and area reductions as scalars, i.e. without scalar indexing on GPUs
 volume_integral(op) = sum(∫dV(op))
 volume_mean(op)     = sum(Field(Average(op)))  # volume-weighted over the whole domain
+area_integral(op)   = sum(Field(Integral(op, dims=(1, 2))))  # of a surface diagnostic, at (Center, Center, Nothing)
 
 # Interior values copied to the CPU, so that comparisons index a plain `Array` on either architecture
 cpu_interior(f::Field) = Array(interior(f))

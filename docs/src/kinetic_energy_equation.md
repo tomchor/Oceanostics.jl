@@ -112,6 +112,51 @@ step, outside the tendency kernel, so `KineticEnergyTendency` leaves the barotro
 change of ``e_k`` over a step is ``u_i G_i - u_h \cdot \nabla_h (g \eta)``; with an
 `ExplicitFreeSurface` the gradient is inside ``G_i`` and that part is already counted.
 
+
+## [Free surface](@id free_surface_energy)
+
+A free surface adds the pressure ``g \eta`` to the budget and a reservoir to exchange with. The work of
+its gradient, ``u_h \cdot \nabla_h (g \eta)``, is a flux divergence at every point, so its volume
+integral is a boundary quantity. With closed or periodic lateral boundaries and ``\boldsymbol{U}`` the depth-integrated
+transport,
+
+```math
+\int u_h \cdot \nabla_h (g \eta) \, \mathrm{d}V = \int \boldsymbol{U} \cdot \nabla_h (g \eta) \, \mathrm{d}A
+  = -\int g \eta \, \nabla_h \cdot \boldsymbol{U} \, \mathrm{d}A
+  = \int g \eta \, \partial_t \eta \, \mathrm{d}A
+  = \frac{\mathrm{d}}{\mathrm{d}t} \int e_s \, \mathrm{d}A ,
+```
+
+where ``e_s = \tfrac{1}{2} g \eta^2`` is the potential energy of the free surface per unit area,
+`FreeSurfacePotentialEnergy`, described on [the potential energy page](potential_energy_equation.md),
+and ``g \eta \, \partial_t \eta = g \eta \, w|_{\mathrm{surface}}`` its tendency. Pointwise this work
+is of the order of
+the other pressure work; integrated it is small whenever the barotropic flow is narrow compared with
+the external deformation radius ``\sqrt{gH}/f``, which is why a budget can look closed without it. With
+it, the three reservoirs close together,
+
+```math
+\frac{\mathrm{d}}{\mathrm{d}t} \left( \int e_k \, \mathrm{d}V + \int e_p \, \mathrm{d}V + \int e_s \, \mathrm{d}A \right)
+  = \int \left( u_i F_{u_i} - \varepsilon_k + \Phi \right) \mathrm{d}V - \int e_k \, w \, \mathrm{d}A ,
+```
+
+the last integral over the surface: the domain is open there, since ``w`` at the top is
+``\partial_t \eta``, so the volume integral of the advection term is the flux of ``e_k`` through the
+surface rather than zero, of order ``\eta / H`` relative to the rest. (The same integral for ``e_p`` is
+zero all the same, since its surface flux carries a factor ``z = 0``.) On both models this work is part
+of the pressure work: ``g \eta`` is the surface value of ``p_{nh}`` on a `NonhydrostaticModel` built
+with a `free_surface`, and is added to the anomaly's work on a `HydrostaticFreeSurfaceModel`; the rest
+of the pressure work integrates to zero.
+
+The model applies ``\nabla_h \eta`` at the new time level, or averaged over its barotropic substeps,
+while the diagnostics read ``\eta`` and ``w`` as they are when evaluated, so a budget built from them
+closes to ``O(\Delta t)``, the order of a `TimeDerivative`. The differences of ``\eta`` reach into its
+halos along the lateral boundaries, which a `NonhydrostaticModel` fills when ``\eta`` is set and never
+again (Oceananigans 0.116 and earlier); on that model the term reads a copy of ``\eta`` that is refilled
+whenever the operation is computed, so it is evaluated through a `Field` or an output writer rather than
+by indexing the operation. A `MutableVerticalDiscretization`, whose cells move with ``\eta``, is outside
+what these terms describe.
+
 ## Vertically implicit closures
 
 `KineticEnergyTendency` and `KineticEnergyStress` wrap Oceananigans' explicit tendency and its viscous
@@ -162,6 +207,7 @@ the conversion and the forcing with a plus sign.
 | Tendency | ``u_i G_i = \partial_t e_k + u_i \partial_i p_{nh}`` | ``u_i G_i = \partial_t e_k + u_h \cdot \nabla_h (g \eta)`` | [`KineticEnergyTendency`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyTendency) |
 | Advection | ``u_i \partial_j (u_j u_i)`` | same, with ``i = 1, 2`` and the diagnosed ``w`` in ``u_j`` | [`KineticEnergyAdvection`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyAdvection) |
 | Pressure work | ``u_j \partial_j (p' + p_{nh})`` | ``u_j \partial_j (p' + g \eta)``, ``j = 1, 2, 3``, with the diagnosed ``w`` | [`KineticEnergyPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution) |
+| Barotropic pressure work | ``u_h \cdot \nabla_h (g \eta)``, a part of the pressure work | ``u_h \cdot \nabla_h (g \eta)``, a part of the pressure work | [`KineticEnergyBarotropicPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution) |
 | Conversion from potential energy | ``wb`` | same, with the diagnosed ``w`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
 | Forcing work | ``u_i F_{u_i}``, ``i = 1, 2, 3`` | same, ``i = 1, 2`` | [`KineticEnergyForcing`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyForcing) |
 | Viscous work | ``u_i \partial_j \tau_{ij}`` | same, ``i = 1, 2`` | [`KineticEnergyStress`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyStress) |
@@ -213,6 +259,7 @@ Oceanostics.KineticEnergyEquation.KineticEnergyAdvection
 Oceanostics.KineticEnergyEquation.KineticEnergyStress
 Oceanostics.KineticEnergyEquation.KineticEnergyForcing
 Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution
+Oceanostics.KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution
 Oceanostics.KineticEnergyEquation.PotentialEnergyConversion
 Oceanostics.KineticEnergyEquation.DissipationRate
 Oceanostics.KineticEnergyEquation.KineticEnergyIsotropicDissipationRate
