@@ -143,10 +143,11 @@ Two things set a hydrostatic model apart. Within a time step it advects its trac
 `model.transport_velocities`, which carry the free surface's barotropic correction and are only filled
 once the model has stepped, so a diagnostic evaluated between steps describes the flow at that instant
 rather than the one the step used. And its domain is open at the top: the depth-integrated flow moves the
-free surface, so ``w`` does not vanish there, and the integral identities above, which assume a closed
-domain, hold only when the depth-integrated flow is divergence-free. A `MutableVerticalDiscretization`,
-whose ``z`` moves with the free surface, is outside what these terms describe, since ``\partial_t e_p``
-is then no longer ``-z\,\partial_t b``.
+free surface, so ``w`` does not vanish there. The surface flux of ``e_p`` carries a factor ``z = 0``, so
+the integral identities above survive in the continuum, with a residual from the top cell, whose centre
+sits at ``z = -\Delta z / 2``; they are exact when the depth-integrated flow is divergence-free. A
+`MutableVerticalDiscretization`, whose ``z`` moves with the free surface, is outside what these terms
+describe, since ``\partial_t e_p`` is then no longer ``-z\,\partial_t b``.
 
 ## Vertically implicit closures
 

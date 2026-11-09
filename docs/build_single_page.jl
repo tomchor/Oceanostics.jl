@@ -78,6 +78,10 @@ rm(source, recursive=true, force=true)
 mkpath(source)
 cp(page_path, joinpath(source, "index.md"))
 
+# The stylesheet `make.jl` adds to every page, so the preview has the same column width as the site
+mkpath(joinpath(source, "assets"))
+cp(joinpath(@__DIR__, "src", "assets", "custom.css"), joinpath(source, "assets", "custom.css"); force = true)
+
 # The page's own first heading is all the navigation menu needs.
 heading = match(r"^#[ \t]+(.+)$"m, read(page_path, String))
 title = heading === nothing ? page : String(strip(heading.captures[1]))
@@ -94,7 +98,7 @@ makedocs(sitename = "Oceanostics.jl",
          doctest = @isdefined(DOCTEST) ? DOCTEST : false,
          doctestfilters = [r"with \d+ methods?"], # as in `make.jl`: method counts drift with Oceananigans
          clean = true,
-         format = Documenter.HTML(collapselevel = 1, prettyurls = false, mathengine = MathJax3()),
+         format = Documenter.HTML(collapselevel = 1, prettyurls = false, mathengine = MathJax3(), assets = ["assets/custom.css"]),
          plugins = [CodeBlocks()],
          checkdocs = :none,
          # Links into the pages this build leaves out cannot resolve, so cross-references warn

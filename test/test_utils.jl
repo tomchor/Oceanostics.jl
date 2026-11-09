@@ -1,5 +1,8 @@
 using CUDA: has_cuda_gpu
 using Oceananigans
+using Oceananigans: fill_halo_regions!
+using Oceananigans.AbstractOperations: AbstractOperation
+using Oceanostics: free_surface_displacement
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using Oceananigans.TurbulenceClosures: DynamicCoefficient, LagrangianAveraging
 using SeawaterPolynomials: RoquetEquationOfState, TEOS10EquationOfState
@@ -34,6 +37,12 @@ grid_noise(x, y, z) = randn()
 # Volume reductions as scalars, i.e. without scalar indexing on GPUs
 volume_integral(op) = sum(∫dV(op))
 volume_mean(op)     = sum(Field(Average(op)))  # volume-weighted over the whole domain
+
+# A lazy operation is computed into a `Field` before it is reduced: with Oceananigans 0.117, a
+# reduction over a large lazy operation takes minutes to compile under `--check-bounds=yes`, which
+# `Pkg.test` uses (CliMA/Oceananigans.jl#6471). Remove these two methods once that is fixed.
+volume_integral(op::AbstractOperation) = volume_integral(Field(op))
+volume_mean(op::AbstractOperation)     = volume_mean(Field(op))
 
 # Interior values copied to the CPU, so that comparisons index a plain `Array` on either architecture
 cpu_interior(f::Field) = Array(interior(f))
@@ -84,4 +93,21 @@ extended_buoyancy_formulations = (nothing,
 # Common model types
 model_types = (NonhydrostaticModel,
                HydrostaticFreeSurfaceModel)
+
+# A model of `model_type` with a free surface, an `ImplicitFreeSurface` unless another is given: the
+# hydrostatic model's default on these grids, and the one the nonhydrostatic model supports, whose
+# default is a rigid lid
+free_surface_model(model_type, grid; free_surface=ImplicitFreeSurface(), kwargs...) =
+    model_type(grid; free_surface, kwargs...)
+
+# Set the free surface's displacement `η`, a `ZFaceField` windowed to the top face, halos included.
+# `set!` on the model does not reach it on a `NonhydrostaticModel`, and on that model `set!` projects
+# the velocities it is given and in doing so steps `η` by one second of the surface `w`, so a test sets
+# the velocities first and `η` afterwards.
+function set_free_surface!(model, η_function)
+    η = free_surface_displacement(model.free_surface)
+    set!(η, η_function)
+    fill_halo_regions!(η)
+    return nothing
+end
 #---
