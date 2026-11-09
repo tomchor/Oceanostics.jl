@@ -1,6 +1,7 @@
 module PotentialEnergyEquation
 
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 export PotentialEnergy
 # Short name inside the module, prefixed alias for `using Oceanostics`, as elsewhere in the package.
@@ -88,7 +89,7 @@ validate_model_supports_potential_energy_budget(diagnostic, model) =
 
 #+++ Potential energy
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` to compute the `PotentialEnergy` per unit mass,
 ```math
@@ -294,7 +295,7 @@ const DiffusiveVerticalBuoyancyFlux = CustomKFO{<:typeof(diffusive_buoyancy_flux
 const PotentialEnergyDiffusiveVerticalBuoyancyFlux = DiffusiveVerticalBuoyancyFlux
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the vertical diffusive buoyancy flux, taken upward,
 
@@ -472,7 +473,7 @@ const PotentialEnergyTendency = Union{CustomKFO{<:typeof(minus_z_∂ₜb_ccc)},
 const Tendency = PotentialEnergyTendency
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the tendency of the potential energy `eₚ = -bz`,
 
@@ -602,7 +603,7 @@ const PotentialEnergyAdvection = CustomKFO{<:typeof(div_U_eₚ_ccc)}
 const Advection = PotentialEnergyAdvection
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the advection of the potential energy itself,
 
@@ -664,7 +665,7 @@ const PotentialEnergyBuoyancyAdvection = CustomKFO{<:typeof(z_div_Uc_ccc)}
 const BuoyancyAdvection = PotentialEnergyBuoyancyAdvection
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the advective term of the `eₚ = -bz` equation,
 
@@ -738,7 +739,7 @@ const PotentialEnergyDiffusion = CustomKFO{<:typeof(div_z_q_ccc)}
 const Diffusion = PotentialEnergyDiffusion
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the diffusive transport of the potential energy,
 
@@ -814,7 +815,7 @@ const PotentialEnergyBuoyancyDiffusion = CustomKFO{<:typeof(z_∇_dot_qᶜ_ccc)}
 const BuoyancyDiffusion = PotentialEnergyBuoyancyDiffusion
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the diffusive term of the `eₚ = -bz` equation,
 
@@ -878,7 +879,7 @@ const PotentialEnergyForcing = CustomKFO{<:typeof(minus_z_Fᵇ_ccc)}
 const Forcing = PotentialEnergyForcing
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the forcing term of the `eₚ = -bz` equation,
 

@@ -1,5 +1,6 @@
 module Oceanostics
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 
 const CustomKFO{F} = KernelFunctionOperation{<:Any, <:Any, <:Any, <:Any, <:Any, F}
@@ -248,7 +249,7 @@ end
 using Oceananigans: fields, location
 using Oceananigans.BoundaryConditions: FieldBoundaryConditions, DefaultBoundaryCondition
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Remove mean fields, passed as keyword arguments such as `u = U`, from the velocities and tracers of
 `model` with the same names, and return them with the rest of `fields(model)`, which includes the

@@ -1,5 +1,6 @@
 module TurbulentKineticEnergyEquation
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 export TurbulentKineticEnergy
 export IsotropicDissipationRate, TurbulentKineticEnergyIsotropicDissipationRate
@@ -32,7 +33,7 @@ using Oceanostics.KineticEnergyEquation: KineticEnergyIsotropicDissipationRate
 const TurbulentKineticEnergy = CustomKFO{<:typeof(turbulent_kinetic_energy_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the turbulent kinetic energy per unit mass `eₖ′ = ½uᵢ′uᵢ′` of `model`.
 
@@ -62,7 +63,7 @@ TurbulentKineticEnergy(model; kwargs...) = TurbulentKineticEnergy(model, model.v
 
 #+++ TurbulentKineticEnergyIsotropicDissipationRate
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the turbulent kinetic energy isotropic dissipation rate, defined as
 
@@ -120,7 +121,7 @@ const TurbulentKineticEnergyXShearProductionRate = CustomKFO{<:typeof(shear_prod
 const XShearProductionRate = TurbulentKineticEnergyXShearProductionRate
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the shear production rate in the `model`'s `x` direction:
 
@@ -182,7 +183,7 @@ const TurbulentKineticEnergyYShearProductionRate = CustomKFO{<:typeof(shear_prod
 const YShearProductionRate = TurbulentKineticEnergyYShearProductionRate
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the shear production rate in the `model`'s `y` direction:
 
@@ -243,7 +244,7 @@ const TurbulentKineticEnergyZShearProductionRate = CustomKFO{<:typeof(shear_prod
 const ZShearProductionRate = TurbulentKineticEnergyZShearProductionRate
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the shear production rate in the `model`'s `z` direction:
 
@@ -292,7 +293,7 @@ const TurbulentKineticEnergyShearProductionRate = CustomKFO{<:typeof(shear_produ
 const ShearProductionRate = TurbulentKineticEnergyShearProductionRate
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the total shear production rate (sum of the shear production rates in the `model`'s `x`, `y` and `z` directions):
 

@@ -1,6 +1,7 @@
 module BackgroundPotentialEnergyEquation
 
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 export BackgroundPotentialEnergy, reference_height, reference_buoyancy, reference_buoyancy_at_height
 export ThreeDimensionalSort, HeavisideIntegral, VerticalSort, ProfileLookup
@@ -761,7 +762,7 @@ reference_buoyancy_at_height(z✶::SortedReferenceHeightField) =
 #---
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `Field` holding the reference height `z✶`: the height each parcel would occupy once the
 buoyancy field is rearranged adiabatically into the state of minimum potential energy, following
@@ -1071,7 +1072,7 @@ end
 const BackgroundPotentialEnergy = CustomKFO{<:typeof(minus_bz✶_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the background (or reference) potential energy per unit
 volume,

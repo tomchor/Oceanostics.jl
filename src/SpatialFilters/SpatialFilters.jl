@@ -1,5 +1,6 @@
 module SpatialFilters
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 export BoxFilter, GaussianFilter, check_filter_staging
 

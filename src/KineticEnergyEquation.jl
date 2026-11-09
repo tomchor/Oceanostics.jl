@@ -1,5 +1,6 @@
 module KineticEnergyEquation
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 export KineticEnergy
 export KineticEnergyTendency
@@ -152,7 +153,7 @@ end
 const KineticEnergyTendency = Union{CustomKFO{<:typeof(uᵢGᵢᶜᶜᶜ)}, CustomKFO{<:typeof(uₕGₕᶜᶜᶜ)}}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` that computes the tendency uᵢGᵢ of the kinetic energy `eₖ`,
 excluding the nonhydrostatic pressure contribution:
@@ -252,7 +253,7 @@ const KineticEnergyAdvection = Union{CustomKFO{<:typeof(uᵢ∂ⱼuⱼuᵢᶜᶜ
 const Advection = KineticEnergyAdvection
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` that computes the advection term, defined as
 
@@ -322,7 +323,7 @@ const KineticEnergyStress = CustomKFO{<:typeof(uᵢ∂ⱼ_τᵢⱼᶜᶜᶜ)}
 const Stress = KineticEnergyStress
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` that computes the diffusive term of the `eₖ` prognostic equation:
 
@@ -395,7 +396,7 @@ const KineticEnergyForcing = CustomKFO{<:typeof(uᵢFᵤᵢᶜᶜᶜ)}
 const Forcing = KineticEnergyForcing
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` that computes the forcing term of the KE prognostic equation:
 
@@ -460,7 +461,7 @@ total_pressure(model::NonhydrostaticModel) =
                                                           model.pressures.pNHS, model.pressures.pHY′))
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` that computes the pressure redistribution term:
 
@@ -656,7 +657,7 @@ const PotentialToKineticEnergyConversion = CustomKFO{<:typeof(uᵢbᵢᶜᶜᶜ)
 const PotentialEnergyConversion = PotentialToKineticEnergyConversion
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` that computes the conversion of potential energy into kinetic
 energy, defined as
@@ -782,7 +783,7 @@ const KineticEnergyDissipationRate = CustomKFO{<:typeof(viscous_dissipation_rate
 const DissipationRate = KineticEnergyDissipationRate
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the kinetic energy dissipation rate, defined as
 
@@ -877,7 +878,7 @@ const KineticEnergyIsotropicDissipationRate = CustomKFO{<:typeof(isotropic_visco
 const IsotropicDissipationRate = KineticEnergyIsotropicDissipationRate
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the isotropic kinetic energy dissipation rate as
 

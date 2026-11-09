@@ -1,6 +1,7 @@
 module FilteredKineticEnergyEquation
 
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 export FilteredKineticEnergy
 export subfilter_stress_tensor, KineticEnergyCrossScaleFlux, CrossScaleFlux
@@ -106,7 +107,7 @@ FilteredKineticEnergy(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothi
 
 #+++ Subfilter stress tensor
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the components of the subfilter-scale (SFS) stress tensor `τ`, the residual momentum flux that
 a low-pass `filter` removes from the filtered scales:
@@ -191,7 +192,7 @@ const KineticEnergyCrossScaleFlux = CustomKFO{<:typeof(cross_scale_ke_flux_ccc)}
 const CrossScaleFlux = KineticEnergyCrossScaleFlux
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the cross-scale (scale-to-scale) kinetic-energy flux `Πₖ`, the rate at which a low-pass
 `filter` transfers kinetic energy from the filtered to the subfilter scales (Aluie et al., 2018,
