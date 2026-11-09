@@ -81,7 +81,7 @@ end
 
 #+++ One-step form
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 One-step form: apply a box filter to `ψ` directly, returning the `KernelFunctionOperation` that
 computes its local box-average. Equivalent to `BoxFilter(; dims, N, boundary)(ψ)`.
@@ -117,7 +117,7 @@ end
 (F::BoxFilterOperator)(ψ) = BoxFilter(ψ; dims=F.dims, N=F.N, boundary=F.boundary)
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Build a reusable, field-less box filter that computes a local box-average over the directions listed
 in `dims`. The returned object is callable: applying it to a field, `bf(ψ)`, returns a

@@ -1,6 +1,7 @@
 module AvailablePotentialEnergyEquation
 
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 export AvailablePotentialEnergy, AvailablePotentialEnergyDisplacementPotential, DisplacementPotential
 export ReferenceBuoyancyAnomaly, AvailablePotentialToKineticEnergyConversion
@@ -52,7 +53,7 @@ import Oceananigans.Fields: compute!
 const AvailablePotentialEnergy = CustomKFO{<:typeof(local_ape_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the **local** available potential energy density,
 
@@ -138,7 +139,7 @@ const AvailablePotentialEnergyDisplacementPotential = CustomKFO{<:typeof(upsilon
 const DisplacementPotential = AvailablePotentialEnergyDisplacementPotential
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the displacement potential
 
@@ -212,7 +213,7 @@ end
 const ReferenceBuoyancyAnomaly = CustomKFO{<:typeof(reference_buoyancy_anomaly_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the buoyancy anomaly a parcel carries relative to the
 adiabatically sorted reference profile taken at the parcel's **own** height,
@@ -283,7 +284,7 @@ end
 const AvailablePotentialToKineticEnergyConversion = CustomKFO{<:typeof(ape_to_ke_conversion_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the rate at which available potential energy is converted
 into kinetic energy,
@@ -380,7 +381,7 @@ const AvailablePotentialEnergyDissipationRate = CustomKFO{<:typeof(ape_dissipati
 const DissipationRate = AvailablePotentialEnergyDissipationRate
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the rate at which diffusion destroys available potential
 energy,
@@ -537,7 +538,7 @@ end
 const AvailablePotentialEnergyReferenceTendency = CustomKFO{<:typeof(ape_reference_tendency_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` computing the reference tendency of the local available potential
 energy,

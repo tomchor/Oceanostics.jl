@@ -1,5 +1,6 @@
 module FlowDiagnostics
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 export GradientRichardsonNumber, RossbyNumber
 export ErtelPotentialVorticity, ThermalWindPotentialVorticity, DirectionalErtelPotentialVorticity
@@ -79,7 +80,7 @@ end
 const GradientRichardsonNumber = CustomKFO{<:typeof(richardson_number_ccf)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the gradient Richardson number as
 
@@ -151,7 +152,7 @@ end
 const RossbyNumber = CustomKFO{<:typeof(rossby_number_fff)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the Rossby number using the vorticity in the rotation axis direction according
 to `model.coriolis`. Rossby number is defined as
@@ -273,7 +274,7 @@ const ErtelPotentialVorticity = CustomKFO{<:Union{typeof(ertel_potential_vortici
                                                   typeof(potential_vorticity_in_thermal_wind_fff)}}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the Ertel Potential Vorticty for `model`, where the characteristics of
 the Coriolis rotation are taken from `model.coriolis`. The Ertel Potential Vorticity
@@ -393,7 +394,7 @@ end
 const DirectionalErtelPotentialVorticity = CustomKFO{<:typeof(directional_ertel_potential_vorticity_fff)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the contribution from a given `direction` to the Ertel Potential Vorticity
 basde on a `model` and a `direction`. The Ertel Potential Vorticity is defined as
@@ -454,7 +455,7 @@ end
 const StrainRateTensorModulus = CustomKFO{<:typeof(strain_rate_tensor_modulus_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the modulus (absolute value) of the strain rate tensor `S`, which is defined as the
 symmetric part of the velocity gradient tensor:
@@ -509,7 +510,7 @@ validate_dims(dims::Tuple{Vararg{Int}}) =
 validate_dims(dims) = throw(ArgumentError("`dims` must be a tuple of integers; got $(typeof(dims))"))
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the components of the strain rate tensor `S`, defined as the symmetric part of the velocity
 gradient tensor:
@@ -600,7 +601,7 @@ end
 const VorticityTensorModulus = CustomKFO{<:typeof(vorticity_tensor_modulus_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the modulus (absolute value) of the vorticity tensor `Ω`, which is defined as the
 antisymmetric part of the velocity gradient tensor:
@@ -647,7 +648,7 @@ struct VorticityTensorKernel{I, J} end
 const VorticityTensor = CustomKFO{<:VorticityTensorKernel}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the components of the vorticity tensor `Ω`, defined as the antisymmetric part of the velocity
 gradient tensor:
@@ -746,7 +747,7 @@ struct StressTensorKernel{I, J, Collocated} end
 const StressTensor = CustomKFO{<:StressTensorKernel}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the components of the (kinematic) stress tensor `τ`, defined as the outer product of the
 velocity field with itself:
@@ -871,7 +872,7 @@ to_center(ψ) = @at (Center, Center, Center) ψ
 
 #+++ Subfilter covariance (generalized second moment)
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a lazy `AbstractOperation` for the generalized subfilter covariance (second moment) of two
 fields `a` and `b` under a low-pass spatial `filter` (overbar):
@@ -923,7 +924,7 @@ end
 
 #+++ Mixed layer depth
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the value of the `Q` velocity gradient tensor invariant. This is usually just called `Q`
 and it is generally used for identifying and visualizing vortices in fluid flow.
@@ -972,7 +973,7 @@ struct MixedLayerDepthKernel{C}
 end
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Returns the mixed layer depth defined as the depth at which `criterion` is true.
 

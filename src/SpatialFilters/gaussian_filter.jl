@@ -366,7 +366,7 @@ function gaussian_kernel(grid, loc, σT, d, width)
 end
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 One-step form: apply a Gaussian filter to `ψ` directly, returning the `KernelFunctionOperation` that
 computes its Gaussian-weighted local average. Equivalent to `GaussianFilter(; dims, σ, N, boundary)(ψ)`.
@@ -405,7 +405,7 @@ end
 (F::GaussianFilterOperator)(ψ) = GaussianFilter(ψ; dims=F.dims, σ=F.σ, N=F.N, boundary=F.boundary)
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Build a reusable, field-less Gaussian filter that computes a Gaussian-weighted local average over the
 directions listed in `dims`. The returned object is callable: applying it to a field, `gf(ψ)`, returns

@@ -1,5 +1,6 @@
 module TracerVarianceEquation
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 export Tendency, TracerVarianceTendency
 export DissipationRate, TracerVarianceDissipationRate
@@ -42,7 +43,7 @@ const Tendency = CustomKFO{<:typeof(c∂ₜcᶜᶜᶜ)}
 const TracerVarianceTendency = Tendency
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` that computes the tracer variance tendency:
 
@@ -101,7 +102,7 @@ const Diffusion = CustomKFO{<:typeof(c∇_dot_qᶜ)}
 const TracerVarianceDiffusion = Diffusion
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` that computes the diffusive term of the tracer variance
 prognostic equation using Oceananigans' diffusive tracer flux divergence kernel:
@@ -164,7 +165,7 @@ const DissipationRate = CustomKFO{<:typeof(tracer_variance_dissipation_rate_ccc)
 const TracerVarianceDissipationRate = DissipationRate
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` that computes the isotropic variance dissipation rate
 for `tracer_name` in `model.tracers`. The isotropic variance dissipation rate is defined as
