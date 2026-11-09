@@ -1,5 +1,6 @@
 module VMomentumEquation
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 using Oceananigans: fields, Face, Center, KernelFunctionOperation, AbstractModel
 using Oceananigans.Models: HydrostaticFreeSurfaceModel
@@ -67,7 +68,7 @@ const VTendency = Tendency
 
 #+++ Advection
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the advection of v-momentum. For `NonhydrostaticModel` this wraps the flux-form
 divergence kernel [`div_𝐯v`](https://clima.github.io/OceananigansDocumentation/stable/appendix/library/#Oceananigans.Advection.div_𝐯v-NTuple{7,%20Any})
@@ -110,7 +111,7 @@ Advection(model; kwargs...) = Advection(model, model.velocities, momentum_advect
 
 #+++ Buoyancy acceleration
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the buoyancy acceleration in the y-direction as
 
@@ -143,7 +144,7 @@ BuoyancyAcceleration(model; kwargs...) = BuoyancyAcceleration(model, model.buoya
 
 #+++ Coriolis acceleration
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the Coriolis acceleration in the y-direction as
 
@@ -176,7 +177,7 @@ CoriolisAcceleration(model; kwargs...) = CoriolisAcceleration(model, model.corio
 
 #+++ Pressure gradient
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the hydrostatic pressure gradient force in the y-direction as
 
@@ -221,7 +222,7 @@ end
 
 #+++ Barotropic pressure gradient
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the explicit barotropic pressure gradient in the y-direction. For
 `HydrostaticFreeSurfaceModel` this is the contribution of the free surface ``η`` to the
@@ -257,7 +258,7 @@ BarotropicPressureGradient(model; kwargs...) =
 
 #+++ Viscous dissipation
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the viscous dissipation term (excluding immersed boundaries) as
 
@@ -288,7 +289,7 @@ end
 ViscousDissipation(model; kwargs...) = ViscousDissipation(model, model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy; kwargs...)
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the viscous dissipation term due to immersed boundaries as
 
@@ -322,7 +323,7 @@ function ImmersedViscousDissipation(model; kwargs...)
 end
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the total viscous dissipation term as
 
@@ -359,7 +360,7 @@ end
 
 #+++ Stokes drift terms
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the Stokes shear term as
 
@@ -393,7 +394,7 @@ StokesShear(model::HydrostaticFreeSurfaceModel; kwargs...) = throw(ArgumentError
 StokesShear(model; kwargs...) = StokesShear(model, model.stokes_drift, model.velocities, model.clock.time; kwargs...)
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the Stokes tendency term as
 
@@ -429,7 +430,7 @@ StokesTendency(model; kwargs...) = StokesTendency(model, model.stokes_drift, mod
 
 #+++ Forcing
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the forcing term `Fᵛ` on the y-momentum equation for `model`.
 
@@ -458,7 +459,7 @@ Forcing(model; kwargs...) = Forcing(model, model.forcing.v, model.clock, fields(
 
 #+++ Total tendency
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the v-momentum tendency `Gᵛ` as computed by Oceananigans, where Oceananigans
 writes the momentum equation as `∂_t v = Gᵛ - ∂ᵧ p_n`. `Gᵛ` is the sum of every term in

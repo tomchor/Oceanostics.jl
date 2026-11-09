@@ -1,6 +1,7 @@
 module FilteredAvailablePotentialEnergyEquation
 
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 export FilteredAvailablePotentialEnergy
 export FilteredAvailablePotentialEnergyDisplacementPotential, DisplacementPotential
@@ -122,7 +123,7 @@ end
 const FilteredAvailablePotentialEnergy = CustomKFO{<:typeof(filtered_ape_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the available potential energy of the filtered buoyancy field `eₐˡ`, the local APE that the
 scales a low-pass `filter` keeps would carry on their own:
@@ -227,7 +228,7 @@ const FilteredAvailablePotentialEnergyDisplacementPotential = CustomKFO{<:typeof
 const DisplacementPotential = FilteredAvailablePotentialEnergyDisplacementPotential
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the displacement potential of the filtered buoyancy field `Υˡ`, how far below its actual height
 the reference height of the filtered buoyancy sits:
@@ -335,7 +336,7 @@ const FilteredAvailablePotentialEnergyDissipationRate = CustomKFO{<:typeof(filte
 const DissipationRate = FilteredAvailablePotentialEnergyDissipationRate
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the available potential energy dissipation rate of the filtered buoyancy field `εₐˡ`, the rate at
 which diffusion removes APE from the scales a low-pass `filter` keeps:
@@ -474,7 +475,7 @@ const AvailablePotentialEnergyCrossScaleFlux = CustomKFO{<:typeof(cross_scale_ap
 const CrossScaleFlux = AvailablePotentialEnergyCrossScaleFlux
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the cross-scale (scale-to-scale) available-potential-energy flux `Πₐ`, the rate at which a
 low-pass `filter` transfers available potential energy from the filtered to the subfilter scales:
@@ -599,7 +600,7 @@ end
 const FilteredAvailablePotentialToKineticEnergyConversion = CustomKFO{<:typeof(filtered_ape_to_ke_conversion_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the conversion of filtered available potential energy into filtered kinetic energy
 `w̄ b̄ᵣ`, the rate at which the scales a low-pass `filter` keeps release their APE to the
@@ -690,7 +691,7 @@ FilteredAvailablePotentialToKineticEnergyConversion(model; σ, dims = (1, 2), bo
 const FilteredAvailablePotentialEnergyReferenceTendency = CustomKFO{<:typeof(filtered_ape_reference_tendency_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the reference tendency of the available potential energy of the filtered buoyancy field `Rˡ`,
 the rate at which the evolving reference profile changes the APE of the scales a low-pass `filter`

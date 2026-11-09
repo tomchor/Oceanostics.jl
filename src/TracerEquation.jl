@@ -1,5 +1,6 @@
 module TracerEquation
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 using Oceananigans: fields, Center, Face, KernelFunctionOperation
 using Oceananigans.Models.NonhydrostaticModels: div_Uc, ∇_dot_qᶜ, immersed_∇_dot_qᶜ, biogeochemical_transition
@@ -43,7 +44,7 @@ const TracerForcing = Forcing
 
 #+++ Advection
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculates the advection of the tracer `c` as
 
@@ -79,7 +80,7 @@ end
 
 #+++ Diffusion
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculates the diffusion term (excluding anything due to the bathymetry) as
 
@@ -115,7 +116,7 @@ end
 
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculates the diffusion term due to the bathymetry term as
 
@@ -152,7 +153,7 @@ function ImmersedDiffusion(model, tracer_name; kwargs...)
 end
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculates the total diffusion term as
 
@@ -189,7 +190,7 @@ function TotalDiffusion(model, tracer_name; kwargs...)
 end
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculates the sub-grid diffusive flux in the x-direction as determined by the
 configured closure, using the Oceananigans kernel `diffusive_flux_x`.
@@ -223,7 +224,7 @@ function XDiffusiveFlux(model, tracer_name; kwargs...)
 end
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculates the sub-grid diffusive flux in the y-direction as determined by the
 configured closure, using the Oceananigans kernel `diffusive_flux_y`.
@@ -257,7 +258,7 @@ function YDiffusiveFlux(model, tracer_name; kwargs...)
 end
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculates the sub-grid diffusive flux in the z-direction as determined by the
 configured closure, using the Oceananigans kernel `diffusive_flux_z`.
@@ -293,7 +294,7 @@ end
 
 #+++ Forcing
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Calculate the forcing term `Fᶜ` on the equation for tracer `c` for `model`.
 

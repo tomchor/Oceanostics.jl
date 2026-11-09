@@ -1,6 +1,7 @@
 module SubFilterAvailablePotentialEnergyEquation
 
 using DocStringExtensions
+using DocStringExtensions: MethodSignatures
 
 export SubFilterAvailablePotentialEnergy
 export SubFilterAvailablePotentialEnergyDissipationRate, DissipationRate
@@ -64,7 +65,7 @@ end
 const SubFilterAvailablePotentialEnergy = CustomKFO{<:typeof(subfilter_ape_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the subfilter-scale (SFS) available potential energy `eₐˢ`, the available potential energy
 carried by the scales that a low-pass `filter` removes from the buoyancy field — the filtered full APE
@@ -152,7 +153,7 @@ const SubFilterAvailablePotentialEnergyDissipationRate = CustomKFO{<:typeof(subf
 const DissipationRate = SubFilterAvailablePotentialEnergyDissipationRate
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the subfilter-scale (SFS) available potential energy dissipation rate `εₐˢ`, the APE
 destruction by diffusion carried by the scales that a low-pass `filter` removes:
@@ -237,7 +238,7 @@ SubFilterAvailablePotentialEnergyDissipationRate(model; σ, dims = (1, 2), bound
 const SubFilterAvailablePotentialToKineticEnergyConversion = CustomKFO{<:typeof(subfilter_ape_to_ke_conversion_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the subfilter-scale (SFS) conversion of available potential energy into kinetic energy
 `τ(w, bᵣ)`, the rate at which the scales a low-pass `filter` removes release their APE to the
@@ -320,7 +321,7 @@ SubFilterAvailablePotentialToKineticEnergyConversion(model; σ, dims = (1, 2), b
 const SubFilterAvailablePotentialEnergyReferenceTendency = CustomKFO{<:typeof(subfilter_ape_reference_tendency_ccc)}
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return the subfilter-scale (SFS) reference tendency of the available potential energy `Rˢ`, the share
 of the evolving reference profile's effect on the APE that falls on the scales a low-pass `filter`
