@@ -573,7 +573,7 @@ barotropic_pressure_displacement(model, ::Nothing) = nothing
 barotropic_pressure_displacement(::NonhydrostaticModel, ::Nothing) = nothing
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` that computes the redistribution of kinetic energy by the barotropic
 pressure `gη` of a free surface,

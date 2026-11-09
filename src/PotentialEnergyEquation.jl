@@ -938,7 +938,7 @@ validate_free_surface(diagnostic, ::Nothing) =
                          (`free_surface = nothing`)."))
 
 """
-    $(SIGNATURES)
+    $(MethodSignatures(; defaults = true))
 
 Return a `KernelFunctionOperation` that computes the potential energy of the free surface per unit area,
 
