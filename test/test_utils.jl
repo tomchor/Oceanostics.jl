@@ -1,6 +1,7 @@
 using CUDA: has_cuda_gpu
 using Oceananigans
 using Oceananigans: fill_halo_regions!
+using Oceananigans.AbstractOperations: AbstractOperation
 using Oceanostics: free_surface_displacement
 using Oceananigans.TurbulenceClosures.Smagorinskys: LagrangianAveraging
 using Oceananigans.TurbulenceClosures: DynamicCoefficient, LagrangianAveraging
@@ -37,6 +38,12 @@ grid_noise(x, y, z) = randn()
 volume_integral(op) = sum(∫dV(op))
 volume_mean(op)     = sum(Field(Average(op)))  # volume-weighted over the whole domain
 area_integral(op)   = sum(Field(Integral(op, dims=(1, 2))))  # of a surface diagnostic, at (Center, Center, Nothing)
+
+# A lazy operation is computed into a `Field` before it is reduced: with Oceananigans 0.117, a
+# reduction over a large lazy operation takes minutes to compile under `--check-bounds=yes`, which
+# `Pkg.test` uses (CliMA/Oceananigans.jl#6471). Remove these two methods once that is fixed.
+volume_integral(op::AbstractOperation) = volume_integral(Field(op))
+volume_mean(op::AbstractOperation)     = volume_mean(Field(op))
 
 # Interior values copied to the CPU, so that comparisons index a plain `Array` on either architecture
 cpu_interior(f::Field) = Array(interior(f))

@@ -58,18 +58,17 @@ A `HydrostaticFreeSurfaceModel` steps the horizontal momentum equations
 
 ```math
 \partial_t u_i + \partial_j (u_j u_i) + (\boldsymbol{f} \times \boldsymbol{u})_i
-  = -\partial_i p' - \partial_i (g \eta) - \partial_j \tau_{ij} + F_{u_i} , \qquad i = 1, 2 ,
+  = -\partial_i p' - \partial_i (g \eta) - \partial_j \tau_{ij} + F_{u_i}
+    , \qquad i = 1, 2 , \quad j = 1, 2, 3 ,
 ```
 
 with hydrostatic balance, ``\partial_z p' = b`` and ``p' = 0`` at the top, in place of a ``w``
 equation. ``w`` comes from continuity, integrated up from the bottom, and the free surface from
 ``\partial_t \eta = -\nabla_h \cdot \boldsymbol{U}``, with ``\boldsymbol{U}`` the depth-integrated
-transport, which by continuity is ``w`` at the surface. The total pressure is ``p' + g \eta``: the
-surface pressure ``g \eta`` is uniform in ``z``, the same value the nonhydrostatic model gives its
-``p_{nh}`` at the top. Buoyancy does not appear in these equations.
+transport, which by continuity is ``w`` at the surface. The total pressure is ``p' + g \eta``.
 
 Contracting with ``u_i``, ``i = 1, 2``, goes as before, with ``\partial_j u_j = 0`` still holding for
-the diagnosed ``w``, and no buoyancy term arises:
+the diagnosed ``w``, and no buoyancy term emerges:
 
 ```math
 \partial_t e_k = - \underbrace{u_i \partial_j(u_j u_i)}_{\text{advection}}
@@ -77,14 +76,14 @@ the diagnosed ``w``, and no buoyancy term arises:
                  - \underbrace{u_i \partial_i (g \eta)}_{\text{barotropic pressure work}}
                  + \underbrace{u_i F_{u_i}}_{\text{forcing}}
                  - \underbrace{u_i \partial_j \tau_{ij}}_{\text{viscous work}}
-                 , \qquad i = 1, 2 .
+                 , \qquad i = 1, 2 , \quad j = 1, 2, 3 .
 ```
 
 Buoyancy reaches ``e_k`` through ``p'`` alone. Using continuity and ``\partial_z p' = b``, the work of
 the hydrostatic anomaly is
 
 ```math
--u_i \partial_i p' = -\partial_j (u_j p') + wb , \qquad i = 1, 2 ,
+-u_i \partial_i p' = -\partial_j (u_j p') + wb , \qquad i = 1, 2, \quad j = 1, 2, 3 ,
 ```
 
 so the conversion ``wb`` is present pointwise, inside the work of ``p'`` together with a transport
@@ -185,7 +184,7 @@ shear across faces the model treats as solid and
 
 ## Background fields
 
-Background fields are not supported. On a `NonhydrostaticModel` built with `background_fields`,
+Background fields are not supported yet. On a `NonhydrostaticModel` built with `background_fields`,
 `model.velocities` holds the perturbation from the background flow, and every term except
 `KineticEnergyTendency` is built from the perturbation alone. `KineticEnergyTendency` comes off the
 model's own kernel, which also advects the perturbation with the background flow and the background flow
@@ -196,21 +195,20 @@ difference, so on such a model the terms do not add up to `KineticEnergyTendency
 
 ## [Terms and diagnostics](@id ke_terms_table)
 
-Every quantity below is pointwise. ``u_h`` is the horizontal velocity, ``\nabla_h`` the horizontal
-gradient, ``G_i`` Oceananigans' momentum tendency, and the hydrostatic ``w`` is the one diagnosed from
+Every quantity below is pointwise. ``G_i`` is Oceananigans' momentum tendency, and the hydrostatic ``w`` is the one diagnosed from
 continuity. The advection, the pressure work and the viscous work enter the budget with a minus sign,
 the conversion and the forcing with a plus sign.
 
 | Quantity | Nonhydrostatic | Hydrostatic | Diagnostic |
 |:---|:---|:---|:---|
 | Kinetic energy | ``e_k = \tfrac{1}{2} u_i u_i``, with ``i = 1, 2, 3`` | same, with ``i = 1, 2`` | [`KineticEnergy`](@ref Oceanostics.KineticEnergyEquation.KineticEnergy) |
-| Tendency | ``u_i G_i = \partial_t e_k + u_i \partial_i p_{nh}`` | ``u_i G_i = \partial_t e_k + u_h \cdot \nabla_h (g \eta)`` | [`KineticEnergyTendency`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyTendency) |
+| Tendency | ``u_i G_i = \partial_t e_k + u_i \partial_i p_{nh}`` | ``u_i G_i = \partial_t e_k + u_i \partial_i (g \eta)``, ``i = 1, 2``, with an `ImplicitFreeSurface` or a `SplitExplicitFreeSurface`, and ``u_i G_i = \partial_t e_k`` with an `ExplicitFreeSurface` | [`KineticEnergyTendency`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyTendency) |
 | Advection | ``u_i \partial_j (u_j u_i)`` | same, with ``i = 1, 2`` and the diagnosed ``w`` in ``u_j`` | [`KineticEnergyAdvection`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyAdvection) |
 | Pressure work | ``u_j \partial_j (p' + p_{nh})`` | ``u_j \partial_j (p' + g \eta)``, ``j = 1, 2, 3``, with the diagnosed ``w`` | [`KineticEnergyPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyPressureRedistribution) |
 | Barotropic pressure work | ``u_h \cdot \nabla_h (g \eta)``, a part of the pressure work | ``u_h \cdot \nabla_h (g \eta)``, a part of the pressure work | [`KineticEnergyBarotropicPressureRedistribution`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution) |
 | Conversion from potential energy | ``wb`` | same, with the diagnosed ``w`` | [`PotentialToKineticEnergyConversion`](@ref Oceanostics.KineticEnergyEquation.PotentialEnergyConversion) |
-| Forcing work | ``u_i F_{u_i}``, ``i = 1, 2, 3`` | same, ``i = 1, 2`` | [`KineticEnergyForcing`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyForcing) |
-| Viscous work | ``u_i \partial_j \tau_{ij}`` | same, ``i = 1, 2`` | [`KineticEnergyStress`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyStress) |
+| Forcing work | ``u_i F_{u_i}``, ``i = 1, 2, 3`` | same, with ``i = 1, 2`` | [`KineticEnergyForcing`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyForcing) |
+| Viscous work | ``u_i \partial_j \tau_{ij}`` | same, with ``i = 1, 2`` | [`KineticEnergyStress`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyStress) |
 | Dissipation rate | ``\varepsilon_k = -\tau_{ij} \partial_j u_i`` | ``\varepsilon_k = -(\tau_{1j} \partial_j u + \tau_{2j} \partial_j v)`` | [`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate) |
 | Isotropic dissipation rate | ``2 \nu S_{ij} S_{ij}``, equal to ``\varepsilon_k`` for a constant viscosity | ``2 \nu S_{ij} S_{ij}``, which keeps the ``w`` row and so is not the dissipation of this budget | [`KineticEnergyIsotropicDissipationRate`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyIsotropicDissipationRate) |
 

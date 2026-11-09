@@ -145,7 +145,8 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
     end
 
     set!(model, u=grid_noise, v=grid_noise, w=grid_noise, b=grid_noise)
-    ε̄ₖ = Field(Average(KineticEnergyEquation.KineticEnergyDissipationRate(model)))
+    # Computed into a `Field` before the average, as in `volume_mean` (CliMA/Oceananigans.jl#6471)
+    ε̄ₖ = Field(Average(Field(KineticEnergyEquation.KineticEnergyDissipationRate(model))))
 
     return nothing
 end
