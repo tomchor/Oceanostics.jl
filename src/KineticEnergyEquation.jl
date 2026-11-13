@@ -8,6 +8,7 @@ export Advection, KineticEnergyAdvection
 export Stress, KineticEnergyStress
 export Forcing, KineticEnergyForcing
 export PressureRedistribution, KineticEnergyPressureRedistribution
+export BarotropicPressureRedistribution, KineticEnergyBarotropicPressureRedistribution
 export PotentialEnergyConversion, PotentialToKineticEnergyConversion
 export DissipationRate, KineticEnergyDissipationRate
 export KineticEnergyIsotropicDissipationRate
@@ -161,8 +162,9 @@ excluding the nonhydrostatic pressure contribution:
 
 On a `HydrostaticFreeSurfaceModel` the sum runs over `u` and `v` only, and `Gᵢ` is Oceananigans'
 hydrostatic tendency, which leaves out the part of the barotropic pressure gradient the free surface
-treats implicitly (all of it for an `ImplicitFreeSurface` or a `SplitExplicitFreeSurface`), so the
-change of `eₖ` over a step is `uₕGₕ - uₕ⋅∇ₕ(gη)` there.
+treats implicitly (all of it for an `ImplicitFreeSurface` or a `SplitExplicitFreeSurface`).
+[`KineticEnergyBarotropicPressureRedistribution`](@ref) supplies that work, so the change of `eₖ` over a
+step is `uₕGₕ - BPR` there.
 
 On either model `Gᵢ` is the explicit tendency. A closure with a `VerticallyImplicitTimeDiscretization`
 (CATKE's default, and an option of `ScalarDiffusivity` and `VerticalScalarDiffusivity`) takes the `∂zu`
@@ -439,8 +441,8 @@ end
 end
 
 # A hydrostatic model's total pressure is `p′ + gη`, with `gη` read on the top face and uniform in `z`,
-# so its work is the contraction above with `p′` plus the barotropic work `uₕ⋅∇ₕ(gη)` below, which is
-# zero for `g = η = nothing`, a rigid lid.
+# so its work is the contraction above with `p′` plus the barotropic work of
+# `KineticEnergyBarotropicPressureRedistribution`, which is zero for `g = η = nothing`, a rigid lid.
 @inline uᵢ∂ᵢp_plus_uₕ∇ₕgηᶜᶜᶜ(i, j, k, grid, velocities, pressure, g, η) =
     uᵢ∂ᵢpᶜᶜᶜ(i, j, k, grid, velocities, pressure) + uₕ∇ₕgηᶜᶜᶜ(i, j, k, grid, velocities, g, η)
 
@@ -502,13 +504,14 @@ hydrostatic pressure anomaly `model.pressure.pHY′`, the pressure the hydrostat
 carry, and the work of the surface pressure `gη` of `free_surface` (`model.free_surface` by default) is
 added, so that `PR` is the work of the total pressure on both model types; on a `NonhydrostaticModel`
 with a free surface `gη` is the surface value of `pNHS`, and the default there already contains it.
-`free_surface = nothing` leaves the work of the anomaly alone. The sum runs over all three components
-with the diagnosed `w`, although the hydrostatic tendencies have no `w` row. The `z` row is
+[`KineticEnergyBarotropicPressureRedistribution`](@ref) is that barotropic part on its own, on either
+model, and `free_surface = nothing` leaves the work of the anomaly alone. The sum runs over all three
+components with the diagnosed `w`, although the hydrostatic tendencies have no `w` row. The `z` row is
 `w∂zp′ = wb` by hydrostatic balance, and exactly so on Oceananigans' grid away from the top face, since
 `p′` is integrated from the same face buoyancy that [`PotentialEnergyConversion`](@ref) multiplies by
 `w`. So `-PR + wb` is the work of the horizontal gradients, the one the model applies, and the budget
 reads `∂ₜeₖ = -uᵢ∂ⱼ(uⱼuᵢ) - uᵢ∂ⱼτᵢⱼ - PR + wb + uᵢFᵤᵢ` on both model types; the two-component work of
-the anomaly alone is `PR - uₕ⋅∇ₕ(gη) - wb`.
+the anomaly alone is `PR - BPR - wb`.
 
 On a `NonhydrostaticModel` that has taken a time step, Oceananigans (0.106 to 0.116 at least) leaves the
 halos of `pNHS` at the pressure times `Δt`: it corrects the velocities with `p Δt` and then divides the
@@ -527,8 +530,8 @@ end
 
 # The diagnosed `w` stays in on purpose: its row is `wb`, so that `-PR + wb` is the horizontal work the
 # hydrostatic momentum equations apply and the budget reads the same as on a nonhydrostatic model. The
-# free surface's `gη` is added with the top-face differences the free-surface step applies, so that `PR`
-# is the work of the total pressure here too.
+# free surface's `gη` is added the way `KineticEnergyBarotropicPressureRedistribution` reads it, so that
+# `PR` is the work of the total pressure here too.
 function KineticEnergyPressureRedistribution(model::HydrostaticFreeSurfaceModel;
                                              velocities = model.velocities,
                                              pressure = model.pressure.pHY′,
@@ -536,12 +539,12 @@ function KineticEnergyPressureRedistribution(model::HydrostaticFreeSurfaceModel;
                                              location = (Center, Center, Center))
     validate_location(location, "KineticEnergyPressureRedistribution")
     g = free_surface_gravitational_acceleration(free_surface)
-    η = SurfaceDisplacement(free_surface_displacement(free_surface))
+    η = SurfaceDisplacement(barotropic_pressure_displacement(model, free_surface_displacement(free_surface)))
     return KernelFunctionOperation{Center, Center, Center}(uᵢ∂ᵢp_plus_uₕ∇ₕgηᶜᶜᶜ, model.grid, velocities, pressure, g, η)
 end
 #---
 
-#+++ Work of the surface pressure
+#+++ KineticEnergyBarotropicPressureRedistribution
 # The barotropic pressure is `gη`. `η` lives on the top face of the grid, k = Nz+1, and has no vertical
 # structure, so its gradient at every level is the top-face difference that the free-surface step of an
 # `ImplicitFreeSurface` applies to `u` and `v` and that an `ExplicitFreeSurface` puts in the tendency.
@@ -556,6 +559,90 @@ end
 
 # A rigid lid (`free_surface = nothing`) has no barotropic pressure
 @inline uₕ∇ₕgηᶜᶜᶜ(i, j, k, grid, velocities, ::Nothing, ::Nothing) = zero(grid)
+
+const KineticEnergyBarotropicPressureRedistribution = CustomKFO{<:typeof(uₕ∇ₕgηᶜᶜᶜ)}
+const BarotropicPressureRedistribution = KineticEnergyBarotropicPressureRedistribution
+
+# The differences above read `η` in the halos along the lateral boundaries. A `HydrostaticFreeSurfaceModel`
+# refills them every time it steps `η`; a `NonhydrostaticModel` fills them when `η` is set and never again
+# (Oceananigans 0.113 and 0.116 at least), so on that model the term reads a copy of `η` that `compute!`
+# rebuilds, halos included, each time the operation is computed.
+barotropic_pressure_displacement(model, η) = η
+barotropic_pressure_displacement(::NonhydrostaticModel, η) = Field(1 * η)
+barotropic_pressure_displacement(model, ::Nothing) = nothing
+barotropic_pressure_displacement(::NonhydrostaticModel, ::Nothing) = nothing
+
+"""
+    $(MethodSignatures(; defaults = true))
+
+Return a `KernelFunctionOperation` that computes the redistribution of kinetic energy by the barotropic
+pressure `gη` of a free surface,
+
+    BPR = uₕ⋅∇ₕ(gη) ,
+
+where `η` is the free-surface displacement, read on the top face of the grid, and `g` the free surface's
+gravitational acceleration. It is the part of the pressure work `uᵢ∂ᵢp` that the free surface
+contributes, with the sign convention of [`KineticEnergyPressureRedistribution`](@ref): it enters the
+budget of `eₖ` as `-BPR`, and `∇ₕη` is the same top-face difference the model applies to `u` and `v`.
+
+Its volume integral is the exchange with the potential energy of the free surface,
+[`FreeSurfacePotentialEnergy`](@ref Oceanostics.PotentialEnergyEquation.FreeSurfacePotentialEnergy)
+`eₛ = ½gη²`. With closed or periodic lateral boundaries and `U` the depth-integrated transport,
+
+    ∫ BPR dV = ∫ U⋅∇ₕ(gη) dA = -∫ gη ∇ₕ⋅U dA = ∫ gη ∂ₜη dA = ∂ₜ ∫ eₛ dA ,
+
+where `gη ∂ₜη = gη w` at the surface by the kinematic condition. Pointwise the term is of the order of
+the other pressure work; integrated it is small whenever the barotropic flow is narrow compared with the external
+deformation radius `√(gH)/f`.
+
+On either model this term is the barotropic part of [`KineticEnergyPressureRedistribution`](@ref), the
+work of the total pressure: `gη` is the surface value of the nonhydrostatic pressure on a
+`NonhydrostaticModel` with a free surface, and is added to the work of the hydrostatic anomaly on a
+`HydrostaticFreeSurfaceModel`. The remainder of that pressure work integrates to zero. What differs is
+whether the model's tendency kernel applies it:
+
+- A `HydrostaticFreeSurfaceModel` with an `ImplicitFreeSurface` or a `SplitExplicitFreeSurface` applies
+  `-g∇ₕη` in its free-surface step, outside the tendency kernel, so [`KineticEnergyTendency`](@ref)
+  leaves it out and the change of `eₖ` over a step is `uₕGₕ - BPR`. With an `ExplicitFreeSurface` the
+  gradient is inside `Gₕ`, and the term is already part of the tendency.
+- A `NonhydrostaticModel` applies the whole nonhydrostatic pressure in its pressure correction, outside
+  the tendency, so there [`KineticEnergyTendency`](@ref) leaves out the whole of that work, this term
+  included. A `NonhydrostaticModel` with a rigid lid, the default, has no free surface and the term is
+  zero.
+
+The model applies `∇ₕη` at the new time level, or its average over the barotropic substeps, while this
+diagnostic reads `η` as it is when evaluated, so a budget built from it closes to `O(Δt)`, like one built
+with a `TimeDerivative`. Under a `MutableVerticalDiscretization` the cells move with `η` and the budget
+takes a different form, which this term does not describe.
+
+The differences of `η` reach into its halos along the lateral boundaries. A `NonhydrostaticModel` fills
+those when `η` is set and never again (Oceananigans 0.116 and earlier), so on that model the term reads
+a copy of `η` that is refilled whenever the operation is computed: evaluate it through a `Field` or an
+output writer, not by indexing the operation directly.
+
+```jldoctest
+julia> using Oceananigans, Oceanostics
+
+julia> grid = RectilinearGrid(size=(4, 4, 4), extent=(1, 1, 1));
+
+julia> model = HydrostaticFreeSurfaceModel(grid);
+
+julia> BPR = KineticEnergyBarotropicPressureRedistribution(model)
+KineticEnergyBarotropicPressureRedistribution KernelFunctionOperation at (Center, Center, Center)
+├── grid: 4×4×4 RectilinearGrid{Float64, Periodic, Periodic, Bounded} on CPU with 3×3×3 halo
+├── kernel_function: uₕ∇ₕgηᶜᶜᶜ (generic function with 2 methods)
+└── arguments: ("NamedTuple", "Float64", "SurfaceDisplacement")
+└── computes: kinetic energy barotropic pressure redistribution  uₕ⋅∇ₕ(gη)
+```
+"""
+function KineticEnergyBarotropicPressureRedistribution(model; velocities = model.velocities,
+                                                      free_surface = model_free_surface(model),
+                                                      location = (Center, Center, Center))
+    validate_location(location, "KineticEnergyBarotropicPressureRedistribution")
+    g = free_surface_gravitational_acceleration(free_surface)
+    η = SurfaceDisplacement(barotropic_pressure_displacement(model, free_surface_displacement(free_surface)))
+    return KernelFunctionOperation{Center, Center, Center}(uₕ∇ₕgηᶜᶜᶜ, model.grid, velocities, g, η)
+end
 #---
 
 #+++ Potential-to-kinetic energy conversion

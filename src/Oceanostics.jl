@@ -40,7 +40,7 @@ export TracerVarianceTendency, TracerVarianceDissipationRate, TracerVarianceDiff
 
 #+++ KineticEnergyEquation exports
 export KineticEnergy, KineticEnergyForcing, KineticEnergyPressureRedistribution, PotentialToKineticEnergyConversion,
-       KineticEnergyDissipationRate, KineticEnergyIsotropicDissipationRate
+       KineticEnergyDissipationRate, KineticEnergyIsotropicDissipationRate, KineticEnergyBarotropicPressureRedistribution
 #---
 
 #+++ FilteredKineticEnergyEquation exports
@@ -81,6 +81,7 @@ export BoxFilter, GaussianFilter, check_filter_staging
 export PotentialEnergy, PotentialEnergyDiffusiveVerticalBuoyancyFlux
 export PotentialEnergyTendency, PotentialEnergyAdvection, PotentialEnergyBuoyancyAdvection,
        PotentialEnergyDiffusion, PotentialEnergyBuoyancyDiffusion, PotentialEnergyForcing
+export FreeSurfacePotentialEnergy
 #---
 
 #+++ BackgroundPotentialEnergyEquation exports
@@ -202,6 +203,11 @@ SurfaceDisplacement(::Nothing) = nothing
 Adapt.adapt_structure(to, η::SurfaceDisplacement) = SurfaceDisplacement(Adapt.adapt(to, η.field))
 
 @inline Base.getindex(η::SurfaceDisplacement, i, j, k) = @inbounds η.field[i, j, k]
+
+# `compute!` of an operation reaches its arguments through `compute_at!`, which is what keeps a computed
+# copy of `η` (see `barotropic_pressure_displacement`) current; the wrapper has to pass that call on.
+import Oceananigans.Fields: compute_at!
+compute_at!(η::SurfaceDisplacement, time) = compute_at!(η.field, time)
 
 """
     $(SIGNATURES)
@@ -546,6 +552,7 @@ end
 @diagnostic_show KineticEnergyEquation.KineticEnergyStress                   "KineticEnergyStress"                   "kinetic energy stress/diffusion  uᵢ∂ⱼτᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyForcing                  "KineticEnergyForcing"                  "kinetic energy forcing  uᵢFᵤᵢ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyPressureRedistribution   "KineticEnergyPressureRedistribution"   "kinetic energy pressure redistribution  uᵢ∂ᵢp"
+@diagnostic_show KineticEnergyEquation.KineticEnergyBarotropicPressureRedistribution "KineticEnergyBarotropicPressureRedistribution" "kinetic energy barotropic pressure redistribution  uₕ⋅∇ₕ(gη)"
 @diagnostic_show KineticEnergyEquation.PotentialToKineticEnergyConversion    "PotentialToKineticEnergyConversion"    "potential to kinetic energy conversion  uᵢbᵢ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyDissipationRate          "KineticEnergyDissipationRate"          "kinetic energy dissipation rate  -∂ⱼuᵢ·τᵢⱼ"
 @diagnostic_show KineticEnergyEquation.KineticEnergyIsotropicDissipationRate "KineticEnergyIsotropicDissipationRate" "isotropic kinetic energy dissipation rate  2νSᵢⱼSᵢⱼ"
@@ -581,6 +588,7 @@ end
 @diagnostic_show PotentialEnergyEquation.BuoyancyDiffusion             "PotentialEnergyBuoyancyDiffusion"    "potential energy buoyancy diffusion  z ∂ⱼqⱼ"
 @diagnostic_show PotentialEnergyEquation.Forcing                       "PotentialEnergyForcing"              "potential energy forcing  -z Fᵇ"
 @diagnostic_show PotentialEnergyEquation.DiffusiveVerticalBuoyancyFlux "PotentialEnergyDiffusiveVerticalBuoyancyFlux" "diffusive vertical buoyancy flux  κ ∂b/∂z = -q₃"
+@diagnostic_show PotentialEnergyEquation.FreeSurfacePotentialEnergy         "FreeSurfacePotentialEnergy"         "free surface potential energy per unit area  ½gη²"
 #---
 
 #+++ BackgroundPotentialEnergyEquation

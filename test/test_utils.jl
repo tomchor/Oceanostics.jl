@@ -34,9 +34,10 @@ grids = Dict("regular grid" => regular_grid,
 # Grid noise function
 grid_noise(x, y, z) = randn()
 
-# Volume reductions as scalars, i.e. without scalar indexing on GPUs
+# Volume and area reductions as scalars, i.e. without scalar indexing on GPUs
 volume_integral(op) = sum(∫dV(op))
 volume_mean(op)     = sum(Field(Average(op)))  # volume-weighted over the whole domain
+area_integral(op)   = sum(Field(Integral(op, dims=(1, 2))))  # of a surface diagnostic, at (Center, Center, Nothing)
 
 # A lazy operation is computed into a `Field` before it is reduced: with Oceananigans 0.117, a
 # reduction over a large lazy operation takes minutes to compile under `--check-bounds=yes`, which
