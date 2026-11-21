@@ -28,6 +28,12 @@ perturbation strain rate tensor.
 
 All diagnostics are computed at `(Center, Center, Center)`.
 
+On a `HydrostaticFreeSurfaceModel`, which steps ``u`` and ``v`` and diagnoses ``w`` from continuity,
+the sums over ``i`` run over ``u`` and ``v`` only, as in the [Kinetic energy equation](@ref): the TKE is
+``\tfrac{1}{2}(u'^2 + v'^2)``, and the shear production leaves out the terms with ``\partial_j W``
+while ``w' = w - W`` still enters as ``u_j'``. The isotropic dissipation rate keeps the ``w`` row on
+both model types.
+
 ## Example
 
 ```jldoctest tke_eq

@@ -48,6 +48,12 @@ volume_mean(op::AbstractOperation)     = volume_mean(Field(op))
 cpu_interior(f::Field) = Array(interior(f))
 cpu_interior(op) = Array(interior(Field(op)))
 
+# Face values averaged onto the cell centres the way the `ℑ` operators do it, on grids periodic in `x`
+# and `y`, where `interior` holds `N` faces, and bounded in `z`, where it holds `N + 1`
+ℑx_to_centers(a) = (a .+ circshift(a, (-1, 0, 0))) ./ 2
+ℑy_to_centers(a) = (a .+ circshift(a, (0, -1, 0))) ./ 2
+ℑz_to_centers(a) = (a[:, :, 1:end-1] .+ a[:, :, 2:end]) ./ 2
+
 # Subtract the depth mean from a `HydrostaticFreeSurfaceModel`'s `u` and `v`. The depth-integrated flow
 # is what moves the free surface, so without it the `w` diagnosed from continuity vanishes at the surface
 # as well as at the bottom, and the domain is closed the way a nonhydrostatic one with rigid walls is.

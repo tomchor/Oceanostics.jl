@@ -161,6 +161,31 @@ tracer_advection(advection::NamedTuple, tracer_name) = advection[tracer_name]
 tracer_advection(advection, tracer_name) = advection
 #---
 
+#+++ Utils for the velocities of the kinetic energy budgets
+using Oceananigans: HydrostaticFreeSurfaceModel
+using Oceananigans.Fields: ZeroField
+
+"""
+    $(SIGNATURES)
+
+Return `velocities` as `(; u, v, w)`, with `w` replaced by a `ZeroField` when `model` has no
+`w`-momentum equation. A `HydrostaticFreeSurfaceModel` steps `u` and `v` and diagnoses `w` from
+continuity, so its kinetic energy is `½(u² + v²)` and the budgets of that energy, the filtered,
+subfilter and turbulent ones included, have no `w` row. Every kinetic energy diagnostic takes the rows
+it contracts from here, so the rule is written once (#330). The diagnosed `w` still transports
+momentum, and the diagnostics keep it wherever it does: in the momentum fluxes and in the `j = 3`
+column of a contraction over `∂ⱼuᵢ`.
+"""
+prognostic_velocities(model, velocities = model.velocities) = (u = velocities.u, v = velocities.v, w = velocities.w)
+prognostic_velocities(model::HydrostaticFreeSurfaceModel, velocities = model.velocities) =
+    (u = velocities.u, v = velocities.v, w = ZeroField())
+
+# The same choice as a type, for a kernel that takes the velocities themselves from `fields(model)`:
+# `Val(true)` keeps the `w` row and `Val(false)` drops it
+prognostic_w_row(model) = Val(true)
+prognostic_w_row(::HydrostaticFreeSurfaceModel) = Val(false)
+#---
+
 #+++ Utils for free surfaces
 """
     $(SIGNATURES)

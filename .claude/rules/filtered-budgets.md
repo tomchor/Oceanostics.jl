@@ -32,3 +32,4 @@ A subfilter diagnostic is `filter(full) − filtered` on the same discretization
 A filtered dissipation rate contracts the filtered flux (`τ̄ᵢⱼ = filter(τᵢⱼ)`, `q̄ᵢ = filter(qᵢ)`) rather than a flux recomputed from the filtered field; the two agree only for a constant viscosity or diffusivity.
 `subfilter_covariance` takes a pre-filtered factor through `filtered_a`, so several covariances can share one filtered field.
 An identity-scale Gaussian (σ ≪ Δx, `N = 3`) makes every filtered diagnostic equal its full-field counterpart and every subfilter one vanish, to the bit; the filtered and subfilter suites use it to check the kernels without reimplementing them.
+On a `HydrostaticFreeSurfaceModel` take the rows of a KE contraction from `prognostic_velocities`, which drops `w`, and keep the diagnosed `w` where it transports momentum, so `KineticEnergyCrossScaleFlux` contracts `τᵢ₃` with `∂zūᵢ` rather than `S̄ᵢ₃` (#330, #342).

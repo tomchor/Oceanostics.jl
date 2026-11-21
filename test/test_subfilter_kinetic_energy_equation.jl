@@ -9,7 +9,8 @@ using Oceanostics: SubFilterKineticEnergy, SubFilterKineticEnergyDissipationRate
 using Oceanostics: KineticEnergyDissipationRate,
                    FilteredKineticEnergyDissipationRate, GaussianFilter
 
-arch = has_cuda_gpu() ? GPU() : CPU()
+# Common test utilities: `arch`, the closures and `cpu_interior`
+include("test_utils.jl")
 
 #+++ Test functions
 # eₖˢ = filter(eₖ) - eₖˡ: the filtered full kinetic energy minus the filtered-flow kinetic energy.
@@ -132,6 +133,21 @@ function test_subfilter_module_reexports()
     @test SubFilterKineticEnergyEquation.DissipationRate === SubFilterKineticEnergyDissipationRate
     return nothing
 end
+
+# A hydrostatic model's kinetic energy is ½(u² + v²), and filter(eₖ) = eₖˡ + eₖˢ holds with it. A
+# filter that is numerically the identity makes εₖˢ vanish only if εₖ and εₖˡ both leave out the `w`
+# row (#330).
+function test_hydrostatic_subfilter_kinetic_energy(model, filt)
+    filtered_K = Field(filt(Oceanostics.KineticEnergy(model)))
+    eₖˡ = cpu_interior(FilteredKineticEnergy(model, filt))
+    eₖˢ = cpu_interior(SubFilterKineticEnergy(model, filt))
+    @test cpu_interior(filtered_K) ≈ eₖˡ .+ eₖˢ
+
+    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=1e-4, N=3)
+    @test all(cpu_interior(SubFilterKineticEnergy(model, identity_filter)) .== 0)
+    @test all(cpu_interior(SubFilterKineticEnergyDissipationRate(model, identity_filter)) .== 0)
+    return nothing
+end
 #---
 
 @testset "Subfilter kinetic energy equation" begin
@@ -172,4 +188,9 @@ end
 
     @info "    Module re-exports (Πₖ) and aliases (DissipationRate)"
     test_subfilter_module_reexports()
+
+    @info "    Hydrostatic model: eₖˢ and εₖˢ without the `w` row"
+    hydrostatic = HydrostaticFreeSurfaceModel(grid; closure=first(closures), buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(hydrostatic, u=(x, y, z) -> randn(), v=(x, y, z) -> randn())
+    test_hydrostatic_subfilter_kinetic_energy(hydrostatic, ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1))
 end

@@ -92,6 +92,31 @@ and cross-scale flux take a `dims` argument selecting the directions they contra
 filter horizontally yet contract the full 3D tensor — while the filtered dissipation always forms
 the full viscous contraction.
 
+## [Hydrostatic models](@id filtered_ke_hydrostatic)
+
+A `HydrostaticFreeSurfaceModel` steps the momentum equations of ``u`` and ``v`` only and diagnoses ``w``
+from continuity (see the [Kinetic energy equation](@ref)). Filtering those two equations and contracting
+them with ``\bar u`` and ``\bar v`` gives the same budget with ``i = 1, 2`` and ``j = 1, 2, 3`` in every
+sum: the filtered kinetic energy is ``e_k^l = \tfrac{1}{2}(\bar u^2 + \bar v^2)``, the dissipation
+``\varepsilon_k^l = -\partial_j \bar u_i \, \bar\tau_{ij}`` has no ``w`` row, and the cross-scale flux is
+
+```math
+\Pi_k = -\tau^r_{ij} \, \partial_j \bar u_i
+      = -\left(\tau^r_{11} \bar S_{11} + \tau^r_{22} \bar S_{22} + 2 \tau^r_{12} \bar S_{12}\right)
+        - \left(\tau^r_{13} \, \partial_z \bar u + \tau^r_{23} \, \partial_z \bar v\right) ,
+\qquad i = 1, 2 , \quad j = 1, 2, 3 .
+```
+
+The last two terms are the vertical advection of horizontal momentum across scales. They take the
+place of the ``\bar S_{13}`` and ``\bar S_{23}`` terms of the nonhydrostatic flux, whose
+``\partial_x \bar w`` and ``\partial_y \bar w`` parts belong to the ``w`` row.
+[`KineticEnergyCrossScaleFlux`](@ref) computes this form on a hydrostatic model with the default
+`dims`, and the first group alone with `dims = (1, 2)`. With a filter that acts in the horizontal
+directions, which commutes with ``\partial_z``, the work of the filtered hydrostatic pressure anomaly
+splits into a transport term and the buoyancy production ``\bar w \, \bar b``, as on the
+[Kinetic energy equation](@ref) page. The diagnostics on this page and on the
+[Subfilter kinetic energy equation](@ref) page all follow this convention on a hydrostatic model.
+
 ## Example
 
 ```jldoctest
