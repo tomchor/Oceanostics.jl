@@ -214,6 +214,14 @@ end
         test_kfo_invariants("KineticEnergyPressureRedistribution", KineticEnergyEquation.KineticEnergyPressureRedistribution(hydrostatic))
         test_kfo_invariants("KineticEnergyDissipationRate",        KineticEnergyEquation.KineticEnergyDissipationRate(hydrostatic))
         test_kfo_invariants("PotentialEnergyTendency",             PotentialEnergyTendency(hydrostatic))
+
+        # The filtered and turbulent kinetic energy terms drop the `w` row with `ZeroField`s of their own,
+        # and the cross-scale flux adds a column of products formed on the edges and moved to the centres
+        gf = GaussianFilter(; dims=(1, 2), σ=2/N)
+        test_kfo_invariants("FilteredKineticEnergy",                FilteredKineticEnergy(hydrostatic, gf))
+        test_kfo_invariants("FilteredKineticEnergyDissipationRate", FilteredKineticEnergyDissipationRate(hydrostatic, gf))
+        test_kfo_invariants("KineticEnergyCrossScaleFlux",          KineticEnergyCrossScaleFlux(hydrostatic, gf))
+        test_kfo_invariants("TurbulentKineticEnergy",               TurbulentKineticEnergyEquation.TurbulentKineticEnergy(hydrostatic))
     end
 
     @testset "AvailablePotentialEnergyEquation" begin

@@ -29,7 +29,7 @@ using Oceananigans.BuoyancyFormulations: x_dot_g_bᶠᶜᶜ, y_dot_g_bᶜᶠᶜ,
 
 using Oceanostics: _νᶜᶜᶜ
 using Oceanostics: validate_location, validate_dissipative_closure, validate_closure_supplies_a_flux,
-                   perturbation_fields, CustomKFO, momentum_advection
+                   perturbation_fields, CustomKFO, momentum_advection, prognostic_velocities, prognostic_w_row
 using Oceanostics: model_free_surface, free_surface_displacement, free_surface_gravitational_acceleration, SurfaceDisplacement
 
 # Some useful operators
@@ -44,18 +44,12 @@ using Oceanostics: model_free_surface, free_surface_displacement, free_surface_g
 const SupportedModel = Union{NonhydrostaticModel, HydrostaticFreeSurfaceModel}
 
 # The velocity components whose momentum equations are contracted with them to form the kinetic energy
-# budget. A HydrostaticFreeSurfaceModel diagnoses w from continuity and has no w-momentum equation, so
-# w is replaced by a ZeroField there; the momentum fluxes are still computed with the diagnostic w, as
-# in the model's own u and v tendencies. The pressure term is the exception: it keeps the diagnosed w,
-# so that its z row is the wb the budget's conversion term cancels (see
+# budget come from `prognostic_velocities` and `prognostic_w_row` in `src/Oceanostics.jl`, which every
+# kinetic energy module shares. A HydrostaticFreeSurfaceModel diagnoses w from continuity and has no
+# w-momentum equation, so w is replaced by a ZeroField there; the momentum fluxes are still computed with
+# the diagnostic w, as in the model's own u and v tendencies. The pressure term is the exception: it
+# keeps the diagnosed w, so that its z row is the wb the budget's conversion term cancels (see
 # `KineticEnergyPressureRedistribution`), and the budget reads the same on both model types.
-prognostic_velocities(model, velocities) = (u = velocities.u, v = velocities.v, w = velocities.w)
-prognostic_velocities(::HydrostaticFreeSurfaceModel, velocities) = (u = velocities.u, v = velocities.v, w = ZeroField())
-
-# The same choice as a type, for a kernel that takes the velocities themselves from `fields(model)`:
-# `Val(true)` keeps the `w` row and `Val(false)` drops it
-prognostic_w_row(model) = Val(true)
-prognostic_w_row(::HydrostaticFreeSurfaceModel) = Val(false)
 
 # The forcing of each momentum equation. A hydrostatic model has no `w` equation and so no `forcing.w`;
 # the zero forcing put in its place keeps the `w` row of `uᵢFᵤᵢ` at zero.

@@ -16,7 +16,7 @@ using Oceananigans.Grids: Center
 using Oceananigans.Fields: ZeroField
 using Oceananigans: fields
 
-using Oceanostics: validate_location, CustomKFO
+using Oceanostics: validate_location, CustomKFO, prognostic_velocities
 using Oceanostics.KineticEnergyEquation: KineticEnergyIsotropicDissipationRate
 
 # Some useful operators
@@ -24,6 +24,11 @@ using Oceanostics.KineticEnergyEquation: KineticEnergyIsotropicDissipationRate
 
 @inline ψ′²(i, j, k, grid, ψ, ψ̄) = @inbounds (ψ[i, j, k] - ψ̄[i, j, k])^2
 @inline ψ′²(i, j, k, grid, ψ, ψ̄::Number) = @inbounds (ψ[i, j, k] - ψ̄)^2
+
+# The means `Uᵢ` of the rows `i` of a TKE budget. A hydrostatic model has no `w` row (see
+# `prognostic_velocities`), so its `W` is a `ZeroField` there. The `w′ = w - W` that the shear production
+# rates contract with the other rows is still formed with the `W` the caller passed.
+row_means(model, U, V, W) = values(prognostic_velocities(model, (u = U, v = V, w = W)))
 
 #+++ TurbulentKineticEnergy
 @inline turbulent_kinetic_energy_ccc(i, j, k, grid, u, v, w, U, V, W) = (ℑxᶜᵃᵃ(i, j, k, grid, ψ′², u, U) +
@@ -35,7 +40,9 @@ const TurbulentKineticEnergy = CustomKFO{<:typeof(turbulent_kinetic_energy_ccc)}
 """
     $(MethodSignatures(; defaults = true))
 
-Calculate the turbulent kinetic energy per unit mass `eₖ′ = ½uᵢ′uᵢ′` of `model`.
+Calculate the turbulent kinetic energy per unit mass `eₖ′ = ½uᵢ′uᵢ′` of `model`. On a
+`HydrostaticFreeSurfaceModel`, which steps `u` and `v` and diagnoses `w`, the sum runs over `u` and `v`
+only, as in `KineticEnergy`, so `W` is not used there.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -58,7 +65,10 @@ function TurbulentKineticEnergy(model, u, v, w; U=ZeroField(), V=ZeroField(), W=
                                                            u, v, w, U, V, W)
 end
 
-TurbulentKineticEnergy(model; kwargs...) = TurbulentKineticEnergy(model, model.velocities...; kwargs...)
+function TurbulentKineticEnergy(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
+    U, V, W = row_means(model, U, V, W)
+    return TurbulentKineticEnergy(model, prognostic_velocities(model)...; U, V, W, kwargs...)
+end
 #---
 
 #+++ TurbulentKineticEnergyIsotropicDissipationRate
@@ -71,6 +81,9 @@ Calculate the turbulent kinetic energy isotropic dissipation rate, defined as
 
 where S′ᵢⱼ is the strain rate tensor of the velocity perturbations, for a fluid with an isotropic
 turbulence closure (i.e., a turbulence closure where ν (eddy or not) is the same for all directions).
+Like [`KineticEnergyIsotropicDissipationRate`](@ref Oceanostics.KineticEnergyEquation.KineticEnergyIsotropicDissipationRate),
+it keeps the `w` row on both model types, so on a `HydrostaticFreeSurfaceModel` it includes the
+dissipation of `½w′²`, which the budget of `½(u′² + v′²)` does not carry.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -128,7 +141,9 @@ Calculate the shear production rate in the `model`'s `x` direction:
     XSHEAR = uᵢ′u′∂x(Uᵢ)
 
 where `uᵢ′` is the velocity perturbation in the `i` direction, `u′` is the velocity perturbation in the `x` direction,
-`Uᵢ` is the background velocity in the `i` direction, and `∂x` is the horizontal derivative.
+`Uᵢ` is the background velocity in the `i` direction, and `∂x` is the horizontal derivative. On a
+`HydrostaticFreeSurfaceModel`, which has no `w`-momentum equation, `i` runs over `u` and `v` only, so the
+term with `∂xW` drops out.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -156,7 +171,7 @@ end
 
 function TurbulentKineticEnergyXShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
     u, v, w = model.velocities
-    return TurbulentKineticEnergyXShearProductionRate(u-U, v-V, w-W, U, V, W; kwargs...)
+    return TurbulentKineticEnergyXShearProductionRate(u-U, v-V, w-W, row_means(model, U, V, W)...; kwargs...)
 end
 #---
 
@@ -190,7 +205,9 @@ Calculate the shear production rate in the `model`'s `y` direction:
     YSHEAR = uᵢ′v′∂y(Uᵢ)
 
 where `uᵢ′` is the velocity perturbation in the `i` direction, `v′` is the velocity perturbation in the `y` direction,
-`Uᵢ` is the background velocity in the `i` direction, and `∂y` is the vertical derivative.
+`Uᵢ` is the background velocity in the `i` direction, and `∂y` is the vertical derivative. On a
+`HydrostaticFreeSurfaceModel`, which has no `w`-momentum equation, `i` runs over `u` and `v` only, so the
+term with `∂yW` drops out.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -217,7 +234,7 @@ end
 
 function TurbulentKineticEnergyYShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
     u, v, w = model.velocities
-    return TurbulentKineticEnergyYShearProductionRate(u-U, v-V, w-W, U, V, W; kwargs...)
+    return TurbulentKineticEnergyYShearProductionRate(u-U, v-V, w-W, row_means(model, U, V, W)...; kwargs...)
 end
 #---
 
@@ -251,7 +268,9 @@ Calculate the shear production rate in the `model`'s `z` direction:
     ZSHEAR = uᵢ′w′∂z(Uᵢ)
 
 where `uᵢ′` is the velocity perturbation in the `i` direction, `w′` is the vertical velocity perturbation,
-`Uᵢ` is the background velocity in the `i` direction, and `∂z` is the vertical derivative.
+`Uᵢ` is the background velocity in the `i` direction, and `∂z` is the vertical derivative. On a
+`HydrostaticFreeSurfaceModel`, which has no `w`-momentum equation, `i` runs over `u` and `v` only, so the
+term with `∂zW` drops out, while `w′ = w - W` still multiplies the other two.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -278,7 +297,7 @@ end
 
 function TurbulentKineticEnergyZShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
     u, v, w = model.velocities
-    return TurbulentKineticEnergyZShearProductionRate(u-U, v-V, w-W, U, V, W; kwargs...)
+    return TurbulentKineticEnergyZShearProductionRate(u-U, v-V, w-W, row_means(model, U, V, W)...; kwargs...)
 end
 #---
 
@@ -301,6 +320,8 @@ Calculate the total shear production rate (sum of the shear production rates in 
 
 where `XSHEAR`, `YSHEAR` and `ZSHEAR` are the shear production rates in the `x`, `y` and `z` directions, respectively,
 `uᵢ′` and `uⱼ′` are the velocity perturbations in the `i` and `j` directions, respectively, and `∂ⱼ` is the derivative in the `j` direction.
+On a `HydrostaticFreeSurfaceModel`, which has no `w`-momentum equation, `i` runs over `u` and `v` only,
+so the terms with `∂ⱼW` drop out, while `w′ = w - W` still enters as `uⱼ′`.
 
 ```jldoctest
 julia> using Oceananigans, Oceanostics
@@ -327,7 +348,7 @@ end
 
 function TurbulentKineticEnergyShearProductionRate(model; U=ZeroField(), V=ZeroField(), W=ZeroField(), kwargs...)
     u, v, w = model.velocities
-    return TurbulentKineticEnergyShearProductionRate(u-U, v-V, w-W, U, V, W; kwargs...)
+    return TurbulentKineticEnergyShearProductionRate(u-U, v-V, w-W, row_means(model, U, V, W)...; kwargs...)
 end
 #---
 

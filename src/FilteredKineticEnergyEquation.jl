@@ -9,14 +9,14 @@ export FilteredKineticEnergyDissipationRate, DissipationRate
 
 using Oceananigans: fields
 using Oceananigans.Grids: Center, Face
-using Oceananigans.Fields: Field
+using Oceananigans.Fields: Field, ZeroField
 using Oceananigans.Operators
 using Oceananigans.AbstractOperations: KernelFunctionOperation
 using Oceananigans.TurbulenceClosures: viscous_flux_ux, viscous_flux_uy, viscous_flux_uz,
                                        viscous_flux_vx, viscous_flux_vy, viscous_flux_vz,
                                        viscous_flux_wx, viscous_flux_wy, viscous_flux_wz
 
-using Oceanostics: CustomKFO, validate_closure_supplies_a_flux
+using Oceanostics: CustomKFO, validate_closure_supplies_a_flux, prognostic_velocities, prognostic_w_row
 using ..FlowDiagnostics: StressTensor, StrainRateTensor, to_center
 import ..FlowDiagnostics            # for the (unexported) `validate_dims`
 using ..SpatialFilters: GaussianFilter, BoxFilter   # BoxFilter is imported so its docstring `@ref` resolves in-module
@@ -26,11 +26,16 @@ using ..KineticEnergyEquation: kinetic_energy_ccc   # reuse the ½uᵢuᵢ kerne
 # Filter only the velocities that the requested `dims` actually use: component τᵢⱼ / S̄ᵢⱼ needs uᵢ and
 # uⱼ, so velocity component d is filtered iff d ∈ dims; the others are passed through untouched (they
 # never enter the kept tensor components). Each filtered velocity is materialized as a `Field` so the
-# separable filter takes its fast staged path and is computed once and reused by both tensors.
+# separable filter takes its fast staged path and is computed once and reused by both tensors. A
+# `ZeroField`, the `w` that a hydrostatic model's budgets drop (see `prognostic_velocities`), filters
+# to itself.
+filtered_velocity(filter, ψ) = Field(filter(ψ))
+filtered_velocity(filter, ψ::ZeroField) = ψ
+
 function filtered_velocities(filter, dims, u, v, w)
-    ū = (1 in dims) ? Field(filter(u)) : u
-    v̄ = (2 in dims) ? Field(filter(v)) : v
-    w̄ = (3 in dims) ? Field(filter(w)) : w
+    ū = (1 in dims) ? filtered_velocity(filter, u) : u
+    v̄ = (2 in dims) ? filtered_velocity(filter, v) : v
+    w̄ = (3 in dims) ? filtered_velocity(filter, w) : w
     return ū, v̄, w̄
 end
 
@@ -39,13 +44,14 @@ end
 # `ū, v̄, w̄` for both the strain rate and this stress. Computes τᵢⱼ = filter(uᵢuⱼ) - ūᵢūⱼ component by
 # component, reusing `StressTensor` to build the momentum-flux tensor uᵢuⱼ of both the full and the
 # filtered velocity; `filter` is applied to the (materialized) full flux and the filtered flux is
-# subtracted. The result is a `NamedTuple` with the same keys/locations as `StressTensor`.
-function subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, collocate_diagonals=false)
+# subtracted. The result is a `NamedTuple` with the same keys/locations as `StressTensor`, less the
+# components named in `without`, which are never filtered.
+function subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, collocate_diagonals=false, without=())
     flux_full = StressTensor(grid, u, v, w; dims, collocate_diagonals)   # uᵢuⱼ
     flux_filt = StressTensor(grid, ū, v̄, w̄; dims, collocate_diagonals)   # ūᵢūⱼ
     subfilter(full, filt) = Field(filter(Field(full))) - filt            # filter(uᵢuⱼ) - ūᵢūⱼ
-    ks = keys(flux_full)
-    return NamedTuple{ks}(map(subfilter, values(flux_full), values(flux_filt)))
+    ks = Tuple(k for k in keys(flux_full) if !(k in without))
+    return NamedTuple{ks}(map(k -> subfilter(flux_full[k], flux_filt[k]), ks))
 end
 #---
 
@@ -69,6 +75,8 @@ scales that a low-pass `filter` keeps:
 
 It is the filtered counterpart of the subfilter kinetic energy `eₖˢ = ½τᵢᵢ` (`SubFilterKineticEnergy`):
 the filter splits the flow's kinetic energy into the part it keeps (`eₖˡ`) and the part it removes (`eₖˢ`).
+On a `HydrostaticFreeSurfaceModel`, which has no `w`-momentum equation, the sum runs over `ū` and `v̄`
+only, so `eₖˡ = ½(ū² + v̄²)`, as the kinetic energy is `½(u² + v²)` there.
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The filtered velocities are materialized as `Field`s (so
@@ -97,8 +105,8 @@ A convenience method `FilteredKineticEnergy(model; σ, dims, boundary, N)` build
 for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
 """
 function FilteredKineticEnergy(model, filter)
-    u, v, w = model.velocities
-    ū, v̄, w̄ = filtered_velocities(filter, (1, 2, 3), u, v, w)   # materialize all three filtered velocities
+    u, v, w = prognostic_velocities(model)                       # w is a `ZeroField` on a hydrostatic model
+    ū, v̄, w̄ = filtered_velocities(filter, (1, 2, 3), u, v, w)   # materialize the filtered velocities
     return KernelFunctionOperation{Center, Center, Center}(filtered_kinetic_energy_ccc, model.grid, ū, v̄, w̄)
 end
 
@@ -143,10 +151,15 @@ keys(τ)
 The result is a `NamedTuple` with the independent components, each living at the same staggered
 location as the corresponding [`StressTensor`](@ref) component; `collocate_diagonals` has the same
 meaning as there and is forwarded to it (use `collocate_diagonals = true` to put the diagonals at
-`ccc`, e.g. to form the subfilter kinetic energy `½(τ₁₁ + τ₂₂ + τ₃₃)`). The filtered velocities `ūᵢ`
-and the filtered momentum fluxes `filter(uᵢuⱼ)` are materialized as `Field`s internally (the filter's
-fast staged path only fires when wrapped directly in a `Field`), so each returned component is a lazy
-operation over those computed fields and recomputes correctly when written by an `OutputWriter`.
+`ccc`). The filtered velocities `ūᵢ` and the filtered momentum fluxes `filter(uᵢuⱼ)` are materialized
+as `Field`s internally (the filter's fast staged path only fires when wrapped directly in a `Field`), so
+each returned component is a lazy operation over those computed fields and recomputes correctly when
+written by an `OutputWriter`.
+
+Half the trace of the collocated diagonals squares each velocity after interpolating it, so it differs
+at the grid scale from
+[`SubFilterKineticEnergy`](@ref Oceanostics.SubFilterKineticEnergyEquation.SubFilterKineticEnergy),
+which squares each velocity on its own face as `KineticEnergy` does. Use the latter in a budget (#342).
 
 `dims` selects which spatial directions enter the tensor, exactly as in [`StressTensor`](@ref):
 component `τᵢⱼ` is kept only when both `i` and `j` are in `dims`, and only the velocities used by the
@@ -170,16 +183,38 @@ subfilter_stress_tensor(model; σ, dims = (1, 2, 3), boundary = :shrink, N = not
 #---
 
 #+++ Cross-scale kinetic-energy flux
-# Πₖ = -τᵢⱼ S̄ᵢⱼ contracted at cell centers. τ and S̄ share keys/ordering (both built with the same
-# `dims`), so we pair them component-by-component and weight the off-diagonals by 2 (tensor symmetry).
-# Each component is interpolated to (Center, Center, Center) before multiplying (via `FlowDiagnostics`'
-# shared `to_center`), matching the offline postprocessing convention.
+# Πₖ = -τᵢⱼ∂ⱼūᵢ contracted at cell centers, over the rows i the model has a momentum equation for and
+# the columns j in `dims`. With every row kept, τ's symmetry makes it the strain contraction -τᵢⱼS̄ᵢⱼ: τ
+# and S̄ share keys/ordering (both built with the same `dims`), so we pair them component-by-component and
+# weight the off-diagonals by 2. Each component is interpolated to (Center, Center, Center) before
+# multiplying (via `FlowDiagnostics`' shared `to_center`), matching the offline postprocessing convention.
 const _CONTRACTION = ((:τ₁₁, :S₁₁, 1), (:τ₂₂, :S₂₂, 1), (:τ₃₃, :S₃₃, 1),
                       (:τ₁₂, :S₁₂, 2), (:τ₁₃, :S₁₃, 2), (:τ₂₃, :S₂₃, 2))
 
-function _cross_scale_ke_flux(τ, S̄)
-    terms = (weight * to_center(τ[kτ]) * to_center(S̄[kS]) for (kτ, kS, weight) in _CONTRACTION if haskey(τ, kτ))
-    return -sum(terms)
+strain_contraction_terms(τ, S̄) =
+    Tuple(weight * to_center(τ[kτ]) * to_center(S̄[kS]) for (kτ, kS, weight) in _CONTRACTION if haskey(S̄, kS))
+
+cross_scale_ke_flux_terms(::Val{true}, filter, grid, dims, u, v, w, ū, v̄, w̄) =
+    strain_contraction_terms(subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims),
+                             StrainRateTensor(grid, ū, v̄, w̄; dims))
+
+# A model with no `w` row (see `prognostic_velocities`) keeps the rows i ∈ dims ∩ (1, 2) and the
+# columns j ∈ dims. Its i, j ≤ 2 block is the strain contraction. Its j = 3 column, -τᵢ₃∂zūᵢ, is the
+# vertical advection of horizontal momentum across scales (#342); the S̄ᵢ₃ of the strain contraction
+# would also bring in ∂ᵢw̄, from the `w` row. Each τᵢ₃∂zūᵢ is formed at τᵢ₃'s edge, where the model
+# forms the vertical flux of uᵢ, and the product is interpolated to (Center, Center, Center). τ₃₃
+# belongs to the `w` row alone, so it is never filtered.
+function cross_scale_ke_flux_terms(::Val{false}, filter, grid, dims, u, v, w, ū, v̄, w̄)
+    rows = Tuple(d for d in dims if d != 3)
+    isempty(rows) && throw(ArgumentError("On a model without a `w`-momentum equation, such as a `HydrostaticFreeSurfaceModel`, \
+                                          the cross-scale flux contracts the rows of `u` and `v` only, so `dims` \
+                                          must include 1 or 2; got dims = $dims"))
+    τ = subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims, without = (:τ₃₃,))
+    terms = strain_contraction_terms(τ, StrainRateTensor(grid, ū, v̄, w̄; dims = rows))
+    3 in dims || return terms
+    1 in rows && (terms = (terms..., to_center(τ.τ₁₃ * KernelFunctionOperation{Face, Center, Face}(∂zᶠᶜᶠ, grid, ū))))
+    2 in rows && (terms = (terms..., to_center(τ.τ₂₃ * KernelFunctionOperation{Center, Face, Face}(∂zᶜᶠᶠ, grid, v̄))))
+    return terms
 end
 
 # Expose the flux as a single `KernelFunctionOperation` so it displays like the other diagnostics (via
@@ -241,6 +276,28 @@ the velocities they use are filtered): the default `dims = (1, 2, 3)` gives the 
 directions are set independently inside `filter`, so you can filter horizontally yet contract the
 full tensor.
 
+On a `HydrostaticFreeSurfaceModel` the filtered kinetic energy is `½(ū² + v̄²)`: the model steps `u`
+and `v` and diagnoses `w`, which has no momentum equation but still advects `u` and `v`. The flux is
+then `Πₖ = -τᵢⱼ ∂ⱼūᵢ`, summed over the rows `i` in `dims` other than 3 and the columns `j` in `dims`, so
+the default `dims = (1, 2, 3)` gives
+
+```
+    Πₖ = -(τ₁₁S̄₁₁ + τ₂₂S̄₂₂ + 2τ₁₂S̄₁₂) - (τ₁₃ ∂zū + τ₂₃ ∂zv̄)
+```
+
+The second group is the vertical advection of horizontal momentum across scales. It takes the place of
+the `2τ₁₃S̄₁₃ + 2τ₂₃S̄₂₃` of the full flux, whose `∂xw̄` and `∂yw̄` parts, like `τ₃₃S̄₃₃`, belong to the
+`w` row. Each of its products is formed at the edge where `τ₁₃` or `τ₂₃` lives, which is where the model
+computes the vertical flux of `u` or `v`, and then interpolated to `(Center, Center, Center)`.
+`dims = (1, 2)` gives the first group alone, which is not the flux of `½(ū² + v̄²)` (#342), and `dims`
+must include 1 or 2.
+
+The contraction is a second-order discretization that does not depend on the advection scheme, so it
+does not reproduce the model's own discrete advective exchange between the filtered and subfilter
+scales. The two differ at the grid scale. When the filter width is a few grid spacings, that difference
+can be a sizable fraction of the domain integral of `Πₖ`, which is a small difference between forward
+and backward transfer (#342).
+
 A convenience method `KineticEnergyCrossScaleFlux(model; σ, dims, boundary, N)` builds the Gaussian
 `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
 """
@@ -250,12 +307,11 @@ function KineticEnergyCrossScaleFlux(model, filter; dims = (1, 2, 3))
     u, v, w = model.velocities
     ū, v̄, w̄ = filtered_velocities(filter, dims, u, v, w)
 
-    # Strain S̄ᵢⱼ of the filtered velocities, and the subfilter stress τᵢⱼ. The
-    # contraction interpolates every component to cell centers, so the components can stay at their
-    # natural staggered locations here; the result is wrapped in a `KernelFunctionOperation`.
-    S̄ = StrainRateTensor(grid, ū, v̄, w̄; dims)
-    τ = subfilter_stress_tensor(filter, grid, u, v, w, ū, v̄, w̄; dims)
-    return KernelFunctionOperation{Center, Center, Center}(cross_scale_ke_flux_ccc, grid, _cross_scale_ke_flux(τ, S̄))
+    # Each term pairs a component of the subfilter stress τᵢⱼ with the gradient of the filtered velocity
+    # it is contracted with. The components stay at their natural staggered locations until the
+    # contraction moves them to cell centers, and the sum is wrapped in a `KernelFunctionOperation`.
+    terms = cross_scale_ke_flux_terms(prognostic_w_row(model), filter, grid, dims, u, v, w, ū, v̄, w̄)
+    return KernelFunctionOperation{Center, Center, Center}(cross_scale_ke_flux_ccc, grid, -sum(terms))
 end
 
 KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N = nothing) =
@@ -282,6 +338,12 @@ KineticEnergyCrossScaleFlux(model; σ, dims = (1, 2, 3), boundary = :shrink, N =
 δw̄_τ̄₃₁(i, j, k, grid, w̄, τ̄) = -Axᶠᶜᶠ(i, j, k, grid) * δxᶠᵃᵃ(i, j, k, grid, w̄) * @inbounds(τ̄[i, j, k])
 δw̄_τ̄₃₂(i, j, k, grid, w̄, τ̄) = -Ayᶜᶠᶠ(i, j, k, grid) * δyᵃᶠᵃ(i, j, k, grid, w̄) * @inbounds(τ̄[i, j, k])
 δw̄_τ̄₃₃(i, j, k, grid, w̄, τ̄) = -Azᶜᶜᶜ(i, j, k, grid) * δzᵃᵃᶜ(i, j, k, grid, w̄) * @inbounds(τ̄[i, j, k])
+
+# A hydrostatic model has no `w` row (see `prognostic_velocities`): its `w̄` and its fluxes τ̄₃ⱼ are
+# `ZeroField`s, and the three terms are skipped without reading them
+δw̄_τ̄₃₁(i, j, k, grid, ::ZeroField, τ̄) = zero(grid)
+δw̄_τ̄₃₂(i, j, k, grid, ::ZeroField, τ̄) = zero(grid)
+δw̄_τ̄₃₃(i, j, k, grid, ::ZeroField, τ̄) = zero(grid)
 
 # fv = (u=ū, v=v̄, w=w̄) filtered velocities; ff = (τ̄₁₁, …, τ̄₃₃) pre-filtered full-flow viscous fluxes. Each
 # off-diagonal term is interpolated from its flux location to ccc exactly as in
@@ -356,10 +418,12 @@ needs a closure whose viscous fluxes are defined. The filtered velocities and th
 materialized as `Field`s internally (and refreshed on recompute), so the returned object is a lazy
 operation ready for `Field`, `Integral`, and `OutputWriter`s and recomputes as the simulation evolves.
 
-Unlike the cross-scale flux and the stress tensor, this diagnostic takes no `dims` argument: it always
-forms the full viscous contraction (matching
-[`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)). The directions
-the filter acts in are set inside `filter`.
+Unlike the cross-scale flux and the stress tensor, this diagnostic takes no `dims` argument: it
+contracts every row the model has a momentum equation for, matching
+[`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate). On a
+`HydrostaticFreeSurfaceModel` that leaves out the `w` row, so `εₖˡ` is the dissipation of `½(ū² + v̄²)`,
+while `τ̄₁ⱼ` and `τ̄₂ⱼ` are still the model's fluxes, built with its diagnosed `w`. The directions the
+filter acts in are set inside `filter`.
 
 A convenience method `FilteredKineticEnergyDissipationRate(model; σ, dims, boundary, N)` builds the
 Gaussian `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`);
@@ -368,26 +432,28 @@ Gaussian `filter` for you from a standard deviation `σ` (with `σ = ℓ / (2√
 function FilteredKineticEnergyDissipationRate(model, filter)
     validate_closure_supplies_a_flux("FilteredKineticEnergyDissipationRate", model)
     grid = model.grid
-    u, v, w = model.velocities
 
-    # Filtered velocities ūᵢ for the gradient ∂ⱼūᵢ, materialized so the separable filter takes its fast
-    # staged path.
-    fv = (u = Field(filter(u)), v = Field(filter(v)), w = Field(filter(w)))
+    # Filtered velocities ūᵢ for the gradient ∂ⱼūᵢ of each row, materialized so the separable filter takes
+    # its fast staged path. A hydrostatic model has no `w` row, so its `w̄` is the `ZeroField` that
+    # `prognostic_velocities` puts in place of `w`.
+    fv = map(ψ -> filtered_velocity(filter, ψ), prognostic_velocities(model))
 
     # τ̄ᵢⱼ = filter(τᵢⱼ(u)): the model's full-flow viscous fluxes (from the FULL velocities and closure),
     # each low-pass filtered and materialized at its staggered location. The flux operation reads the live
-    # model fields, so both `fv` and `ff` refresh when the diagnostic is recomputed.
+    # model fields, so both `fv` and `ff` refresh when the diagnostic is recomputed. The fluxes of a
+    # dropped `w` row are not filtered at all.
     flux_args = (model.closure, model.closure_fields, model.clock, fields(model), model.buoyancy)
     filtered_flux(f, LX, LY, LZ) = Field(filter(KernelFunctionOperation{LX, LY, LZ}(f, grid, flux_args...)))
+    w_row_flux(f, LX, LY, LZ) = fv.w isa ZeroField ? ZeroField() : filtered_flux(f, LX, LY, LZ)
     ff = (τ̄₁₁ = filtered_flux(viscous_flux_ux, Center, Center, Center),
           τ̄₁₂ = filtered_flux(viscous_flux_uy, Face,   Face,   Center),
           τ̄₁₃ = filtered_flux(viscous_flux_uz, Face,   Center, Face),
           τ̄₂₁ = filtered_flux(viscous_flux_vx, Face,   Face,   Center),
           τ̄₂₂ = filtered_flux(viscous_flux_vy, Center, Center, Center),
           τ̄₂₃ = filtered_flux(viscous_flux_vz, Center, Face,   Face),
-          τ̄₃₁ = filtered_flux(viscous_flux_wx, Face,   Center, Face),
-          τ̄₃₂ = filtered_flux(viscous_flux_wy, Center, Face,   Face),
-          τ̄₃₃ = filtered_flux(viscous_flux_wz, Center, Center, Center))
+          τ̄₃₁ = w_row_flux(viscous_flux_wx,    Face,   Center, Face),
+          τ̄₃₂ = w_row_flux(viscous_flux_wy,    Center, Face,   Face),
+          τ̄₃₃ = w_row_flux(viscous_flux_wz,    Center, Center, Center))
     return KernelFunctionOperation{Center, Center, Center}(filtered_dissipation_rate_ccc, grid, fv, ff)
 end
 

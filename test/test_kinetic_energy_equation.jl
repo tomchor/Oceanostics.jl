@@ -11,12 +11,6 @@ using Oceanostics.KineticEnergyEquation: KineticEnergyTendency, KineticEnergyAdv
 include("test_utils.jl")
 
 #+++ Helpers
-# Face values averaged onto the cell centres the way the `ℑ` operators do it, on the test grids:
-# periodic in `x` and `y`, where `interior` holds `N` faces, and bounded in `z`, where it holds `N + 1`
-ℑx_to_centers(a) = (a .+ circshift(a, (-1, 0, 0))) ./ 2
-ℑy_to_centers(a) = (a .+ circshift(a, (0, -1, 0))) ./ 2
-ℑz_to_centers(a) = (a[:, :, 1:end-1] .+ a[:, :, 2:end]) ./ 2
-
 # A hydrostatic model steps `u` and `v` and diagnoses `w`, so its kinetic energy and the terms of its
 # budget have no `w` row
 has_w_equation(model) = model isa NonhydrostaticModel

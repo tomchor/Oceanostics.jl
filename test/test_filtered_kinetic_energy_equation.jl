@@ -9,7 +9,8 @@ using Oceanostics: subfilter_stress_tensor, KineticEnergyCrossScaleFlux, Gaussia
 using Oceanostics: FilteredKineticEnergyDissipationRate, KineticEnergyDissipationRate
 using Oceanostics: StressTensor, StrainRateTensor
 
-arch = has_cuda_gpu() ? GPU() : CPU()
+# Common test utilities: `arch`, the closures and the interior-array helpers
+include("test_utils.jl")
 
 # Interpolate any operation to cell centers, the location where the flux is contracted.
 center(x) = @at (Center, Center, Center) x
@@ -228,6 +229,47 @@ function test_filtered_dissipation_recomputes(model, filt)
     @test interior(εf) ≈ interior(fresh)      # equals a dissipation built fresh on the new state
     return nothing
 end
+
+# A hydrostatic model steps u and v only, so its flux is -τᵢⱼ∂ⱼūᵢ with i over u and v and j over all three
+# directions (#342): the strain contraction of the horizontal block plus the column -τᵢ₃∂zūᵢ. The column
+# is built here from interior arrays, each product formed on the edge τᵢ₃ lives on and averaged onto the
+# centres by hand, so this checks where the product is formed as well as which terms enter.
+function test_hydrostatic_cross_scale_ke_flux(model, filt)
+    grid = model.grid
+    u, v, w = model.velocities
+    ū = Field(filt(u)); v̄ = Field(filt(v)); w̄ = Field(filt(w))
+
+    full     = StressTensor(grid, u, v, w)
+    filtered = StressTensor(grid, ū, v̄, w̄)
+    sub(f, c) = Field(filt(Field(f))) - c
+    τ₁₁ = sub(full.τ₁₁, filtered.τ₁₁); τ₂₂ = sub(full.τ₂₂, filtered.τ₂₂); τ₁₂ = sub(full.τ₁₂, filtered.τ₁₂)
+    τ₁₃ = sub(full.τ₁₃, filtered.τ₁₃); τ₂₃ = sub(full.τ₂₃, filtered.τ₂₃)
+
+    S̄ = StrainRateTensor(grid, ū, v̄, w̄; dims=(1, 2))
+    Π_horizontal = cpu_interior(-(center(τ₁₁) * center(S̄.S₁₁) + center(τ₂₂) * center(S̄.S₂₂) + 2center(τ₁₂) * center(S̄.S₁₂)))
+    Π_vertical   = -(ℑz_to_centers(ℑx_to_centers(cpu_interior(τ₁₃) .* cpu_interior(∂z(ū)))) .+
+                     ℑz_to_centers(ℑy_to_centers(cpu_interior(τ₂₃) .* cpu_interior(∂z(v̄)))))
+
+    @test maximum(abs, cpu_interior(w)) > 0   # the diagnosed w advects u and v across scales
+    @test maximum(abs, Π_vertical) > 0
+    @test cpu_interior(KineticEnergyCrossScaleFlux(model, filt)) ≈ Π_horizontal .+ Π_vertical
+
+    # `dims = (1, 2)` keeps the horizontal block alone, and a `dims` without 1 or 2 leaves no row
+    @test cpu_interior(KineticEnergyCrossScaleFlux(model, filt; dims=(1, 2))) ≈ Π_horizontal
+    @test_throws ArgumentError KineticEnergyCrossScaleFlux(model, filt; dims=(3,))
+    return nothing
+end
+
+# A filter that is numerically the identity (σ ≪ Δx truncated at N=3) turns each filtered diagnostic into
+# its full-field counterpart. On a hydrostatic model that holds only if both leave out the `w` row (#330).
+function test_hydrostatic_identity_filter(model)
+    identity_filter = ψ -> GaussianFilter(ψ; dims=(1, 2), σ=1e-4, N=3)
+    @test cpu_interior(FilteredKineticEnergy(model, identity_filter)) ≈ cpu_interior(Oceanostics.KineticEnergy(model))
+    @test cpu_interior(FilteredKineticEnergyDissipationRate(model, identity_filter)) ≈
+          cpu_interior(KineticEnergyDissipationRate(model))
+    @test all(cpu_interior(KineticEnergyCrossScaleFlux(model, identity_filter)) .== 0)
+    return nothing
+end
 #---
 
 @testset "Filtered kinetic energy equation" begin
@@ -274,4 +316,11 @@ end
     test_filtered_dissipation_convenience(model_ν)
     test_filtered_dissipation_uniform_vanishes(grid_periodic, ψ -> GaussianFilter(ψ; dims=(1, 2, 3), σ=0.1))
     test_filtered_dissipation_recomputes(model_ν, filt) # mutates model_ν; keep last
+
+    # A hydrostatic model has no `w` row, while its diagnosed `w` still advects `u` and `v`
+    @info "    Hydrostatic model: cross-scale flux and the `w` row"
+    hydrostatic = HydrostaticFreeSurfaceModel(grid; closure=first(closures), buoyancy=BuoyancyTracer(), tracers=:b)
+    set!(hydrostatic, u=(x, y, z) -> randn(), v=(x, y, z) -> randn())
+    test_hydrostatic_cross_scale_ke_flux(hydrostatic, ψ -> GaussianFilter(ψ; dims=(1, 2), σ=0.1))
+    test_hydrostatic_identity_filter(hydrostatic)
 end

@@ -13,7 +13,7 @@ export SubFilterAvailablePotentialToKineticEnergyConversion
 using Oceananigans.Fields: Field
 using Oceananigans.Grids: Center
 using Oceananigans.AbstractOperations: KernelFunctionOperation
-using Oceanostics: CustomKFO, validate_closure_supplies_a_flux
+using Oceanostics: CustomKFO, validate_closure_supplies_a_flux, prognostic_velocities
 
 using ..KineticEnergyEquation: KineticEnergyDissipationRate, KineticEnergy
 using ..FilteredKineticEnergyEquation: FilteredKineticEnergy, FilteredKineticEnergyDissipationRate,
@@ -49,7 +49,9 @@ equivalently `eₖˢ = ½ τᵢᵢ` with the subfilter stress `τᵢⱼ = filter
 framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). It is assembled from
 the full kinetic energy `eₖ` and [`FilteredKineticEnergy`](@ref) `eₖˡ`, which share the same
 interpolate-the-square (`½⟨uᵢ²⟩`) discretization, so the discrete decomposition `filter(eₖ) = eₖˡ + eₖˢ` holds
-exactly by construction (on any grid, not just where the filter and interpolation commute).
+exactly by construction (on any grid, not just where the filter and interpolation commute). On a
+`HydrostaticFreeSurfaceModel`, whose kinetic energy is `½(u² + v²)`, the sums run over `u` and `v` only,
+so `eₖˢ = ½(τ₁₁ + τ₂₂)`.
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). The full kinetic energy is materialized as a `Field`
@@ -78,7 +80,7 @@ A convenience method `SubFilterKineticEnergy(model; σ, dims, boundary, N)` buil
 for you from a standard deviation `σ` (with `σ = ℓ / (2√(2 ln 2))` for a FWHM `ℓ`).
 """
 function SubFilterKineticEnergy(model, filter)
-    u, v, w = model.velocities
+    u, v, w = prognostic_velocities(model)       # w is a `ZeroField` on a hydrostatic model
     k  = KineticEnergy(model, u, v, w)           # full kinetic energy eₖ = ½uᵢuᵢ (kinetic_energy_ccc)
     k̄ = Field(filter(Field(k)))                  # filter(eₖ) materialized so the filter takes its staged path
     ū, v̄, w̄ = filtered_velocities(filter, (1, 2, 3), u, v, w) # ūᵢ = filter(uᵢ), materialized as `Field`s
@@ -112,8 +114,10 @@ where `εₖ` is the dissipation rate of the full flow
 ([`KineticEnergyDissipationRate`](@ref Oceanostics.KineticEnergyEquation.DissipationRate)) and `εₖˡ` is the
 dissipation rate of the filtered flow ([`FilteredKineticEnergyDissipationRate`](@ref)). It is the viscous
 sink in the budget of the subfilter kinetic energy `eₖˢ` ([`SubFilterKineticEnergy`](@ref);
-filtering framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). For a
-constant viscosity it reduces to `2ν[filter(SᵢⱼSᵢⱼ) - S̄ᵢⱼ S̄ᵢⱼ] ≥ 0`, a strictly positive sink.
+filtering framework of Aluie et al., 2018, *J. Phys. Oceanogr.*, doi:10.1175/JPO-D-17-0100.1). On a
+`NonhydrostaticModel` with a constant viscosity it reduces to `2ν[filter(SᵢⱼSᵢⱼ) - S̄ᵢⱼ S̄ᵢⱼ] ≥ 0`, a
+strictly positive sink. On a `HydrostaticFreeSurfaceModel` both rates leave out the `w` row, which that
+model has no momentum equation for, so the decomposition stays exact but that reduction does not apply.
 
 `filter` is any callable mapping a field to its low-pass-filtered counterpart, e.g. a reusable
 [`GaussianFilter`](@ref) or [`BoxFilter`](@ref). Following the `KineticEnergyCrossScaleFlux` pattern, the

@@ -1,5 +1,6 @@
 using Test
 using CUDA: @allowscalar
+using Oceananigans.Fields: ZeroField
 using Oceananigans.TurbulenceClosures: AbstractScalarDiffusivity, ThreeDimensionalFormulation
 
 using Oceanostics
@@ -150,6 +151,31 @@ function test_ke_dissipation_rate_terms(grid; model_type=NonhydrostaticModel, cl
 
     return nothing
 end
+
+# A hydrostatic model has no `w` row (#330): with no mean its TKE is its kinetic energy ½(u² + v²),
+# and its shear production rates drop the terms with ∂ⱼW while w′ = w - W still enters as uⱼ′. The
+# means vary in x, so the `w` row of the x shear production, w′u′∂xW, is nonzero and has to be left out.
+function test_hydrostatic_tke_drops_w_row(grid)
+    model = HydrostaticFreeSurfaceModel(grid; closure=first(closures), model_kwargs...)
+    set!(model, u=grid_noise, v=grid_noise)
+    u, v, w = model.velocities
+
+    @test cpu_interior(TurbulentKineticEnergyEquation.TurbulentKineticEnergy(model)) ≈
+          cpu_interior(KineticEnergyEquation.KineticEnergy(model))
+
+    U = Field(Average(u, dims=(2, 3)))
+    V = Field(Average(v, dims=(2, 3)))
+    W = Field(Average(w, dims=(2, 3)))
+    TKE = TurbulentKineticEnergyEquation
+    @test !(cpu_interior(TKE.XShearProductionRate(u - U, v - V, w - W, U, V, W)) ≈
+            cpu_interior(TKE.XShearProductionRate(u - U, v - V, w - W, U, V, ZeroField())))
+
+    for P in (TKE.XShearProductionRate, TKE.YShearProductionRate, TKE.ZShearProductionRate, TKE.ShearProductionRate)
+        @test cpu_interior(P(model; U, V, W)) ≈ cpu_interior(P(u - U, v - V, w - W, U, V, ZeroField()))
+    end
+
+    return nothing
+end
 #---
 
 @testset "Turbulent Kinetic Energy Equation tests" begin
@@ -172,6 +198,9 @@ end
                 test_total_shear_production_consistency(model)
             end
         end
+
+        @info "      Testing that the HydrostaticFreeSurfaceModel TKE and shear production drop the w row"
+        test_hydrostatic_tke_drops_w_row(grid)
 
         @info "        Testing input validation for dissipation rates"
         invalid_closures = [HorizontalScalarDiffusivity(ν=1e-6, κ=1e-7),

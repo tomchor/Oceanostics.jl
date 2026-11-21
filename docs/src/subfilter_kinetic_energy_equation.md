@@ -45,6 +45,12 @@ with two sources and one sink:
     dissipation ``\varepsilon_k^l`` of the filtered flow
     ([`FilteredKineticEnergyDissipationRate`](@ref)).
 
+On a `HydrostaticFreeSurfaceModel` the subfilter kinetic energy is that of ``u`` and ``v``,
+``e_k^s = \tfrac{1}{2}\left(\tau^r_{11} + \tau^r_{22}\right)``, and each term follows the convention of
+[Hydrostatic models](@ref filtered_ke_hydrostatic): ``\Pi_k`` contracts ``\tau^r_{i3}`` with
+``\partial_z \bar u_i`` in place of ``\bar S_{i3}``, and both dissipation rates in
+``\varepsilon_k^s`` leave out the ``w`` row.
+
 The [Rayleigh-Taylor instability](@ref rayleigh_taylor_example) example closes this budget for a
 large-eddy simulation.
 
